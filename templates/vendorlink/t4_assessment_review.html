@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 4.3 — 3PL Capability Assessment, admin review mirror.
+
+Wireframe
+    breadcrumb / company + status chip
+    ┌ rail: % complete + per-section tick ┐┌ read-only sections ─────┐
+    └ sticky footer: Approve · Reject · Promote to vendor ───────────┘
+
+Read-only by design. Approve / reject / promote stay on their existing
+endpoints in assessment.py, which own the vendor promotion and the
+notification email; this screen shows what was answered and hands off.
+
+Completion counts only the fields the SOW marks required — counting optional
+ones would mean the rail never reaches 100% and stops meaning anything.
+
+States: unanswered field (says "not answered", never blank), section with no
+required fields (no tick claimed), non-admin (view is admin-gated).
+{% endcomment %}
+
+{% block title %}{{ assessment.company_name|default:assessment.vendor_email }} — Assessment{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap" style="padding-bottom:88px;">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:assessment_list' %}">Assessments</a>
+                <span class="sep">/</span><span class="current">Review</span>
+            </nav>
+            <h1 class="vl-title">{{ assessment.company_name|default:"Untitled submission" }}</h1>
+            <p class="vl-subtitle" style="display:flex;align-items:center;gap:var(--vl-2);flex-wrap:wrap;">
+                <span class="vl-chip vl-chip--{% if assessment.status == 'approved' %}approved{% elif assessment.status == 'rejected' %}rejected{% elif assessment.status == 'submitted' %}submitted{% else %}pending{% endif %}">
+                    {{ assessment.get_status_display }}
+                </span>
+                <span class="vl-meta">{{ assessment.vendor_email }}{% if assessment.submitted_at %} · submitted {{ assessment.submitted_at|date:"d M Y" }}{% endif %}</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="vl-railed">
+        <aside class="vl-card" style="padding:var(--vl-3);position:sticky;top:var(--vl-4);">
+            <div class="vl-kpi__label">Completion</div>
+            <div class="vl-kpi__value">{{ percent }}%</div>
+            <div class="vl-rank__bar" style="width:100%;margin:var(--vl-2) 0 var(--vl-3);">
+                <span style="width:{{ percent }}%"></span>
+            </div>
+            <nav class="vl-rail">
+                {% for s in sections %}
+                <a href="#sec{{ forloop.counter }}">
+                    <span>{{ s.title }}</span>
+                    <span class="vl-rail__n" style="color:{% if s.complete %}var(--vl-green){% else %}var(--vl-ink-3){% endif %};">
+                        {% if s.complete %}&check;{% else %}{{ s.filled }}/{{ s.required }}{% endif %}
+                    </span>
+                </a>
+                {% endfor %}
+            </nav>
+        </aside>
+
+        <div style="display:flex;flex-direction:column;gap:var(--vl-3);">
+            {% for s in sections %}
+            <section class="vl-card" id="sec{{ forloop.counter }}">
+                <div class="vl-card__head">
+                    <h2 class="vl-card__title">{{ s.title }}</h2>
+                    {% if s.required %}
+                    <span class="vl-meta">{{ s.filled }} of {{ s.required }} required answered</span>
+                    {% endif %}
+                </div>
+                <div class="vl-card__body">
+                    <dl style="margin:0;display:grid;gap:var(--vl-3);">
+                        {% for f in s.fields %}
+                        <div>
+                            <dt style="font-size:var(--vl-t-sm);font-weight:600;">
+                                {{ f.label }}
+                                {% if f.required %}<span style="color:var(--vl-red);">*</span>{% endif %}
+                            </dt>
+                            {% if f.hint %}<dd class="vl-meta" style="margin:0 0 2px;">{{ f.hint }}</dd>{% endif %}
+                            <dd style="margin:0;font-size:var(--vl-t-sm);white-space:pre-wrap;">
+                                {% comment %}
+                                An unanswered field says so rather than
+                                rendering blank — a blank line reads as an
+                                answer of "nothing", which is not the same as
+                                a question the vendor skipped.
+                                {% endcomment %}
+                                {% if f.value %}{{ f.value }}
+                                {% else %}<span class="vl-meta" style="font-style:italic;">not answered</span>{% endif %}
+                            </dd>
+                        </div>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </section>
+            {% endfor %}
+
+            {% if assessment.review_notes %}
+            <div class="vl-card">
+                <div class="vl-card__head"><h2 class="vl-card__title">Review notes</h2></div>
+                <div class="vl-card__body" style="white-space:pre-wrap;font-size:var(--vl-t-sm);">{{ assessment.review_notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% comment %}
+Sticky footer so the actions are reachable from anywhere in a long form,
+without the reviewer having to scroll back. Each posts to its existing
+endpoint — this screen does not write.
+{% endcomment %}
+<div style="position:fixed;left:0;right:0;bottom:0;z-index:1100;
+            background:var(--vl-surface);border-top:1px solid var(--vl-border);
+            padding:var(--vl-3) var(--vl-6);display:flex;gap:var(--vl-2);align-items:center;">
+    <span class="vl-meta">{{ percent }}% of required fields answered</span>
+    <div style="margin-left:auto;display:flex;gap:var(--vl-2);">
+        <a class="vl-btn" href="{% url 'vendorlink:assessment_list' %}">Back to list</a>
+        <form method="post" action="{% url 'vendorlink:assessment_reject' assessment.pk %}" style="margin:0;">
+            {% csrf_token %}<button class="vl-btn vl-btn--danger">Reject</button>
+        </form>
+        <form method="post" action="{% url 'vendorlink:assessment_approve' assessment.pk %}" style="margin:0;">
+            {% csrf_token %}<button class="vl-btn">Approve</button>
+        </form>
+        <form method="post" action="{% url 'vendorlink:assessment_promote' assessment.pk %}" style="margin:0;">
+            {% csrf_token %}<button class="vl-btn vl-btn--primary">Promote to vendor</button>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

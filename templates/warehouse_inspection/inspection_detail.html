@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inspection Details - {{ inspection.warehouse.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .inspection-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+
+    .progress-bar-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+        font-weight: 600;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 12px;
+        background: #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .inspection-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .inspection-header h1 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .header-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .meta-item {
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+        padding-right: 1.5rem;
+    }
+
+    .meta-item:last-child {
+        border-right: none;
+    }
+
+    .meta-label {
+        opacity: 0.9;
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .meta-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .items-form {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .item-card {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1.5rem;
+        transition: background 0.2s ease;
+    }
+
+    .item-card:last-child {
+        border-bottom: none;
+    }
+
+    .item-card:hover {
+        background: #f9fafb;
+    }
+
+    .item-number {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 32px;
+        font-weight: 700;
+        margin-right: 0.8rem;
+    }
+
+    .item-title {
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1rem;
+        font-size: 1rem;
+    }
+
+    {% if item.checklist_item.description %}
+    .item-description {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        line-height: 1.6;
+    }
+    {% endif %}
+
+    .item-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .response-option {
+        display: flex;
+        align-items: center;
+    }
+
+    .response-option input[type="radio"] {
+        margin-right: 0.5rem;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .response-option label {
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .comments-area {
+        margin-top: 1rem;
+    }
+
+    .comments-area label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .comments-area textarea {
+        width: 100%;
+        padding: 0.8rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        min-height: 80px;
+        transition: border-color 0.3s ease;
+        font-family: inherit;
+    }
+
+    .comments-area textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-actions {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn {
+        padding: 0.9rem 2.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+        background: #f0f4ff;
+    }
+
+    @media (max-width: 768px) {
+        .inspection-container {
+            padding: 1rem;
+        }
+
+        .header-meta {
+            grid-template-columns: 1fr;
+        }
+
+        .item-controls {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inspection-container">
+    <!-- Progress -->
+    <div class="progress-bar-container">
+        <div class="progress-label">
+            <span>Inspection Progress</span>
+            <span>{{ completion_percentage }}%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ completion_percentage }}%;"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="inspection-header">
+        <h1>
+            <i class="fas fa-clipboard-check"></i> Warehouse Inspection
+        </h1>
+        <div class="header-meta">
+            <div class="meta-item">
+                <div class="meta-label">Warehouse</div>
+                <div class="meta-value">{{ inspection.warehouse.name }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Template</div>
+                <div class="meta-value">{{ inspection.template.name }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Inspector</div>
+                <div class="meta-value">{{ request.user.get_full_name|default:request.user.username }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Date</div>
+                <div class="meta-value">{{ inspection.inspection_date|date:"M d, Y" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspection Items Form -->
+    <form method="POST" class="items-form">
+        {% csrf_token %}
+
+        {% for item in items %}
+        <div class="item-card">
+            <div class="item-title">
+                <span class="item-number">{{ forloop.counter }}</span>
+                {{ item.checklist_item.item_name }}
+            </div>
+
+            {% if item.checklist_item.description %}
+            <div class="item-description">
+                <i class="fas fa-info-circle"></i> {{ item.checklist_item.description }}
+            </div>
+            {% endif %}
+
+            <div class="item-controls">
+                <label class="response-option">
+                    <input type="radio" name="item_{{ item.id }}" value="pass" required>
+                    <span><i class="fas fa-check-circle" style="color: #10b981;"></i> Pass</span>
+                </label>
+                <label class="response-option">
+                    <input type="radio" name="item_{{ item.id }}" value="fail" required>
+                    <span><i class="fas fa-times-circle" style="color: #ef4444;"></i> Fail</span>
+                </label>
+                <label class="response-option">
+                    <input type="radio" name="item_{{ item.id }}" value="partial" required>
+                    <span><i class="fas fa-minus-circle" style="color: #f59e0b;"></i> Partial</span>
+                </label>
+                <label class="response-option">
+                    <input type="radio" name="item_{{ item.id }}" value="na" required>
+                    <span><i class="fas fa-circle" style="color: #9ca3af;"></i> N/A</span>
+                </label>
+            </div>
+
+            <div class="comments-area">
+                <label for="comments_{{ item.id }}">Comments (Optional)</label>
+                <textarea name="comments_{{ item.id }}" id="comments_{{ item.id }}" placeholder="Add any comments or observations..."></textarea>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Recommendations Section -->
+        <div class="item-card" style="background: #f0f4ff; border-bottom: none;">
+            <div class="item-title">
+                <i class="fas fa-lightbulb"></i> Recommendations
+            </div>
+            <div class="comments-area" style="margin-top: 0;">
+                <label for="recommendations">General Recommendations (Optional)</label>
+                <textarea name="recommendations" id="recommendations" placeholder="Enter any general recommendations for the warehouse..."></textarea>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="{% url 'warehouse_inspection:checklist' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check-circle"></i> Submit Inspection
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

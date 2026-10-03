@@ -1,0 +1,371 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Live Scan / Live Validate console. No polling here — unlike the outbound
+console, scan_session_scan has no companion "state" GET endpoint to poll, so
+this reflects exactly what the API returns: the counters embedded in each
+scan's own response, nothing fabricated client-side.
+{% endcomment %}
+
+{% block mv_title %}{{ session }}{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:extractor' %}">Barcode Extractor</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ session }}</span>
+{% endblock %}
+{% block mv_heading %}{{ session }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ session.get_mode_display }} · {{ session.entity.name }}{% if session.condition %} · {{ session.condition }}{% endif %}{% if session.box_no %} · Box {{ session.box_no }}{% endif %}</p>{% endblock %}
+{% block mv_actions %}
+{% if session.mode == "live_validate" and session.dump_file %}
+<a href="{% url 'merilv:scan_session_columns' session.pk %}" class="mv-btn">{% icon "list" %} Column mapping</a>
+{% endif %}
+<a href="{% url 'merilv:scan_session_export' session.pk %}" class="mv-btn">{% icon "download" %} Export</a>
+{% if not session.is_finished %}
+<button type="button" class="mv-btn mv-btn--primary" data-mv-open-modal="mvFinishSessionModal">{% icon "check" %} Finish</button>
+{% endif %}
+{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="extractor" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "list" %}</span><span class="mv-kpi__label">Total</span><span class="mv-kpi__value" id="mvKpiTotal">{{ session.total_count }}</span></div>
+    <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Found / Matched</span><span class="mv-kpi__value" id="mvKpiFound">{{ session.found_count }}</span></div>
+    <div class="mv-kpi mv-kpi--danger"><span class="mv-kpi__icon">{% icon "x-circle" %}</span><span class="mv-kpi__label">Not Found</span><span class="mv-kpi__value" id="mvKpiNotFound">{{ session.not_found_count }}</span></div>
+    <div class="mv-kpi mv-kpi--warn"><span class="mv-kpi__icon">{% icon "layers" %}</span><span class="mv-kpi__label">Duplicates</span><span class="mv-kpi__value" id="mvKpiDup">{{ session.duplicate_count }}</span></div>
+    {% comment %}Row 3.4 — Box Count alongside the session-wide Total, so a picker packing several cartons in one session can see "how full is THIS box" without doing the arithmetic themselves.{% endcomment %}
+    <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Box Count<span id="mvKpiBoxLabel"></span></span><span class="mv-kpi__value" id="mvKpiBoxCount">{% if session.box_no %}{{ box_count }}{% else %}—{% endif %}</span></div>
+</div>
+
+{% if session.is_finished %}
+<div class="mv-alert mv-alert--ok">{% icon "check-circle" %}<div>This session is finished. It is read-only.</div></div>
+{% else %}
+<div class="mv-card">
+    <div class="mv-field-row" style="margin-bottom:var(--mv-3);">
+        <div class="mv-field">
+            <label class="mv-label" for="mvBoxNo">Box</label>
+            <input type="text" class="mv-input mv-mono" id="mvBoxNo" value="{{ session.box_no }}" placeholder="e.g. Box 3" autocomplete="off">
+        </div>
+        <div class="mv-field">
+            <label class="mv-label">Condition for new scans</label>
+            <div class="mv-viewswitch" role="group" aria-label="Condition for new scans">
+                <button type="button" id="mvCondGood" data-cond="Good" aria-pressed="{% if session.condition != 'Damage' %}true{% else %}false{% endif %}">{% icon "check-circle" 14 %}<span>Good</span></button>
+                <button type="button" id="mvCondDamage" data-cond="Damage" aria-pressed="{% if session.condition == 'Damage' %}true{% else %}false{% endif %}">{% icon "alert" 14 %}<span>Damage</span></button>
+            </div>
+        </div>
+    </div>
+    <input type="text" class="mv-scan-input" id="mvScanInput" autocomplete="off" autofocus placeholder="SCAN BARCODE" aria-label="Scan barcode">
+    <div class="mv-scan-statusline" style="margin-top:var(--mv-2);">
+        <span id="mvScanStatus">Ready to scan.</span>
+        {% comment %}Only visible when something is actually waiting — an
+        always-on "0 queued" would be noise on the happy path.{% endcomment %}
+        <span id="mvQueueState" class="mv-badge mv-badge--warn" hidden></span>
+    </div>
+    {% comment %}
+    Running log of every scan attempt, filling the space under the input. The
+    status line above shows only the latest outcome and the Scan feed table is
+    further down the page, so there was nowhere to check the last few scans
+    without scrolling away from an input that has to stay focused for the gun.
+    {% endcomment %}
+    <div class="mv-scanlog" id="mvScanLog" role="log" aria-live="polite" aria-label="Scan log">
+        <div class="mv-scanlog__empty" id="mvScanLogEmpty">Scans will be logged here as you go.</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "scan" %} Scan feed</h2></div>
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense mv-table--zebra">
+        <thead><tr><th>Raw</th><th>Material</th><th>Batch</th><th>Serial</th><th>Expiry</th><th>Description</th><th>Box</th><th>Condition</th><th>Result</th><th>Comment</th></tr></thead>
+        <tbody id="mvScanFeed">
+            {% for r in records %}
+            <tr class="{% scan_result_row_class r.result %}">
+                <td class="mv-mono">{{ r.raw_scan|truncatechars:24 }}</td>
+                <td class="mv-mono">{{ r.material|default:"—" }}</td>
+                <td class="mv-mono">{{ r.batch|default:"—" }}</td>
+                <td class="mv-mono">{{ r.serial|default:"—" }}</td>
+                {% comment %}Row 3.9 — the date is banded against this entity's own
+                near/short thresholds, so an expired or nearly-expired item is visible
+                without reading six digits and doing the arithmetic.{% endcomment %}
+                <td class="{% expiry_cell_class r.expiry_state %}" title="{% expiry_cell_title r.expiry_state %}">{{ r.expiry_code|default:"—" }}</td>
+                <td class="mv-fg-3">{{ r.description|default:"—"|truncatechars:32 }}</td>
+                <td class="mv-mono">{{ r.box_no|default:"—" }}</td>
+                <td>
+                    {% comment %}Row 3.5 — correctable after the fact, independent of whatever the session's toggle is set to now.{% endcomment %}
+                    <select class="mv-select mv-select--sm mv-cond-select" data-record="{{ r.pk }}" {% if session.is_finished %}disabled{% endif %}>
+                        <option value="Good" {% if r.condition == "Good" or not r.condition %}selected{% endif %}>Good</option>
+                        <option value="Damage" {% if r.condition == "Damage" %}selected{% endif %}>Damage</option>
+                    </select>
+                </td>
+                <td>{% scan_result_badge r.result %}</td>
+                <td class="mv-t-caption">{{ r.comment|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="10"><div class="mv-empty">{% icon "scan" 48 %}<div class="mv-empty__title">No scans yet</div></div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+{% if not session.is_finished %}
+<div class="mv-modal-scrim" id="mvFinishSessionModal">
+    <div class="mv-modal" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'merilv:scan_session_finish' session.pk %}">
+            {% csrf_token %}
+            <div class="mv-modal__head"><h2 class="mv-t-h2">Finish session</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button></div>
+            <div class="mv-modal__body">
+                <div class="mv-field"><label class="mv-label" for="mvFinishName">Name</label>
+                    <input class="mv-input" id="mvFinishName" name="name" value="{{ session.name }}" placeholder="Optional label for this session"></div>
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Finish &amp; save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script src="{% static 'merilv/js/offline_queue.js' %}"></script>
+<script>
+(function () {
+    var input = document.getElementById('mvScanInput');
+    if (!input) { return; }
+    var feed = document.getElementById('mvScanFeed');
+    var status = document.getElementById('mvScanStatus');
+    var boxInput = document.getElementById('mvBoxNo');
+    var condGood = document.getElementById('mvCondGood');
+    var condDamage = document.getElementById('mvCondDamage');
+    var boxLabel = document.getElementById('mvKpiBoxLabel');
+    var boxCountEl = document.getElementById('mvKpiBoxCount');
+    var ui = window.mvUI || { toast: function () {}, csrfHeaders: function () { return {}; } };
+
+    var SCAN_URL = '{% url "merilv:scan_session_scan" session.pk %}';
+    var EXPIRY_TITLES = {
+        expired: 'Expired — this stock is past its date.',
+        near_expiry: 'Near expiry — inside this entity’s near-expiry window.',
+        short_expiry: 'Short expiry — inside this entity’s short-expiry window.',
+        damage: 'Marked damaged.'
+    };
+
+    /* Offline queue, one list per session so two open consoles cannot replay
+       each other's scans. Absent only if the module failed to load, in which
+       case everything below degrades to the old online-only behaviour. */
+    var queue = window.mvOfflineQueue
+        ? window.mvOfflineQueue.create('scan_session_{{ session.pk }}', renderQueueState)
+        : null;
+
+    function renderQueueState() {
+        var pending = queue ? queue.size() : 0;
+        var el = document.getElementById('mvQueueState');
+        if (!el) { return; }
+        el.hidden = pending === 0;
+        el.textContent = pending
+            ? pending + ' scan' + (pending === 1 ? '' : 's') + ' waiting to send'
+            : '';
+    }
+
+    function drainQueue() {
+        if (!queue || !queue.size()) { return; }
+        queue.drain(function (entry) {
+            var fd = new FormData();
+            Object.keys(entry.fields).forEach(function (k) { fd.append(k, entry.fields[k]); });
+            return fetch(entry.url, { method: 'POST', headers: ui.csrfHeaders(), body: fd });
+        }).then(function (res) {
+            renderQueueState();
+            if (res && res.drained) {
+                ui.toast('success', 'Queued scans sent', res.drained + ' scan(s) reached the server.');
+                logScan('—', 'synced', 'ok', res.drained + ' queued scan(s) sent.');
+            }
+        });
+    }
+
+    // Drain when the browser says it is back, and once on load for scans left
+    // queued by a previous visit.
+    window.addEventListener('online', drainQueue);
+    drainQueue();
+    renderQueueState();
+    var posting = false;
+    var currentCondition = condDamage && condDamage.getAttribute('aria-pressed') === 'true' ? 'Damage' : 'Good';
+
+    function refocus() { if (document.activeElement !== input && !document.querySelector('.mv-modal-scrim.is-open')) { input.focus(); } }
+
+    var scanLog = document.getElementById('mvScanLog');
+    var scanLogEmpty = document.getElementById('mvScanLogEmpty');
+
+    /* One line per scan attempt, newest at the top. Built with textContent
+       rather than innerHTML: a barcode is arbitrary scanned input and a server
+       message can quote it back, so neither is safe to interpolate as markup. */
+    function logScan(raw, result, family, message) {
+        if (!scanLog) { return; }
+        if (scanLogEmpty) { scanLogEmpty.remove(); scanLogEmpty = null; }
+
+        var row = document.createElement('div');
+        row.className = 'mv-scanlog__row';
+
+        var time = document.createElement('span');
+        time.className = 'mv-scanlog__time';
+        time.textContent = new Date().toLocaleTimeString([], { hour12: false });
+
+        var tag = document.createElement('span');
+        tag.className = 'mv-scanlog__tag mv-scanlog__tag--' + (family || 'neutral');
+        tag.textContent = result || 'logged';
+
+        var code = document.createElement('span');
+        code.className = 'mv-scanlog__code';
+        code.textContent = raw;
+        code.title = raw;
+
+        row.appendChild(time);
+        row.appendChild(tag);
+        row.appendChild(code);
+
+        if (message) {
+            var msg = document.createElement('span');
+            msg.className = 'mv-scanlog__msg';
+            msg.textContent = message;
+            msg.title = message;
+            row.appendChild(msg);
+        }
+
+        scanLog.insertBefore(row, scanLog.firstChild);
+        scanLog.scrollTop = 0;
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.target === input || document.querySelector('.mv-modal-scrim.is-open')) { return; }
+        if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { return; }
+        if (e.key.length === 1 || e.key === 'Backspace') { refocus(); }
+    });
+    refocus();
+
+    /* ── Good/Damage toggle for new scans (Row 3.5) ─────────────────────── */
+    function setCondition(cond) {
+        currentCondition = cond;
+        if (condGood) { condGood.setAttribute('aria-pressed', String(cond !== 'Damage')); }
+        if (condDamage) { condDamage.setAttribute('aria-pressed', String(cond === 'Damage')); }
+    }
+    if (condGood) { condGood.addEventListener('click', function () { setCondition('Good'); }); }
+    if (condDamage) { condDamage.addEventListener('click', function () { setCondition('Damage'); }); }
+
+    /* ── Per-row condition correction, independent of the toggle above
+     * (Row 3.5's "allow correcting condition after scan") ─────────────── */
+    if (feed) {
+        feed.addEventListener('change', function (e) {
+            var select = e.target.closest('.mv-cond-select');
+            if (!select) { return; }
+            var recordId = select.dataset.record;
+            var value = select.value;
+            var fd = new FormData();
+            fd.append('condition', value);
+            var url = '{% url "merilv:scan_session" session.pk %}' + 'record/' + recordId + '/condition/';
+            fetch(url, { method: 'POST', headers: ui.csrfHeaders(), body: fd })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.ok) { ui.toast('danger', 'Not saved', data.message || 'Could not update condition.'); }
+                })
+                .catch(function () { ui.toast('danger', 'Not saved', 'Check your connection and try again.'); });
+        });
+    }
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || posting) { return; }
+        var raw = input.value.trim();
+        if (!raw) { return; }
+        posting = true;
+        status.textContent = 'Submitting…';
+        var fd = new FormData();
+        fd.append('raw_scan', raw);
+        fd.append('condition', currentCondition);
+        if (boxInput) { fd.append('box_no', boxInput.value.trim()); }
+        // Generated before the first attempt and reused on any replay, so the
+        // server can tell a retry from a second unit. See ScanRecord.client_ref.
+        var clientRef = queue ? window.mvOfflineQueue.newRef() : '';
+        if (clientRef) { fd.append('client_ref', clientRef); }
+        fetch(SCAN_URL, { method: 'POST', headers: ui.csrfHeaders(), body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var row = data.row || {};
+                var family = { found: 'ok', match: 'ok', duplicate: 'warn', not_found: 'danger', mismatch: 'danger', excess: 'danger' }[data.result] || '';
+                var tr = document.createElement('tr');
+                if (family) { tr.className = 'mv-row--' + family; }
+                /* Row 3.9 — a wrong batch and a wrong serial are both MISMATCH
+                   and drew the same red row, but they need different actions:
+                   a batch error means fetch another carton, a serial error
+                   means the paperwork disagrees. The server says which. */
+                if (data.mismatch_kind) { tr.classList.add('mv-row--' + data.mismatch_kind); }
+                tr.innerHTML =
+                    '<td class="mv-mono"></td><td class="mv-mono"></td><td class="mv-mono"></td><td class="mv-mono"></td>' +
+                    '<td></td><td class="mv-fg-3"></td><td class="mv-mono"></td>' +
+                    '<td><select class="mv-select mv-select--sm mv-cond-select" data-record="' + (data.record_id || '') + '">' +
+                    '<option value="Good"' + (data.condition !== 'Damage' ? ' selected' : '') + '>Good</option>' +
+                    '<option value="Damage"' + (data.condition === 'Damage' ? ' selected' : '') + '>Damage</option></select></td>' +
+                    '<td><span class="mv-badge mv-badge--' + (family || 'neutral') + '"></span></td><td class="mv-t-caption"></td>';
+                var cells = tr.querySelectorAll('td');
+                cells[0].textContent = raw.slice(0, 24);
+                cells[1].textContent = row.material || '—';
+                cells[2].textContent = row.batch || '—';
+                cells[3].textContent = row.serial || '—';
+                cells[4].textContent = row.expiry || '—';
+                cells[4].className = 'mv-cell-expiry';
+                if (row.expiry_state && row.expiry_state !== 'good' && row.expiry_state !== 'no_expiry') {
+                    cells[4].classList.add('mv-cell-expiry--' + row.expiry_state);
+                    cells[4].title = EXPIRY_TITLES[row.expiry_state] || row.expiry_state;
+                }
+                cells[5].textContent = row.description || '—';
+                cells[6].textContent = data.box_no || '—';
+                cells[8].querySelector('span').textContent = (data.result || '').replace(/_/g, ' ');
+                cells[9].textContent = data.message || '—';
+                var empty = feed.querySelector('td[colspan]');
+                if (empty) { feed.innerHTML = ''; }
+                feed.insertBefore(tr, feed.firstChild);
+
+                var c = data.counters || {};
+                if ('total' in c) { document.getElementById('mvKpiTotal').textContent = c.total; }
+                if ('found' in c) { document.getElementById('mvKpiFound').textContent = c.found; }
+                else if ('matched' in c) { document.getElementById('mvKpiFound').textContent = c.matched; }
+                if ('not_found' in c) { document.getElementById('mvKpiNotFound').textContent = c.not_found; }
+                else if ('not_in_dump' in c) { document.getElementById('mvKpiNotFound').textContent = c.not_in_dump; }
+                if ('duplicates' in c) { document.getElementById('mvKpiDup').textContent = c.duplicates; }
+                if (data.box_count !== null && data.box_count !== undefined && boxCountEl) {
+                    boxCountEl.textContent = data.box_count;
+                    if (boxLabel) { boxLabel.textContent = data.box_no ? ' (' + data.box_no + ')' : ''; }
+                }
+
+                status.textContent = data.ok === false ? (data.message || 'Rejected.') : 'Ready to scan.';
+                logScan(raw, (data.result || '').replace(/_/g, ' '), family, data.message);
+            })
+            .catch(function (err) {
+                // A genuine network failure (fetch rejects) is queued and
+                // replayed later; a 4xx/5xx resolves normally and is handled
+                // above, so it must never land here and queue silently.
+                if (queue && window.mvOfflineQueue.isNetworkError(err)) {
+                    queue.enqueue({
+                        clientRef: clientRef,
+                        url: SCAN_URL,
+                        fields: {
+                            raw_scan: raw,
+                            condition: currentCondition,
+                            box_no: boxInput ? boxInput.value.trim() : '',
+                            client_ref: clientRef
+                        }
+                    });
+                    ui.toast('warn', 'Offline — scan queued', 'It will be sent when the connection returns.');
+                    logScan(raw, 'queued', 'warn', 'Saved on this device — will send when back online.');
+                    renderQueueState();
+                    return;
+                }
+                ui.toast('danger', 'Scan failed to submit');
+                // Logged too — a scan that never reached the server is exactly
+                // the kind the operator needs to find again afterwards, and a
+                // toast is gone in three seconds.
+                logScan(raw, 'not sent', 'danger', 'Connection failed — this scan was not saved.');
+            })
+            .finally(function () { posting = false; input.value = ''; refocus(); });
+    });
+})();
+</script>
+{% endblock %}

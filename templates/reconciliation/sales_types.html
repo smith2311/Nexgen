@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load static recon_tags %}
+
+{% comment %}
+Sales Type Master — which GSTR-1 section each GstTransactionType files under.
+
+The mapping used to be six `if` statements in classify.py. As a table it can
+grow without a release, which is the point: when SAP starts emitting a code
+nobody has seen, whoever notices adds the row.
+
+Unmapped codes get their own panel at the top. A code the master does not cover
+still classifies — it falls back to the built-in rules — but silently, so the
+screen says out loud which ones are running on the fallback.
+{% endcomment %}
+
+{% block title %}Sales type master — 3 Way Reconciliation{% endblock %}
+{% block page_title %}Sales type master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reconciliation/recon.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="rc-app" id="rcStApp">
+
+  <header class="rc-header">
+    <div class="rc-header-inner">
+      <a href="{% url 'reconciliation:records' %}" class="rc-back">
+        <i class="fas fa-arrow-left"></i> Records
+      </a>
+      <div class="rc-header-top">
+        <div>
+          <h1><i class="fas fa-tags"></i> Sales type master</h1>
+          <p>
+            {{ rows|length }} transaction type{{ rows|length|pluralize }} &mdash;
+            which GSTR-1 section each one files under
+          </p>
+        </div>
+        <div class="rc-header-actions">
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:billing_types' %}">
+            <i class="fas fa-list-check"></i> Billing type master
+          </a>
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:dashboard' %}">
+            <i class="fas fa-chart-column"></i> Filing summary
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="rc-inner">
+
+    <section class="rc-card">
+      <div class="rc-card-body" style="padding-bottom:6px">
+        <div class="rc-note" style="max-width:none;margin:0">
+          <b>This table decides where a document files.</b>
+          The export names how each sale was made in <code>GstTransactionType</code>
+          &mdash; B2B, B2C, EXPWOP and so on &mdash; and this master turns that into a
+          GSTR-1 section. A code with no row here still classifies, falling back to the
+          built-in rules, so nothing breaks when a new one appears; it just files
+          conservatively until somebody adds it.
+          <b>Saving a row changes nothing already imported</b> &mdash; press
+          <em>Re-run reason rules</em> on the Records page to apply it.
+        </div>
+      </div>
+    </section>
+
+    {% if unmapped %}
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-circle-question"></i> Codes in your data with no row here</h2>
+        <span class="rc-count-badge">running on the built-in fallback</span>
+      </div>
+      <div class="rc-card-body rc-unmapped">
+        {% for item in unmapped %}
+        <div class="rc-unmapped-item">
+          <span class="rc-bt-code">{{ item.code }}</span>
+          <span class="rc-unmapped-count">{{ item.count|count_in }} document{{ item.count|pluralize }}</span>
+          {% if recon_perms.masters %}
+          <button type="button" class="rc-btn rc-btn-sm" data-add="{{ item.code }}">
+            <i class="fas fa-plus"></i> Add
+          </button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-table-list"></i> Transaction types</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="search" class="rc-input" id="rcStSearch"
+                 placeholder="Filter by code, description or section" style="width:280px">
+          {% if recon_perms.masters %}
+          <button type="button" class="rc-btn rc-btn-primary" id="rcStAdd">
+            <i class="fas fa-plus"></i> Add type
+          </button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="rc-table-wrap">
+        <table class="rc-table rc-bt-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>GSTR-1 section</th>
+              <th>Behaviour</th>
+              <th class="rc-num">Documents</th>
+              <th style="text-align:right">&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody id="rcStBody">
+            {% for rule in rows %}
+            <tr data-id="{{ rule.pk }}"
+                data-code="{{ rule.code }}"
+                data-description="{{ rule.description }}"
+                data-section="{{ rule.gstr1_section }}"
+                data-export="{{ rule.is_export|yesno:'1,0' }}"
+                data-b2c="{{ rule.is_b2c|yesno:'1,0' }}"
+                data-active="{{ rule.is_active|yesno:'1,0' }}"
+                data-notes="{{ rule.notes }}"
+                class="{% if not rule.is_active %}rc-inactive{% endif %}">
+              <td><span class="rc-bt-code">{{ rule.code }}</span></td>
+              <td>{{ rule.description }}</td>
+              <td><span class="rc-chip info">{{ rule.gstr1_section }}</span></td>
+              <td>
+                <span class="rc-flags">
+                  <span class="rc-flag {% if rule.is_export %}on{% endif %}">EXPORT</span>
+                  <span class="rc-flag {% if rule.is_b2c %}on{% endif %}">B2C SPLIT</span>
+                </span>
+              </td>
+              <td class="rc-num" data-usage="{{ rule.code }}">&mdash;</td>
+              <td>
+                <div class="rc-row-actions">
+                  {% if recon_perms.masters %}
+                  <button type="button" class="rc-icon-btn" data-edit="{{ rule.pk }}"
+                          title="Edit this type"><i class="fas fa-pen-to-square"></i></button>
+                  {% else %}
+                  <span class="rc-dash">read only</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">
+              <div class="rc-empty">
+                <i class="fas fa-tags"></i>
+                <h3>The master is empty</h3>
+                <p>Run <code>python manage.py migrate reconciliation</code> to seed
+                   the types the real exports carry.</p>
+              </div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="rc-toasts" id="rcToasts"></div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+{% if recon_perms.masters %}
+<div class="rc-modal" id="rcStModal" hidden>
+  <div class="rc-modal-box">
+    <div class="rc-modal-hdr">
+      <h2><i class="fas fa-tags"></i> <span id="rcStTitle">Sales type</span></h2>
+      <button type="button" class="rc-icon-btn" data-st-close aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="rc-modal-body">
+      <div class="rc-form-grid">
+        <div class="rc-field">
+          <label for="stCode">Transaction type code *</label>
+          <input type="text" class="rc-input" id="stCode" placeholder="e.g. DEXP">
+        </div>
+        <div class="rc-field">
+          <label for="stSection">GSTR-1 section *</label>
+          <select class="rc-select" id="stSection">
+            {% for s in sections %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="stDescription">Description</label>
+          <input type="text" class="rc-input" id="stDescription">
+        </div>
+        <div class="rc-field rc-span-2">
+          <label>Behaviour</label>
+          <div style="display:flex;flex-direction:column;gap:9px;padding-top:4px">
+            <label class="rc-check">
+              <input type="checkbox" id="stExport">
+              <span><b>Export business</b> &mdash; this section wins over the
+                credit/debit-note rule, so a credit note against an export stays
+                in the export section.</span>
+            </label>
+            <label class="rc-check">
+              <input type="checkbox" id="stB2c">
+              <span><b>Apply the B2CL split</b> &mdash; an inter-state supply above
+                Rs 2,50,000 files as B2CL instead.</span>
+            </label>
+            <label class="rc-check">
+              <input type="checkbox" id="stActive">
+              <span><b>Active</b> &mdash; unticked, this code falls back to the
+                built-in rules.</span>
+            </label>
+          </div>
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="stNotes">Notes</label>
+          <textarea class="rc-input" id="stNotes"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="rc-modal-foot">
+      <span class="rc-kpi-hint">
+        Records already imported keep their section until the rules are re-run.
+      </span>
+      <span class="rc-spacer"></span>
+      <button type="button" class="rc-btn" data-st-close>Cancel</button>
+      <button type="button" class="rc-btn rc-btn-primary" id="stSave">
+        <i class="fas fa-floppy-disk"></i> Save type
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{{ usage|json_script:"rcStUsage" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/reconciliation/recon_sales_types.js' %}"></script>
+{% endblock %}

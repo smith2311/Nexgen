@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 2.2 — Vendor Bid Detail.
+
+Wireframe
+    breadcrumb / vendor name + status chip / [Shortlist] [Reject] [Use as comparison revision]
+    ┌ cost breakdown (mono, per line, total) ┐┌ notes · vendor · provenance ┐
+    └ "Compare with N other bids →"          ┘└ capability checklist        ┘
+
+Two things this screen is careful about:
+
+* **Rank is per currency.** "3rd cheapest of 5" is only true among bids quoted
+  in the same money; ranking across currencies would be a fabricated ordering.
+* **Status, winner and award are three different axes.** ``is_selected`` marks
+  the chosen bid for that vendor on the request; ``status`` is
+  shortlisted/rejected; the award is the request's outcome, decided by the
+  requester alone -- the vendor is told, not asked. A bid can be shortlisted
+  without being selected and selected without being awarded, so all three are
+  shown rather than collapsed into one chip. See the docstring in
+  vendorlink/awards.py.
+* **Award actions are not admin-only.** ``can_manage_award`` (computed in
+  bidviews.bid_detail) admits a VendorLink Admin OR the specific person who
+  raised this request -- separate from ``is_vm_admin``, which still gates
+  every other action on this screen.
+
+States: empty (a bid always exists to reach this page), error (invalid status
+POST returns a message), permission denied (edit actions hidden without edit
+rights), success (toast via the messages framework), partial (a cost line the
+vendor did not quote reads "not quoted", never zero).
+{% endcomment %}
+
+{% block title %}{{ column.vendor_name }} — bid on {{ bid.vendor_request.subject }}{% endblock %}
+
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:analytics_dashboard' %}">Bid Analytics</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:bid_heatmap' bid.vendor_request.pk %}">{{ bid.vendor_request.subject|truncatechars:32 }}{% if bid.vendor_request.reference_id %} ({{ bid.vendor_request.reference_id }}){% endif %}</a>
+                <span class="sep">/</span>
+                <span class="current">Bid #{{ bid.bid_number }}</span>
+            </nav>
+            <h1 class="vl-title">{{ column.vendor_name }}</h1>
+            <p class="vl-subtitle" style="display:flex;align-items:center;gap:var(--vl-2);flex-wrap:wrap;">
+                <span class="vl-chip vl-chip--{{ bid.status|default:'submitted' }}">{{ bid.get_status_display }}</span>
+                {% if bid.is_selected %}<span class="vl-chip vl-chip--selected">Chosen revision</span>{% endif %}
+                {% comment %}
+                Award state, which is a different axis again from both status
+                and is_selected: those are internal comparison bookkeeping,
+                this is whether the requester has decided and told this
+                vendor. Only shown on the bid that actually holds the award.
+                {% endcomment %}
+                {% if award and award.bid_id == bid.pk %}
+                    <span class="vl-chip vl-chip--selected">&#10003; Awarded</span>
+                    {% if not award.notified_at %}
+                    <span class="vl-meta" title="{{ award.notify_error }}">
+                        <i class="fas fa-triangle-exclamation"></i> notice not sent
+                    </span>
+                    {% endif %}
+                {% endif %}
+                {% if regrets_sent %}
+                {% comment %}Sent the moment the award was made -- see
+                notify_unsuccessful_bidders. It tells the buyer the runners-up
+                have already been written to and are no longer approachable
+                for this request.{% endcomment %}
+                <span class="vl-meta" title="Regret letters sent when this vendor was awarded">
+                    {{ regrets_sent }} other bidder{{ regrets_sent|pluralize }} notified
+                </span>
+                {% endif %}
+                <span class="vl-meta">bid #{{ bid.bid_number }} · {{ bid.currency }} · submitted {{ bid.submitted_at|date:"d M Y H:i" }}</span>
+            </p>
+        </div>
+        {% if can_edit %}
+        <div class="vl-pagehead__actions">
+            <a href="{% url 'vendorlink:report_request' bid.vendor_request.pk %}?ai=1" class="vl-btn" data-ai-loader="Generating the AI report…">
+                Report
+            </a>
+            <form method="post" action="{% url 'vendorlink:bid_set_status' bid.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="shortlisted">
+                <button class="vl-btn" {% if bid.status == "shortlisted" %}disabled{% endif %}>Shortlist</button>
+            </form>
+            <form method="post" action="{% url 'vendorlink:bid_set_status' bid.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="rejected">
+                <button class="vl-btn vl-btn--danger" {% if bid.status == "rejected" %}disabled{% endif %}>Reject</button>
+            </form>
+            <button type="button" class="vl-btn" id="vlSelectWinner"
+                    {% if bid.is_selected %}disabled{% endif %}>Use as comparison revision</button>
+            {% comment %}
+            Awarding is its own button and not a side effect of choosing a
+            comparison revision. That writes VendorBid.is_selected, scoped per
+            vendor -- views.bid_select clears only the same vendor's other
+            revisions, so several vendors on one request can each carry a
+            selected bid. Mailing a vendor off that flag would notify everyone
+            whose radio a buyer clicked while comparing. See the docstring in
+            vendorlink/awards.py.
+            {% endcomment %}
+            {% if can_manage_award %}
+                {% if award and award.bid_id == bid.pk %}
+                    {% comment %}
+                    This bid holds the award. Withdraw removes it outright (and
+                    tells the vendor); Re-send is for a notice that failed to
+                    go out, or just to reassure the buyer it did.
+                    {% endcomment %}
+                    <form method="post" action="{% url 'vendorlink:award_withdraw' award.pk %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button class="vl-btn vl-btn--danger"
+                                data-confirm="Withdraw the award from {{ award.vendor_name }}? They will be emailed a short notice, and the request will be free to award again."
+                                data-confirm-action="Withdraw award"
+                                data-confirm-tone="danger">
+                            Withdraw award
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'vendorlink:award_create' bid.pk %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button class="vl-btn"
+                                data-confirm="Re-send the notice mail to {{ award.vendor_name }}?"
+                                data-confirm-action="Re-send notice">
+                            Re-send notice
+                        </button>
+                    </form>
+                {% elif not bid.vendor_request.nominations_open %}
+                    {% comment %}
+                    No new nomination once nominations are closed -- see the same
+                    check in awards.award_create. Same wording as the Bid Analytics
+                    table so a buyer sees one consistent reason wherever they run
+                    into it. Independent of the bid submission window.
+                    {% endcomment %}
+                    <span class="vl-meta" style="align-self:center;">
+                        <i class="fas fa-lock"></i> Nominations closed {{ bid.vendor_request.nomination_closed_at|date:"d M Y" }}
+                    </span>
+                {% else %}
+                    {% if award %}
+                    {% comment %}
+                    Awarded elsewhere on this request. Shown alongside the
+                    button rather than instead of it -- nominating this bid
+                    simply replaces the current award; the displaced vendor is
+                    told through the regret letter, not left looking spoken
+                    for with no way to move on from them.
+                    {% endcomment %}
+                    <span class="vl-meta" style="align-self:center;max-width:22ch;line-height:1.4;">
+                        Currently: {{ award.vendor_name }}
+                    </span>
+                    {% endif %}
+                    <form method="post" action="{% url 'vendorlink:award_create' bid.pk %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button class="vl-btn vl-btn--primary"
+                                data-confirm="{% if award %}Award this request to {{ column.vendor_name }} instead of {{ award.vendor_name }}? Both will be emailed -- {{ column.vendor_name }} the award notice, {{ award.vendor_name }} a regret letter.{% else %}Award this request to {{ column.vendor_name }}? They will be emailed a notice.{% endif %}"
+                                data-confirm-action="Award &amp; notify">
+                            {% if award %}Award this vendor instead{% else %}Award &amp; notify vendor{% endif %}
+                        </button>
+                    </form>
+                {% endif %}
+            {% elif award and award.bid_id != bid.pk %}
+                <span class="vl-meta" style="align-self:center;max-width:22ch;line-height:1.4;">
+                    Awarded to {{ award.vendor_name }}
+                </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    {% for m in messages %}
+    <div class="vl-banner vl-banner--{% if m.tags == 'error' %}error{% else %}info{% endif %}" style="margin-bottom:var(--vl-3);">
+        <div class="vl-banner__body">{{ m }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="vl-3col">
+        {# ── Cost breakdown ─────────────────────────────────────── #}
+        <div class="vl-card" style="grid-column:1;">
+            <div class="vl-card__head">
+                <h2 class="vl-card__title">Cost breakdown</h2>
+                <span class="vl-meta">{{ bid.currency }}</span>
+            </div>
+            <div class="vl-card__body" style="padding:0;">
+                <table class="vl-table">
+                    <tbody>
+                        {% for line in cost_lines %}
+                        <tr>
+                            <td>{{ line.label }}</td>
+                            {% comment %}
+                            A line the vendor did not quote says so. Rendering
+                            it as 0.00 would read as "free" and quietly drag the
+                            total down against vendors who did quote it.
+                            {% endcomment %}
+                            <td class="num">
+                                {% if line.value is None %}<span class="vl-meta">not quoted</span>
+                                {% else %}{{ line.value|floatformat:2 }}{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="font-weight:700;">Total</td>
+                            <td class="num" style="font-weight:700;">{{ column.total|floatformat:2 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {# ── Context ────────────────────────────────────────────── #}
+        <div style="display:flex;flex-direction:column;gap:var(--vl-3);">
+            {% if rank %}
+            <div class="vl-card"><div class="vl-card__body" style="display:flex;align-items:center;gap:var(--vl-3);">
+                <div>
+                    <div class="vl-kpi__label">Price rank</div>
+                    <div class="vl-kpi__value">{{ rank }}<span style="font-size:14px;color:var(--vl-ink-3);"> of {{ rank_of }}</span></div>
+                </div>
+                <div class="vl-meta" style="flex:1;">
+                    Among bids quoted in {{ bid.currency }} on this request. Bids in another
+                    currency are not ranked against this one.
+                </div>
+                {% if sibling_count %}
+                <a class="vl-btn" href="{% url 'vendorlink:bid_heatmap' bid.vendor_request.pk %}">
+                    Compare with {{ sibling_count }} other bid{{ sibling_count|pluralize }} →
+                </a>
+                {% endif %}
+            </div></div>
+            {% endif %}
+
+            <div class="vl-card">
+                <div class="vl-card__head"><h2 class="vl-card__title">Notes</h2></div>
+                <div class="vl-card__body">
+                    {% if bid.notes %}<p style="margin:0;white-space:pre-wrap;">{{ bid.notes }}</p>
+                    {% else %}<span class="vl-meta">The vendor left no notes on this bid.</span>{% endif %}
+                    {% if bid.additional_charges %}
+                    <h3 style="font-size:var(--vl-t-sm);margin:var(--vl-4) 0 var(--vl-1);">Additional charges</h3>
+                    <p style="margin:0;white-space:pre-wrap;">{{ bid.additional_charges }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="vl-card">
+                <div class="vl-card__head"><h2 class="vl-card__title">Capabilities</h2></div>
+                <div class="vl-card__body">
+                    {% if capabilities %}
+                    <ul style="margin:0;padding:0;list-style:none;display:grid;gap:var(--vl-1);grid-template-columns:repeat(auto-fit,minmax(190px,1fr));">
+                        {% for cap in capabilities %}
+                        <li style="display:flex;gap:var(--vl-2);font-size:var(--vl-t-sm);">
+                            <span style="color:{% if cap.yes %}var(--vl-green){% else %}var(--vl-300){% endif %};font-weight:700;">{% if cap.yes %}&check;{% else %}&mdash;{% endif %}</span>
+                            <span{% if not cap.yes %} style="color:var(--vl-ink-3);"{% endif %}>{{ cap.label }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    {% comment %}
+                    An unlinked registration means unknown, not absent — a list
+                    of crosses would read as "this vendor can do none of it".
+                    {% endcomment %}
+                    <div class="vl-banner vl-banner--warn">
+                        <div class="vl-banner__body">
+                            <div class="vl-banner__title">Capabilities unknown</div>
+                            <div>This bid's registration is not linked to a vendor record, so its
+                                capability flags cannot be read.</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="vl-card">
+                <div class="vl-card__head"><h2 class="vl-card__title">Provenance</h2></div>
+                <div class="vl-card__body">
+                    <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:var(--vl-2) var(--vl-3);font-size:var(--vl-t-sm);">
+                        <dt class="vl-meta">REQUEST</dt>
+                        <dd style="margin:0;"><a href="{% url 'vendorlink:request_detail' bid.vendor_request.pk %}">{{ bid.vendor_request.subject }}</a></dd>
+                        <dt class="vl-meta">SUBMITTED BY</dt>
+                        <dd style="margin:0;">{{ bid.submitted_by.get_full_name|default:bid.submitted_by.username|default:"—" }}</dd>
+                        <dt class="vl-meta">SUBMITTED</dt>
+                        <dd style="margin:0;" class="vl-mono">{{ bid.submitted_at|date:"d M Y H:i" }}</dd>
+                        <dt class="vl-meta">UPDATED</dt>
+                        <dd style="margin:0;" class="vl-mono">{{ bid.updated_at|date:"d M Y H:i" }}</dd>
+                        <dt class="vl-meta">REVISION</dt>
+                        <dd style="margin:0;" class="vl-mono">#{{ bid.bid_number }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "vendorlink/_vl_chat.html" with ctx_chips=chat_chips suggestions=chat_suggestions %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    var btn = document.getElementById('vlSelectWinner');
+    if (!btn || !window.VL) { return; }
+    // bid_select is an existing JSON endpoint, so this posts and reloads
+    // rather than navigating — the page has to re-render both chips.
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        fetch('{% url "vendorlink:bid_select" bid.pk %}', {
+            method: 'POST', headers: window.VL.csrfHeaders()
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.ok) {
+                  window.VL.toast('success', 'Comparison revision chosen');
+                  window.setTimeout(function () { window.location.reload(); }, 600);
+              } else {
+                  btn.disabled = false;
+                  window.VL.toast('error', 'Could not select this bid');
+              }
+          })
+          .catch(function () {
+              btn.disabled = false;
+              window.VL.toast('error', 'Could not reach the server');
+          });
+    });
+}());
+</script>
+{% endblock %}

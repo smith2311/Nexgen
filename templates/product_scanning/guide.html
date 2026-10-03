@@ -1,0 +1,1545 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Guide — Stock Audit{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --guide-blue:   #0076c8;
+  --guide-cyan:   #00b5e2;
+  --guide-green:  #059669;
+  --guide-amber:  #d97706;
+  --guide-red:    #dc2626;
+  --guide-purple: #7c3aed;
+  --guide-radius: 14px;
+}
+
+.guide-page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+
+/* Hero */
+.guide-hero {
+  background: linear-gradient(135deg, #0076c8 0%, #00b5e2 100%);
+  border-radius: var(--guide-radius); padding: 40px 44px;
+  color: #fff; display: flex; align-items: center; gap: 28px;
+  margin-bottom: 36px; position: relative; overflow: hidden;
+}
+.guide-hero::before {
+  content: ''; position: absolute; right: -50px; top: -50px;
+  width: 220px; height: 220px; background: rgba(255,255,255,.08); border-radius: 50%;
+}
+.guide-hero::after {
+  content: ''; position: absolute; right: 80px; bottom: -70px;
+  width: 160px; height: 160px; background: rgba(255,255,255,.05); border-radius: 50%;
+}
+.guide-hero-icon {
+  width: 72px; height: 72px; background: rgba(255,255,255,.2); border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2em; flex-shrink: 0; backdrop-filter: blur(4px);
+}
+.guide-hero-text { flex: 1; position: relative; z-index: 1; }
+.guide-hero-text h1 { font-size: 1.9rem; font-weight: 700; margin: 0 0 6px; }
+.guide-hero-text p  { font-size: 1rem; opacity: .88; margin: 0; }
+.role-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 30px; margin-top: 10px;
+}
+
+/* Two-column layout */
+.guide-layout { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: start; }
+@media (max-width: 768px) { .guide-layout { grid-template-columns: 1fr; } }
+
+/* TOC */
+.guide-toc {
+  position: sticky; top: 76px;
+  background: #fff; border: 1px solid #e5eaf0;
+  border-radius: var(--guide-radius); padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06); max-height: calc(100vh - 100px); overflow-y: auto;
+}
+.guide-toc h3 {
+  font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: #6b7280; margin: 0 0 12px;
+}
+.guide-toc a {
+  display: block; padding: 5px 10px; border-radius: 8px;
+  font-size: .83rem; color: #374151; text-decoration: none;
+  transition: background .15s, color .15s;
+}
+.guide-toc a:hover { background: #f0f7ff; color: var(--guide-blue); }
+.guide-toc a.active { background: #e8f4ff; color: var(--guide-blue); font-weight: 600; }
+.toc-section { margin-bottom: 3px; }
+.toc-sub { padding-left: 10px; }
+.toc-group-label {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: #9ca3af; padding: 10px 10px 3px;
+}
+
+/* Content */
+.guide-content { min-width: 0; }
+
+/* Section */
+.guide-section {
+  background: #fff; border: 1px solid #e5eaf0;
+  border-radius: var(--guide-radius); padding: 32px 36px; margin-bottom: 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05); scroll-margin-top: 80px;
+}
+.section-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
+  padding-bottom: 18px; border-bottom: 1px solid #f0f4f8;
+}
+.section-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2em; flex-shrink: 0;
+}
+.section-icon.blue   { background: #e8f4ff; color: var(--guide-blue); }
+.section-icon.green  { background: #ecfdf5; color: var(--guide-green); }
+.section-icon.amber  { background: #fffbeb; color: var(--guide-amber); }
+.section-icon.purple { background: #f3f0ff; color: var(--guide-purple); }
+.section-icon.cyan   { background: #e0f9ff; color: #0891b2; }
+.section-icon.red    { background: #fef2f2; color: var(--guide-red); }
+.section-icon.gray   { background: #f3f4f6; color: #6b7280; }
+.section-title { font-size: 1.2rem; font-weight: 700; color: #111827; margin: 0; }
+.section-subtitle { font-size: .85rem; color: #6b7280; margin: 2px 0 0; }
+
+/* Steps */
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step {
+  display: flex; gap: 16px;
+  background: #f8fafc; border: 1px solid #e9eef5;
+  border-radius: 12px; padding: 16px 18px;
+}
+.step-num {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--guide-blue); color: #fff;
+  font-size: .82rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.step-body h4 { font-size: .93rem; font-weight: 700; color: #111827; margin: 0 0 5px; }
+.step-body p  { font-size: .87rem; color: #4b5563; margin: 0; line-height: 1.6; }
+.step-body ul, .step-body ol { font-size: .87rem; color: #4b5563; margin: 6px 0 0 0; padding-left: 18px; line-height: 1.7; }
+
+/* Callout boxes */
+.callout {
+  border-radius: 10px; padding: 13px 16px;
+  display: flex; gap: 11px; align-items: flex-start; margin: 14px 0;
+  font-size: .86rem; line-height: 1.6;
+}
+.callout-icon { font-size: 1.05em; flex-shrink: 0; margin-top: 1px; }
+.callout.tip    { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+.callout.info   { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.callout.warn   { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.callout.danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+/* Feature grid */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 12px; }
+.feature-card {
+  border: 1px solid #e5eaf0; border-radius: 12px; padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.feature-card:hover { border-color: var(--guide-blue); box-shadow: 0 2px 8px rgba(0,118,200,.1); }
+.feature-card-icon { font-size: 1.4em; }
+.feature-card h4 { font-size: .87rem; font-weight: 700; color: #111827; margin: 0; }
+.feature-card p  { font-size: .81rem; color: #6b7280; margin: 0; line-height: 1.5; }
+
+/* Status list */
+.status-list { display: flex; flex-direction: column; gap: 0; }
+.status-item { display: flex; align-items: flex-start; gap: 12px; font-size: .87rem; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+.status-item:last-child { border-bottom: none; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.status-dot.active    { background: #f59e0b; }
+.status-dot.awaiting  { background: #3b82f6; }
+.status-dot.completed { background: #10b981; }
+.status-dot.closed    { background: #6b7280; }
+.status-dot.on-hold   { background: #8b5cf6; }
+.status-dot.cancelled { background: #9ca3af; }
+.status-label { font-weight: 700; color: #374151; min-width: 105px; }
+.status-meta  { color: #6b7280; flex: 1; line-height: 1.5; }
+.status-meta strong { color: #374151; }
+
+/* Screen mockup */
+.screen-mock { border: 1px solid #dde3ec; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+.screen-mock-bar {
+  background: #f1f5f9; border-bottom: 1px solid #dde3ec;
+  padding: 7px 12px; display: flex; align-items: center; gap: 7px;
+  font-size: .77rem; color: #64748b;
+}
+.screen-mock-body { padding: 18px; background: #fff; font-size: .84rem; color: #374151; line-height: 1.6; }
+
+/* Table */
+.guide-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.guide-table th { background: #f8fafc; padding: 10px 13px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5eaf0; }
+.guide-table td { padding: 10px 13px; border-bottom: 1px solid #f0f4f8; color: #4b5563; vertical-align: top; }
+.guide-table tr:last-child td { border-bottom: none; }
+.guide-table tr:hover td { background: #f8fafc; }
+.guide-table td:first-child { font-weight: 600; color: #374151; }
+
+/* Keyboard shortcuts */
+.kbd { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 5px; padding: 2px 7px; font-family: monospace; font-size: .82rem; }
+
+/* Sub-heading divider */
+.sub-heading {
+  font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--guide-blue); margin: 22px 0 11px; display: flex; align-items: center; gap: 8px;
+}
+.sub-heading::after { content: ''; flex: 1; height: 1px; background: #e5eaf0; }
+
+/* Two-col info boxes */
+.info-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+@media (max-width: 600px) { .info-cols { grid-template-columns: 1fr; } }
+.info-col { background: #f8fafc; border: 1px solid #e5eaf0; border-radius: 10px; padding: 14px; }
+.info-col h5 { font-size: .8rem; font-weight: 700; color: #374151; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.info-col ul { margin: 0; padding-left: 16px; font-size: .85rem; color: #4b5563; line-height: 1.8; }
+
+/* Flow diagram */
+.flow-diagram {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 14px 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e5eaf0;
+  margin: 14px 0;
+}
+.flow-node { padding: 5px 13px; border-radius: 20px; font-size: .81rem; font-weight: 600; }
+.flow-arrow { color: #9ca3af; font-size: .9em; }
+.flow-node.active    { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.flow-node.awaiting  { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.flow-node.closed    { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.flow-node.hold      { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+.flow-node.cancelled { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="guide-page">
+
+  <!-- HERO -->
+  <div class="guide-hero">
+    <div class="guide-hero-icon">
+      {% if role == 'salesperson' %}📱
+      {% elif role == 'warehouse' %}📊
+      {% else %}🔑{% endif %}
+    </div>
+    <div class="guide-hero-text">
+      <h1>Stock Audit — User Guide</h1>
+      <p>Complete, role-specific documentation for every feature of the application.</p>
+      <div class="role-badge">
+        <i class="fas fa-user-tag"></i>
+        {% if role == 'salesperson' %}Salesperson
+        {% elif role == 'warehouse' %}Warehouse
+        {% else %}Administrator{% endif %}
+        Role Guide
+      </div>
+    </div>
+  </div>
+
+  <!-- TWO-COLUMN LAYOUT -->
+  <div class="guide-layout">
+
+    <!-- TOC -->
+    <aside class="guide-toc" id="guideToc">
+      <h3>Contents</h3>
+
+      <div class="toc-section"><a href="#overview" class="toc-link">Overview</a></div>
+      <div class="toc-section"><a href="#login" class="toc-link">Logging In</a></div>
+
+      {% if role == 'salesperson' or role == 'admin' %}
+      <div class="toc-group-label">Scanning</div>
+      <div class="toc-section"><a href="#scanner-setup" class="toc-link">Step 1 — Session Setup</a></div>
+      <div class="toc-section"><a href="#camera-mode" class="toc-link">Step 2 — Camera Mode</a></div>
+      <div class="toc-section"><a href="#gun-mode" class="toc-link">Step 2 — Scanner Gun Mode</a></div>
+      <div class="toc-section"><a href="#two-scan" class="toc-link">2-Scan Workflow</a></div>
+      <div class="toc-section"><a href="#no-serial" class="toc-link">No-Serial Items</a></div>
+      <div class="toc-section"><a href="#scanner-review" class="toc-link">Step 3 — Review &amp; Submit</a></div>
+      {% endif %}
+
+      {% if role == 'warehouse' or role == 'admin' %}
+      <div class="toc-group-label">Dashboard</div>
+      <div class="toc-section"><a href="#dashboard" class="toc-link">Audit Dashboard</a></div>
+      <div class="toc-section"><a href="#session-status" class="toc-link">Session Status Lifecycle</a></div>
+      <div class="toc-section"><a href="#session-detail" class="toc-link">Session Detail</a></div>
+      <div class="toc-section"><a href="#attachments" class="toc-link">Uploading Attachments</a></div>
+      <div class="toc-section"><a href="#remarks" class="toc-link">Remarks</a></div>
+      <div class="toc-section"><a href="#session-actions" class="toc-link">Session Actions</a></div>
+      <div class="toc-section"><a href="#expired" class="toc-link">Expired Products</a></div>
+      {% endif %}
+
+      <div class="toc-group-label">Transfers</div>
+      {% if role == 'salesperson' or role == 'admin' %}
+      <div class="toc-section"><a href="#h2h-scan" class="toc-link">H2H Transfer (Scanner)</a></div>
+      {% endif %}
+      {% if role == 'warehouse' or role == 'admin' %}
+      <div class="toc-section"><a href="#h2h-dashboard" class="toc-link">Transfer Dashboard</a></div>
+      {% endif %}
+
+      {% if role == 'warehouse' or role == 'admin' %}
+      <div class="toc-group-label">Master Data</div>
+      <div class="toc-section"><a href="#hospital-master" class="toc-link">Hospital Master</a></div>
+      <div class="toc-section"><a href="#gtin-master" class="toc-link">GTIN Master</a></div>
+      {% endif %}
+
+      <div class="toc-group-label">Tools</div>
+      <div class="toc-section"><a href="#sp-dashboard" class="toc-link">SP Performance</a></div>
+      <div class="toc-section"><a href="#notifications" class="toc-link">Notifications</a></div>
+      <div class="toc-section"><a href="#feedback" class="toc-link">Feedback Portal</a></div>
+      {% if is_superuser %}
+      <div class="toc-section"><a href="#roles" class="toc-link">User Roles</a></div>
+      {% endif %}
+      <div class="toc-section"><a href="#tips" class="toc-link">Tips &amp; Troubleshooting</a></div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="guide-content">
+
+      <!-- ═══ OVERVIEW ═══ -->
+      <div class="guide-section" id="overview">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-info-circle"></i></div>
+          <div>
+            <div class="section-title">What is Stock Audit?</div>
+            <div class="section-subtitle">Platform purpose and your role</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          <strong>Stock Audit</strong> is Meril's internal platform for tracking medical device consignment stock at hospital locations.
+          Salespersons scan products on-site; the warehouse team reviews, confirms, and archives each session.
+          The system also tracks expiry dates, records hospital-to-hospital transfers, and provides a full audit trail of every action taken.
+        </p>
+
+        {% if role == 'salesperson' %}
+        <div class="feature-grid">
+          <div class="feature-card"><div class="feature-card-icon">📱</div><h4>QR Scanner</h4><p>Scan product barcodes at hospitals to record what is on-shelf.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🔄</div><h4>H2H Transfers</h4><p>Initiate hospital-to-hospital stock transfer sessions.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">📊</div><h4>My Performance</h4><p>Track your hospital visits, sessions, and scan counts by month.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">💬</div><h4>Feedback</h4><p>Report bugs or request features directly from the app.</p></div>
+        </div>
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>As a <strong>Salesperson</strong> you scan at the hospital and submit the session. The warehouse team reviews and closes it — you don't need to take any further action after submitting.</span>
+        </div>
+        {% endif %}
+
+        {% if role == 'warehouse' %}
+        <div class="feature-grid">
+          <div class="feature-card"><div class="feature-card-icon">📊</div><h4>Dashboard</h4><p>Monitor all scanning sessions across all hospitals and salespersons.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">📎</div><h4>Confirmations</h4><p>Upload confirmation documents to close sessions.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🏥</div><h4>Hospital Master</h4><p>Manage hospital records and salesperson email assignments.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🔢</div><h4>GTIN Master</h4><p>Map product barcodes to SAP material codes.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">⚠️</div><h4>Expiry Alerts</h4><p>Track and acknowledge products nearing or past their expiry.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🔄</div><h4>Transfers</h4><p>Review hospital-to-hospital stock movement sessions.</p></div>
+        </div>
+        {% endif %}
+
+        {% if role == 'admin' %}
+        <div class="feature-grid">
+          <div class="feature-card"><div class="feature-card-icon">📱</div><h4>QR Scanner</h4><p>Scan products at hospitals to create session records.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">📊</div><h4>Dashboard</h4><p>Monitor all sessions, statuses, and stock system-wide.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🏥</div><h4>Hospital Master</h4><p>Create, edit, and bulk-import hospital records with SAP codes.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🔢</div><h4>GTIN Master</h4><p>Manage GTIN-to-material code mappings used during scanning.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">🔄</div><h4>H2H Transfers</h4><p>Initiate and review hospital-to-hospital stock transfers.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">⚠️</div><h4>Expiry Alerts</h4><p>Monitor expired and near-expiry products across all sessions.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">📈</div><h4>SP Performance</h4><p>Track salesperson visit frequency and hospital coverage.</p></div>
+          <div class="feature-card"><div class="feature-card-icon">💬</div><h4>Feedback Inbox</h4><p>Review and respond to all user-submitted tickets.</p></div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ═══ LOGIN ═══ -->
+      <div class="guide-section" id="login">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-sign-in-alt"></i></div>
+          <div>
+            <div class="section-title">Logging In</div>
+            <div class="section-subtitle">Authentication via Zoho SSO</div>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Open the application URL in your browser</h4>
+              <p>Navigate to the app address. You will see the Meril login page.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Click "Sign in with Zoho"</h4>
+              <p>No separate password is required. The app uses your Meril work Zoho account. You are redirected to Zoho's login page.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Enter your Meril credentials and authorise access</h4>
+              <p>Enter your work email and Zoho password if prompted, then allow the application to access your account details.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>You are redirected to your home page</h4>
+              <p>{% if role == 'salesperson' %}You land on the <strong>QR Scanner Form</strong>.
+              {% elif role == 'warehouse' %}You land on the <strong>Scanning Dashboard</strong>.
+              {% else %}You land on the <strong>QR Scanner Form</strong>. The Dashboard and all other pages are accessible from the navigation bar.{% endif %}</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn" style="margin-top:14px">
+          <span class="callout-icon">⚠️</span>
+          <span>If you see a <strong>"403 Forbidden"</strong> error or are sent back to the login screen, your account has not been assigned the correct role. Contact your system administrator.</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SCANNER — Salesperson + Admin
+           ═══════════════════════════════════════ -->
+      {% if role == 'salesperson' or role == 'admin' %}
+
+      <div class="guide-section" id="scanner-setup">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-sliders-h"></i></div>
+          <div>
+            <div class="section-title">Step 1 — Session Setup</div>
+            <div class="section-subtitle">Choosing the hospital and session type before scanning</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Before scanning any products you set up the session context. This determines which hospital the scanned stock belongs to and what type of session it is.
+        </p>
+        <div class="screen-mock">
+          <div class="screen-mock-bar">
+            <i class="fas fa-circle" style="color:#fc5c65;font-size:.6em"></i>
+            <i class="fas fa-circle" style="color:#f9ca24;font-size:.6em"></i>
+            <i class="fas fa-circle" style="color:#26de81;font-size:.6em"></i>
+            &nbsp;/product_scanning/
+          </div>
+          <div class="screen-mock-body">
+            <strong>Step 1: Setup</strong> &rarr; Step 2: Scan Products &rarr; Step 3: Review &amp; Submit
+          </div>
+        </div>
+        <div class="sub-heading">Fields on Step 1</div>
+        <table class="guide-table">
+          <thead><tr><th style="width:30%">Field</th><th>What to enter</th></tr></thead>
+          <tbody>
+            <tr><td>Session Type</td><td>Toggle between <strong>Stock Audit</strong> (default — scan what is on-shelf at this hospital) and <strong>H2H Transfer</strong> (stock moving from one hospital to another).</td></tr>
+            <tr><td>Hospital</td><td>Select the hospital you are currently visiting. Only hospitals assigned to your login email appear here. If your hospital is missing, contact the warehouse team to update the Hospital Master.</td></tr>
+            <tr><td>To Hospital</td><td>Visible only for H2H Transfer sessions. Select the destination hospital — it must be different from the source.</td></tr>
+            <tr><td>Session ID</td><td>Auto-generated in the format <em>DDMMYY-Initials-HospCode</em>. This is how the warehouse identifies your session — note it down if needed.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout tip" style="margin-top:14px">
+          <span class="callout-icon">✅</span>
+          <span>Double-check the hospital name before clicking <strong>"Start Scanning"</strong>. Once the session is created, the hospital cannot be changed.</span>
+        </div>
+        <div class="callout info">
+          <span class="callout-icon">ℹ️</span>
+          <span>If you previously closed the browser mid-session, reopening the scanner will automatically offer to <strong>resume your last session</strong> for the same hospital. Accept it to continue from where you left off — all products already scanned are retained.</span>
+        </div>
+      </div>
+
+      <!-- Camera Mode -->
+      <div class="guide-section" id="camera-mode">
+        <div class="section-header">
+          <div class="section-icon cyan"><i class="fas fa-camera"></i></div>
+          <div>
+            <div class="section-title">Step 2 — Camera Mode</div>
+            <div class="section-subtitle">Using your device's camera to scan barcodes</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Camera Mode is the default input method. The app reads <strong>GS1 barcodes</strong> and automatically extracts serial number, GTIN, expiry date, batch/lot number, and material code from each scan.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Select the Camera tab</h4>
+              <p>At the top of the scanner area, make sure <strong>Camera</strong> is selected. Grant camera permission if the browser asks — this is required for the scanner to work.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Point the camera at a barcode</h4>
+              <p>Hold your device 10–15 cm from the barcode. Keep it steady and ensure the label is well-lit. The scanner auto-captures and beeps/vibrates when it reads successfully — you do not need to press anything.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Product is added to the list</h4>
+              <p>Parsed fields (serial number, GTIN, product name, batch, expiry) appear and the item is added to the scanned list below. The camera immediately resumes scanning the next product.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Use manual entry if the camera can't read the barcode</h4>
+              <p>Click <strong>"Manual Entry"</strong> below the scanner. A panel opens where you can either paste the raw barcode string or fill individual fields — Serial Number, GTIN, Material Code, Product Name, Batch, Expiry Date, Received Date, and Quantity.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <h4>Review and delete errors</h4>
+              <p>Scans that fail to auto-submit (duplicate serial, parse error) appear in the <strong>Error Tray</strong> below the scanner. You can retry or dismiss each failed scan from there. You can also delete any successfully scanned product from the scanned list using the trash icon, as long as the session is still active.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout tip">
+          <span class="callout-icon">✅</span>
+          <span><strong>Better scan tips:</strong> Increase screen brightness, clean the camera lens, avoid reflective or curved surfaces, and try holding the device at a slight angle if the barcode is highly reflective or printed on a foil label.</span>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <span>Do <strong>not</strong> close the browser tab or navigate away mid-session. Products already saved are safe on the server, but the in-progress scan queue held in memory will be lost if you refresh.</span>
+        </div>
+      </div>
+
+      <!-- Scanner Gun Mode -->
+      <div class="guide-section" id="gun-mode">
+        <div class="section-header">
+          <div class="section-icon cyan"><i class="fas fa-barcode"></i></div>
+          <div>
+            <div class="section-title">Step 2 — Scanner Gun Mode</div>
+            <div class="section-subtitle">Using a Bluetooth or USB barcode scanner gun</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          If you have a dedicated Bluetooth or USB barcode scanner gun, use <strong>Scanner Gun Mode</strong> for faster and more accurate scanning — especially in low-light environments where the phone camera struggles.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Switch to the Scanner Gun tab</h4>
+              <p>Click the <strong>Scanner Gun</strong> tab at the top of the scanner area. A dark-themed input field appears. This field is auto-focused so it captures gun input the moment you pull the trigger.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Pair your scanner gun with the device</h4>
+              <p>Connect the scanner gun via Bluetooth or USB before scanning. When you pull the trigger, the gun sends barcode data as keyboard input into the focused field.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Scan each product</h4>
+              <p>Pull the trigger on each product barcode. Scans are queued and processed automatically. A preview of queued items appears above the input field. Products are submitted to the server one by one as the queue processes.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Use the manual field grid if a field is missing</h4>
+              <p>In Gun Mode you can also switch to a <strong>manual field grid</strong> — individual input boxes for Serial Number, GTIN, Material Code, Product Name, Batch, Expiry, Received Date, and Quantity. Useful when a barcode is partially unreadable or a single field needs correction before submitting.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout tip">
+          <span class="callout-icon">✅</span>
+          <span>Keep the dark input field <strong>focused at all times</strong>. If you tap elsewhere on the screen the field loses focus and gun input will not register. Tap the dark field again to re-focus before resuming scanning.</span>
+        </div>
+      </div>
+
+      <!-- 2-Scan Workflow -->
+      <div class="guide-section" id="two-scan">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-layer-group"></i></div>
+          <div>
+            <div class="section-title">2-Scan Workflow</div>
+            <div class="section-subtitle">When the serial number is on a separate barcode from the product details</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Some Meril products carry <strong>two barcodes</strong>: one containing only the serial number, and a second containing product details (GTIN, batch, expiry date).
+          The app handles this automatically — you just scan both barcodes and it merges them.
+        </p>
+        <div class="info-cols">
+          <div class="info-col">
+            <h5>Serial-first scenario</h5>
+            <ul>
+              <li>Scan the serial number barcode first.</li>
+              <li>Banner: <em>"Serial Number Captured — now scan the product details barcode."</em></li>
+              <li>Scan the product details barcode.</li>
+              <li>Both scans merge and the product is saved.</li>
+            </ul>
+          </div>
+          <div class="info-col">
+            <h5>Details-first scenario</h5>
+            <ul>
+              <li>Scan the product details barcode first.</li>
+              <li>Banner: <em>"Now scan the Serial Number barcode."</em></li>
+              <li>Scan the serial number barcode.</li>
+              <li>Merges automatically and saves.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sub-heading">Manual Override Modal</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          If you cannot scan the second barcode a modal appears with three options:
+        </p>
+        <table class="guide-table">
+          <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Type Serial Number</td><td>A text field lets you manually enter the serial number from the product label.</td></tr>
+            <tr><td>No Serial Number</td><td>Confirms this product has no serial number. An internal placeholder is generated (same as the No-Serial toggle — see below).</td></tr>
+            <tr><td>Cancel</td><td>Discards the partial scan so you can re-scan the product from scratch.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>The 2-scan workflow works in both Camera and Scanner Gun mode. The app remembers the first barcode while you scan the second — no special steps are required.</span>
+        </div>
+      </div>
+
+      <!-- No-Serial Items -->
+      <div class="guide-section" id="no-serial">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-hashtag"></i></div>
+          <div>
+            <div class="section-title">No-Serial Items (Consumables / Lot-Based Products)</div>
+            <div class="section-subtitle">Scanning products like balloons and catheters that have no individual serial number</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Consumables produced by batch/lot — such as balloons and catheters — have a GTIN and lot number but <strong>no individual serial number</strong> per unit.
+          Use the <strong>No-Serial toggle</strong> when scanning these products to prevent the serial number modal from interrupting your workflow.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Enable the No-Serial toggle</h4>
+              <p>Look for the yellow <strong>"Products Without Serial Numbers"</strong> toggle near the top of the scanner area. Tap it to turn it ON — a yellow indicator confirms it is active.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Scan the product barcode normally</h4>
+              <p>The system detects there is no serial number and generates an internal placeholder. The product appears in the scanned list with its GTIN, batch, and expiry — the placeholder is never visible to you.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Duplicate detection uses GTIN + Batch + Expiry</h4>
+              <p>For no-serial items the app detects duplicates by matching GTIN, batch number, and expiry date together. Scanning the same lot barcode twice will be rejected as a duplicate.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Turn the toggle OFF before scanning serialised products again</h4>
+              <p>Tap the toggle again to disable No-Serial mode. Leaving it ON while scanning serialised products may generate unexpected placeholders.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <span>If the serial number modal appears unexpectedly for a no-serial product, you can also choose <em>"No Serial Number"</em> directly from that modal — the effect is the same as using the toggle.</span>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="guide-section" id="scanner-review">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-check-circle"></i></div>
+          <div>
+            <div class="section-title">Step 3 — Review &amp; Submit</div>
+            <div class="section-subtitle">Reviewing all scanned products and completing the session</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Once you have scanned all products, click <strong>"Finish Scanning"</strong> to move to Step 3. Here you review everything before submitting to the warehouse team.
+        </p>
+        <div class="sub-heading">What you see in Step 3</div>
+        <table class="guide-table">
+          <thead><tr><th style="width:30%">Element</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Session Summary</td><td>Hospital name, Session ID, your name, date, and total products scanned.</td></tr>
+            <tr><td>Products List</td><td>Every product scanned — serial number, GTIN, material code, product name, batch, and expiry. You can still delete incorrect items using the trash icon.</td></tr>
+            <tr><td>Session Notes</td><td>Optional free-text notes visible to the warehouse team. Use this to provide context about the visit (e.g. "Right-side shelf was locked, only left shelf scanned").</td></tr>
+            <tr><td>Batch Remark</td><td>A separate remarks field specifically for flagging anything unusual about this session to the warehouse team.</td></tr>
+          </tbody>
+        </table>
+        <div class="sub-heading">Submitting</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Review the product list</h4>
+              <p>Scroll through and verify every item is correct. Delete and re-scan anything with wrong data.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Add notes or a batch remark (optional)</h4>
+              <p>Write any relevant context the warehouse team should know about this visit.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Click "Complete &amp; Submit"</h4>
+              <p>The session status changes to <strong>Awaiting Confirmation</strong>. The warehouse team receives a notification. Your work for this session is done.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout info">
+          <span class="callout-icon">ℹ️</span>
+          <span>Once submitted the session is <strong>locked for editing</strong>. If you made a mistake the warehouse team can reject it back to you for corrections.</span>
+        </div>
+        <div class="callout tip">
+          <span class="callout-icon">✅</span>
+          <span>Track your session's progress on the <strong>SP Performance → Batch Status</strong> tab: the status moves from <em>Scanning</em> → <em>Submitted</em> → <em>Confirmed</em> as the warehouse acts on it.</span>
+        </div>
+      </div>
+
+      {% endif %}{# end salesperson/admin scanner #}
+
+      <!-- ═══════════════════════════════════════
+           DASHBOARD — Warehouse + Admin
+           ═══════════════════════════════════════ -->
+      {% if role == 'warehouse' or role == 'admin' %}
+
+      <div class="guide-section" id="dashboard">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-th-large"></i></div>
+          <div>
+            <div class="section-title">Audit Dashboard</div>
+            <div class="section-subtitle">Central view of all scanning sessions, stock, and alerts</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The dashboard at <strong>/product_scanning/dashboard/</strong> is your primary workspace. It shows every session across all hospitals, grouped by status. Statistics cards at the top give an at-a-glance health check of the system.
+        </p>
+
+        <div class="sub-heading">Statistics Cards</div>
+        <table class="guide-table">
+          <thead><tr><th>Card</th><th>What it counts</th></tr></thead>
+          <tbody>
+            <tr><td>Ongoing Audits</td><td>Sessions actively being scanned (status: Active).</td></tr>
+            <tr><td>Awaiting Confirmation</td><td>Sessions submitted by salespersons, waiting for your review and document upload.</td></tr>
+            <tr><td>Completed Audits</td><td>Sessions closed with a confirmation document uploaded.</td></tr>
+            <tr><td>Total Units</td><td>Total individual products scanned across all sessions.</td></tr>
+            <tr><td>Hospitals</td><td>Number of distinct hospitals with recorded sessions.</td></tr>
+            <tr><td>Expiry Alerts</td><td>Products expiring within 6 months or already expired (unacknowledged).</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Filter Bar</div>
+        <ul style="color:#4b5563;font-size:.87rem;line-height:1.9;padding-left:18px;margin:0 0 14px">
+          <li><strong>Session Type toggle</strong>: All | Normal (stock audits) | H2H (transfers).</li>
+          <li><strong>Advanced Filters dropdown</strong>: Filter by year, month, specific date, salesperson, or hospital. Multiple filters combine.</li>
+        </ul>
+
+        <div class="sub-heading">Dashboard Tabs</div>
+        <table class="guide-table">
+          <thead><tr><th>Tab</th><th>Sessions shown</th><th>Primary action</th></tr></thead>
+          <tbody>
+            <tr><td>Ongoing</td><td>Status = Active</td><td>Monitor in-progress sessions. Use <em>Force Complete</em> if a salesperson is unresponsive.</td></tr>
+            <tr><td>Awaiting</td><td>Status = Awaiting Confirmation</td><td>Review submitted sessions and upload confirmation documents to close them.</td></tr>
+            <tr><td>Completed</td><td>Status = Closed</td><td>Archive of confirmed sessions. Download attachments or view full session history.</td></tr>
+            <tr><td>Expired</td><td>Products expiring ≤ 6 months or already expired</td><td>Review and acknowledge expiry alerts. Export to CSV.</td></tr>
+            <tr><td>All Stock</td><td>Every product across all sessions</td><td>Flat inventory view. Search by any field. Export all records.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Session Cards</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0">
+          Each session appears as a card showing: hospital name, session/batch ID, salesperson name, product count, date, and a status badge.
+          A remark flag on the card indicates warehouse remarks have been added. <strong>Click any card</strong> to open the Session Detail view.
+          Quick action buttons on Awaiting cards: <strong>Force Complete</strong> and <strong>Reject</strong>.
+        </p>
+      </div>
+
+      <!-- Status Lifecycle -->
+      <div class="guide-section" id="session-status">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-traffic-light"></i></div>
+          <div>
+            <div class="section-title">Session Status Lifecycle</div>
+            <div class="section-subtitle">All statuses, meanings, and how sessions transition between them</div>
+          </div>
+        </div>
+
+        <div class="sub-heading">Normal Flow</div>
+        <div class="flow-diagram">
+          <span class="flow-node active">Active</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node awaiting">Awaiting Confirmation</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node closed">Closed</span>
+        </div>
+        <div class="sub-heading">Exception Flows</div>
+        <div class="flow-diagram">
+          <span class="flow-node awaiting">Awaiting</span>
+          <span class="flow-arrow">↔</span>
+          <span class="flow-node hold">On Hold</span>
+          <span style="margin:0 8px;color:#9ca3af">|</span>
+          <span class="flow-node awaiting">Awaiting</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node active">Active</span>
+          <span style="font-size:.78rem;color:#6b7280;margin-left:4px">(Reject)</span>
+          <span style="margin:0 8px;color:#9ca3af">|</span>
+          <span class="flow-node active">Active</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node cancelled">Cancelled</span>
+          <span style="font-size:.78rem;color:#6b7280;margin-left:4px">(Terminate)</span>
+        </div>
+
+        <div class="status-list" style="margin-top:16px">
+          <div class="status-item">
+            <div class="status-dot active"></div>
+            <span class="status-label">Active</span>
+            <span class="status-meta">Salesperson is currently scanning at the hospital. <strong>No warehouse action needed yet.</strong> Use <em>Force Complete</em> if the salesperson has stopped but not submitted.</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot awaiting"></div>
+            <span class="status-label">Awaiting</span>
+            <span class="status-meta">Salesperson submitted. <strong>Action required:</strong> review the product list, upload a confirmation document, and close the session. Use <em>Reject</em> to send it back if data is wrong.</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot completed"></div>
+            <span class="status-label">Closed</span>
+            <span class="status-meta">Session confirmed with a document uploaded. <strong>No further action needed.</strong> The session is archived and exportable.</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot on-hold"></div>
+            <span class="status-label">On Hold</span>
+            <span class="status-meta">Session paused — daily overdue notifications are suppressed. Use when waiting for paperwork. <em>Resume</em> restarts the normal workflow and notification schedule.</span>
+          </div>
+          <div class="status-item">
+            <div class="status-dot cancelled"></div>
+            <span class="status-label">Cancelled</span>
+            <span class="status-meta">Session permanently terminated. Scanned products are retained in the audit trail but the session is inactive and no confirmation is expected.</span>
+          </div>
+        </div>
+
+        <div class="sub-heading">Overdue Notifications</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0">
+          Sessions that remain in <strong>Awaiting Confirmation for more than 7 days</strong> trigger a daily overdue email to the warehouse team.
+          The counter stops when the session is closed, put on hold, or cancelled.
+          When you put a session on hold and later resume it, the 7-day counter resets so notifications restart on the correct schedule.
+        </p>
+      </div>
+
+      <!-- Session Detail -->
+      <div class="guide-section" id="session-detail">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-file-alt"></i></div>
+          <div>
+            <div class="section-title">Session Detail View</div>
+            <div class="section-subtitle">Complete information for a single scanning session</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Click any session card on the dashboard to open its detail page. This is where you review products, manage remarks, upload the confirmation document, and take status actions.
+        </p>
+
+        <div class="sub-heading">Session Info Panel</div>
+        <table class="guide-table">
+          <thead><tr><th>Field</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Session ID</td><td>Unique identifier in format DDMMYY-Initials-HospCode.</td></tr>
+            <tr><td>Hospital</td><td>Hospital name with its SAP code and province.</td></tr>
+            <tr><td>Scanned By</td><td>The salesperson who created the session.</td></tr>
+            <tr><td>Started / Completed</td><td>Timestamps for when scanning began and when the salesperson submitted.</td></tr>
+            <tr><td>Status</td><td>Current status badge with colour coding.</td></tr>
+            <tr><td>Product Count</td><td>Total number of products in this session.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Products Table</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          Each scanned product shows: <strong>Serial Number, GTIN, Batch/Lot, Product Name, Reference #, Expiry Date, Production Date, Material Code, Quantity, Scanned At.</strong>
+        </p>
+        <ul style="color:#4b5563;font-size:.87rem;line-height:1.9;padding-left:18px;margin:0 0 12px">
+          <li>Rows <strong>highlighted in amber</strong> have product-level remarks — click the row to view or add remarks.</li>
+          <li>Rows with products nearing expiry are colour-highlighted automatically.</li>
+        </ul>
+
+        <div class="sub-heading">Audit Trail</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0">
+          At the bottom of every session detail page is a chronological log of every action taken — session started, products scanned, status changes, remarks added, attachment uploaded — along with who performed each action and when.
+          This log cannot be modified and serves as the official record.
+        </p>
+      </div>
+
+      <!-- Attachments -->
+      <div class="guide-section" id="attachments">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-paperclip"></i></div>
+          <div>
+            <div class="section-title">Uploading Confirmation Attachments</div>
+            <div class="section-subtitle">Attaching a document to officially close a session</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          A session moves from <strong>Awaiting Confirmation</strong> to <strong>Closed</strong> when you upload a confirmation document.
+          This is typically a signed PDF or SAP export that serves as proof of stock verification.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Open an Awaiting session</h4>
+              <p>Click any card in the <em>Awaiting</em> tab on the dashboard to open the session detail page.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Scroll to the Confirmation Document section</h4>
+              <p>Find the upload panel showing a drag-and-drop zone labelled <strong>"Upload &amp; Close Session"</strong>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Upload the file</h4>
+              <p>Drag and drop the file onto the zone, or click to open a file picker. Accepted formats: <strong>PDF, Excel (.xlsx), Word (.docx), JPG, PNG</strong>. Maximum size: <strong>50 MB</strong>. You can add optional notes about the document before uploading.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Session is automatically closed</h4>
+              <p>After a successful upload the status changes to <strong>Closed</strong>. The salesperson receives a notification. The document is stored in the system and available for download any time from the session detail page.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <span>Only <strong>one attachment</strong> is stored per session. Uploading a new file replaces the existing one. Always verify you are uploading the correct document before confirming.</span>
+        </div>
+        <div class="callout tip">
+          <span class="callout-icon">✅</span>
+          <span>To download an existing attachment, open the session detail and click <strong>"Download"</strong> next to the file name. PDFs also display inline in the browser for quick review without downloading.</span>
+        </div>
+      </div>
+
+      <!-- Remarks -->
+      <div class="guide-section" id="remarks">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-comment-dots"></i></div>
+          <div>
+            <div class="section-title">Remarks</div>
+            <div class="section-subtitle">Flagging products and sessions that need attention</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Remarks let you communicate with the salesperson about specific products or the overall session — and vice versa.
+        </p>
+        <table class="guide-table">
+          <thead><tr><th>Type</th><th>How to add</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Product Remark</td>
+              <td>Click any row in the products table. A slide-up panel opens with the full remark history and an <em>Add Remark</em> field.</td>
+              <td>Flag a specific product — e.g. wrong expiry, missing serial, damaged packaging, quantity mismatch.</td>
+            </tr>
+            <tr>
+              <td>Session Remark</td>
+              <td>Click <strong>"Add Remark"</strong> in the Batch Remarks section at the bottom of the session detail page.</td>
+              <td>Note something about the whole session — e.g. partial scan, data discrepancy, request for re-scan.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>Product rows with remarks are <strong>highlighted in amber</strong> in the products table so they are easy to spot during review. Remarks are visible to both salesperson and warehouse. They are part of the audit trail and <strong>cannot be deleted</strong>.</span>
+        </div>
+      </div>
+
+      <!-- Session Actions -->
+      <div class="guide-section" id="session-actions">
+        <div class="section-header">
+          <div class="section-icon purple"><i class="fas fa-tools"></i></div>
+          <div>
+            <div class="section-title">Session Actions</div>
+            <div class="section-subtitle">Force Complete, Reject, On Hold, Resume, and Terminate</div>
+          </div>
+        </div>
+        <table class="guide-table">
+          <thead><tr><th style="width:20%">Action</th><th style="width:35%">When to use</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Force Complete</td>
+              <td>Session is <em>Active</em> but the salesperson has stopped scanning and is not responding.</td>
+              <td>Status changes to <em>Awaiting Confirmation</em>. Logged as a forced completion by warehouse. Salesperson is notified.</td>
+            </tr>
+            <tr>
+              <td>Reject</td>
+              <td>Session is <em>Awaiting</em> but the scanned data has errors the salesperson must fix.</td>
+              <td>Status returns to <em>Active</em>. Any uploaded attachment is removed. Salesperson is notified to correct and resubmit.</td>
+            </tr>
+            <tr>
+              <td>Put on Hold</td>
+              <td>Session is <em>Awaiting</em> and you are waiting for additional paperwork — you don't want daily overdue emails during the wait.</td>
+              <td>Status changes to <em>On Hold</em>. Daily overdue notifications are suppressed. Session remains in the Awaiting tab with an On Hold badge.</td>
+            </tr>
+            <tr>
+              <td>Resume</td>
+              <td>Session is <em>On Hold</em> and you are ready to proceed with confirmation.</td>
+              <td>Status returns to <em>Awaiting Confirmation</em>. The overdue notification schedule restarts from today.</td>
+            </tr>
+            <tr>
+              <td>Terminate</td>
+              <td>Session must be permanently cancelled — wrong hospital, duplicate session, or the visit is voided.</td>
+              <td>Status changes to <em>Cancelled</em>. Both parties receive a termination notification. This action <strong>cannot be undone</strong>.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout danger">
+          <span class="callout-icon">🚫</span>
+          <span><strong>Terminate</strong> is permanent. For temporary pauses always use <em>Put on Hold</em> instead. Only terminate when the session must be permanently voided.</span>
+        </div>
+      </div>
+
+      <!-- Expired Products -->
+      <div class="guide-section" id="expired">
+        <div class="section-header">
+          <div class="section-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+          <div>
+            <div class="section-title">Expired Products</div>
+            <div class="section-subtitle">Monitoring and acknowledging products nearing or past expiry</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The <strong>Expired</strong> tab on the dashboard automatically surfaces any product with an expiry date within the next 6 months, or already past expiry.
+          These require prompt attention to prevent use of expired medical devices at hospitals.
+        </p>
+        <div class="sub-heading">Expiry Filter Pills</div>
+        <table class="guide-table">
+          <thead><tr><th>Filter</th><th>Products shown</th></tr></thead>
+          <tbody>
+            <tr><td>All</td><td>All flagged products (expired + within 6 months).</td></tr>
+            <tr><td>Expired</td><td>Products already past their expiry date.</td></tr>
+            <tr><td>≤ 1 Week</td><td>Expiring in the next 7 days — critical.</td></tr>
+            <tr><td>≤ 1 Month</td><td>Expiring in the next 30 days.</td></tr>
+            <tr><td>≤ 3 Months</td><td>Expiring in the next 90 days.</td></tr>
+            <tr><td>≤ 6 Months</td><td>Expiring in the next 180 days.</td></tr>
+          </tbody>
+        </table>
+        <div class="sub-heading">Acknowledging</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          Click <strong>"Acknowledge"</strong> on any row to confirm you have seen and acted on the alert. Acknowledged products are removed from the unacknowledged view. A record is created of who acknowledged it and when.
+        </p>
+        <div class="sub-heading">Export</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0">
+          Click <strong>"Export CSV"</strong> in the Expired tab to download a spreadsheet of all flagged products — useful for SAP entry or compliance reporting.
+        </p>
+        <div class="callout warn" style="margin-top:14px">
+          <span class="callout-icon">⚠️</span>
+          <span>The Expiry Alerts count in the statistics card always shows <strong>unacknowledged</strong> alerts only. Acknowledge products after taking action to keep this number accurate.</span>
+        </div>
+      </div>
+
+      {% endif %}{# end warehouse/admin dashboard sections #}
+
+      <!-- ═══════════════════════════════════════
+           H2H TRANSFER — Scanner (SP + Admin)
+           ═══════════════════════════════════════ -->
+      {% if role == 'salesperson' or role == 'admin' %}
+      <div class="guide-section" id="h2h-scan">
+        <div class="section-header">
+          <div class="section-icon cyan"><i class="fas fa-exchange-alt"></i></div>
+          <div>
+            <div class="section-title">H2H Transfer — Initiating a Transfer</div>
+            <div class="section-subtitle">Scanning products moving from one hospital to another</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          When stock physically moves from one hospital to another, use the <strong>Hospital-to-Hospital (H2H) Transfer</strong> scanner.
+          Start it from the session type toggle on the scanner form, or go directly to <strong>/product_scanning/transfers/new/</strong>.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Select From Hospital and To Hospital</h4>
+              <p>Choose the source hospital (where stock currently is) and the destination hospital (where it is going). The two hospitals must be different.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Click "Start Transfer"</h4>
+              <p>A transfer session is created with a unique Transfer ID. The transfer route (From → To) is displayed at the top of the scanner area for confirmation.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Scan each product being transferred</h4>
+              <p>Use camera or scanner gun (same as normal scanning) to scan every product physically moving. Products appear in the list with serial, GTIN, batch, and expiry details.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Click "Complete Transfer"</h4>
+              <p>The transfer session is submitted with status <em>Awaiting Confirmation</em>. The warehouse team will review the transfer and upload a confirmation document.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout info">
+          <span class="callout-icon">ℹ️</span>
+          <span>Transfer sessions follow the same status lifecycle as normal sessions: Active → Awaiting Confirmation → Closed. The warehouse team can also Force Complete, Reject, Put on Hold, and Terminate transfer sessions.</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- H2H Dashboard — Warehouse + Admin -->
+      {% if role == 'warehouse' or role == 'admin' %}
+      <div class="guide-section" id="h2h-dashboard">
+        <div class="section-header">
+          <div class="section-icon cyan"><i class="fas fa-exchange-alt"></i></div>
+          <div>
+            <div class="section-title">Transfer Dashboard</div>
+            <div class="section-subtitle">Reviewing hospital-to-hospital stock movements</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The Transfer Dashboard at <strong>/product_scanning/transfers/</strong> lists all H2H transfer sessions with the same three-tab structure as the main audit dashboard: <strong>Ongoing | Awaiting | Completed</strong>.
+        </p>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 14px">
+          Each transfer card shows: <strong>From Hospital → To Hospital</strong>, Transfer ID, initiated by, product count, and status.
+          Click a card to open the transfer detail page — identical in layout to a normal session detail, with the products table, remarks, attachment upload, and all action buttons.
+        </p>
+        <div class="callout tip">
+          <span class="callout-icon">✅</span>
+          <span>You can also see transfers alongside normal sessions on the main dashboard by setting the <strong>Type filter</strong> to <em>H2H</em> or <em>All</em>. This is useful when managing both audit and transfer sessions in the same view.</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ═══════════════════════════════════════
+           MASTER DATA — Warehouse + Admin
+           ═══════════════════════════════════════ -->
+      {% if role == 'warehouse' or role == 'admin' %}
+
+      <div class="guide-section" id="hospital-master">
+        <div class="section-header">
+          <div class="section-icon purple"><i class="fas fa-hospital-alt"></i></div>
+          <div>
+            <div class="section-title">Hospital Master</div>
+            <div class="section-subtitle">Managing the list of hospitals and salesperson assignments</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The Hospital Master at <strong>/product_scanning/hospital-master/</strong> is the central registry of all hospitals.
+          Every hospital that appears in the scanner dropdown must exist here with the correct salesperson email mapped to it.
+        </p>
+
+        <div class="sub-heading">Hospital Fields</div>
+        <table class="guide-table">
+          <thead><tr><th style="width:28%">Field</th><th style="width:12%">Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Hospital Name</td><td>✅ Yes</td><td>Full name of the hospital. Must be unique across the system.</td></tr>
+            <tr><td>SAP Code (Customer Code)</td><td>✅ Yes</td><td>The hospital's unique SAP customer code used in exports and reporting.</td></tr>
+            <tr><td>Province</td><td>No</td><td>State or region for grouping and display.</td></tr>
+            <tr><td>Location / City</td><td>No</td><td>City or area for display purposes.</td></tr>
+            <tr><td>Contact Person</td><td>No</td><td>Hospital contact name for this account.</td></tr>
+            <tr><td>Phone</td><td>No</td><td>Contact phone number.</td></tr>
+            <tr><td>Hospital Email</td><td>No</td><td>Hospital's general email — not used for access control.</td></tr>
+            <tr><td>Salesperson Email</td><td>No</td><td><strong>Critical for salesperson access.</strong> The Meril salesperson's exact login email assigned to this hospital. Salespersons only see hospitals where this field matches their email. Leave blank to make a hospital visible only to admins.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Adding, Editing &amp; Deleting</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          Click <strong>"Add Hospital"</strong> to open the form modal. Click the <strong>pencil icon</strong> on any row to edit. Click the <strong>trash icon</strong> to delete — hospitals with existing session data are <em>protected from deletion</em> to preserve the audit trail.
+        </p>
+
+        <div class="sub-heading">Bulk Import via CSV / Excel</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Download the CSV template</h4>
+              <p>Click <strong>"Download Template"</strong> to get a pre-formatted CSV. Required columns: <code>hospital_name</code>, <code>customer_code</code>. Optional: <code>province</code>, <code>location</code>, <code>contact_person</code>, <code>phone</code>, <code>hospital_email</code>, <code>salesperson_email</code>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Populate the file</h4>
+              <p>Fill in your data. Save as <code>.csv</code> or <code>.xlsx</code>.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Upload and import</h4>
+              <p>Drag the file onto the import panel or click to select, then click <strong>"Import &amp; Update"</strong>. A progress bar tracks the import. The results summary shows: created, updated, skipped (identical data), and rows with errors.</p>
+            </div>
+          </div>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <span>The import matches on <strong>hospital_name</strong>. Matching hospitals are updated; new ones are created. Hospitals with session history are protected from deletion via import.</span>
+        </div>
+        <div class="callout danger">
+          <span class="callout-icon">🚫</span>
+          <span>If a salesperson reports their hospital is missing from the scanner dropdown, the most common cause is a <strong>Salesperson Email mismatch</strong> — check for typos, wrong domain (@merillife.com vs @meril.com), or leading/trailing spaces. The match is case-insensitive but otherwise must be exact.</span>
+        </div>
+      </div>
+
+      <div class="guide-section" id="gtin-master">
+        <div class="section-header">
+          <div class="section-icon purple"><i class="fas fa-barcode"></i></div>
+          <div>
+            <div class="section-title">GTIN Material Master</div>
+            <div class="section-subtitle">Mapping product barcodes to SAP material codes</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The GTIN Master at <strong>/product_scanning/gtin-material-master/</strong> maps each product barcode (GTIN/EAN) to its SAP material code and description.
+          When the scanner reads a barcode and finds the GTIN in this master, the <strong>Material Code and Product Name are auto-filled</strong> — the salesperson does not need to type them.
+        </p>
+
+        <div class="sub-heading">GTIN Mapping Fields</div>
+        <table class="guide-table">
+          <thead><tr><th style="width:28%">Field</th><th style="width:12%">Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>GTIN / Barcode</td><td>✅ Yes</td><td>Numeric barcode on the product label (8, 12, 13, or 14 digits). Must be unique.</td></tr>
+            <tr><td>Material Code</td><td>✅ Yes</td><td>SAP material number auto-filled in the scanner when this GTIN is scanned.</td></tr>
+            <tr><td>Brand</td><td>No</td><td>Product brand name.</td></tr>
+            <tr><td>Control Code</td><td>No</td><td>Internal SAP control classification.</td></tr>
+            <tr><td>Product Description</td><td>No</td><td>Short name displayed in the scanner's product name field.</td></tr>
+            <tr><td>Material Description</td><td>No</td><td>Full SAP material description shown in session detail.</td></tr>
+            <tr><td>Material Type</td><td>No</td><td>SAP material type (e.g. ZCON, ZERP).</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>If a scanned product shows <strong>"Unknown Material"</strong> in a session, the GTIN is not yet in this master. Add the mapping here — future scans of the same GTIN will auto-resolve. For products already in old sessions, edit the product record directly in the session detail to assign the correct material code manually.</span>
+        </div>
+
+        <div class="sub-heading">Bulk Import</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0">
+          Same import process as Hospital Master. Download the template, fill in mappings, and upload.
+          Required columns: <code>Material</code>, <code>GTIN</code>. Optional: <code>Brand</code>, <code>Product Desc</code>, <code>Material Description</code>, <code>Control Code</code>, <code>Material Type Descr</code>.
+          Existing GTINs are updated; new ones are created.
+        </p>
+      </div>
+
+      {% endif %}{# end warehouse/admin master data sections #}
+
+      <!-- ═══════════════════════════════════════
+           SP PERFORMANCE DASHBOARD
+           ═══════════════════════════════════════ -->
+      <div class="guide-section" id="sp-dashboard">
+        <div class="section-header">
+          <div class="section-icon green"><i class="fas fa-chart-bar"></i></div>
+          <div>
+            <div class="section-title">Salesperson Performance Dashboard</div>
+            <div class="section-subtitle">Hospital coverage and scan activity metrics per salesperson</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Available at <strong>/product_scanning/sp-dashboard/</strong>. This dashboard shows hospital visit coverage, session counts, and scan volumes for a selected salesperson and month.
+          {% if role == 'warehouse' or role == 'admin' %}Warehouse and admin users can select any salesperson from the dropdown.{% endif %}
+          {% if role == 'salesperson' %}You see your own data only.{% endif %}
+          Use the month navigation arrows to review historical periods.
+        </p>
+
+        <div class="sub-heading">Summary Metrics</div>
+        <table class="guide-table">
+          <thead><tr><th>Metric</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Assigned Hospitals</td><td>Total hospitals mapped to this salesperson in the Hospital Master.</td></tr>
+            <tr><td>Visited</td><td>Hospitals where at least one session was submitted in the selected month.</td></tr>
+            <tr><td>Pending</td><td>Assigned hospitals not yet visited in the selected month.</td></tr>
+            <tr><td>Total Sessions</td><td>Sessions created in the selected month (all statuses).</td></tr>
+            <tr><td>Units Scanned</td><td>Total individual products scanned across all sessions in the selected month.</td></tr>
+            <tr><td>Visit Rate</td><td>Visited ÷ Assigned × 100%. A coloured progress bar visualises coverage at a glance.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Tabs</div>
+        <table class="guide-table">
+          <thead><tr><th>Tab</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td>This Month</td><td>All assigned hospitals showing visit status, session count, products scanned, and last visit date for the selected month.</td></tr>
+            <tr><td>Pending</td><td>Hospitals not yet visited this month — useful for planning the next hospital visits.</td></tr>
+            <tr><td>History</td><td>Monthly summary for previous months — sessions, units, and visit rate.</td></tr>
+            <tr><td>Batch Status</td><td>Live tracker showing each session as <em>Scanning → Submitted → Confirmed</em>. Use this to check whether the warehouse has confirmed your sessions.</td></tr>
+            <tr><td>My Scans</td><td>Full list of all products you have scanned, filterable by expiry level. Exportable as Excel (.xlsx).</td></tr>
+            {% if role == 'warehouse' or role == 'admin' %}
+            <tr><td>All Salespersons</td><td>Overview grid of the entire team — assigned hospitals, visited, pending, and visit rate for the selected month.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>Salespersons receive an automated <strong>monthly reminder email on the 20th</strong> listing the hospitals they have not yet visited that month. This is only sent if there are pending visits.</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           NOTIFICATIONS
+           ═══════════════════════════════════════ -->
+      <div class="guide-section" id="notifications">
+        <div class="section-header">
+          <div class="section-icon blue"><i class="fas fa-bell"></i></div>
+          <div>
+            <div class="section-title">Notifications</div>
+            <div class="section-subtitle">In-app alerts for session updates</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          The bell icon in the navigation bar shows your unread notification count. Click it to open the list of recent notifications.
+        </p>
+        <table class="guide-table">
+          <thead><tr><th style="width:35%">Notification</th><th style="width:25%">Who receives it</th><th>Trigger</th></tr></thead>
+          <tbody>
+            <tr><td>Session Submitted</td><td>Warehouse / Admin</td><td>Salesperson completes and submits a session.</td></tr>
+            <tr><td>Session Closed</td><td>Salesperson</td><td>Warehouse uploads the confirmation and closes the session.</td></tr>
+            <tr><td>Session Rejected</td><td>Salesperson</td><td>Warehouse rejects the session back for correction.</td></tr>
+            <tr><td>Session Terminated</td><td>Both parties</td><td>Warehouse or admin cancels the session.</td></tr>
+            <tr><td>Overdue Reminder (daily)</td><td>Warehouse / Admin</td><td>Session has been in Awaiting Confirmation for more than 7 days — sent every day until resolved.</td></tr>
+            <tr><td>Monthly Visit Reminder</td><td>Salesperson (email)</td><td>Automated email on the 20th of each month listing pending hospital visits.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout tip" style="margin-top:14px">
+          <span class="callout-icon">✅</span>
+          <span>Click <strong>"Mark all as read"</strong> in the notification dropdown to clear the unread badge after you have reviewed the alerts.</span>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           FEEDBACK PORTAL
+           ═══════════════════════════════════════ -->
+      <div class="guide-section" id="feedback">
+        <div class="section-header">
+          <div class="section-icon gray"><i class="fas fa-comment-alt"></i></div>
+          <div>
+            <div class="section-title">Feedback &amp; Support Portal</div>
+            <div class="section-subtitle">Reporting bugs and requesting features</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Access the portal at <strong>/product_scanning/feedback/</strong>. Use it to report bugs, request features, or flag data issues. Submissions go directly to the development team.
+        </p>
+
+        <div class="sub-heading">Submitting a Ticket</div>
+        <table class="guide-table">
+          <thead><tr><th style="width:25%">Field</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Title</td><td>Short summary of the issue or request (e.g. "Scanner not parsing expiry date correctly").</td></tr>
+            <tr><td>Description</td><td>Detailed explanation — include steps to reproduce, what you expected to happen, and what actually happened.</td></tr>
+            <tr><td>Category</td><td>Bug / Feature Request / UX Improvement / Performance / Data Issue / Other.</td></tr>
+            <tr><td>Severity</td><td>Low / Medium / High / Critical. Use <em>Critical</em> only if the issue completely blocks your work.</td></tr>
+            <tr><td>Module</td><td>Which part of the app the issue relates to (Product Scanning, Hospital Master, etc.).</td></tr>
+            <tr><td>Screenshot</td><td>Optional — attach an image to help explain the issue visually.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="sub-heading">Tracking Your Tickets</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          After submitting, your ticket appears in <strong>Recent Tickets</strong> on the portal. Each ticket shows its status badge and reply count.
+          Click a ticket to expand the conversation thread and read responses from the team.
+        </p>
+
+        {% if role == 'admin' %}
+        <div class="sub-heading">Feedback Inbox (Admin)</div>
+        <p style="color:#4b5563;font-size:.87rem;line-height:1.7;margin:0 0 10px">
+          Admins have access to the <strong>Feedback Inbox</strong> at <strong>/product_scanning/feedback/inbox/</strong>.
+          All submitted tickets appear here with filter tabs for All / Open / In Progress / Critical.
+          From the inbox you can:
+        </p>
+        <ul style="color:#4b5563;font-size:.87rem;line-height:1.9;padding-left:18px;margin:0">
+          <li>Change ticket status: Open → In Progress → Resolved → Closed.</li>
+          <li>Update severity level.</li>
+          <li>Assign the ticket to a team member.</li>
+          <li>Reply to the submitter (visible to them in the portal).</li>
+          <li>Add an internal note (marked <em>Internal</em> — never shown to the submitter).</li>
+        </ul>
+        {% endif %}
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           USER ROLES — Superuser only
+           ═══════════════════════════════════════ -->
+      {% if is_superuser %}
+      <div class="guide-section" id="roles">
+        <div class="section-header">
+          <div class="section-icon purple"><i class="fas fa-users-cog"></i></div>
+          <div>
+            <div class="section-title">User Roles &amp; Permissions</div>
+            <div class="section-subtitle">Controlling access via Django Groups</div>
+          </div>
+        </div>
+        <p style="color:#4b5563;line-height:1.7;margin:0 0 16px">
+          Access is controlled via Django Groups. Assign users at <strong>/admin/ → Users → [user] → Groups</strong>.
+        </p>
+        <table class="guide-table">
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Scanner &amp; Scanning</th>
+              <th>Dashboard &amp; Sessions</th>
+              <th>Masters &amp; Exports</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PS Salesperson</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-red)"><i class="fas fa-times"></i> None</td>
+              <td style="color:var(--guide-red)"><i class="fas fa-times"></i> None</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Add only</td>
+            </tr>
+            <tr>
+              <td>PS Warehouse</td>
+              <td style="color:var(--guide-red)"><i class="fas fa-times"></i> None</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+            </tr>
+            <tr>
+              <td>PS Viewer</td>
+              <td style="color:#d97706">👁 View only</td>
+              <td style="color:#d97706">👁 View only</td>
+              <td style="color:var(--guide-red)"><i class="fas fa-times"></i> None</td>
+              <td style="color:var(--guide-red)"><i class="fas fa-times"></i> None</td>
+            </tr>
+            <tr>
+              <td>Product Scanner / Sales</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+              <td style="color:var(--guide-green)"><i class="fas fa-check"></i> Full</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout info" style="margin-top:14px">
+          <span class="callout-icon">ℹ️</span>
+          <span>A user can belong to <strong>multiple groups simultaneously</strong>. For example, adding a user to both <em>PS Salesperson</em> and <em>PS Warehouse</em> gives them access to both the scanner and the dashboard.</span>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <span>Role changes take effect on the user's <strong>next login</strong>. Ask them to log out and back in after you update their groups.</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ═══════════════════════════════════════
+           TIPS & TROUBLESHOOTING
+           ═══════════════════════════════════════ -->
+      <div class="guide-section" id="tips">
+        <div class="section-header">
+          <div class="section-icon amber"><i class="fas fa-lightbulb"></i></div>
+          <div>
+            <div class="section-title">Tips &amp; Troubleshooting</div>
+            <div class="section-subtitle">Common issues and how to resolve them</div>
+          </div>
+        </div>
+        <table class="guide-table">
+          <thead><tr><th style="width:36%">Issue</th><th>Solution</th></tr></thead>
+          <tbody>
+            {% if role == 'salesperson' or role == 'admin' %}
+            <tr>
+              <td>Camera won't scan the barcode</td>
+              <td>Ensure good lighting; hold 10–15 cm from the code; clean the camera lens. Use the <strong>Manual Entry</strong> panel to type the barcode value directly if the camera cannot read it.</td>
+            </tr>
+            <tr>
+              <td>Hospital is missing from the dropdown</td>
+              <td>Your email address is not assigned to that hospital in the Hospital Master. Contact the warehouse team with your exact login email so they can update the mapping.</td>
+            </tr>
+            <tr>
+              <td>Material Code is blank after a scan</td>
+              <td>The GTIN is not yet in the GTIN Master. Note the barcode and report it to the warehouse team. You can also type the Material Code manually using the Manual Entry panel.</td>
+            </tr>
+            <tr>
+              <td>"Duplicate scan" error for a new product</td>
+              <td>The same serial number was already scanned in this session. If the original scan was incorrect, delete it from the scanned list first, then re-scan the correct product.</td>
+            </tr>
+            <tr>
+              <td>Lost scan data after a browser refresh</td>
+              <td>Products already saved to the server are safe. Reopen the scanner — the app will offer to resume your active session with all previously saved products.</td>
+            </tr>
+            <tr>
+              <td>Session was rejected — what do I do?</td>
+              <td>Resume the rejected session from the scanner, fix the issues flagged in the remarks, and resubmit using <strong>"Complete &amp; Submit"</strong>.</td>
+            </tr>
+            {% endif %}
+            {% if role == 'warehouse' or role == 'admin' %}
+            <tr>
+              <td>Session stuck in Awaiting for days</td>
+              <td>If the document is ready, upload it to close the session. If you're still waiting for paperwork, use <strong>Put on Hold</strong> to stop overdue emails, then <strong>Resume</strong> when the document arrives.</td>
+            </tr>
+            <tr>
+              <td>Product shows "Unknown Material"</td>
+              <td>Add the GTIN to the GTIN Master, then edit the product record inside the session detail to assign the material code manually for this instance.</td>
+            </tr>
+            <tr>
+              <td>Salesperson cannot see their hospital</td>
+              <td>Go to Hospital Master → find the hospital → check the <strong>Salesperson Email</strong> field exactly matches the salesperson's login email (verify domain, no extra spaces, no typos).</td>
+            </tr>
+            <tr>
+              <td>Attachment upload fails</td>
+              <td>Check the file is under 50 MB and is one of the accepted formats (PDF, Excel, Word, JPG, PNG). Compress the PDF or reduce image resolution if needed.</td>
+            </tr>
+            <tr>
+              <td>Bulk import shows unexpected "skipped" rows</td>
+              <td>Skipped rows mean the record already exists with identical data (no update needed), or a required field was blank. Check the error detail in the results summary below the import panel.</td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td>403 Forbidden / Access Denied page</td>
+              <td>Your account does not have the required role group assigned. Contact the system administrator to check your Django group membership.</td>
+            </tr>
+            <tr>
+              <td>Page not loading or displaying incorrectly</td>
+              <td>Try a hard refresh: <kbd class="kbd">Ctrl+Shift+R</kbd> on Windows / <kbd class="kbd">Cmd+Shift+R</kbd> on Mac. If the issue persists, report it via the Feedback Portal with your browser details.</td>
+            </tr>
+            <tr>
+              <td>Notification bell not updating</td>
+              <td>Ensure your browser allows JavaScript on this site. Try logging out and back in — the notification count is refreshed on login.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout tip" style="margin-top:20px">
+          <span class="callout-icon">💬</span>
+          <span>For bugs, data issues, or feature requests use the <strong><a href="/product_scanning/feedback/" style="color:inherit">Feedback &amp; Support portal</a></strong>. Include your role, browser, device, and steps to reproduce — this helps the team resolve your ticket faster.</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  const sections = document.querySelectorAll('.guide-section[id]');
+  const links    = document.querySelectorAll('.toc-link');
+  if (!sections.length || !links.length) return;
+
+  function onScroll() {
+    let current = '';
+    sections.forEach(sec => {
+      if (window.scrollY + 100 >= sec.offsetTop) current = sec.id;
+    });
+    links.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+{% endblock %}

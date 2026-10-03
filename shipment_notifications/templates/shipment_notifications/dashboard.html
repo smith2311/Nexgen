@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shipment Dashboard</title>
+    
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1f2937;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        
+        .header {
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 28px;
+        }
+        
+        h1 {
+            margin: 0 0 8px 0;
+            color: #111827;
+            font-size: 28px;
+        }
+        
+        .meta {
+            color: #6b7280;
+            margin: 8px 0 0 0;
+            font-size: 14px;
+        }
+        
+        .meta strong {
+            color: #1f2937;
+            font-weight: 600;
+        }
+        
+        /* Table View (Desktop & Tablet) */
+        .table-view {
+            display: block;
+        }
+        
+        /* Card View (Hidden by default, shown on mobile) */
+        .card-view {
+            display: none;
+        }
+        
+        /* DataTables Customization */
+        .dataTables_wrapper {
+            margin-top: 20px;
+        }
+        
+        .dataTables_header {
+            margin-bottom: 15px;
+        }
+        
+        .dt-buttons {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .dt-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .dt-button:hover {
+            background: #764ba2;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead th {
+            background: #f3f4f6;
+            color: #374151;
+            font-weight: 600;
+            padding: 14px;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s ease;
+        }
+        
+        tbody tr:hover {
+            background-color: #f9fafb;
+        }
+        
+        tbody td {
+            padding: 14px;
+            font-size: 14px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .badge-shipped {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .badge-intransit {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .badge-delivered {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .badge-pending {
+            background: #fef3c7;
+            color: #b45309;
+        }
+        
+        .badge-other {
+            background: #f3e8ff;
+            color: #6d28d9;
+        }
+        
+        .action-link {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #dbeafe;
+            color: #1e40af;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .action-link:hover {
+            background: #bfdbfe;
+            color: #1e3a8a;
+        }
+        
+        /* Filter Bar */
+        .filter-bar {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+
+        .filter-bar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 14px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #1f2937;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .btn-filter {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-filter-apply {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-filter-apply:hover {
+            background: #5a6fd6;
+        }
+
+        .btn-filter-clear {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-filter-clear:hover {
+            background: #d1d5db;
+        }
+
+        .active-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .filter-tag a {
+            color: #1e40af;
+            text-decoration: none;
+            font-weight: 700;
+            margin-left: 2px;
+        }
+
+        .filter-tag a:hover {
+            color: #ef4444;
+        }
+
+        .result-count {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .result-count strong {
+            color: #1f2937;
+        }
+
+        .empty {
+            padding: 60px 20px;
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .empty-text {
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        /* Mobile Card Layout */
+        .shipment-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: block;
+            transition: all 0.2s ease;
+        }
+        
+        .shipment-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: #667eea;
+        }
+        
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .card-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .card-label {
+            font-weight: 600;
+            color: #6b7280;
+            min-width: 100px;
+        }
+        
+        .card-value {
+            text-align: right;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .card-title {
+            font-weight: 700;
+            font-size: 16px;
+            color: #111827;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .card-action-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .card-action-btn:hover {
+            background: #764ba2;
+        }
+        
+        .card-action-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        /* DataTables Search & Pagination */
+        .dataTables_filter input {
+            padding: 8px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .dataTables_filter input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .dataTables_paginate {
+            margin-top: 20px;
+            text-align: right;
+        }
+        
+        .paginate_button {
+            padding: 8px 12px;
+            margin: 0 4px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            color: #374151;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        
+        .paginate_button:hover:not(.disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .paginate_button.current {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .paginate_button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .dataTables_info {
+            margin-top: 15px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        
+        /* Responsive Design */
+        @media screen and (max-width: 768px) {
+            /* Switch to card view on tablet and below */
+            .table-view {
+                display: none;
+            }
+            
+            .card-view {
+                display: block;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+            
+            h1 {
+                font-size: 22px;
+            }
+            
+            .meta {
+                font-size: 13px;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            .filter-actions {
+                width: 100%;
+            }
+
+            .btn-filter {
+                flex: 1;
+            }
+            
+            .dt-buttons {
+                justify-content: flex-start;
+                gap: 6px;
+            }
+            
+            .dt-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            
+            thead th {
+                padding: 10px;
+                font-size: 12px;
+            }
+            
+            tbody td {
+                padding: 10px;
+                font-size: 13px;
+            }
+            
+            .badge {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+            
+            .action-link {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+            
+            .dataTables_filter input {
+                max-width: 100%;
+            }
+            
+            .dataTables_paginate {
+                text-align: left;
+            }
+            
+            .paginate_button {
+                padding: 6px 10px;
+                margin: 4px 2px;
+                font-size: 12px;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 12px;
+                border-radius: 8px;
+            }
+            
+            h1 {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+            
+            .meta {
+                font-size: 12px;
+            }
+            
+            .header {
+                padding-bottom: 12px;
+                margin-bottom: 16px;
+            }
+            
+            .shipment-card {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            
+            .card-row {
+                font-size: 13px;
+                margin-bottom: 10px;
+            }
+            
+            .card-label {
+                min-width: 80px;
+                font-size: 12px;
+            }
+            
+            .card-value {
+                font-size: 13px;
+            }
+            
+            .card-title {
+                font-size: 14px;
+            }
+            
+            .card-header {
+                margin-bottom: 12px;
+                padding-bottom: 10px;
+            }
+            
+            .badge {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+            
+            .card-actions {
+                gap: 4px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            
+            .card-action-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .dt-buttons {
+                justify-content: flex-start;
+                gap: 4px;
+                flex-wrap: wrap;
+            }
+            
+            .dt-button {
+                padding: 6px 10px;
+                font-size: 11px;
+                flex: 0 1 auto;
+            }
+            
+            .dataTables_filter input {
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+            
+            .dataTables_info {
+                font-size: 12px;
+            }
+            
+            .paginate_button {
+                padding: 6px 8px;
+                margin: 4px 2px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📦 Shipment Dashboard</h1>
+        <p class="meta">Shipments assigned to <strong>{{ phone_number }}</strong>. This page is accessible only through the secure notification link.</p>
+    </div>
+
+    {% if shipments or current_status or current_q or current_date_from or current_date_to or current_consignee %}
+        <!-- Search & Filter Bar -->
+        <form class="filter-bar" method="get" action="">
+            <p class="filter-bar-title">🔍 Search &amp; Filter</p>
+            <div class="filter-row">
+                <div class="filter-group" style="flex: 2;">
+                    <label for="q">Search</label>
+                    <input type="text" id="q" name="q" placeholder="AWB, Invoice, Consignee, Airline…" value="{{ current_q }}">
+                </div>
+                <div class="filter-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">All Statuses</option>
+                        {% for s in all_statuses %}
+                            <option value="{{ s }}" {% if s == current_status %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="consignee">Consignee</label>
+                    <select id="consignee" name="consignee">
+                        <option value="">All Consignees</option>
+                        {% for c in all_consignees %}
+                            <option value="{{ c }}" {% if c == current_consignee %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="date_from">Invoice From</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ current_date_from }}">
+                </div>
+                <div class="filter-group">
+                    <label for="date_to">Invoice To</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ current_date_to }}">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn-filter btn-filter-apply">Apply</button>
+                    <a href="{{ request.path }}" class="btn-filter btn-filter-clear" style="text-decoration:none; text-align:center;">Clear</a>
+                </div>
+            </div>
+            {% if current_status or current_q or current_date_from or current_date_to or current_consignee %}
+                <div class="active-filters">
+                    {% if current_q %}<span class="filter-tag">Search: "{{ current_q }}"</span>{% endif %}
+                    {% if current_status %}<span class="filter-tag">Status: {{ current_status }}</span>{% endif %}
+                    {% if current_consignee %}<span class="filter-tag">Consignee: {{ current_consignee }}</span>{% endif %}
+                    {% if current_date_from %}<span class="filter-tag">From: {{ current_date_from }}</span>{% endif %}
+                    {% if current_date_to %}<span class="filter-tag">To: {{ current_date_to }}</span>{% endif %}
+                </div>
+            {% endif %}
+        </form>
+
+        <p class="result-count">Showing <strong>{{ shipments|length }}</strong> shipment{{ shipments|length|pluralize }}</p>
+
+    {% endif %}
+
+    {% if shipments %}
+        <!-- Desktop/Tablet: DataTable View -->
+        <div class="table-view">
+            <table id="shipmentsTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>AWB No</th>
+                        <th>Status</th>
+                        <th>Consignee</th>
+                        <th>Country</th>
+                        <th>Vertical</th>
+                        <th>Invoice No</th>
+                        <th>Invoice Date</th>
+                        <th>ETD</th>
+                        <th>ETA</th>
+                        <th>Airline / Forwarder</th>
+                        <th>Last Updated</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for shipment in shipments %}
+                    <tr>
+                        <td><strong>{{ shipment.awb_no|default:"—" }}</strong></td>
+                        <td>
+                            <span class="badge {% if 'delivered' in shipment.status|lower %}badge-delivered{% elif 'shipped' in shipment.status|lower %}badge-shipped{% elif 'transit' in shipment.status|lower %}badge-intransit{% elif 'pending' in shipment.status|lower %}badge-pending{% else %}badge-other{% endif %}">
+                                {{ shipment.status|default:"—" }}
+                            </span>
+                        </td>
+                        <td>{{ shipment.consignee_name|default:"—" }}</td>
+                        <td>{{ shipment.country|default:"—" }}</td>
+                        <td>{{ shipment.vertical|default:"—" }}</td>
+                        <td>{{ shipment.invoice_no|default:"—" }}</td>
+                        <td>{{ shipment.invoice_date|date:'d M Y'|default:"—" }}</td>
+                        <td>{{ shipment.etd|date:'d M Y'|default:"—" }}</td>
+                        <td>{{ shipment.eta|date:'d M Y'|default:"—" }}</td>
+                        <td>{{ shipment.airline|default:shipment.forwarder|default:"—" }}</td>
+                        <td>{{ shipment.updated_at|date:'d-m-Y H:i'|default:"—" }}</td>
+                        <td>{{ shipment.remarks|default:"—" }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mobile: Card View -->
+        <div class="card-view">
+            {% for shipment in shipments %}
+                <div class="shipment-card">
+                    <div class="card-header">
+                        <div class="card-title">{{ shipment.awb_no|default:shipment.invoice_no|default:"—" }}</div>
+                        <span class="badge {% if 'delivered' in shipment.status|lower %}badge-delivered{% elif 'shipped' in shipment.status|lower %}badge-shipped{% elif 'transit' in shipment.status|lower %}badge-intransit{% elif 'pending' in shipment.status|lower %}badge-pending{% else %}badge-other{% endif %}">
+                            {{ shipment.status|default:"—" }}
+                        </span>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Consignee:</div>
+                        <div class="card-value">{{ shipment.consignee_name|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Country:</div>
+                        <div class="card-value">{{ shipment.country|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Vertical:</div>
+                        <div class="card-value">{{ shipment.vertical|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Invoice:</div>
+                        <div class="card-value">{{ shipment.invoice_no|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Invoice Date:</div>
+                        <div class="card-value">{{ shipment.invoice_date|date:'d M Y'|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">ETD:</div>
+                        <div class="card-value">{{ shipment.etd|date:'d M Y'|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">ETA:</div>
+                        <div class="card-value">{{ shipment.eta|date:'d M Y'|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Airline:</div>
+                        <div class="card-value">{{ shipment.airline|default:shipment.forwarder|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Last Updated:</div>
+                        <div class="card-value">{{ shipment.updated_at|date:'d-m-Y H:i'|default:"—" }}</div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="card-label">Remarks:</div>
+                        <div class="card-value">{{ shipment.remarks|default:"—" }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <div class="empty-icon">📭</div>
+            {% if current_status or current_q or current_date_from or current_date_to or current_consignee %}
+                <p class="empty-text">No shipments match your filters. <a href="{{ request.path }}">Clear all filters</a></p>
+            {% else %}
+                <p class="empty-text">No shipments are currently assigned to this phone number.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- jQuery (required for DataTables) -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+
+<!-- DataTables JS (Desktop view only) -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Initialize DataTables only when table view is visible (desktop)
+        var shipmentsTable = null;
+        
+        function initializeDataTable() {
+            if (shipmentsTable) {
+                shipmentsTable.destroy();
+            }
+            
+            shipmentsTable = $('#shipmentsTable').DataTable({
+                pageLength: 10,
+                lengthMenu: [[5, 10, 25, 50, 100, -1], [5, 10, 25, 50, 100, "All"]],
+                order: [[10, 'desc']], // Sort by Last Updated (col 10, descending)
+                dom: 'Blfrtip',
+                buttons: [
+                    'copy', 'csv', 'excel', 'pdf', 'print'
+                ],
+                language: {
+                    search: "🔍 Search Shipments:",
+                    lengthMenu: "Show _MENU_ entries",
+                    info: "Showing _START_ to _END_ of _TOTAL_ shipments",
+                    infoEmpty: "No shipments to show",
+                    emptyTable: "No shipments available",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                }
+            });
+        }
+        
+        // Initialize on desktop, reinitialize on window resize
+        function handleResponsiveness() {
+            var tableView = $('.table-view');
+            if (tableView.css('display') !== 'none' && !shipmentsTable) {
+                // Table view is now visible (desktop)
+                if ($('#shipmentsTable').length) {
+                    initializeDataTable();
+                }
+            } else if (tableView.css('display') === 'none' && shipmentsTable) {
+                // Table view is hidden (mobile)
+                shipmentsTable.destroy();
+                shipmentsTable = null;
+            }
+        }
+        
+        // Trigger on page load
+        if ($('.table-view').css('display') !== 'none') {
+            initializeDataTable();
+        }
+        
+        // Re-check on window resize
+        $(window).on('resize', function() {
+            handleResponsiveness();
+        });
+    });
+</script>
+
+{# This page never extends base.html, so it carries the tracker itself. #}
+{% include "_matomo.html" %}
+</body>
+</html>

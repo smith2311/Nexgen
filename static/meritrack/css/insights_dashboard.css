@@ -1,0 +1,44 @@
+/* Insights Dashboard — uses meritrack-core.css design system */
+
+.stat-card .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1em; color: #fff; margin-bottom: 10px; }
+.stat-card .stat-value { font-size: 1.7em; font-weight: 700; color: var(--mt-gray-800); line-height: 1; }
+.stat-card .stat-label { font-size: 0.82em; color: var(--mt-gray-600); margin-top: 4px; }
+.stat-card.danger .stat-value { color: var(--mt-danger); }
+.stat-card.warning .stat-value { color: var(--mt-warning); }
+.mt-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); margin-bottom: 20px; }
+.mt-card h3 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+.mt-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+.bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 8px; font-size: 0.82em; }
+.bar-label { width: 160px; text-align: right; color: var(--mt-gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.bar-track { flex: 1; background: var(--mt-gray-100); border-radius: 6px; height: 22px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; display: flex; align-items: center; padding-left: 8px; font-size: 0.8em; font-weight: 600; color: #fff; min-width: 24px; }
+.bar-count { width: 50px; text-align: right; font-weight: 600; color: var(--mt-gray-800); flex-shrink: 0; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-purple { background: var(--mt-purple-light); color: var(--mt-purple-dark); }
+.health-score { font-size: 2.5em; font-weight: 800; text-align: center; margin: 20px 0; }
+.health-score.good { color: var(--mt-success); }
+.health-score.warning { color: var(--mt-warning); }
+.health-score.critical { color: var(--mt-danger); }
+.loading-spinner { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--mt-gray-400); }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.kpi-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid var(--mt-gray-200); }
+.kpi-card h4 { margin: 0 0 12px; font-size: 0.9em; color: var(--mt-gray-600); }
+.velocity-bar { display: flex; height: 24px; border-radius: 12px; overflow: hidden; margin-top: 8px; }
+.velocity-bar .seg { transition: width 0.6s; display: flex; align-items: center; justify-content: center; font-size: 0.7em; font-weight: 700; color: #fff; }
+.trend-chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.trend-bar { flex: 1; border-radius: 4px 4px 0 0; min-width: 14px; transition: height 0.5s ease; cursor: pointer; position: relative; }
+.trend-bar:hover { opacity: 0.85; }
+.trend-bar .tip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--mt-gray-800); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.72em; white-space: nowrap; z-index: 10; }
+.trend-bar:hover .tip { display: block; }
+.filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-bar select { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--mt-gray-300); font-size: 0.88em; }
+.tab-nav { display: flex; gap: 0; border-bottom: 2px solid var(--mt-gray-200); margin-bottom: 20px; }
+.tab-nav button { padding: 10px 20px; border: none; background: none; font-size: 0.9em; font-weight: 600; color: var(--mt-gray-600); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab-nav button.active { color: var(--mt-primary); border-bottom-color: var(--mt-primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }

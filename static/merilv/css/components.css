@@ -1,0 +1,1509 @@
+/* ============================================================================
+   Meril-V — component library
+
+   Padding/gap values below are the ones fixed in the spec: button 40px h /16px
+   x, input 40px h /12px x, table cell 12px 16px, KPI tile 16px 20px /88px h,
+   badge 4px 10px, chip 2px 8px, flyout item 10px 16px, modal 24px.
+   ========================================================================= */
+
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────
+   Hover never lifts — the border goes from --mv-border to --mv-border-strong. */
+.mv-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mv-space-2);
+    height: var(--mv-control-h);
+    padding: 0 var(--mv-space-4);
+    box-sizing: border-box;
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    color: var(--mv-fg);
+    font-family: var(--mv-font-sans);
+    font-size: var(--mv-t-body-size);
+    line-height: var(--mv-t-body-lh);
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state),
+                color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-btn:hover { border-color: var(--mv-border-strong); background: var(--mv-surface-container-low); }
+.mv-btn:disabled, .mv-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.mv a.mv-btn,
+.mv a.mv-btn:hover {
+    text-decoration: none;
+}
+.mv-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    flex: 0 0 auto;
+    color: currentColor;
+}
+
+.mv-btn--primary {
+    background: var(--mv-primary-container);
+    border-color: var(--mv-primary-container);
+    color: #fff;
+}
+.mv-btn--primary:hover { background: var(--mv-primary-hover); border-color: var(--mv-primary-hover); color: #fff; }
+.mv a.mv-btn--primary,
+.mv a.mv-btn--primary:hover,
+.mv button.mv-btn--primary,
+.mv button.mv-btn--primary:hover {
+    color: #fff;
+}
+
+/* Destructive: danger text on a tint, never a solid red slab. */
+.mv-btn--danger { background: var(--mv-danger-bg); border-color: var(--mv-danger); color: var(--mv-danger); }
+.mv-btn--danger:hover { background: var(--mv-danger); border-color: var(--mv-danger); color: #fff; }
+
+.mv-btn--ghost { background: transparent; border-color: transparent; color: var(--mv-fg-2); }
+.mv-btn--ghost:hover { background: var(--mv-surface-container-low); border-color: transparent; color: var(--mv-fg); }
+
+.mv-btn--icon { width: var(--mv-control-h); padding: 0; flex: 0 0 auto; }
+.mv-btn--block { width: 100%; }
+
+/* Compact variant for toolbars and card heads, where a row of 40px controls
+   next to a table header reads as heavier than the table itself. Templates have
+   asked for this class since before it existed, so they were silently getting
+   full-height buttons. */
+.mv-btn--sm {
+    height: 32px;
+    padding: 0 var(--mv-space-3);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    gap: var(--mv-space-1);
+}
+.mv-btn--sm svg { width: 14px; height: 14px; }
+.mv-btn--sm.mv-btn--icon { width: 32px; padding: 0; }
+
+/* Tinted outline variants: same weight as a plain button, colour-coded by what
+   the action produces. Used so a row of four actions is scannable without
+   reading the labels — green makes a file, violet consumes one, red destroys. */
+.mv-btn--tint-ok      { background: var(--mv-ok-bg);            border-color: var(--mv-ok-border);            color: var(--mv-ok); }
+.mv-btn--tint-ok:hover      { background: var(--mv-ok);            border-color: var(--mv-ok);            color: #fff; }
+.mv-btn--tint-warn    { background: var(--mv-warn-bg);          border-color: var(--mv-warn-border);          color: var(--mv-warn); }
+.mv-btn--tint-warn:hover    { background: var(--mv-warn);          border-color: var(--mv-warn);          color: #fff; }
+.mv-btn--tint-violet  { background: var(--mv-accent-violet-bg);  border-color: var(--mv-accent-violet-border); color: var(--mv-accent-violet); }
+.mv-btn--tint-violet:hover  { background: var(--mv-accent-violet);  border-color: var(--mv-accent-violet);  color: #fff; }
+.mv-btn--tint-blue    { background: var(--mv-accent-blue-bg);    border-color: var(--mv-accent-blue-border);   color: var(--mv-accent-blue); }
+.mv-btn--tint-blue:hover    { background: var(--mv-accent-blue);    border-color: var(--mv-accent-blue);    color: #fff; }
+.mv .mv-btn--tint-ok:hover,
+.mv .mv-btn--tint-warn:hover,
+.mv .mv-btn--tint-violet:hover,
+.mv .mv-btn--tint-blue:hover { color: #fff; }
+
+.mv-link-btn {
+    background: none; border: none; padding: 0;
+    color: var(--mv-primary); font: inherit; cursor: pointer;
+}
+.mv-link-btn:hover { color: var(--mv-primary-hover); text-decoration: underline; }
+
+
+/* ── Icons ────────────────────────────────────────────────────────────────── */
+.mv svg {
+    flex-shrink: 0;
+    vertical-align: -0.125em;
+}
+
+.mv h1 svg,
+.mv h2 svg,
+.mv h3 svg,
+.mv-card__title svg,
+.mv-t-h2 svg,
+.mv-inline svg {
+    color: var(--mv-card-accent, var(--mv-icon-accent, var(--mv-primary)));
+}
+
+.mv-card__title,
+.mv-t-h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+}
+
+
+/* ── Form controls ───────────────────────────────────────────────────────────
+   Labels sit above their input, left-aligned, 4px gap. Never floating, never
+   side-by-side. Helper text 4px below the control. */
+.mv-field { display: flex; flex-direction: column; }
+.mv-field + .mv-field { margin-top: var(--mv-space-4); }
+/* flex-direction is explicit here too — see the note on .mv-table-toolbar;
+   masters_org.html applies this class directly to several <form> elements. */
+.mv-field-row { display: flex; flex-direction: row; gap: var(--mv-space-4); flex-wrap: wrap; }
+.mv-field-row > .mv-field { flex: 1 1 0; min-width: 180px; margin-top: 0; }
+
+.mv-label {
+    margin-bottom: var(--mv-space-1);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--mv-fg-2);
+    text-align: left;
+}
+.mv-req { color: var(--mv-danger); font-weight: 700; }
+
+.mv-input, .mv-select, .mv-textarea {
+    height: var(--mv-control-h);
+    padding: 0 var(--mv-space-3);
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    color: var(--mv-fg);
+    font-family: var(--mv-font-sans);
+    font-size: var(--mv-t-input-size);
+    line-height: var(--mv-t-input-lh);
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-textarea { height: auto; min-height: 120px; padding: var(--mv-space-3); resize: vertical; }
+.mv-input:focus, .mv-select:focus, .mv-textarea:focus {
+    outline: none;
+    border-color: var(--mv-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+.mv-input::placeholder, .mv-textarea::placeholder { color: var(--mv-fg-3); }
+.mv-input:disabled, .mv-select:disabled { background: var(--mv-surface-container-hi); color: var(--mv-fg-3); cursor: not-allowed; }
+.mv-input--sm, .mv-select--sm { height: 32px; font-size: var(--mv-t-caption-size); padding: 0 var(--mv-space-2); }
+/* Codes and quantities are mono. */
+.mv-input--mono, .mv-textarea--mono { font-family: var(--mv-font-mono); }
+/* A primary key being edited: readonly rather than disabled, so the value is
+   still submitted and still selectable for copying. Matches :disabled visually
+   so it reads as "not yours to change" without looking broken. */
+.mv-input--locked { background: var(--mv-surface-container-hi); color: var(--mv-fg-2); cursor: not-allowed; }
+
+/* The SAP batches/serials an operator may pick instead of the one they scanned.
+   Tinted amber because it is an instruction to act, not passive metadata — it
+   has to read differently from the grey captions stacked around it. */
+.mv-alt-batches {
+    margin-top: 2px; color: var(--mv-accent-amber); font-weight: 500;
+}
+.mv-alt-batches .mv-mono { color: var(--mv-fg-1); }
+
+.mv-hint  { margin-top: var(--mv-space-1); font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); color: var(--mv-fg-3); }
+.mv-error { margin-top: var(--mv-space-1); font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); color: var(--mv-danger); font-weight: 500; }
+
+.mv-check { display: flex; align-items: flex-start; gap: var(--mv-space-2); }
+.mv-check input[type="checkbox"], .mv-check input[type="radio"] {
+    width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--mv-primary); flex: 0 0 auto;
+}
+
+/* Radio-card group (consolidator source type, mode of transit) */
+.mv-radio-card {
+    display: flex; align-items: flex-start; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    cursor: pointer;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-radio-card:hover { border-color: var(--mv-border-strong); }
+.mv-radio-card:has(input:checked) { border-color: var(--mv-primary); background: var(--mv-info-bg); box-shadow: inset 3px 0 0 var(--mv-primary); }
+
+
+/* ── Status badge (24px pill) — ValidationRow.status ─────────────────────── */
+.mv-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mv-space-1);
+    height: 24px;
+    padding: var(--mv-space-1) 10px;
+    box-sizing: border-box;
+    border-radius: var(--mv-radius-full);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--mv-neutral-bg);
+    color: var(--mv-neutral);
+}
+.mv-badge--ok      { background: var(--mv-ok-bg);      color: var(--mv-ok);      border: 1px solid var(--mv-ok-border); }
+.mv-badge--warn    { background: var(--mv-warn-bg);    color: var(--mv-warn);    border: 1px solid var(--mv-warn-border); }
+.mv-badge--danger  { background: var(--mv-danger-bg);  color: var(--mv-danger);  border: 1px solid var(--mv-danger-border); }
+.mv-badge--neutral { background: var(--mv-neutral-bg); color: var(--mv-neutral); border: 1px solid var(--mv-neutral-border); }
+.mv-badge--info    { background: var(--mv-info-bg);    color: var(--mv-info);    border: 1px solid var(--mv-info-border); }
+.mv-badge--primary { background: var(--mv-primary-container); color: #fff; }
+
+/* ── Stock chip (20px) — ValidationRow.stock_status ──────────────────────── */
+.mv-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 2px var(--mv-space-2);
+    box-sizing: border-box;
+    border-radius: var(--mv-radius-sm);
+    font-size: var(--mv-t-caption-size);
+    line-height: 1;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    background: var(--mv-neutral-bg);
+    color: var(--mv-neutral);
+}
+.mv-chip--ok      { background: var(--mv-ok-bg);      color: var(--mv-ok);      border: 1px solid var(--mv-ok-border); }
+.mv-chip--warn    { background: var(--mv-warn-bg);    color: var(--mv-warn);    border: 1px solid var(--mv-warn-border); }
+.mv-chip--danger  { background: var(--mv-danger-bg);  color: var(--mv-danger);  border: 1px solid var(--mv-danger-border); }
+.mv-chip--neutral { background: var(--mv-neutral-bg); color: var(--mv-neutral); border: 1px solid var(--mv-neutral-border); }
+
+/* ── Flag chips — ValidationRow.flags[] — never truncated ───────────────── */
+.mv-flags { display: flex; flex-wrap: wrap; gap: var(--mv-space-1); }
+.mv-flag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--mv-space-2);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-accent-violet-bg);
+    color: var(--mv-neutral);
+    border: 1px solid var(--mv-accent-violet-border);
+    font-size: 0.688rem;
+    line-height: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    white-space: nowrap;
+}
+
+/* ── Reason-code badge — outbound scan log ──────────────────────────────── */
+.mv-reason {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--mv-space-1) var(--mv-space-2);
+    border-radius: var(--mv-radius-sm);
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-mono-size);
+    line-height: var(--mv-t-mono-lh);
+    font-weight: 500;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: var(--mv-neutral-bg);
+    color: var(--mv-neutral);
+}
+.mv-reason--ok      { background: var(--mv-ok-bg);      color: var(--mv-ok); }
+.mv-reason--warn    { background: var(--mv-warn-bg);    color: var(--mv-warn); }
+.mv-reason--danger  { background: var(--mv-danger-bg);  color: var(--mv-danger); }
+.mv-reason--neutral { background: var(--mv-neutral-bg); color: var(--mv-neutral); }
+/* A step not taken (NO_FOCUS) — neither the duplicate amber nor the rejection
+   red, both of which say something about the item that was scanned. */
+.mv-reason--blocked { background: var(--mv-info-bg);    color: var(--mv-info); }
+
+
+/* ── KPI tiles ───────────────────────────────────────────────────────────── */
+.mv-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--mv-space-4);
+}
+.mv-kpi {
+    --mv-kpi-accent: var(--mv-accent-blue);
+    --mv-kpi-bg: var(--mv-accent-blue-bg);
+    --mv-kpi-border: var(--mv-accent-blue-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* min-height, not height: a label long enough to wrap ("Matched
+       (Consumed)") must be able to grow the card instead of overflowing past
+       a fixed box — with overflow:hidden below, a fixed height clipped the
+       value digit itself, leaving only its top sliver visible. Grid's default
+       row-stretch still equalises every card in the same row to whichever
+       one needed the most room, so single-line rows look exactly as before. */
+    min-height: var(--mv-kpi-h);
+    /* Left padding gets an extra 4px so text clears the accent bar below —
+       the bar used to run along the bottom edge, out of the way of anything.
+       Bottom padding is a touch larger than the top so the value doesn't sit
+       flush against the card's lower edge. */
+    padding: var(--mv-space-4) var(--mv-space-5) var(--mv-space-5) calc(var(--mv-space-5) + var(--mv-space-1));
+    box-sizing: border-box;
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-lg);
+    box-shadow: var(--mv-shadow-1);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state);
+}
+/* Left accent bar, not a bottom one — the same "colour lives at the edge,
+   the number stays neutral" language the Material Rework KPI cards use. */
+.mv-kpi::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--mv-kpi-accent);
+    opacity: 1;
+    border-radius: var(--mv-radius-lg) 0 0 var(--mv-radius-lg);
+}
+/* Optional icon chip — a KPI that includes one gets a small tinted badge
+   above the value, matching Material Rework's report KPI cards. Tiles that
+   don't include one (most of them, today) render exactly as before. */
+.mv-kpi__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-kpi-bg);
+    color: var(--mv-kpi-accent);
+    margin-bottom: var(--mv-space-2);
+}
+.mv-kpi__icon svg { width: 16px; height: 16px; }
+.mv-kpi:hover {
+    transform: translateY(-3px);
+    border-color: var(--mv-border-strong);
+    box-shadow: 0 4px 16px rgba(11,31,58,.10);
+}
+/* A tile that is also a filter link. Inherits every tile style; only the
+   pointer and the removal of the anchor underline differ, so a linked tile is
+   visually identical to a static one until hovered. */
+a.mv-kpi { text-decoration: none; cursor: pointer; }
+a.mv-kpi:hover { text-decoration: none; }
+/* The tile whose filter is currently applied. */
+.mv-kpi--on {
+    border-color: var(--mv-kpi-accent);
+    background: var(--mv-kpi-bg);
+    box-shadow: inset 0 0 0 1px var(--mv-kpi-border);
+}
+.mv-kpis > .mv-kpi:nth-child(6n+1) { --mv-kpi-accent: var(--mv-accent-blue);   --mv-kpi-bg: var(--mv-accent-blue-bg);   --mv-kpi-border: var(--mv-accent-blue-border); }
+.mv-kpis > .mv-kpi:nth-child(6n+2) { --mv-kpi-accent: var(--mv-accent-teal);   --mv-kpi-bg: var(--mv-accent-teal-bg);   --mv-kpi-border: var(--mv-accent-teal-border); }
+.mv-kpis > .mv-kpi:nth-child(6n+3) { --mv-kpi-accent: var(--mv-accent-amber);  --mv-kpi-bg: var(--mv-accent-amber-bg);  --mv-kpi-border: var(--mv-accent-amber-border); }
+.mv-kpis > .mv-kpi:nth-child(6n+4) { --mv-kpi-accent: var(--mv-accent-violet); --mv-kpi-bg: var(--mv-accent-violet-bg); --mv-kpi-border: var(--mv-accent-violet-border); }
+.mv-kpis > .mv-kpi:nth-child(6n+5) { --mv-kpi-accent: var(--mv-accent-cyan);   --mv-kpi-bg: var(--mv-accent-cyan-bg);   --mv-kpi-border: var(--mv-accent-cyan-border); }
+.mv-kpis > .mv-kpi:nth-child(6n)   { --mv-kpi-accent: var(--mv-accent-rose);   --mv-kpi-bg: var(--mv-accent-rose-bg);   --mv-kpi-border: var(--mv-accent-rose-border); }
+.mv-kpi__label {
+    font-size: var(--mv-t-header-size);
+    line-height: var(--mv-t-header-lh);
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--mv-fg-3);
+}
+.mv-kpi__value {
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-kpi-size);
+    line-height: var(--mv-t-kpi-lh);
+    font-weight: 700;
+    /* Dark by default rather than tinted to the rotating accent colour — the
+       number is what the eye should land on; colour is carried by the left
+       bar and the icon chip instead. The three semantic states below
+       (danger/warn/ok) still override this on purpose: an alarming count
+       should look alarming, not merely have a coloured stripe next to it. */
+    color: var(--mv-fg);
+}
+.mv-kpi__sub { font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); color: var(--mv-fg-3); }
+.mv-kpi__sub svg {
+    color: var(--mv-kpi-accent);
+    vertical-align: -2px;
+}
+/* Emphasised tile — 3px brand left border (the "matched %" tile). */
+.mv-kpi--active {
+    --mv-kpi-accent: var(--mv-primary);
+    --mv-kpi-bg: var(--mv-primary-tint);
+    --mv-kpi-border: var(--mv-accent-blue-border);
+}
+.mv-kpi--danger {
+    --mv-kpi-accent: var(--mv-danger);
+    --mv-kpi-bg: var(--mv-danger-bg);
+    --mv-kpi-border: var(--mv-danger-border);
+}
+.mv-kpi--danger .mv-kpi__value { color: var(--mv-danger); }
+.mv-kpi--warn {
+    --mv-kpi-accent: var(--mv-warn);
+    --mv-kpi-bg: var(--mv-warn-bg);
+    --mv-kpi-border: var(--mv-warn-border);
+}
+.mv-kpi--warn .mv-kpi__value { color: var(--mv-warn); }
+.mv-kpi--ok {
+    --mv-kpi-accent: var(--mv-ok);
+    --mv-kpi-bg: var(--mv-ok-bg);
+    --mv-kpi-border: var(--mv-ok-border);
+}
+.mv-kpi--ok .mv-kpi__value { color: var(--mv-ok); }
+
+
+/* ── Data table ──────────────────────────────────────────────────────────── */
+.mv-table-toolbar {
+    display: flex;
+    /* Explicit: static/css/components.css (the platform-wide stylesheet, loaded
+       on every page) has a bare `form { flex-direction: column }` rule. CSS
+       cascades per property, not per rule — my class wins the `display` and
+       `align-items` properties on specificity, but since this class never used
+       to declare flex-direction, THAT property fell through to the platform's
+       column default on every <form class="mv-table-toolbar">, stacking and
+       centering what should have been one horizontal row. */
+    flex-direction: row;
+    align-items: center;
+    gap: var(--mv-space-2);
+    min-height: 48px;
+    padding: var(--mv-space-3) var(--mv-space-4);
+    background: linear-gradient(90deg, var(--mv-accent-cyan-bg), var(--mv-surface-container-low));
+    border-bottom: 1px solid var(--mv-border);
+    flex-wrap: wrap;
+}
+.mv-table-toolbar__spacer { margin-left: auto; }
+/* display:block explicit — masters_roles.html applies this class directly to a
+   <form>, and without it the platform's `form { display:flex }` (see the note
+   on .mv-table-toolbar) would turn the lone <input> child into a flex item. */
+.mv-search { display: block; position: relative; width: 320px; max-width: 100%; }
+.mv-search svg {
+    position: absolute; left: var(--mv-space-3); top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: var(--mv-fg-3); pointer-events: none;
+}
+.mv-search .mv-input { padding-left: var(--mv-space-8); }
+
+/* Active-filter chip bar — 8px between chips. */
+.mv-filterbar {
+    display: flex; align-items: center; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border-bottom: 1px solid var(--mv-border);
+    flex-wrap: wrap;
+}
+.mv-filter-chip {
+    display: inline-flex; align-items: center; gap: var(--mv-space-1);
+    padding: var(--mv-space-1) var(--mv-space-2);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-accent-violet-bg);
+    color: var(--mv-info);
+    border: 1px solid var(--mv-accent-violet-border);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    font-weight: 600;
+    text-decoration: none;
+}
+.mv-filter-chip svg { width: 12px; height: 12px; }
+
+.mv-table-wrap { width: 100%; overflow-x: auto; }
+.mv-table { width: 100%; border-collapse: collapse; }
+.mv-table th {
+    padding: var(--mv-space-3) var(--mv-space-4);
+    background: linear-gradient(180deg, var(--mv-accent-blue-bg), var(--mv-surface-container-low));
+    border-bottom: 1px solid var(--mv-border);
+    font-size: var(--mv-t-header-size);
+    line-height: var(--mv-t-header-lh);
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--mv-fg-3);
+    text-align: left;
+    white-space: nowrap;
+}
+.mv-table td {
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border-bottom: 1px solid var(--mv-border);
+    font-size: var(--mv-t-cell-size);
+    line-height: var(--mv-t-cell-lh);
+    color: var(--mv-fg);
+    vertical-align: middle;
+}
+.mv-table tbody tr { transition: background var(--mv-dur-state) var(--mv-ease-state); }
+.mv-table tbody tr:hover { background: var(--mv-surface-container-low); }
+.mv-table tbody tr.is-selected {
+    box-shadow: inset 3px 0 0 var(--mv-primary);
+    background: color-mix(in srgb, var(--mv-primary-tint) 20%, transparent);
+}
+/* Density mode — vertical padding drops to 8px. */
+.mv-table--dense td, .mv-table--dense th { padding-top: var(--mv-space-2); padding-bottom: var(--mv-space-2); }
+/* Zebra striping is off except on validation results. */
+.mv-table--zebra tbody tr:nth-child(even) { background: var(--mv-surface-container-low); }
+.mv-table--zebra tbody tr:nth-child(even):hover { background: var(--mv-surface-container-hi); }
+
+/* A row that navigates like a link (see wireRowLinks in datatable.js). */
+.mv-row-link { cursor: pointer; }
+
+/* Whole-row tint by outcome family. A left accent bar rather than a full
+   background fill, so the badge in the Result column stays the clearest signal
+   and this only adds a scan-down-the-row cue. */
+.mv-row--ok     { border-left: 3px solid var(--mv-ok); background: var(--mv-ok-bg); }
+.mv-row--warn   { border-left: 3px solid var(--mv-warn); background: var(--mv-warn-bg); }
+.mv-row--danger { border-left: 3px solid var(--mv-danger); background: var(--mv-danger-bg); }
+
+/* Row 3.9 proper: "Serial Not Match, Batch Not Match and Expiry dates should
+   be visually highlighted."
+
+   The families above are not enough on their own. A wrong batch and a wrong
+   serial are both MISMATCH, so both drew the same red row and the operator
+   could not tell from the colour which of the two had gone wrong — a batch
+   error means fetch a different carton, a serial error means the paperwork is
+   wrong. They get distinct accents. Expiry had no highlight at all: the cell
+   printed six digits and left the reader to do the arithmetic. */
+.mv-row--danger.mv-row--serial { border-left-color: var(--mv-accent-blue); }
+.mv-row--danger.mv-row--batch  { border-left-color: var(--mv-danger); }
+
+.mv-cell-expiry             { font-family: var(--mv-font-mono); white-space: nowrap; }
+.mv-cell-expiry--expired    { color: var(--mv-danger); font-weight: 700;
+                              text-decoration: underline wavy var(--mv-danger); }
+.mv-cell-expiry--near_expiry,
+.mv-cell-expiry--short_expiry { color: var(--mv-warn); font-weight: 600; }
+/* "good" and "no_expiry" stay unstyled on purpose — highlighting every row
+   highlights none of them. */
+
+/* Numeric columns right-aligned, and so are their headers. */
+.mv-table .mv-num, .mv-table th.mv-num { text-align: right; font-family: var(--mv-font-mono); font-size: var(--mv-t-mono-size); }
+.mv-table th.mv-num { font-family: var(--mv-font-sans); }
+/* Fixed-width columns. */
+.mv-table .mv-col-check { width: 40px; text-align: center; }
+.mv-table .mv-col-actions { width: 56px; text-align: right; }
+
+.mv-table-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-4);
+    min-height: 48px;
+    padding: var(--mv-space-2) var(--mv-space-4);
+    background: var(--mv-surface);
+    border-top: 1px solid var(--mv-border);
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-3);
+    flex-wrap: wrap;
+}
+.mv-pagination { display: flex; align-items: center; gap: var(--mv-space-1); }
+.mv-pagination a, .mv-pagination span {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 32px; height: 32px; padding: 0 var(--mv-space-1);
+    border-radius: var(--mv-radius-md);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+    color: var(--mv-fg-2);
+    text-decoration: none;
+}
+.mv-pagination a:hover { background: var(--mv-surface-container-hi); }
+.mv-pagination .is-current { background: var(--mv-primary-container); color: #fff; }
+.mv-pagination .is-disabled { color: var(--mv-fg-3); opacity: .5; pointer-events: none; }
+
+/* Row-expansion panel — raw_scan + full detail string. */
+.mv-row-detail td {
+    background: var(--mv-surface-container-low);
+    padding: var(--mv-space-4) var(--mv-space-6);
+}
+.mv-row-detail dl { display: grid; grid-template-columns: 160px 1fr; gap: var(--mv-space-2) var(--mv-space-4); margin: 0; }
+.mv-row-detail dt { font-size: var(--mv-t-header-size); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--mv-fg-3); }
+.mv-row-detail dd { margin: 0; font-family: var(--mv-font-mono); font-size: var(--mv-t-mono-size); color: var(--mv-fg); word-break: break-all; }
+
+
+/* ── File dropzone ───────────────────────────────────────────────────────── */
+.mv-dropzone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--mv-space-3);
+    height: 160px;
+    padding: var(--mv-space-4);
+    box-sizing: border-box;
+    border: 2px dashed var(--mv-border-strong);
+    border-radius: var(--mv-radius-md);
+    background: linear-gradient(135deg, var(--mv-accent-cyan-bg), var(--mv-accent-violet-bg));
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                background var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-dropzone:hover { border-color: var(--mv-primary); background: linear-gradient(135deg, var(--mv-primary-tint), var(--mv-accent-teal-bg)); }
+.mv-dropzone.is-dragover { border-color: var(--mv-primary); background: var(--mv-primary-tint); }
+.mv-dropzone svg { width: 40px; height: 40px; color: var(--mv-fg-3); }
+.mv-dropzone__label { font-size: var(--mv-t-body-size); font-weight: 600; color: var(--mv-fg); }
+.mv-dropzone input[type="file"] { display: none; }
+
+.mv-filechip {
+    display: flex; align-items: center; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+}
+.mv-filechip__name { font-family: var(--mv-font-mono); font-size: var(--mv-t-mono-size); }
+
+/* ── "Replace" danger callout for bulk import ───────────────────────────── */
+.mv-danger-callout {
+    display: flex; align-items: flex-start; gap: var(--mv-space-3);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border: 1px solid var(--mv-danger);
+    border-radius: var(--mv-radius-md);
+    background: var(--mv-danger-bg);
+}
+.mv-danger-callout svg { width: 20px; height: 20px; color: var(--mv-danger); flex: 0 0 auto; }
+.mv-danger-callout__title { font-size: var(--mv-t-body-size); font-weight: 600; color: var(--mv-fg); }
+.mv-danger-callout__note { margin-top: var(--mv-space-1); font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); color: var(--mv-fg-2); }
+
+
+/* ── Alerts / banners ────────────────────────────────────────────────────── */
+.mv-alert {
+    display: flex; align-items: flex-start; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border: 1px solid var(--mv-border);
+    border-left-width: 3px;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container-low);
+    font-size: var(--mv-t-body-size);
+    line-height: var(--mv-t-body-lh);
+}
+.mv-alert svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
+.mv-alert--ok      { background: var(--mv-ok-bg);      border-color: var(--mv-ok);      color: var(--mv-ok); }
+.mv-alert--warn    { background: var(--mv-warn-bg);    border-color: var(--mv-warn);    color: var(--mv-warn); }
+.mv-alert--danger  { background: var(--mv-danger-bg);  border-color: var(--mv-danger);  color: var(--mv-danger); }
+.mv-alert--info    { background: var(--mv-info-bg);    border-color: var(--mv-info);    color: var(--mv-info); }
+.mv-alerts { display: flex; flex-direction: column; gap: var(--mv-space-2); }
+
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.mv-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: var(--mv-space-10) var(--mv-space-6);
+    text-align: center;
+}
+.mv-empty > svg {
+    width: 48px;
+    height: 48px;
+    display: block;
+    color: var(--mv-accent-violet);
+    margin-bottom: var(--mv-space-3);
+}
+.mv-empty .mv-btn svg {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    color: currentColor;
+}
+.mv-empty__title { font-size: var(--mv-t-h2-size); line-height: var(--mv-t-h2-lh); font-weight: 600; color: var(--mv-fg); }
+.mv-empty__text  { margin-top: var(--mv-space-1); font-size: var(--mv-t-body-size); color: var(--mv-fg-3); }
+.mv-empty__action { margin-top: var(--mv-space-4); }
+
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.mv-modal-scrim {
+    position: fixed; inset: 0; z-index: 1300;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: var(--mv-space-4);
+    background: rgba(0, 0, 0, .4);
+}
+.mv-modal-scrim.is-open { display: flex; }
+.mv-modal {
+    width: min(560px, 92vw);
+    max-height: calc(100vh - var(--mv-space-8));
+    display: flex; flex-direction: column;
+    background: var(--mv-surface-container);
+    border-radius: var(--mv-radius-lg);
+    box-shadow: var(--mv-shadow-2);
+    overflow: hidden;
+}
+.mv-modal--wide { width: min(720px, 92vw); }
+.mv-modal__head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-4);
+    min-height: 56px;
+    padding: var(--mv-space-5) var(--mv-space-6);
+    border-bottom: 1px solid var(--mv-border);
+}
+/* Every modal here wraps its head/body/foot in a <form>, which makes those
+   three GRANDCHILDREN of .mv-modal rather than its flex items. The form itself
+   had no layout, so it grew to its content height, .mv-modal__body's
+   overflow-y had no bounded height to scroll inside, and .mv-modal's
+   overflow:hidden clipped whatever spilled — which on Finish Delivery meant
+   the submit button ("Generate Discrepancy Report") sat off-screen and could
+   only be reached by zooming the whole browser out.
+
+   The form now carries the column layout, so the body scrolls and the footer
+   stays pinned. min-height:0 on both is the part that matters: a flex item
+   defaults to min-height:auto and refuses to shrink below its content, which
+   silently defeats overflow-y on the child. */
+.mv-modal > form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+}
+.mv-modal__body {
+    padding: var(--mv-space-6);
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex; flex-direction: column; gap: var(--mv-space-4);
+}
+/* The head and footer keep their height instead of being squeezed by a long
+   body — without this the footer loses its padding as the body grows. */
+.mv-modal__head, .mv-modal__foot { flex: 0 0 auto; }
+.mv-modal__foot {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: var(--mv-space-2);
+    min-height: 72px;
+    padding: var(--mv-space-4) var(--mv-space-6);
+    border-top: 1px solid var(--mv-border);
+    background: var(--mv-surface-container-low);
+}
+
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.mv-toasts {
+    position: fixed;
+    top: calc(var(--mv-navbar-h) + var(--mv-space-4));
+    right: var(--mv-space-4);
+    z-index: 1400;
+    display: flex; flex-direction: column; gap: var(--mv-space-2);
+}
+.mv-toast {
+    display: flex; align-items: flex-start; gap: var(--mv-space-2);
+    width: 320px;
+    padding: var(--mv-space-3) var(--mv-space-4);
+    box-sizing: border-box;
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-left-width: 3px;
+    border-radius: var(--mv-radius-md);
+    box-shadow: var(--mv-shadow-2);
+}
+.mv-toast svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.mv-toast__title { font-size: var(--mv-t-body-size); font-weight: 600; }
+.mv-toast__detail { margin-top: 2px; font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); }
+.mv-toast--ok     { border-left-color: var(--mv-ok); }
+.mv-toast--ok     svg { color: var(--mv-ok); }
+.mv-toast--danger { border-left-color: var(--mv-danger); }
+.mv-toast--danger svg { color: var(--mv-danger); }
+.mv-toast--warn   { border-left-color: var(--mv-warn); }
+.mv-toast--warn   svg { color: var(--mv-warn); }
+.mv-toast--blocked      { border-left-color: var(--mv-info); }
+.mv-toast--blocked  svg { color: var(--mv-info); }
+
+
+/* ── Progress ring (delivery cards) ─────────────────────────────────────── */
+.mv-ring { position: relative; width: 48px; height: 48px; flex: 0 0 auto; }
+.mv-ring svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+.mv-ring__track { stroke: var(--mv-surface-container-hi); }
+.mv-ring__bar   { stroke: var(--mv-primary); transition: stroke-dashoffset 300ms var(--mv-ease-enter); }
+.mv-ring.is-complete .mv-ring__bar { stroke: var(--mv-ok); }
+.mv-ring__text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mv-font-mono);
+    font-size: 0.688rem;
+    font-weight: 600;
+    color: var(--mv-fg-2);
+}
+
+/* Linear progress (consolidator confidence bars) */
+.mv-progress { height: 6px; border-radius: var(--mv-radius-full); background: var(--mv-surface-container-hi); overflow: hidden; }
+.mv-progress__bar { height: 100%; border-radius: var(--mv-radius-full); background: var(--mv-primary); }
+.mv-progress__bar--ok { background: var(--mv-ok); }
+.mv-progress__bar--warn { background: var(--mv-warn); }
+.mv-progress__bar--danger { background: var(--mv-danger); }
+
+
+/* ── Tier / entity chips shown in page headers ──────────────────────────── */
+.mv-tier {
+    display: inline-flex; align-items: center;
+    /* nowrap and min-height, not white-space:normal and a fixed height.
+       A two-word role such as "Meril-V Picker" wrapped inside a box pinned to
+       24px: the content needed 29px, overflowed, and the 9999px pill radius
+       then rounded a box roughly as tall as it was wide -- the badge rendered
+       as an ellipse with the label spilling out of it. Keeping the label on
+       one line is the fix; min-height means a longer label added later
+       grows the chip instead of bursting it. */
+    white-space: nowrap;
+    min-height: 24px; padding: var(--mv-space-1) 10px;
+    box-sizing: border-box;
+    border-radius: var(--mv-radius-full);
+    font-size: var(--mv-t-caption-size);
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    background: var(--mv-neutral-bg);
+    color: var(--mv-neutral);
+    border: 1px solid var(--mv-neutral-border);
+}
+.mv-tier--admin  { background: var(--mv-primary-tint); color: var(--mv-primary); border-color: var(--mv-accent-blue-border); }
+.mv-tier--picker { background: var(--mv-ok-bg); color: var(--mv-ok); border-color: var(--mv-ok-border); }
+
+.mv-entity-selector {
+    display: inline-flex; align-items: center; gap: var(--mv-space-2);
+    height: var(--mv-control-h);
+    padding: 0 var(--mv-space-3);
+    box-sizing: border-box;
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+}
+.mv-entity-selector svg { width: 16px; height: 16px; color: var(--mv-fg-3); }
+.mv-entity-selector select { border: none; background: none; font: inherit; color: var(--mv-fg); padding: 0; height: auto; }
+.mv-entity-selector select:focus { outline: none; box-shadow: none; }
+
+
+/* ── Definition list (key/value readouts) ───────────────────────────────── */
+.mv-dl { display: grid; grid-template-columns: auto 1fr; gap: var(--mv-space-2) var(--mv-space-4); margin: 0; }
+.mv-dl dt { font-size: var(--mv-t-caption-size); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--mv-fg-3); }
+.mv-dl dd { margin: 0; font-size: var(--mv-t-cell-size); color: var(--mv-fg); }
+
+.mv-divider { height: 1px; background: var(--mv-border); border: none; margin: 0; }
+
+/* Utility: icon + text pairs always align on the flex cross axis. */
+.mv-inline { display: inline-flex; align-items: center; gap: var(--mv-space-2); }
+/* flex-direction explicit — see the note on .mv-table-toolbar; masters_roles.html
+   applies this class directly to a couple of <form> elements. */
+.mv-row    { display: flex; flex-direction: row; align-items: center; gap: var(--mv-space-2); }
+.mv-stack  { display: flex; flex-direction: column; gap: var(--mv-space-4); }
+.mv-stack--tight { gap: var(--mv-space-2); }
+.mv-spacer { margin-left: auto; }
+
+/* ── Row actions (Edit + Delete) ─────────────────────────────────────────────
+   One flex cluster inside the cell, not two inline-level children of a
+   text-align:right <td>. Delete has to be a real POST <form>, and a form and a
+   bare <button> resolve their inline baselines differently — which is what left
+   the two icons sitting at slightly different heights, with the newline between
+   the tags rendering as a stray text gap. align-items:center removes the
+   baseline from the equation; the gap makes the spacing deliberate. */
+.mv-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--mv-space-1);
+}
+.mv-row-delete { display: flex; margin: 0; }
+
+/* 30px, not the 40px page-level control height: a dense row is 8px of vertical
+   padding, so a 40px control grows the row to 56px and crowds the cell. */
+.mv-row-actions .mv-btn--icon { width: 30px; height: 30px; }
+.mv-row-actions .mv-btn--icon svg { width: 15px; height: 15px; }
+
+/* Two 30px buttons + gap + the cell's 16px padding either side. Declared for th
+   and td alike, so the header and body cells cannot disagree on the width the
+   way they did when only the td carried the modifier. */
+.mv-table .mv-col-actions--pair { width: 96px; text-align: right; white-space: nowrap; }
+
+/* Roles & Access carries four row actions (edit / suspend / revoke / delete)
+   rather than the usual two, so the column needs room for them all on one line. */
+.mv-table .mv-col-actions--multi { width: 172px; text-align: right; white-space: nowrap; }
+
+
+/* ── Org hierarchy tree ───────────────────────────────────────────────────
+   The six structural masters each render as a flat table; this is the view
+   that shows how they nest. Depth is carried by colour and a left guide rule
+   per level, not by indentation alone — four levels of pure indent stops being
+   countable once a plant has twenty storage locations under it. */
+.mv-badge--sm { padding: 0 6px; font-size: 10px; line-height: 18px; }
+
+/* The Company → Sales Org → Plant → Storage legend. Fixed, not interactive:
+   it names the chain so the colours below need no key. */
+.mv-orgpath {
+    display: flex; align-items: center; gap: var(--mv-space-2); flex-wrap: wrap;
+    padding: var(--mv-space-3) var(--mv-space-4);
+    margin-bottom: var(--mv-space-4);
+    background: var(--mv-surface);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-lg);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+}
+.mv-orgpath svg { color: var(--mv-fg-3); flex: 0 0 auto; }
+.mv-orgpath__step { padding: 3px 10px; border-radius: var(--mv-radius-sm); }
+.mv-orgpath__step--company { background: var(--mv-accent-violet-bg); color: var(--mv-accent-violet); }
+.mv-orgpath__step--org     { background: var(--mv-accent-blue-bg);   color: var(--mv-accent-blue); }
+.mv-orgpath__step--plant   { background: var(--mv-ok-bg);            color: var(--mv-ok); }
+.mv-orgpath__step--storage { background: var(--mv-accent-amber-bg);  color: var(--mv-accent-amber); }
+
+/* ── Org hierarchy tree ───────────────────────────────────────────────────
+   Built on native <details>/<summary>. Two rules make that work visually:
+
+   * `list-style: none` plus the ::-webkit-details-marker reset removes the
+     browser's own triangle, because the caret is drawn as an icon inside the
+     summary so it can be coloured and rotated with everything else.
+   * `.mv-tree__caret` rotates on `[open]`, which is a real attribute the
+     browser maintains — there is no open/closed class of our own to keep in
+     sync, which is the entire reason for using <details> here. */
+.mv-treebar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: var(--mv-space-2);
+    margin-bottom: var(--mv-space-3);
+}
+.mv-tree { display: flex; flex-direction: column; gap: var(--mv-space-4); }
+.mv-tree__company { padding: var(--mv-space-4) var(--mv-space-5); }
+.mv-tree details { min-width: 0; }
+.mv-tree summary {
+    cursor: pointer;
+    list-style: none;
+}
+.mv-tree summary::-webkit-details-marker { display: none; }
+.mv-tree summary::marker { content: ""; }
+.mv-tree summary:focus-visible {
+    outline: 2px solid var(--mv-accent-violet);
+    outline-offset: 2px;
+    border-radius: var(--mv-radius-sm);
+}
+.mv-tree__caret {
+    display: inline-flex; flex: 0 0 auto;
+    color: var(--mv-fg-3);
+    transform: rotate(-90deg);
+    transition: transform .12s ease;
+}
+.mv-tree details[open] > summary > .mv-tree__caret { transform: rotate(0deg); }
+/* A count that navigates has to look like it does, and must not swallow the
+   click that toggles its own branch — hence a real <a>, which stops the
+   summary's default toggle by being the activated element. */
+.mv-tree__count--link {
+    color: var(--mv-accent-violet);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 2px 8px;
+    border-radius: var(--mv-radius-sm);
+}
+.mv-tree__count--link:hover { background: var(--mv-accent-violet-bg); text-decoration: underline; }
+/* Sits in the panel, not the summary row: a button inside a <summary> is
+   activated by the same click that collapses the branch under it. */
+.mv-tree__plantactions {
+    display: flex; align-items: center; flex-wrap: wrap; gap: var(--mv-space-2);
+    padding: 0 0 var(--mv-space-2) calc(22px + var(--mv-space-2));
+}
+.mv-tree__companyhead {
+    display: flex; align-items: center; gap: var(--mv-space-3);
+    padding-bottom: var(--mv-space-3);
+    border-bottom: 1px solid var(--mv-border);
+}
+/* Only draw the divider when the branch is open — a collapsed company was
+   showing a rule under it with nothing beneath. */
+.mv-tree__company:not([open]) > .mv-tree__companyhead { border-bottom-color: transparent; padding-bottom: 0; }
+.mv-tree__id { display: flex; flex-direction: column; min-width: 0; }
+.mv-tree__icon {
+    width: 34px; height: 34px; border-radius: var(--mv-radius-md);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.mv-tree__icon--company { background: var(--mv-accent-violet-bg); color: var(--mv-accent-violet); }
+/* Pushed right so the count reads as a summary of the level, not another field. */
+.mv-tree__count { margin-left: auto; font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); white-space: nowrap; }
+
+/* One guide rule per level, in that level's colour. */
+.mv-tree__org   { margin: var(--mv-space-3) 0 0 var(--mv-space-2); padding-left: var(--mv-space-4); border-left: 2px solid var(--mv-accent-blue-border); }
+.mv-tree__plant { margin: var(--mv-space-2) 0 0 var(--mv-space-2); padding-left: var(--mv-space-4); border-left: 2px solid var(--mv-ok-border); }
+
+.mv-tree__row {
+    display: flex; align-items: center; gap: var(--mv-space-2); flex-wrap: wrap;
+    padding: var(--mv-space-2) 0;
+    font-size: var(--mv-t-caption-size);
+}
+.mv-tree__dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.mv-tree__dot--org   { background: var(--mv-accent-blue-bg); color: var(--mv-accent-blue); }
+.mv-tree__dot--plant { background: var(--mv-ok-bg);          color: var(--mv-ok); }
+
+/* Storage locations are chips, not rows: a plant can have hundreds, and a
+   vertical list of them would bury every sibling plant below the fold. */
+.mv-tree__storagewrap {
+    display: flex; flex-wrap: wrap; gap: var(--mv-space-1);
+    padding: 0 0 var(--mv-space-2) calc(22px + var(--mv-space-2));
+}
+.mv-tree__storage {
+    display: inline-flex; align-items: baseline; gap: 5px;
+    padding: 2px 8px; border-radius: var(--mv-radius-sm);
+    background: var(--mv-accent-amber-bg);
+    border: 1px solid var(--mv-accent-amber-border);
+    font-size: 11px; line-height: 18px; white-space: nowrap;
+}
+.mv-tree__storage--more {
+    background: var(--mv-surface-container-hi);
+    border-color: var(--mv-border);
+    color: var(--mv-fg-2); font-weight: 600; text-decoration: none;
+}
+.mv-tree__empty {
+    padding: var(--mv-space-2) 0 var(--mv-space-2) var(--mv-space-2);
+    font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); font-style: italic;
+}
+
+/* ── Bulk action bar (#18) ────────────────────────────────────────────────
+   `flex-direction: row` is pinned, not defaulted: this class goes on a <form>,
+   and components.css sets a site-wide `form { display:flex;
+   flex-direction:column }` that beats an unset direction — leave it off and the
+   bar renders as a vertical stack. Same trap documented on .vlx-toolbar and
+   .vl-filterbar over in VendorLink. */
+.mv-bulkbar {
+    display: flex; flex-direction: row; align-items: center; flex-wrap: wrap;
+    gap: var(--mv-space-2);
+    margin: 0 var(--mv-space-5) var(--mv-space-3);
+    padding: var(--mv-space-2) var(--mv-space-3);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+}
+.mv-bulkbar .mv-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+/* A disabled bulk button is the normal state — nothing is selected yet — so it
+   has to read as "not yet" rather than as broken. */
+.mv-bulkbar .mv-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Courier usage disclosure (#18) ───────────────────────────────────────
+   The count is the answer to "is this courier in use" and belongs on every
+   row; the list answers "by whom" and does not. Native <details> for the same
+   reason as the org tree: the open state is the browser's own. */
+.mv-usage > summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--mv-t-caption-size);
+    white-space: nowrap;
+}
+.mv-usage > summary::-webkit-details-marker { display: none; }
+.mv-usage > summary::marker { content: ""; }
+.mv-usage > summary:focus-visible {
+    outline: 2px solid var(--mv-accent-violet);
+    outline-offset: 2px;
+    border-radius: var(--mv-radius-sm);
+}
+.mv-usage__list {
+    margin: var(--mv-space-2) 0 var(--mv-space-2);
+    padding-left: var(--mv-space-4);
+    font-size: var(--mv-t-caption-size);
+    /* A courier with many customers must not stretch the row unboundedly —
+       the cell scrolls instead of the page. */
+    max-height: 220px; overflow-y: auto;
+}
+.mv-usage__list li {
+    display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+    padding: 2px 0;
+}
+
+/* ── Parent-scope banner ──────────────────────────────────────────────────
+   Shown when a structural-master list is filtered to one branch. Without it a
+   scoped list is indistinguishable from a table that has lost rows, which is
+   the worse of the two things a reader could conclude. */
+.mv-scope { align-items: center; margin-bottom: var(--mv-space-4); }
+.mv-scope__text { flex: 1 1 auto; min-width: 0; }
+
+/* ── Plant ↔ Sales Org mapping rows (inside the modal) ─────────────────── */
+.mv-maprow {
+    display: flex; align-items: center; gap: var(--mv-space-3);
+    padding: var(--mv-space-2) var(--mv-space-3);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+}
+/* The primary mapping is the one the rest of the module reports under, so it is
+   the one that has to be identifiable without reading the badge. */
+.mv-maprow--primary { background: var(--mv-ok-bg); border-color: var(--mv-ok-border); }
+.mv-maprow__label   { display: flex; align-items: center; gap: var(--mv-space-2); min-width: 0; flex-wrap: wrap; }
+.mv-maprow__actions { margin-left: auto; display: flex; gap: var(--mv-space-1); flex: 0 0 auto; }
+
+/* Plant checklist inside the Roles data-scope modal. Scrolls rather than growing
+   the modal: a real installation has dozens of plants and the Save button has to
+   stay reachable without hunting for it. */
+.mv-scope-plants {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: var(--mv-space-1) var(--mv-space-3);
+    max-height: 240px; overflow-y: auto;
+    padding: var(--mv-space-2);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container-low);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────
+   Server-rendered links, not JS panels: each tab is a real URL so a filtered
+   view can be bookmarked and shared, and the back button behaves. */
+.mv-tabs {
+    display: flex; gap: var(--mv-space-1); flex-wrap: wrap;
+    border-bottom: 1px solid var(--mv-border);
+    margin-bottom: var(--mv-space-4);
+}
+.mv-tab {
+    display: inline-flex; align-items: center; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    font-size: var(--mv-t-body-size); font-weight: 600;
+    color: var(--mv-fg-2); text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.mv-tab:hover { color: var(--mv-fg); background: var(--mv-surface-container-low); }
+.mv-tab.is-active { color: var(--mv-primary); border-bottom-color: var(--mv-primary); }
+.mv .mv-tab, .mv .mv-tab:hover { text-decoration: none; }
+/* Count of rows needing attention on that tab. Amber because it is a to-do,
+   not an error. */
+.mv-tab__badge {
+    min-width: 18px; padding: 0 5px; border-radius: 9px;
+    background: var(--mv-warn); color: #fff;
+    font-size: 10px; line-height: 18px; text-align: center; font-weight: 700;
+}
+
+/* Analytics tables sit side by side on a wide screen and stack on a narrow one. */
+.mv-analytics-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--mv-space-4);
+    align-items: start;
+}
+
+/* The six box-type inputs on the courier form. */
+.mv-boxgrid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: var(--mv-space-2);
+}
+
+/* Row-selection checkboxes, sized to be hittable with a warehouse glove on. */
+.mv-chk { width: 16px; height: 16px; accent-color: var(--mv-primary); cursor: pointer; }
+
+/* ── Saved Layouts ("Columns" button + panel) ───────────────────────────── */
+.mv-layout-wrap { position: relative; display: inline-block; }
+.mv-layout-panel {
+    position: absolute; right: 0; top: calc(100% + var(--mv-space-2)); z-index: 40;
+    width: 340px; max-height: 420px; overflow-y: auto;
+    background: var(--mv-surface-container); border: 1px solid var(--mv-border); border-radius: var(--mv-radius-lg);
+    box-shadow: var(--mv-shadow-2); padding: var(--mv-space-3);
+}
+.mv-layout-panel__head { display: flex; gap: var(--mv-space-2); align-items: center; margin-bottom: var(--mv-space-3); }
+.mv-layout-panel__list { display: flex; flex-direction: column; gap: var(--mv-space-1); max-height: 260px; overflow-y: auto; }
+.mv-layout-row {
+    display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto auto;
+    gap: var(--mv-space-2); align-items: center; padding: var(--mv-space-1) 0;
+}
+.mv-layout-row .mv-check { min-width: 0; }
+.mv-layout-row .mv-check span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-layout-panel__foot { display: flex; gap: var(--mv-space-2); margin-top: var(--mv-space-3); padding-top: var(--mv-space-3); border-top: 1px solid var(--mv-border); }
+
+/* ── Activity-log detail pairs ────────────────────────────────────────────
+   One "Label value" chip per metadata key. Replaces printing the JSONField's
+   Python repr into the cell ({'lines': 183}), which read as a debug dump. The
+   key is muted so the value it qualifies is what the eye lands on. */
+.mv-detail-pair {
+    display: inline-flex; align-items: baseline; gap: var(--mv-space-1);
+    margin: 0 var(--mv-space-2) 0 0; white-space: nowrap; max-width: 100%;
+}
+.mv-detail-pair__key {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--mv-fg-3);
+}
+
+/* ── Multi-file basket ───────────────────────────────────────────────────
+   Rendered by wireMultiDropzone() in js/datatable.js for any dropzone whose
+   input carries `multiple`. A native file input replaces its selection on
+   every pick; the basket accumulates across picks and drops so invoices can
+   be gathered from several folders, and each entry can be removed on its own. */
+.mv-filelist { display: flex; flex-direction: column; gap: 6px; margin-top: var(--mv-3); }
+.mv-filelist:empty { display: none; }
+
+.mv-filelist__row {
+    display: flex; align-items: center; gap: var(--mv-3);
+    padding: 7px 10px;
+    background: var(--mv-surface-container-low);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm, 8px);
+    font-size: var(--mv-t-caption-size);
+}
+.mv-filelist__name {
+    font-weight: 600; color: var(--mv-fg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    /* min-width:0 so a long filename ellipsises instead of pushing the size
+       and remove button out of the row. */
+    min-width: 0; flex: 1;
+}
+.mv-filelist__size {
+    color: var(--mv-fg-3); flex: none;
+    font-variant-numeric: tabular-nums;
+}
+.mv-filelist__x {
+    flex: none; border: none; background: none; cursor: pointer;
+    padding: 0 2px; line-height: 1; font-size: 16px;
+    color: var(--mv-fg-3);
+}
+.mv-filelist__x:hover { color: var(--mv-danger); }
+
+/* A file the client-side check already rejected is shown rather than silently
+   dropped, so the operator can see which one and why. It stays out of the POST. */
+.mv-filelist__row.is-bad {
+    background: var(--mv-danger-bg);
+    border-color: var(--mv-danger-border);
+}
+.mv-filelist__row.is-bad .mv-filelist__name { color: var(--mv-danger); }
+.mv-filelist__why { color: var(--mv-danger); flex: none; }
+
+/* ── Touch targets ───────────────────────────────────────────────────────
+   Meril-V's grids already collapse (mv-kpis, mv-tiles, mv-grid-2col all have
+   breakpoints) and no page overflowed the viewport at 390/768/1024. The gap a
+   page-overflow check cannot see: the smallest interactive elements measured
+   18px tall, against the ~44px a fingertip reliably hits.
+
+   Scoped to pointer:coarse, not to a width. A 1024px tablet needs big targets
+   and a 1024px laptop window does not — keying this to viewport width would
+   either miss the tablet or inflate the desktop, and this module's density on
+   a warehouse desktop is the thing that makes it fast to operate. */
+@media (pointer: coarse) {
+    .mv button,
+    .mv .mv-btn,
+    .mv .mv-iconbtn,
+    .mv select,
+    .mv .mv-select,
+    .mv .mv-input,
+    .mv input[type="text"],
+    .mv input[type="search"],
+    .mv input[type="number"],
+    .mv input[type="date"],
+    .mv input[type="submit"] {
+        min-height: 44px;
+    }
+    .mv .mv-tab { min-height: 44px; }
+    /* Padding rather than min-height so these keep flowing inline. */
+    .mv .mv-link-btn,
+    .mv .mv-breadcrumb a,
+    .mv .mv-badge--link {
+        display: inline-flex; align-items: center; min-height: 44px;
+    }
+    /* A row that navigates on tap needs a comfortable band, not a 32px strip. */
+    .mv .mv-row-link td { padding-top: 12px; padding-bottom: 12px; }
+    /* The remove button in the multi-file basket is easy to miss at 16px. */
+    .mv .mv-filelist__x { min-width: 44px; min-height: 44px; }
+}
+
+/* ============================================================================
+   Paged tables — Outbound / Branch Transfer console
+   ---------------------------------------------------------------------------
+   The Lines view renders one row per delivery line, which on a real session is
+   several hundred rows. Rendered flat inside the page's own scroll it had no
+   header once you were past row 20, no indication of how much sat below, and
+   its serial column wrapped into a paragraph that shoved every other column
+   out of view.
+
+   The panel is now a card that owns its scrolling: a bounded row area with a
+   sticky header, and a pager pinned beneath it that never scrolls away.
+   ========================================================================= */
+.mv-table-wrap--paged {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;                       /* clips the rows to the radius */
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, .04);
+}
+.mv-table-scroll {
+    /* Vertical for long row sets, horizontal because Lines has nine columns
+       and a narrow laptop cannot fit them. min() keeps a short table short —
+       a three-row result should not sit in a 700px-tall empty box. */
+    overflow: auto;
+    max-height: min(64vh, 760px);
+    overscroll-behavior: contain;
+}
+.mv-table-scroll > .mv-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    /* The shared th gradient is semi-transparent at its top stop, so rows
+       would show through a sticky header. An opaque backstop plus its own
+       hairline (a border-bottom does not reliably travel with a sticky cell)
+       keeps it readable. */
+    background: var(--mv-accent-blue-bg);
+    box-shadow: inset 0 -1px 0 var(--mv-border);
+}
+
+/* Pager ------------------------------------------------------------------- */
+.mv-pager {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-3);
+    flex-wrap: wrap;
+    padding: var(--mv-space-2) var(--mv-space-3);
+    background: var(--mv-surface-container-low);
+    border-top: 1px solid var(--mv-border);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    color: var(--mv-fg-2);
+}
+/* The count grows to fill, which parks the controls on the right without any
+   auto-margin that would have to know whether the nav group exists. */
+.mv-pager__info { flex: 1 1 auto; min-width: 0; }
+.mv-pager__info strong { color: var(--mv-fg); font-weight: 600; }
+.mv-pager__nav { display: flex; align-items: center; gap: var(--mv-space-1); }
+.mv-pager__btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    padding: 0;
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    font-size: .95rem;
+    line-height: 1;
+    color: var(--mv-fg-2);
+    cursor: pointer;
+    transition: background var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-pager__btn:hover:not(:disabled) {
+    background: var(--mv-surface-container-hi);
+    border-color: var(--mv-border-strong);
+    color: var(--mv-fg);
+}
+.mv-pager__btn:disabled { opacity: .38; cursor: default; }
+.mv-pager__count { padding: 0 var(--mv-space-2); white-space: nowrap; }
+.mv-pager__count strong { color: var(--mv-fg); font-weight: 600; }
+.mv-pager__size {
+    display: inline-flex; align-items: center; gap: var(--mv-space-2);
+    color: var(--mv-fg-3);
+    white-space: nowrap;
+}
+.mv-pager__size select {
+    height: 30px;
+    padding: 0 var(--mv-space-2);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    font: inherit;
+    color: var(--mv-fg);
+    cursor: pointer;
+}
+
+/* Lines table ------------------------------------------------------------- */
+/* A delivery contributes dozens of consecutive rows. Its number prints once
+   per run (see renderLinesView) and this rule draws the boundary, so the eye
+   can still find where one delivery ends without reading forty repetitions of
+   the same eight digits. */
+.mv-table--lines tbody tr.is-group-start > td {
+    border-top: 1px solid var(--mv-border-strong);
+}
+.mv-table--lines tbody tr:first-child > td { border-top: 0; }
+/* Pending (column 8) is the one number worth colouring: still-owed stock in
+   amber, nothing-left in grey so the good case does not compete for the eye. */
+.mv-table--lines td.mv-num:nth-child(8) { color: var(--mv-warn); font-weight: 600; }
+.mv-table--lines td.mv-num:nth-child(8).is-clear { color: var(--mv-fg-3); font-weight: 400; }
+.mv-table--lines .mv-cell-serials { width: 1%; padding-right: var(--mv-space-3); }
+
+/* The serial cell is a single button: its whole job is "open the full list",
+   and a 39-serial line has no room for a chip strip plus a separate link. */
+.mv-serialbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+    max-width: 340px;
+    padding: 3px var(--mv-space-2) 3px 3px;
+    background: var(--mv-surface-container-low);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-full);
+    color: var(--mv-fg-2);
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-serialbtn:hover {
+    background: var(--mv-accent-blue-bg);
+    border-color: var(--mv-accent-blue-border);
+    color: var(--mv-fg);
+}
+.mv-serialbtn:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 1px; }
+.mv-serialbtn__n {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; height: 22px;
+    padding: 0 var(--mv-space-1);
+    background: var(--mv-accent-blue);
+    border-radius: var(--mv-radius-full);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 700;
+    color: #fff;
+    flex: 0 0 auto;
+}
+/* The peek hints at what is inside; it is not data to read off. One line,
+   clipped, never wrapping — the count and the modal carry the real answer. */
+.mv-serialbtn__peek {
+    font-size: var(--mv-t-caption-size);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    color: var(--mv-fg-3);
+}
+.mv-serialbtn svg { flex: 0 0 auto; opacity: .55; }
+.mv-serialbtn:hover svg { opacity: 1; }
+
+/* Serials modal ----------------------------------------------------------- */
+.mv-serials__tools {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-3);
+    flex-wrap: wrap;
+}
+.mv-serials__tools .mv-search { flex: 1 1 220px; width: auto; }
+.mv-serials {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: var(--mv-space-2);
+    /* Bounded so the modal's footer count stays visible on a 200-serial line
+       instead of being pushed below the viewport. */
+    max-height: 52vh;
+    overflow-y: auto;
+    padding-right: var(--mv-space-1);
+}
+.mv-serial {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+    padding: var(--mv-space-1) var(--mv-space-2);
+    background: var(--mv-surface-container-low);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    min-width: 0;
+}
+/* The ordinal is what makes a long list navigable: an operator checking boxes
+   against a pick list counts position, not identity. */
+.mv-serial > i {
+    flex: 0 0 auto;
+    min-width: 2.25em;
+    font-style: normal;
+    font-size: var(--mv-t-caption-size);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--mv-fg-3);
+}
+.mv-serial > code {
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-mono-size);
+    color: var(--mv-fg);
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.mv-modal__foot .mv-t-caption { margin-right: auto; }
+
+/* Narrow screens ---------------------------------------------------------- */
+@media (max-width: 900px) {
+    /* A phone has no vertical room to spare for a nested scroll box; let the
+       page scroll the rows and keep only the sticky header. */
+    .mv-table-scroll { max-height: none; }
+    .mv-pager__info { flex: 1 1 100%; }
+    .mv-serialbtn { max-width: 190px; }
+    .mv-serialbtn__peek { display: none; }
+}
+@media (pointer: coarse) {
+    /* Gloved fingers on a warehouse tablet — 44px minimum hit area. */
+    .mv-pager__btn { width: 44px; height: 44px; }
+    .mv-pager__size select { height: 44px; }
+    .mv-serialbtn { min-height: 44px; }
+}
+
+/* Count badge on the All / Pending / Scanned filter buttons.
+   The filter previously gave no feedback: clicking Pending on a session where
+   everything was pending changed nothing visible, which is indistinguishable
+   from a button that does not work. The number says what the click will do
+   before it is clicked. */
+.mv-count-pill {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    min-width: 18px;
+    border-radius: var(--mv-radius-full);
+    background: var(--mv-neutral-bg);
+    color: var(--mv-neutral);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    /* nowrap and its own line-height, so a three-digit count cannot wrap and
+       stretch the button into an ellipse — the same trap the role chips hit. */
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.mv-viewswitch button[aria-pressed="true"] .mv-count-pill {
+    background: rgba(255, 255, 255, .22);
+    color: inherit;
+}
+

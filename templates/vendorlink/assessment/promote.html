@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Create a Vendor Master record from an approved assessment.{% endcomment %}
+
+{% block title %}Promote to Vendor Master — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.pr-form { max-width:640px; }
+.pr-field { margin-bottom:18px; }
+.pr-field label { display:block; font-size:.8rem; font-weight:600; color:#334155; margin-bottom:5px; }
+.pr-field select.vm-select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; background:#fff; color:#06152b; }
+.pr-field select.vm-select:focus { outline:none; border-color:var(--vlx-secondary); box-shadow:0 0 0 3px rgba(0,118,200,.13); }
+.pr-foot { display:flex; justify-content:flex-end; padding-top:10px; border-top:1px solid #e6ebf2; margin-top:10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:assessment_list' %}">3PL Capability Assessment</a>
+                <span class="sep">/</span>
+                <span class="current">Promote</span>
+            </div>
+            <div class="vlx-titlerow"><h1 class="vlx-title">Promote to Vendor Master</h1></div>
+            <p class="vlx-subtitle">
+                This creates a new Vendor Master record from
+                <strong>{{ assessment.company_name|default:assessment.vendor_email }}</strong>'s approved assessment.
+                You'll land on the vendor's edit page to complete any missing fields.
+            </p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:assessment_review' assessment.pk %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-card pr-form">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="pr-field">
+                <label for="prCountry">Vendor Country <span style="color:var(--vlx-danger);">*</span></label>
+                <select name="country" id="prCountry" class="vm-select">
+                    <option value="">Select a country…</option>
+                    {% for code, name in country_choices %}
+                    <option value="{{ code }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="pr-foot">
+                <button type="submit" class="vlx-btn vlx-btn--primary"><i class="fas fa-user-plus"></i> Create Vendor Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Inventory — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/inventory.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-warehouse"></i> Consignment Inventory</h1>
+<p>Browse stock across hospitals, departments, and products</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <button class="hero-btn hero-btn-solid" onclick="openImportModal()"><i class="fas fa-upload"></i> Bulk Import</button>
+    <a href="/meritrack/api/inventory/export-inventory-template/" class="hero-btn"><i class="fas fa-download"></i> Template</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <div class="search-bar">
+        <input type="text" id="invSearchInput" placeholder="Search hospital, department, or product..." oninput="applyFilters()">
+        <select id="statusFilter" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="on_shelf">On Shelf</option>
+            <option value="used">Used on Patient</option>
+            <option value="returned">Returned to Meril</option>
+            <option value="expired_removed">Expired & Removed</option>
+            <option value="recalled">Recalled</option>
+            <option value="transferred">Transferred</option>
+        </select>
+        <select id="expiryFilter" onchange="applyFilters()">
+            <option value="">All Expiry Status</option>
+            <option value="expired">Expired</option>
+            <option value="expiring_soon">Expiring Soon (≤90 days)</option>
+            <option value="expiring_30">Expiring Soon (≤30 days)</option>
+        </select>
+        <button class="btn-mt btn-primary" onclick="clearFilters()" style="background:var(--mt-gray-600);"><i class="fas fa-times"></i> Clear Filters</button>
+    </div>
+
+    <div id="filterStats" style="padding:12px;background:var(--mt-primary-lighter);border-radius:8px;margin-bottom:14px;font-size:0.9em;display:none;">
+        <span id="statsText"></span>
+    </div>
+
+    <div id="inventoryTree">
+        <div class="card" aria-hidden="true" style="padding:0;overflow:hidden;">
+            <div class="mt-sk-row"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.78;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.56;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.34;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.18;border-bottom:none;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+        </div>
+    </div>
+
+<!-- ─── Bulk Import Modal ──────────────────────────────────────────────────── -->
+<div id="importModal" class="modal-overlay" onclick="if(event.target===this)closeImportModal()">
+    <div class="modal-box md">
+        <div class="modal-header">
+            <h2><i class="fas fa-upload" style="color:var(--mt-success)"></i> Bulk Import Inventory</h2>
+            <button class="modal-close" onclick="closeImportModal()">&#x2715;</button>
+        </div>
+        <div style="margin-bottom:14px;padding:12px 14px;background:var(--mt-primary-lighter);border-radius:8px;font-size:0.84em;color:var(--mt-primary-dark);line-height:1.5;">
+            <strong><i class="fas fa-info-circle"></i> Supported formats: <code>.xlsx</code> / <code>.xls</code> / <code>.csv</code></strong><br>
+            Required: <code>serial_number</code>, and <code>hospital_name</code> or <code>sap_code</code>.<br>
+            Optional: <code>department_name</code>, <code>gtin_code</code>, <code>material_code</code>, <code>product_name</code>, <code>batch_number</code>, <code>expiry_date</code> (YYYY-MM-DD), <code>production_date</code>, <code>size</code>, <code>quantity</code>, <code>shelf_location</code>, <code>reference_number</code>.<br>
+            Matched by <strong>serial_number + department</strong> — existing records are updated, new ones created with status <em>On Shelf</em>.
+        </div>
+        <div id="importDropZone" class="import-panel"
+             onclick="document.getElementById('importFile').click()"
+             ondrop="handleDrop(event)"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p><strong>Click to choose a file</strong> or drag &amp; drop here</p>
+            <p style="font-size:0.82em;color:var(--mt-gray-600);">Excel (.xlsx / .xls) or CSV (.csv)</p>
+            <p id="importFileName" style="color:var(--mt-primary);font-weight:600;margin-top:6px;"></p>
+        </div>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="onFileSelected(this)">
+        <div id="importResult" style="display:none;margin-top:14px;">
+            <div id="importSummary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+            <div id="importErrors" style="max-height:160px;overflow-y:auto;"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;">
+            <a href="/meritrack/api/inventory/export-inventory-template/" class="btn-mt btn-warning"><i class="fas fa-download"></i> Download Template</a>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-mt btn-gray" onclick="closeImportModal()">Close</button>
+                <button class="btn-mt btn-success" id="importBtn" onclick="runImport()" disabled><i class="fas fa-upload"></i> Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'meritrack/js/inventory.js' %}"></script>
+<script>
+const CSRF = '{{ csrf_token }}';
+
+let importFileObj = null;
+
+function openImportModal() {
+    importFileObj = null;
+    document.getElementById('importFile').value = '';
+    document.getElementById('importFileName').textContent = '';
+    document.getElementById('importResult').style.display = 'none';
+    document.getElementById('importBtn').disabled = true;
+    document.getElementById('importModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('importDropZone').classList.add('dragover'); }
+function handleDragLeave() { document.getElementById('importDropZone').classList.remove('dragover'); }
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('importDropZone').classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && ['csv','xlsx','xls'].includes(file.name.split('.').pop().toLowerCase())) {
+        importFileObj = file;
+        document.getElementById('importFileName').textContent = file.name;
+        document.getElementById('importBtn').disabled = false;
+    } else {
+        showImportToast('Please drop a .csv, .xlsx or .xls file', 'error');
+    }
+}
+function onFileSelected(input) {
+    importFileObj = input.files[0];
+    if (!importFileObj) return;
+    document.getElementById('importFileName').textContent = importFileObj.name;
+    document.getElementById('importResult').style.display = 'none';
+    document.getElementById('importBtn').disabled = false;
+}
+
+async function runImport() {
+    if (!importFileObj) return;
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing…';
+    const fd = new FormData();
+    fd.append('file', importFileObj);
+    try {
+        const resp = await fetch('/meritrack/api/inventory/import-inventory/', {
+            method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': CSRF}, body: fd,
+        });
+        const data = await resp.json();
+        const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        document.getElementById('importSummary').innerHTML =
+            `<div class="result-item result-ok"><i class="fas fa-plus-circle"></i> Created: <strong>${data.created||0}</strong></div>
+             <div class="result-item result-ok"><i class="fas fa-sync"></i> Updated: <strong>${data.updated||0}</strong></div>
+             <div class="result-item result-err"><i class="fas fa-exclamation-triangle"></i> Errors: <strong>${(data.errors||[]).length}</strong></div>`;
+        document.getElementById('importErrors').innerHTML = (data.errors||[]).map(e => `<div class="result-item result-err"><i class="fas fa-times"></i> ${esc(e)}</div>`).join('');
+        document.getElementById('importResult').style.display = 'block';
+        if (resp.ok) {
+            showImportToast(`Import done: ${data.created||0} created, ${data.updated||0} updated`, 'success');
+            if (typeof loadInventory === 'function') loadInventory();
+        } else {
+            showImportToast(data.error || 'Import failed', 'error');
+        }
+    } catch(e) { showImportToast('Network error during import', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Import'; }
+}
+
+let _toastTimer;
+function showImportToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='error'?'times-circle':'exclamation-triangle'}"></i> ${msg}`;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImportModal(); });
+</script>
+{% endblock %}

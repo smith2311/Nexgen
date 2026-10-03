@@ -1,0 +1,384 @@
+/* ═══════════════════════════════════════════════════════════════
+   Material Disposition — Responsive Stylesheet
+   Supplements all per-page CSS files.
+   Breakpoints: 1024 | 992 | 768 | 600 | 480 | 375
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Shared base fixes (all screen sizes) ─────────────────── */
+.md-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Horizontal scroll shadow cue */
+.md-table-wrap::after {
+  content: '';
+  display: block;
+  pointer-events: none;
+}
+
+/* Prevent iOS from zooming on input focus */
+.form-group input,
+.form-group select,
+.form-group textarea,
+.qty-input,
+.remark-input,
+.recv-input,
+.comments {
+  font-size: max(16px, 0.9rem);
+}
+
+/* Touch-safe minimum tap targets */
+.btn-primary,
+.btn-view,
+.btn-filter,
+.btn-reset,
+.btn-cancel,
+.btn-dl,
+.btn-approve,
+.btn-reject,
+.btn-confirm {
+  min-height: 44px;
+}
+
+/* ── 2. 1024px – laptop / small desktop ─────────────────────── */
+@media (max-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .charts-row { grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .rp-hero { gap: 12px; }
+}
+
+/* ── 3. 992px – tablet landscape / iPad ─────────────────────── */
+@media (max-width: 992px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .charts-row { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Report hero */
+  .rp-hero { flex-wrap: wrap; }
+  .rp-hero-actions { flex-wrap: wrap; gap: 8px; }
+
+  /* Dashboard grid */
+  .md-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Filter bar becomes 2-col grid */
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .filter-bar > span { grid-column: span 2; }
+  .btn-filter, .btn-reset { width: 100%; justify-content: center; }
+
+  /* Report table */
+  .report-tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Pipeline wraps */
+  .pl-track { flex-wrap: wrap; gap: 10px; }
+  .pl-sep { display: none; }
+}
+
+/* ── 4. 768px – tablet portrait / large phone ───────────────── */
+@media (max-width: 768px) {
+  /* Page container */
+  .md-page { padding: 12px 14px; }
+
+  /* Header */
+  .md-header { margin-bottom: 16px; }
+  .md-header h1 { font-size: 1.25rem; }
+  .md-header p  { font-size: .83rem; }
+
+  /* Back link */
+  .md-back { font-size: .8rem; margin-bottom: 10px; }
+
+  /* Card form */
+  .md-card-form { max-width: 100%; padding: 16px; }
+
+  /* Tables */
+  .md-table         { font-size: .82rem; }
+  .md-table th,
+  .md-table td      { padding: 9px 10px; }
+
+  /* KPI cards */
+  .kpi-row  { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
+  .kpi-card { padding: 12px 14px; }
+  .kpi-val  { font-size: 1.6rem; }
+  .kpi-lbl  { font-size: .7rem; }
+  .kpi-sub  { font-size: .65rem; }
+  .kpi-icon { width: 32px; height: 32px; font-size: .85rem; }
+
+  /* Charts row */
+  .charts-row { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Filter bar - full stack */
+  .filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .filter-bar > div,
+  .filter-bar select,
+  .filter-bar input[type="date"] { width: 100%; }
+  .filter-bar label { font-size: .78rem; }
+  .btn-filter, .btn-reset { width: 100%; min-height: 40px; font-size: .85rem; }
+
+  /* Report tabs */
+  .rp-tabs { gap: 4px; flex-wrap: wrap; }
+  .rp-tab  { padding: 8px 14px; font-size: .8rem; }
+
+  /* Report hero */
+  .rp-hero        { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .rp-hero-left h1 { font-size: 1.2rem; }
+  .rp-hero-left p  { font-size: .8rem; }
+  .rp-hero-actions { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .btn-dl          { flex: 1; min-width: 120px; justify-content: center; font-size: .8rem; padding: 8px 10px; }
+
+  /* Report KPI */
+  .kpi-card.kc-blue,
+  .kpi-card.kc-amber,
+  .kpi-card.kc-purple,
+  .kpi-card.kc-green,
+  .kpi-card.kc-teal,
+  .kpi-card.kc-indigo { padding: 12px; }
+
+  /* Pipeline */
+  .pipeline-card { padding: 14px; }
+  .pl-track      { flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+  .pl-node       { min-width: 72px; padding: 8px 10px; }
+  .pn-v          { font-size: 1.1rem; }
+  .pn-l          { font-size: .62rem; }
+  .pl-arr        { display: none; }
+  .pl-sep        { display: none; }
+
+  /* Quantity summary */
+  .qty-track { height: 6px; }
+
+  /* Top depts/verticals */
+  .bl-item { margin-bottom: 8px; }
+
+  /* Recent activity */
+  .act-item { gap: 8px; }
+  .act-dot  { width: 28px; height: 28px; font-size: .75rem; flex-shrink: 0; }
+  .am-date  { font-size: .7rem; }
+  .badge    { font-size: .65rem; padding: 2px 6px; }
+
+  /* Report table */
+  .report-table    { font-size: .78rem; }
+  .report-table th,
+  .report-table td { padding: 7px 8px; white-space: nowrap; }
+  .batch-grp-hdr  { font-size: .8rem; }
+  .item-row td    { font-size: .72rem; padding: 5px 7px; }
+
+  /* Slide panel */
+  .slide-overlay  { }
+  .slide-panel    { max-width: 100% !important; width: 100% !important; border-radius: 16px 16px 0 0; }
+
+  /* Dashboard cards */
+  .md-grid { grid-template-columns: 1fr; }
+
+  /* My Uploads – panel meta */
+  .panel-meta      { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .panel-meta-item { padding: 8px 10px; }
+  .panel-items-table { font-size: .78rem; }
+
+  /* Production review */
+  .meta-bar         { display: flex; flex-direction: column; gap: 6px; font-size: .8rem; background: #f8fafc; padding: 10px 14px; border-radius: 8px; }
+  .meta-bar span    { border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+  .meta-bar span:last-child { border-bottom: none; padding-bottom: 0; }
+
+  /* Warehouse select all row */
+  .sel-count { font-size: .8rem; }
+
+  /* Masters modals */
+  .md-modal     { max-width: calc(100vw - 20px) !important; margin: 10px !important; }
+  .md-overlay   { padding: 10px; }
+  .md-modal-title { font-size: 1rem; }
+
+  /* HOD review action card */
+  .action-card   { padding: 16px; }
+  .btn-row       { flex-direction: column; gap: 10px; }
+  .btn-row .btn  { width: 100%; justify-content: center; min-height: 50px; font-size: 1rem; }
+  .hdr-card      { flex-direction: column; gap: 10px; }
+  .hdr-left h1   { font-size: 1.15rem; }
+  .hdr-left p    { font-size: .8rem; }
+
+  /* HOD review items table */
+  .items-table    { font-size: .8rem; }
+  .items-table th,
+  .items-table td { padding: 7px 8px; }
+  .preview-btn    { font-size: .75rem; padding: 4px 8px; min-height: 34px; }
+
+  /* Confirm modal */
+  .confirm-modal    { max-width: calc(100vw - 24px); }
+  .confirm-btns     { flex-direction: column; gap: 8px; }
+  .confirm-cancel,
+  .confirm-go-approve,
+  .confirm-go-reject { width: 100%; min-height: 44px; justify-content: center; }
+
+  /* Upload form */
+  .section-label { font-size: .82rem; }
+  .sample-table  { font-size: .75rem; }
+  .sample-table th,
+  .sample-table td { padding: 5px 8px; }
+
+  /* HOD inbox */
+  .inbox-item { padding: 12px 14px; }
+
+  /* Report batch panel */
+  .ds       { padding: 12px; }
+  .dg       { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .dc.full  { grid-column: span 2; }
+
+  /* Timeline */
+  .tl-item  { gap: 8px; }
+  .tl-dot   { width: 28px; height: 28px; font-size: .75rem; flex-shrink: 0; }
+  .tl-stage { font-size: .8rem; }
+  .tl-meta  { font-size: .72rem; }
+  .tl-note  { font-size: .72rem; }
+
+  /* Prod review batch */
+  .qty-input    { width: 70px; font-size: 14px; }
+  .remark-input { font-size: 14px; }
+}
+
+/* ── 5. 600px – medium mobile ────────────────────────────────── */
+@media (max-width: 600px) {
+  .md-page { padding: 10px 12px; }
+
+  /* KPI cards: keep 2-col */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+  /* Hero download buttons stack */
+  .rp-hero-actions { flex-direction: column; }
+  .btn-dl          { width: 100%; }
+
+  /* Report tab icons hide on very small */
+  .rp-tab i { display: none; }
+  .rp-tab   { padding: 7px 10px; font-size: .76rem; }
+
+  /* Panel meta single column */
+  .panel-meta { grid-template-columns: 1fr; }
+
+  /* My uploads – hide some less-important columns */
+  .md-table.my-uploads-table th:nth-child(6),
+  .md-table.my-uploads-table td:nth-child(6),
+  .md-table.my-uploads-table th:nth-child(8),
+  .md-table.my-uploads-table td:nth-child(8) { display: none; }
+
+  /* Warehouse groups header */
+  .pgrp-hdr td { font-size: .75rem; padding: 8px 10px; flex-wrap: wrap; }
+
+  /* Batch info grid */
+  .batch-info-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Production list items */
+  .prod-meta { flex-direction: column; gap: 4px; font-size: .78rem; }
+
+  /* State card (hod_review done/blocked) */
+  .state-card { padding: 24px 16px; }
+  .state-icon { font-size: 2.5rem; }
+  .state-title { font-size: 1.3rem; }
+
+  /* Alert banner */
+  .rejected-banner { flex-direction: column; gap: 8px; font-size: .83rem; padding: 12px 14px; }
+}
+
+/* ── 6. 480px – small mobile ─────────────────────────────────── */
+@media (max-width: 480px) {
+  .md-page { padding: 8px 10px; }
+
+  /* Header */
+  .md-header h1 { font-size: 1.05rem; }
+
+  /* KPI */
+  .kpi-card { padding: 10px 12px; }
+  .kpi-val  { font-size: 1.3rem; }
+  .kpi-icon { width: 28px; height: 28px; font-size: .78rem; }
+
+  /* Form */
+  .md-card-form { padding: 12px; border-radius: 10px; }
+
+  /* Preview modal – full screen */
+  .prev-overlay { padding: 0; align-items: flex-end; }
+  .prev-modal   { width: 100%; max-width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+
+  /* HOD review */
+  .hdr-card  { padding: 14px; }
+  .meta-card { padding: 12px; }
+  .hdr-badge { padding: 6px 14px; }
+  .hdr-badge-num { font-size: 1.6rem; }
+
+  /* Batch info grid */
+  .batch-info-grid { grid-template-columns: 1fr; }
+  .batch-info-item { padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+
+  /* Confirm modal full width */
+  .confirm-modal  { max-width: 100%; margin: 0; border-radius: 16px 16px 0 0; }
+  .overlay        { align-items: flex-end; }
+
+  /* Report dg grid single column */
+  .dg { grid-template-columns: 1fr; }
+  .dc.full { grid-column: span 1; }
+
+  /* Pipeline nodes – compact */
+  .pl-node  { min-width: 60px; padding: 6px 8px; }
+  .pn-v     { font-size: 1rem; }
+  .pn-l     { font-size: .58rem; }
+
+  /* Slide panel bottom sheet */
+  .slide-panel { border-radius: 16px 16px 0 0; max-height: 85vh; overflow-y: auto; }
+
+  /* Masters modal */
+  .md-overlay { align-items: flex-end; padding: 0; }
+  .md-modal   { max-width: 100% !important; width: 100% !important; margin: 0 !important; border-radius: 16px 16px 0 0 !important; }
+
+  /* My uploads delete modal */
+  #deleteOverlay { align-items: flex-end !important; padding: 0 !important; }
+  #deleteOverlay > div { border-radius: 16px 16px 0 0; max-width: 100%; }
+
+  /* Tables – reduce further */
+  .md-table th,
+  .md-table td { padding: 7px 8px; font-size: .78rem; }
+
+  .items-table th,
+  .items-table td { padding: 6px 7px; font-size: .76rem; }
+
+  /* Warehouse edit recv modal */
+  .er-overlay { align-items: flex-end; padding: 0; }
+  .er-box     { width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; }
+
+  /* Delete batch modal */
+  #delBatchModalOverlay > div,
+  .del-batch-modal { border-radius: 16px 16px 0 0 !important; }
+}
+
+/* ── 7. 375px – iPhone SE / smallest common phones ───────────── */
+@media (max-width: 375px) {
+  .md-page     { padding: 8px; }
+  .md-back     { font-size: .75rem; }
+  .md-header h1 { font-size: .95rem; }
+  .md-header p  { font-size: .75rem; }
+
+  .kpi-row  { gap: 6px; }
+  .kpi-card { padding: 8px 10px; }
+  .kpi-val  { font-size: 1.15rem; }
+  .kpi-lbl  { font-size: .65rem; }
+  .kpi-icon { width: 24px; height: 24px; font-size: .7rem; }
+
+  .md-table th,
+  .md-table td { padding: 6px 7px; font-size: .74rem; }
+
+  .btn-primary { font-size: .82rem; padding: 10px 14px; }
+
+  .action-card { padding: 12px; }
+  .comments    { min-height: 80px; }
+}
+
+/* ── 8. Landscape phone ──────────────────────────────────────── */
+@media (max-height: 480px) and (orientation: landscape) {
+  .prev-modal  { max-height: 95vh; }
+  .slide-panel { max-height: 90vh; overflow-y: auto; }
+  .md-modal    { max-height: 90vh !important; overflow-y: auto !important; }
+  .confirm-modal { max-height: 90vh; overflow-y: auto; }
+  .er-box      { max-height: 90vh; overflow-y: auto; }
+}

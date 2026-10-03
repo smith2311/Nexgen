@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ u.get_full_name|default:u.username }} — VendorLink Admin{% endblock %}
+{% block page_title %}User{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_users' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Users
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-user"></i> {{ u.get_full_name|default:u.username }}</h1>
+          <p>{{ u.email|default:u.username }}</p>
+        </div>
+        {% comment %}This page is the account (groups, password, vendor link);
+        Insights is what they have actually been doing. Two different questions, so
+        a link rather than a merge.{% endcomment %}
+        <div class="lm-header-stats">
+          <a href="{% url 'vendorlink:admin_insights_user' u.pk %}" class="btn-sm">
+            <i class="fas fa-chart-simple"></i> Track activity
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="vl-detail-grid">
+      <!-- LEFT -->
+      <div>
+        <div class="vl-panel">
+          <div class="vl-panel-hdr"><i class="fas fa-id-badge"></i> Account</div>
+          <div class="vl-panel-body">
+            <div style="display:flex;align-items:center;gap:15px;margin-bottom:18px;">
+              <span class="vl-avatar lg">{{ u.get_full_name|default:u.username|first|upper }}</span>
+              <div>
+                <div class="vl-vname" style="font-size:16px;">{{ u.get_full_name|default:u.username }}</div>
+                <div style="display:flex;align-items:center;gap:9px;margin-top:6px;">
+                  <span class="badge badge-blue">{{ role }}</span>
+                  {% if u.is_active %}
+                  <span class="vl-status on"><span class="vl-dot on"></span> Active</span>
+                  {% else %}
+                  <span class="vl-status off"><span class="vl-dot off"></span> Inactive</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="vl-kv"><span class="vl-kv-lbl">Username</span><span class="vl-kv-val">{{ u.username }}</span></div>
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">Email</span>
+              <span class="vl-kv-val">{% if u.email %}<a href="mailto:{{ u.email }}">{{ u.email }}</a>{% else %}—{% endif %}</span>
+            </div>
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">Groups</span>
+              <span class="vl-kv-val">{% for g in groups %}<span class="vl-grp">{{ g }}</span>{% empty %}—{% endfor %}</span>
+            </div>
+            <div class="vl-kv"><span class="vl-kv-lbl">Joined</span><span class="vl-kv-val">{{ u.date_joined|date:"d M Y" }}</span></div>
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">Last login</span>
+              <span class="vl-kv-val">{% if u.last_login %}{{ u.last_login|date:"d M Y H:i" }}{% else %}Never{% endif %}</span>
+            </div>
+            {% if profile and profile.force_password_change %}
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">Password</span>
+              <span class="vl-kv-val" style="color:#92400e;"><i class="fas fa-key"></i> Must change on next login</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if vendor %}
+        <div class="vl-panel">
+          <div class="vl-panel-hdr"><i class="fas fa-truck-field"></i> Linked vendor</div>
+          <div class="vl-panel-body">
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">Vendor</span>
+              <span class="vl-kv-val"><a href="{% url 'vendorlink:vendor_detail' vendor.pk %}">{{ vendor.vendor_name }}</a></span>
+            </div>
+            <div class="vl-kv"><span class="vl-kv-lbl">Country</span><span class="vl-kv-val">{{ vendor.country }}</span></div>
+            <div class="vl-kv"><span class="vl-kv-lbl">Capabilities</span><span class="vl-kv-val">{{ vendor.capability_count }}/{{ capability_total }}</span></div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if bids %}
+        <div class="vl-panel">
+          <div class="vl-panel-hdr">
+            <i class="fas fa-gavel"></i> Recent bids
+            <span class="vl-panel-act vl-cap-count">{{ bids|length }}</span>
+          </div>
+          <div class="vl-panel-body">
+            {% for bid in bids %}
+            <div class="vl-kv">
+              <span class="vl-kv-lbl">
+                <a href="{% url 'vendorlink:request_detail' bid.vendor_request_id %}">{{ bid.vendor_request.subject|truncatechars:42 }}</a>
+              </span>
+              <span class="vl-kv-val">{{ bid.get_status_display }} &middot; {{ bid.currency }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- RIGHT: actions -->
+      <div>
+        {% comment %}
+        Module role. Before this there was no way to change a role after the
+        account was created — only activate / deactivate / reset password.
+        {% endcomment %}
+        <div class="vl-panel" style="margin-bottom:18px;">
+          <div class="vl-panel-hdr"><i class="fas fa-user-shield"></i> VendorLink role</div>
+          <div class="vl-panel-body">
+            <p class="form-hint" style="line-height:1.55;margin-bottom:14px;">
+              Current role{{ vl_held|length|pluralize }}:
+              <strong>{% if vl_held %}{{ vl_held|join:", " }}{% else %}no VendorLink access{% endif %}</strong>.
+              Changing it touches VendorLink's groups only — access to other modules is unaffected.
+            </p>
+
+            {% if u == request.user %}
+            <div class="alert-banner" style="margin:0;">
+              <i class="fas fa-lock"></i>
+              <div>You cannot change your own VendorLink role.</div>
+            </div>
+
+            {% elif vl_multi %}
+            {% comment %}
+            Superuser: tiers are group bundles, not an enum, so more than
+            one is a real combination. Tick any set and save; none revokes
+            VendorLink access.
+            {% endcomment %}
+            <form method="post" action="{% url 'vendorlink:admin_user_role' u.pk %}"
+                  data-vl-confirm="Save VendorLink roles for {{ u.get_full_name|default:u.username }}?"
+                  data-vl-confirm-title="Change VendorLink Roles" data-vl-confirm-ok="Save roles">
+              {% csrf_token %}
+              {% for r in vl_role_options %}
+              <label style="display:flex;gap:.55rem;align-items:flex-start;margin-bottom:10px;cursor:pointer;">
+                <input type="checkbox" name="role" value="{{ r.key }}"
+                       {% if r.held %}checked{% endif %} style="margin-top:.25rem;">
+                <span>
+                  <strong><i class="fas {{ r.icon }}"></i> {{ r.label }}</strong>
+                  <span class="form-hint" style="display:block;line-height:1.45;">{{ r.desc }}</span>
+                </span>
+              </label>
+              {% endfor %}
+              <button type="submit" class="btn btn-navy btn-sm" style="width:100%;justify-content:center;">
+                <i class="fas fa-floppy-disk"></i> Save roles
+              </button>
+              <p class="form-hint" style="line-height:1.5;margin-top:10px;">
+                More than one may be ticked. Unticking everything removes VendorLink access.
+              </p>
+            </form>
+
+            {% else %}
+            {% for r in vl_role_options %}
+              {% if not r.held %}
+              <form method="post" action="{% url 'vendorlink:admin_user_role' u.pk %}"
+                    style="margin-bottom:8px;"
+                    data-vl-confirm="Set {{ u.get_full_name|default:u.username }} to {{ r.label }}? {{ r.desc }}"
+                    data-vl-confirm-title="Change VendorLink Role" data-vl-confirm-ok="Set {{ r.label }}">
+                {% csrf_token %}<input type="hidden" name="role" value="{{ r.key }}">
+                <button type="submit" class="btn btn-sm" style="width:100%;justify-content:center;"
+                        {% if r.blocked %}disabled title="{{ r.blocked }}"{% endif %}>
+                  <i class="fas {{ r.icon }}"></i> Set as {{ r.label }}
+                </button>
+              </form>
+              {% endif %}
+            {% endfor %}
+            <p class="form-hint" style="line-height:1.5;margin-top:10px;">
+              <i class="fas fa-circle-info"></i>
+              Granting or removing <strong>Administrator</strong>, holding more than one role,
+              and removing access entirely are reserved to a superuser.
+            </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="vl-panel">
+          <div class="vl-panel-hdr"><i class="fas fa-sliders"></i> Access actions</div>
+          <div class="vl-panel-body">
+            {% if u.is_active %}
+            <p class="form-hint" style="line-height:1.55;margin-bottom:14px;">
+              This account can sign in. Deactivate to block access without deleting it.
+            </p>
+            {% if not u.is_superuser and u != request.user %}
+            <form method="post" action="{% url 'vendorlink:admin_user_action' u.pk %}"
+                  data-vl-confirm="Deactivate {{ u.get_full_name|default:u.username }}? They will no longer be able to log in."
+                  data-vl-confirm-title="Deactivate Account" data-vl-confirm-ok="Deactivate" data-vl-confirm-danger="1">
+              {% csrf_token %}<input type="hidden" name="action" value="deactivate">
+              <button type="submit" class="btn btn-red btn-sm" style="width:100%;justify-content:center;">
+                <i class="fas fa-user-slash"></i> Deactivate account
+              </button>
+            </form>
+            {% else %}
+            <div class="alert-banner" style="margin:0;">
+              <i class="fas fa-lock"></i>
+              <div>
+                {% if u == request.user %}You cannot deactivate your own account.
+                {% else %}Superuser accounts are protected.{% endif %}
+              </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <p class="form-hint" style="line-height:1.55;margin-bottom:14px;">
+              This account is deactivated and cannot sign in.
+            </p>
+            <form method="post" action="{% url 'vendorlink:admin_user_action' u.pk %}">
+              {% csrf_token %}<input type="hidden" name="action" value="activate">
+              <button type="submit" class="btn btn-green btn-sm" style="width:100%;justify-content:center;">
+                <i class="fas fa-user-check"></i> Reactivate account
+              </button>
+            </form>
+            {% endif %}
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
+
+            <p class="form-hint" style="line-height:1.55;margin-bottom:14px;">
+              Generate a fresh temporary password and email it. They set a new one on next login.
+            </p>
+            {% if u.email %}
+            <form method="post" action="{% url 'vendorlink:admin_user_action' u.pk %}"
+                  data-vl-confirm="Reset password and email new credentials to {{ u.email }}?"
+                  data-vl-confirm-title="Reset Password" data-vl-confirm-ok="Reset &amp; Email">
+              {% csrf_token %}<input type="hidden" name="action" value="reset_password">
+              <button type="submit" class="btn btn-blue btn-sm" style="width:100%;justify-content:center;">
+                <i class="fas fa-rotate"></i> Reset password &amp; email
+              </button>
+            </form>
+            {% else %}
+            <div class="alert-banner error" style="margin:0;">
+              <i class="fas fa-triangle-exclamation"></i>
+              <div>No email on file — cannot send credentials.</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+{% endblock %}

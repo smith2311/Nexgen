@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+VendorLink Admin → Insights. The all-users activity dashboard. Admin-only.
+
+VendorLink has no audit-log table, so the activity *is* the business rows: this
+screen reads the twelve tables that carry a user FK (see
+vendorlink/useractivity.py) and stitches them into one timeline.
+
+Deliberately four panels, not nine. An earlier cut also carried a work-mix
+donut, an actions-by-role donut, a weekday column, vendors-by-country and
+bids-by-currency. Every one of those either restated something already on the
+page (the trend is stacked by work type, so the donut was the same breakdown
+twice; the heatmap already carries the weekday axis) or was vendor-master
+trivia rather than an answer to "what is each user doing". They are gone.
+
+Charts are Highcharts, vendored — nothing is fetched at runtime. The heatmap is
+a CSS grid because that bundle ships no heatmap module; see _heatmap.html.
+{% endcomment %}
+
+{% block title %}Insights — VendorLink Admin{% endblock %}
+{% block page_title %}VendorLink Admin{% endblock %}
+
+{% block extra_css %}
+{% comment %}
+Both are required and in this order, matching every other admin-console page.
+master_page.css carries the lm-* header classes; data_table.css defines the
+--navy / --navy-light custom properties its header gradient resolves against.
+With master_page.css alone the gradient collapsed to nothing and the header's
+white text landed on the page's near-white background — invisible.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-insights.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_console' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Admin Console
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-chart-simple"></i> Insights</h1>
+          <p>
+            What every user is doing in VendorLink —
+            {{ since|date:"d M Y" }} to {{ until|date:"d M Y" }}.
+          </p>
+        </div>
+        {% comment %}
+        No lm-header-stats block here on purpose: the hero cards below carry the
+        same four numbers in a better presentation, and having both printed each
+        figure twice within one screen.
+        {% endcomment %}
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% comment %}
+    One GET form for both controls. The `user` select posts a pk and the view
+    redirects to that person's own URL, so the individual view stays
+    bookmarkable instead of being a query-string branch on this page.
+    {% endcomment %}
+    <form method="get" class="vla-controls" style="margin-bottom:18px;">
+      <select class="vla-select" name="user" onchange="this.form.submit()"
+              aria-label="Track a specific user">
+        <option value="">All users ({{ rows|length }})</option>
+        {% for row in rows %}
+        <option value="{{ row.id }}">{{ row.name }} — {{ row.role }} · {{ row.total }}</option>
+        {% endfor %}
+      </select>
+      <select class="vla-select" name="days" onchange="this.form.submit()"
+              style="min-width:150px;" aria-label="Reporting window">
+        {% for value, label in windows %}
+        <option value="{{ value }}" {% if days == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+
+    {# Four numbers, all about people — vendor and bid totals live on their own pages. #}
+    <div class="vla-hero">
+      <div class="vla-herocard vla-herocard--blue">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-users"></i></span> Users active
+        </div>
+        <div class="vla-herocard-val">{{ totals.users_active }}</div>
+        <div class="vla-herocard-sub">of {{ totals.users_total }} with access</div>
+      </div>
+      <div class="vla-herocard vla-herocard--cyan">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-bolt"></i></span> Total actions
+        </div>
+        <div class="vla-herocard-val">{{ totals.actions }}</div>
+        <div class="vla-herocard-sub">across 12 tracked activities</div>
+      </div>
+      <div class="vla-herocard {% if insights.registrations_pending %}vla-herocard--amber{% else %}vla-herocard--green{% endif %}">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-user-clock"></i></span> Pending approvals
+        </div>
+        <div class="vla-herocard-val">{{ insights.registrations_pending }}</div>
+        <div class="vla-herocard-sub">registrations awaiting review</div>
+      </div>
+      <div class="vla-herocard {% if totals.users_idle %}vla-herocard--red{% else %}vla-herocard--green{% endif %}">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-user-slash"></i></span> Idle accounts
+        </div>
+        <div class="vla-herocard-val">{{ totals.users_idle }}</div>
+        <div class="vla-herocard-sub">have access, did nothing</div>
+      </div>
+    </div>
+
+    {% if totals.actions %}
+
+    <div class="vla-legend">
+      {% for row in by_kind %}{% if row.n %}
+      <span class="vla-legend-item">
+        <span class="vla-dot vla-dot--{{ row.key }}"></span>{{ row.label }} · {{ row.n }}
+      </span>
+      {% endif %}{% endfor %}
+    </div>
+
+    <div class="vla-grid vla-grid--full">
+      <div class="vla-card">
+        <div class="vla-card-hdr">
+          <h3><i class="fas fa-chart-column"></i> Activity over time</h3>
+          <span class="vla-card-note">Stacked by work type · quiet days included</span>
+        </div>
+        <div id="chartTrend" class="vla-chart vla-chart--tall"></div>
+      </div>
+    </div>
+
+    {% comment %}The heatmap. Weekday x hour is the pattern neither the trend nor
+    an hourly histogram can show — each collapses one of the two axes.{% endcomment %}
+    <div class="vla-grid vla-grid--full">
+      {% include "vendorlink/admin/_heatmap.html" with heat_title="When the team works" heat_note="Darker cells are busier. Hours are IST." %}
+    </div>
+
+    <div class="vla-grid vla-grid--full">
+      <div class="vla-card">
+        <div class="vla-card-hdr">
+          <h3><i class="fas fa-ranking-star"></i> Busiest users</h3>
+          <span class="vla-card-note">Click a bar to open that user</span>
+        </div>
+        <div id="chartTopUsers" class="vla-chart vla-chart--tall"></div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="vla-card">
+      <div class="vla-empty">
+        <i class="fas fa-chart-simple"></i>
+        <h4>Nothing logged in this window</h4>
+        <p>No VendorLink activity between {{ since|date:"d M Y" }} and {{ until|date:"d M Y" }}. Try a longer window.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Roster ────────────────────────────────────────────────────────── #}
+    <div class="vla-card">
+      <div class="vla-card-hdr">
+        <h3><i class="fas fa-list-check"></i> Every user</h3>
+        <span class="vla-card-note">{{ rows|length }} with access · busiest first</span>
+      </div>
+      {% if rows %}
+      <div class="vla-tablewrap">
+        <table class="vla-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th class="num">Actions</th>
+              <th class="num">Active days</th>
+              <th class="num">Per day</th>
+              <th>Last action</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>
+                <span class="vla-who">
+                  <span class="vla-whoav{% if not row.total %} vla-whoav--idle{% endif %}">{{ row.name|slice:":2" }}</span>
+                  <span>
+                    <span class="strong">{{ row.name }}</span>
+                    {% if not row.is_active %}<em>(disabled)</em>{% endif %}
+                    <div class="vla-whosub">{{ row.email|default:row.username }}</div>
+                  </span>
+                </span>
+              </td>
+              <td><span class="vla-rolechip vla-rolechip--{{ row.role|lower|cut:" " }}">{{ row.role }}</span></td>
+              <td class="num strong">{{ row.total }}</td>
+              <td class="num">{{ row.active_days }}</td>
+              <td class="num">{% if row.total %}{{ row.per_active_day }}{% else %}—{% endif %}</td>
+              <td>{% if row.last_seen %}{{ row.last_seen|date:"d M, H:i" }}{% else %}—{% endif %}</td>
+              <td>
+                <a href="{% url 'vendorlink:admin_insights_user' row.id %}?days={{ days }}"
+                   class="btn-sm">Track <i class="fas fa-arrow-right"></i></a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="vla-qh-note" style="margin-top:12px;">
+        An <strong>action</strong> is any row this person created across the 12
+        user-attributed VendorLink tables — searches, vendors added, registrations
+        reviewed, RFIs, bids, commercials, assessments, evaluations, scores,
+        scorecards and KPI records. <strong>Per day</strong> divides by active days,
+        not calendar days. Registrations are dated by when they were
+        <em>reviewed</em>, not submitted.
+      </p>
+      {% else %}
+      <div class="vla-empty">
+        <i class="fas fa-users"></i>
+        <h4>No users to report on</h4>
+        <p>Nobody currently has VendorLink access.</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{{ charts|json_script:"vlaData" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-insights.js' %}"></script>
+<script>
+(function () {
+    if (!window.vlInsights) { return; }
+    var data = window.vlInsights.readPayload('vlaData');
+    if (!data || !data.has_data) { return; }
+    var vl = window.vlInsights;
+    vl.applyTheme();
+
+    vl.stackedTrend('chartTrend', data.trend);
+    // URLs ride alongside the values so the click handler never has to match a
+    // name back to a pk.
+    vl.rankedBar('chartTopUsers', data.top_users.names, data.top_users.values,
+                 { urls: data.top_users.urls });
+})();
+</script>
+{% endblock %}

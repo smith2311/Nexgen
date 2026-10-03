@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if mode == 'edit' %}Edit Vendor{% else %}Add Vendor{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-geoselect.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:vm_home' %}">Vendor Master</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:vendor_list' %}">Directory</a>
+        <span class="sep">/</span>
+        <span class="current">{% if mode == 'edit' %}Edit{% else %}New vendor{% endif %}</span>
+    </div>
+
+    <div class="vlx-pagehead__left">
+        <h1 class="vlx-title">{% if mode == 'edit' %}Edit “{{ vendor.vendor_name }}”{% else %}Add Vendor{% endif %}</h1>
+        <p class="vlx-subtitle">{% if mode == 'edit' %}Update the master record for this 3PL partner.{% else %}Register a new 3PL partner in the master directory.{% endif %} All 18 master-data fields from the SOW data dictionary.</p>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mode != 'edit' %}
+    <!-- Bulk import shortcut -->
+    <div class="vlx-card">
+        <div class="vlx-card__body">
+            <div class="vlx-bulk">
+                <div class="vlx-bulk__col">
+                    <h4><i class="fas fa-file-arrow-down"></i> Download Template</h4>
+                    <p>Get the pre-formatted Excel template with all required column headers ready to fill in.</p>
+                    <a href="{% url 'vendorlink:import_template' %}" class="vlx-btn vlx-btn--outline vlx-btn--sm" style="align-self:flex-start;">
+                        <i class="fas fa-download"></i> Download .xlsx Template
+                    </a>
+                </div>
+                <div class="vlx-bulk__divider"></div>
+                <div class="vlx-bulk__col">
+                    <h4><i class="fas fa-file-arrow-up"></i> Bulk Upload Vendors</h4>
+                    <p>Already filled the template? Upload it here to add or update multiple vendors at once.</p>
+                    <form method="post" enctype="multipart/form-data" action="{% url 'vendorlink:import_excel' %}" id="vmBulkForm"
+                          data-busy-loader="Importing vendors…"
+                          data-busy-note="Reading the workbook and creating each vendor.">
+                        {% csrf_token %}
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <label class="vlx-bulk-file-label" for="vmBulkFile">
+                                <i class="fas fa-cloud-arrow-up"></i>
+                                <span id="vmBulkFileLabel">Choose .xlsx file…</span>
+                            </label>
+                            <input type="file" name="file" id="vmBulkFile" accept=".xlsx" hidden required>
+                            <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm" id="vmBulkSubmit" disabled>
+                                <i class="fas fa-upload"></i> Upload
+                            </button>
+                        </div>
+                        <div id="vmBulkFileName" class="vlx-hint" style="margin-top:6px;"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" class="vm-form-card" novalidate
+          data-busy-loader="Saving the vendor…"
+          data-busy-note="Creating the portal login and emailing credentials.">
+        {% csrf_token %}
+        <div class="vlx-detailgrid">
+            <!-- LEFT: main fields -->
+            <div class="vlx-card">
+                <div class="vlx-card__body">
+
+                    {% if form.non_field_errors %}
+                    <div class="vlx-alert vlx-alert--error" style="margin-bottom:20px;"><i class="fas fa-circle-exclamation"></i><div>{{ form.non_field_errors }}</div></div>
+                    {% endif %}
+
+                    <!-- Identity & location -->
+                    <fieldset class="vlx-fieldset">
+                        <legend class="vlx-legend"><i class="fas fa-id-card"></i> Identity &amp; Location</legend>
+                        <div class="vlx-grid-2">
+                            <div class="vlx-field" style="grid-column:1 / -1;">
+                                <label class="vlx-label">Vendor Name <span class="vlx-req">*</span></label>
+                                {{ form.vendor_name }}
+                                {{ form.vendor_name.errors }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">Continent</label>
+                                {{ form.continent }}
+                                {{ form.continent.errors }}
+                                <span class="vlx-hint">Narrows the country list below.</span>
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">Country <span class="vlx-req">*</span></label>
+                                {{ form.country }}
+                                {{ form.country.errors }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">State / Region</label>
+                                {{ form.state }}
+                                {{ form.state.errors }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">City</label>
+                                {{ form.city }}
+                                {{ form.city.errors }}
+                            </div>
+                            <div class="vlx-field" style="grid-column:1 / -1;">
+                                <label class="vlx-label">Warehouse Location</label>
+                                {{ form.warehouse_location }}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Contact -->
+                    <fieldset class="vlx-fieldset">
+                        <legend class="vlx-legend"><i class="fas fa-address-book"></i> Contact Details</legend>
+                        <div class="vlx-grid-2">
+                            <div class="vlx-field">
+                                <label class="vlx-label">Contact Person <span class="vlx-req">*</span></label>
+                                {{ form.contact_person }}
+                                {{ form.contact_person.errors }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">Email <span class="vlx-req">*</span></label>
+                                {{ form.email }}
+                                {{ form.email.errors }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">Mobile</label>
+                                {{ form.mobile }}
+                            </div>
+                            <div class="vlx-field">
+                                <label class="vlx-label">Website</label>
+                                {{ form.website }}
+                                {{ form.website.errors }}
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+
+            <!-- RIGHT: status / portal / capabilities -->
+            <div class="vlx-stack">
+                <!-- Status -->
+                <div class="vlx-card">
+                    <div class="vlx-card__body">
+                        <label class="vlx-toggle" style="border-bottom:none;padding:0;">
+                            <span class="vlx-switch">{{ form.is_active }}<span class="vlx-switch__slider"></span></span>
+                            <span>
+                                <span class="vlx-toggle__label" style="display:block;">Active Status</span>
+                                <span class="vlx-toggle__desc">Vendor will be visible in the directory and available for routing.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Portal Access -->
+                <div class="vlx-card">
+                    <div class="vlx-card__body">
+                        <label class="vlx-toggle" style="border-bottom:none;padding:0;" id="vmPortalToggleWrap">
+                            <span class="vlx-switch">
+                                <input type="checkbox" name="grant_portal_access" id="vmGrantPortal" value="1" onchange="vmPortalToggle()">
+                                <span class="vlx-switch__slider"></span>
+                            </span>
+                            <span>
+                                <span class="vlx-toggle__label" style="display:block;">Portal Access</span>
+                                <span class="vlx-toggle__desc">{% if mode == 'edit' %}Grant / reset portal access and resend credentials.{% else %}Grant login access to the Vendor Portal.{% endif %}</span>
+                            </span>
+                        </label>
+                        <div id="vmPortalNote" class="vlx-alert vlx-alert--info" style="display:none;margin-top:14px;">
+                            <i class="fas fa-circle-info"></i>
+                            <div>
+                                A <strong>portal login</strong> will be created for this vendor using the email above.
+                                A <strong>temporary password</strong> will be generated and sent to that email address.
+                                The vendor will be required to <strong>set a new password</strong> on first login, then can access
+                                the Vendor Portal to view and respond to price bid requests.
+                                {% if mode == 'edit' %}<br><strong>Note:</strong> If an account already exists it will be reset with a new password.{% endif %}
+                            </div>
+                        </div>
+                        {% if mode != 'edit' %}
+                        <p class="vlx-hint" style="margin-top:10px;">You can also grant access later from the vendor detail page.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Capabilities -->
+                <div class="vlx-card">
+                    <div class="vlx-card__body">
+                        <h3 class="vlx-section-title" style="margin-bottom:2px;"><i class="fas fa-shield-halved"></i> Capabilities</h3>
+                        <p class="vlx-hint" style="margin-bottom:10px;">Select all services provided by this vendor.</p>
+                        {% comment %}
+                        One toggle per row of the Capability master, iterated over
+                        the single `capabilities` field's checkboxes.
+
+                        This used to walk every form field looking for a checkbox
+                        widget, which worked only while the nine capabilities were
+                        nine separate BooleanFields. They are one
+                        ModelMultipleChoiceField now — and CheckboxSelectMultiple
+                        also reports input_type "checkbox", so the old loop would
+                        have rendered the entire group inside one switch.
+                        {% endcomment %}
+                        <div class="vlx-toggle-grid">
+                            {% for choice in form.capabilities %}
+                            <label class="vlx-toggle">
+                                <span class="vlx-switch">{{ choice.tag }}<span class="vlx-switch__slider"></span></span>
+                                <span class="vlx-toggle__label">{{ choice.choice_label }}</span>
+                            </label>
+                            {% empty %}
+                            <p class="vlx-hint" style="margin:0;">
+                                No capabilities are defined yet.
+                                {% if is_vm_admin %}Add them on the
+                                <a href="{% url 'vendorlink:admin_capabilities' %}">Capability Master</a>.{% endif %}
+                            </p>
+                            {% endfor %}
+                        </div>
+                        {{ form.capabilities.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="vlx-formfoot" style="margin-top:24px;border-radius:var(--vlx-r-lg);border-top:none;box-shadow:var(--vlx-sh-1);">
+            <a href="{% if mode == 'edit' %}{% url 'vendorlink:vendor_detail' vendor.pk %}{% else %}{% url 'vendorlink:vendor_list' %}{% endif %}" class="vlx-btn vlx-btn--outline">Cancel</a>
+            <button type="submit" class="vlx-btn vlx-btn--primary"><i class="fas fa-floppy-disk"></i> {% if mode == 'edit' %}Save changes{% else %}Save Vendor{% endif %}</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vl-busy.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-geoselect.js' %}"></script>
+<script>
+(function () {
+    var isoMap   = {{ country_iso_map|safe }};
+    var dialMap  = {{ country_dial_map|safe }};
+    var cityApi  = '{% url "vendorlink:api_cities" %}';
+    var citySelect = new VlCitySelect(
+        document.getElementById('id_city'), cityApi);
+    var phoneAutofill = new VlPhoneAutofill(document.getElementById('id_mobile'));
+    new VlCountrySelect(
+        document.getElementById('id_country'), isoMap,
+        function (name, iso) {
+            citySelect.loadCities(iso, false);
+            phoneAutofill.apply(dialMap[name]);
+        });
+    // On edit: pre-load cities for the already-selected country.
+    (function () {
+        var sel = document.getElementById('id_country');
+        if (sel && sel.value) {
+            var iso = isoMap[sel.value];
+            if (iso) citySelect.loadCities(iso, true);
+        }
+    }());
+}());
+</script>
+<script>
+function vmPortalToggle() {
+    var chk = document.getElementById('vmGrantPortal');
+    var note = document.getElementById('vmPortalNote');
+    if (note) note.style.display = chk && chk.checked ? 'block' : 'none';
+}
+
+(function () {
+    /* ── Bulk file picker ─────────────────────────────────────────────── */
+    var fi = document.getElementById('vmBulkFile');
+    if (fi) {
+        fi.addEventListener('change', function () {
+            var btn  = document.getElementById('vmBulkSubmit');
+            var lbl  = document.getElementById('vmBulkFileLabel');
+            var info = document.getElementById('vmBulkFileName');
+            if (fi.files.length) {
+                lbl.textContent  = fi.files[0].name;
+                info.textContent = '(' + (fi.files[0].size / 1024).toFixed(1) + ' KB)';
+                btn.disabled = false;
+            } else {
+                lbl.textContent  = 'Choose .xlsx file…';
+                info.textContent = '';
+                btn.disabled = true;
+            }
+        });
+    }
+
+    /* ── Validation helpers ───────────────────────────────────────────── */
+    function showErr(el, msg) {
+        el.classList.add('vl-error');
+        el.classList.remove('vl-ok');
+        var id = 'vlerr_' + el.id;
+        var existing = document.getElementById(id);
+        if (!existing) {
+            var div = document.createElement('div');
+            div.className = 'vl-err-msg';
+            div.id = id;
+            el.parentNode.insertBefore(div, el.nextSibling);
+            existing = div;
+        }
+        existing.textContent = '⚠ ' + msg;
+        existing.style.display = 'flex';
+    }
+
+    function clearErr(el) {
+        el.classList.remove('vl-error');
+        el.classList.add('vl-ok');
+        var e = document.getElementById('vlerr_' + el.id);
+        if (e) e.style.display = 'none';
+    }
+
+    function clearAll(el) {
+        el.classList.remove('vl-error', 'vl-ok');
+        var e = document.getElementById('vlerr_' + el.id);
+        if (e) e.style.display = 'none';
+    }
+
+    /* ── Character counters ───────────────────────────────────────────── */
+    var COUNTERS = [
+        { id: 'id_vendor_name',        max: 200 },
+        { id: 'id_state',              max: 120 },
+        { id: 'id_city',               max: 120 },
+        { id: 'id_warehouse_location', max: 300 },
+        { id: 'id_contact_person',     max: 150 },
+        { id: 'id_mobile',             max: 25  },
+    ];
+    COUNTERS.forEach(function (cfg) {
+        var el = document.getElementById(cfg.id);
+        if (!el) return;
+        var counter = document.createElement('div');
+        counter.className = 'vl-char-counter';
+        el.parentNode.appendChild(counter);
+        function update() {
+            var rem = cfg.max - el.value.length;
+            counter.textContent = el.value.length + ' / ' + cfg.max;
+            counter.className = 'vl-char-counter' + (rem <= 0 ? ' vl-over' : rem <= Math.ceil(cfg.max * 0.1) ? ' vl-near' : '');
+        }
+        el.addEventListener('input', update);
+        update();
+    });
+
+    /* ── Per-field rules ──────────────────────────────────────────────── */
+    var PHONE_RE  = /^[\d\+\-\(\)\s\.]{7,25}$/;
+    var EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    var RULES = {
+        id_vendor_name: function (v) {
+            if (!v.trim()) return 'Vendor name is required.';
+            if (v.length > 200) return 'Vendor name must be 200 characters or fewer.';
+        },
+        id_country: function (v) {
+            if (!v || !v.trim()) return 'Please enter a country.';
+        },
+        id_state: function (v) {
+            if (v.length > 120) return 'State must be 120 characters or fewer.';
+        },
+        id_city: function (v) {
+            if (v.length > 120) return 'City must be 120 characters or fewer.';
+        },
+        id_email: function (v) {
+            if (v && !EMAIL_RE.test(v)) return 'Enter a valid email (e.g. name@vendor.com).';
+        },
+        id_mobile: function (v) {
+            if (v && !PHONE_RE.test(v)) return 'Digits, +, -, (, ), spaces only (7–25 chars).';
+        },
+        id_website: function (v) {
+            if (v) {
+                var url = v.startsWith('http') ? v : 'https://' + v;
+                try { var h = new URL(url).hostname; if (!h.includes('.')) return 'Enter a valid URL (e.g. https://vendor.com).'; }
+                catch (e) { return 'Enter a valid URL (e.g. https://vendor.com).'; }
+            }
+        },
+        id_warehouse_location: function (v) {
+            if (v.length > 300) return 'Warehouse location must be 300 characters or fewer.';
+        },
+        id_contact_person: function (v) {
+            if (v.length > 150) return 'Contact name must be 150 characters or fewer.';
+        },
+    };
+
+    function validateField(el) {
+        if (!RULES[el.id]) { clearAll(el); return true; }
+        var err = RULES[el.id](el.value);
+        if (err) { showErr(el, err); return false; }
+        clearErr(el);
+        return true;
+    }
+
+    Object.keys(RULES).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('blur', function () { validateField(el); });
+        el.addEventListener('input', function () {
+            if (el.classList.contains('vl-error')) validateField(el);
+        });
+    });
+
+    /* ── Form submit guard ────────────────────────────────────────────── */
+    var mainForm = document.querySelector('form.vm-form-card');
+    if (mainForm) {
+        mainForm.addEventListener('submit', function (e) {
+            var ok = true;
+            Object.keys(RULES).forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && !validateField(el)) ok = false;
+            });
+            if (!ok) {
+                e.preventDefault();
+                var first = mainForm.querySelector('.vl-error');
+                if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

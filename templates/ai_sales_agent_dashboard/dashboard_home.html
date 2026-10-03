@@ -1,0 +1,599 @@
+{% extends "ai_sales_agent_dashboard/base_dashboard.html" %}
+
+{% block title %}AI Sales Agent Intelligence Hub{% endblock %}
+
+{% block extra_style %}
+/* ── Phase section ─────────────────────────────────────────────── */
+.phase-section { margin-bottom: 36px; }
+
+.phase-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 12px;
+}
+.phase-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.phase-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.phase-count  { font-size: 11px; font-weight: 600; color: var(--text-muted);
+  background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 20px; }
+
+/* ── Agent card grid ────────────────────────────────────────────── */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.agent-card {
+  display: block; text-decoration: none;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+  border-top: 3px solid var(--phase-color, var(--accent-purple));
+}
+.agent-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: var(--phase-color, var(--accent-purple));
+  text-decoration: none;
+}
+.agent-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.agent-icon-wrap { font-size: 24px; line-height: 1; }
+.agent-wf-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-muted);
+  background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px;
+}
+.agent-name { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.agent-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+.agent-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-meta-item { display: flex; align-items: center; gap: 4px; font-size: 11px;
+  color: var(--text-muted); background: rgba(0,0,0,0.04);
+  padding: 2px 7px; border-radius: 4px; }
+.node-count { font-weight: 700; color: var(--text-secondary); }
+
+/* ── Complexity dots ────────────────────────────────────────────── */
+.complexity-dots { display: flex; gap: 3px; }
+.complexity-dot { width: 6px; height: 6px; border-radius: 50%; }
+.complexity-dot.filled { background: var(--accent-purple); }
+.complexity-dot.empty  { background: rgba(0,0,0,0.12); }
+
+/* ── Pipeline flow strip ────────────────────────────────────────── */
+.pipeline-flow {
+  display: flex; align-items: stretch; gap: 0;
+  flex-wrap: wrap; padding: 4px 0;
+}
+.pipeline-step { display: flex; align-items: center; }
+.pipeline-node {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 14px 18px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg-card);
+  text-decoration: none; color: inherit;
+  min-width: 80px; text-align: center;
+  transition: box-shadow .2s, border-color .2s;
+}
+.pipeline-node:hover { background: rgba(0,0,0,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+.pipeline-node-icon { font-size: 20px; }
+.pipeline-node-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted);
+}
+.pipeline-node-count { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+.pipeline-arrow { font-size: 18px; color: var(--text-muted); padding: 0 6px; }
+
+/* ── Pipeline live metrics ──────────────────────────────────────── */
+.pipeline-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.pipeline-metric {
+  background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 12px; text-align: center;
+  transition: border-color .2s, transform .2s;
+  cursor: default;
+}
+.pipeline-metric:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.pipeline-metric-val  { font-size: 26px; font-weight: 800; color: var(--text-primary); }
+.pipeline-metric-lbl  { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.pipeline-metric-icon { font-size: 20px; margin-bottom: 6px; }
+
+/* ── Tier pill bar ──────────────────────────────────────────────── */
+.stat-tier-bar { display: flex; gap: 2px; border-radius: 8px; overflow: hidden; height: 8px; margin-top: 8px; }
+.stat-tier-seg { flex: 1; height: 100%; }
+
+/* ── ICP table ──────────────────────────────────────────────────── */
+.icp-table-compact td, .icp-table-compact th { padding: 8px 12px; font-size: 12px; }
+
+/* ── Section anchor ─────────────────────────────────────────────── */
+.section-anchor { display: block; position: relative; top: -70px; visibility: hidden; }
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Section 1: Live Pipeline Metrics ─────────────────────────── -->
+<div class="card mb-32" id="metrics">
+  <div class="card-header">
+    <span class="card-title">📊 Live Pipeline Data</span>
+    <span class="badge badge-green">Live</span>
+  </div>
+  <div class="card-body">
+    <div class="pipeline-metrics">
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">🗂️</div>
+        <div class="pipeline-metric-val">{{ total_scraped|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">Scraped Leads</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">🏥</div>
+        <div class="pipeline-metric-val">{{ total_icp_scored|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">ICP Accounts</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">🧠</div>
+        <div class="pipeline-metric-val">{{ total_ai_briefs|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">AI Briefs</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">🔍</div>
+        <div class="pipeline-metric-val">{{ total_in_queue|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">In Queue</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">👤</div>
+        <div class="pipeline-metric-val">{{ total_crm_contacts|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">CRM Contacts</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">🤝</div>
+        <div class="pipeline-metric-val">{{ total_deals|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">Deals</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">📅</div>
+        <div class="pipeline-metric-val">{{ total_meetings|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">Meetings</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">📄</div>
+        <div class="pipeline-metric-val">{{ total_proposals|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">Proposals</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">📧</div>
+        <div class="pipeline-metric-val">{{ total_email_seqs|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">Email Seqs</div>
+      </div>
+      <div class="pipeline-metric">
+        <div class="pipeline-metric-icon">⚙️</div>
+        <div class="pipeline-metric-val">{{ total_cso_runs|default_if_none:"—" }}</div>
+        <div class="pipeline-metric-lbl">CSO Runs</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: ICP Lead Tiers ─────────────────────────────────── -->
+<div class="stat-grid mb-32">
+  <div class="stat-card">
+    <div class="stat-label">Total Agents</div>
+    <div class="stat-value" style="color:var(--accent-purple)">{{ total_agents }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Across all phases</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">🔥 Hot Leads</div>
+    <div class="stat-value" style="color:#ef4444">{{ icp_hot }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">ICP score ≥ 70</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">⚡ Warm Leads</div>
+    <div class="stat-value" style="color:#f59e0b">{{ icp_warm }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">ICP score 40-69</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">❄️ Cold Leads</div>
+    <div class="stat-value" style="color:#6b7280">{{ icp_cold }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">ICP score < 40</div>
+  </div>
+</div>
+
+<!-- ── Section 3: ICP Tier Distribution ─────────────────────────── -->
+<div class="card-grid-2 mb-32" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <!-- ICP Breakdown -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🎯 ICP Tier Breakdown</span>
+      <a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}" class="btn btn-sm btn-outline">View All →</a>
+    </div>
+    <div class="card-body">
+      {% if icp_tier_dist %}
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Tier</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in icp_tier_dist %}
+          <tr>
+            <td><span class="badge badge-gray">{{ row.tier_label|default:row.account_tier }}</span></td>
+            <td><strong>{{ row.cnt }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:var(--text-muted)">No ICP data yet</div>
+      {% endif %}
+
+      <!-- Hot / Warm / Nurture summary pills -->
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <span class="badge badge-red">🔥 Hot: {{ icp_hot }}</span>
+        <span class="badge badge-yellow">⚡ Warm: {{ icp_warm }}</span>
+        <span class="badge badge-blue">📈 Develop: {{ icp_dev }}</span>
+        <span class="badge badge-gray">❄️ Nurture: {{ icp_nurture }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top ICP Accounts -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🏆 Top ICP Accounts</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if top_icp_accounts %}
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Account</th><th>ICP Score</th><th>Tier</th></tr></thead>
+        <tbody>
+          {% for icp in top_icp_accounts %}
+          <tr>
+            <td>
+              <a href="{% url 'ai_sales_agent_dashboard:scraped_lead_detail' icp.place_id %}"
+                 style="color:var(--accent-blue);text-decoration:none;font-weight:600">
+                {{ icp.business_name|default:icp.place_id|truncatechars:30 }}
+              </a>
+            </td>
+            <td><strong>{{ icp.icp_fit_score }}/100</strong></td>
+            <td>
+              <span class="badge badge-gray" style="font-size:10px">
+                {{ icp.tier_label|default:icp.account_tier }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:var(--text-muted)">No ICP accounts yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Section 4: Recent AI Briefs + Discovery Queue ─────────────── -->
+<div class="card-grid-2 mb-32" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <!-- Recent AI Briefs -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🧠 Recent AI Briefs</span>
+      <span class="badge badge-purple">Latest {{ recent_briefs|length }}</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if recent_briefs %}
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Account</th><th>ICP</th></tr></thead>
+        <tbody>
+          {% for b in recent_briefs %}
+          <tr>
+            <td>
+              <a href="{% url 'ai_sales_agent_dashboard:scraped_lead_detail' b.place_id %}"
+                 style="color:var(--accent-blue);text-decoration:none;font-weight:600">
+                {{ b.title|default:b.name|default:b.place_id|truncatechars:30 }}
+              </a>
+            </td>
+            <td style="color:var(--text-muted)">{{ b.icp_tier|default:"—" }} · {{ b.icp_score }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:var(--text-muted)">No briefs yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Discovery Queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🔍 Discovery Queue</span>
+      <span class="badge badge-blue">Latest {{ dq_snapshot|length }}</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if dq_snapshot %}
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Account</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for dq in dq_snapshot %}
+          <tr>
+            <td style="font-weight:600">{{ dq.business_name|default:dq.place_id|truncatechars:30 }}</td>
+            <td>
+              <span class="badge badge-gray" style="font-size:10px">{{ dq.discovery_status|default:"queued" }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:var(--text-muted)">Queue is empty</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Section 5: Recent Meetings + CSO Runs ─────────────────────── -->
+{% if recent_meetings or recent_cso_runs %}
+<div class="card-grid-2 mb-32" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  {% if recent_meetings %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 Recent Meetings</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Prospect</th><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for m in recent_meetings %}
+          <tr>
+            <td style="font-weight:600">{{ m.prospect_first_name|default:m.place_id|default:"—"|truncatechars:28 }}</td>
+            <td style="color:var(--text-muted)">{{ m.meeting_type|default:"—" }}</td>
+            <td><span class="badge badge-gray" style="font-size:10px">{{ m.booking_status }}</span></td>
+            <td style="color:var(--text-muted)">{{ m.created_at|date:"d M Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if recent_cso_runs %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚙️ Recent CSO Runs</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <table class="data-table icp-table-compact">
+        <thead><tr><th>Run ID</th><th>Type</th><th>Health</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for r in recent_cso_runs %}
+          <tr>
+            <td><code>{{ r.run_id|truncatechars:18 }}</code></td>
+            <td style="color:var(--text-muted)">{{ r.run_type|default:"—" }}</td>
+            <td>
+              {% if r.health_score >= 70 %}
+              <span class="badge badge-green">{{ r.health_score }}%</span>
+              {% elif r.health_score >= 40 %}
+              <span class="badge badge-yellow">{{ r.health_score }}%</span>
+              {% else %}
+              <span class="badge badge-red">{{ r.health_score }}%</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-muted)">{{ r.created_at|date:"d M H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+<!-- ── Section 6: Pipeline Phase Flow Strip ───────────────────────── -->
+<div class="card mb-32">
+  <div class="card-header">
+    <span class="card-title">🔄 Full Sales Pipeline — {{ phase_summary|length }} Phases</span>
+    <a href="{% url 'ai_sales_agent_dashboard:workflow_eagle_eye' %}" class="btn btn-sm btn-outline">
+      🦅 Full Eagle-Eye →
+    </a>
+  </div>
+  <div class="card-body">
+    <div class="pipeline-flow">
+      {% for phase in phase_summary %}
+      <div class="pipeline-step">
+        <a class="pipeline-node" href="#phase-{{ phase.key }}">
+          <div class="pipeline-node-icon">{{ phase.icon }}</div>
+          <div class="pipeline-node-count">{{ phase.count }}</div>
+          <div class="pipeline-node-label">{{ phase.label|truncatechars:16 }}</div>
+        </a>
+        {% if not forloop.last %}
+        <div class="pipeline-arrow">→</div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div style="color:var(--text-muted);font-size:13px">No phases configured. Run <code>python manage.py seed_agents</code>.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 7: Agent Search + Grid ────────────────────────────── -->
+<span id="phases" class="section-anchor"></span>
+<div class="search-bar" id="agents">
+  <input type="text" id="agentSearch" class="search-input"
+         placeholder="🔍 Search agents by name, phase, tag…"
+         oninput="filterAgents(this.value)"
+         autocomplete="off">
+  <select class="select-input" id="phaseFilter" onchange="filterAgents(document.getElementById('agentSearch').value)">
+    <option value="">All Phases</option>
+    {% for phase in phase_summary %}
+    <option value="{{ phase.key }}">{{ phase.label }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+{% for phase in phase_summary %}
+<div class="phase-section" id="phase-{{ phase.key }}" data-phase="{{ phase.key }}">
+  <div class="phase-header">
+    <div class="phase-dot" style="background:{{ phase.color }}"></div>
+    <div class="phase-label">{{ phase.icon }} {{ phase.label }}</div>
+    <div class="phase-count">{{ phase.count }} agent{{ phase.count|pluralize }}</div>
+    <div style="flex:1"></div>
+    <div style="font-size:11px;color:var(--text-muted)">
+      {% for a in phase.agents %}{{ a.icon }}{% endfor %}
+    </div>
+  </div>
+
+  <div class="agent-grid">
+    {% for agent in phase.agents %}
+    <a href="{% url 'ai_sales_agent_dashboard:agent_detail' agent.pk %}"
+       class="agent-card"
+       style="--phase-color:{{ phase.color }}"
+       data-name="{{ agent.name|lower }}"
+       data-phase="{{ agent.phase }}"
+       data-tags="{{ agent.tags|join:' '|lower }}">
+
+      <div class="agent-card-head">
+        <div class="agent-icon-wrap">{{ agent.icon }}</div>
+        <div class="agent-wf-id">{{ agent.workflow_id }}</div>
+      </div>
+
+      <div class="agent-name">{{ agent.name }}</div>
+      <div class="agent-desc">{{ agent.description|truncatechars:100 }}</div>
+
+      <div class="agent-meta">
+        <span class="agent-meta-item">
+          <span>⚡</span>
+          <span class="node-count">{{ agent.node_count }}</span>
+          <span>nodes</span>
+        </span>
+        <span class="agent-meta-item">
+          <div class="complexity-dots">
+            {% for i in "12345" %}
+            <div class="complexity-dot {% if forloop.counter <= agent.complexity_score %}filled{% else %}empty{% endif %}"></div>
+            {% endfor %}
+          </div>
+        </span>
+        {% if agent.schedule_info %}
+        <span class="agent-meta-item">🕐 {{ agent.schedule_info }}</span>
+        {% endif %}
+        {% if agent.reports_to %}
+        <span class="agent-meta-item">
+          <span style="color:var(--accent-purple)">↑ {{ agent.reports_to.short_name|default:agent.reports_to.workflow_id }}</span>
+        </span>
+        {% endif %}
+      </div>
+
+      {% if agent.tags %}
+      <div style="margin-top:10px">
+        {% for tag in agent.tags|slice:":3" %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div style="text-align:center;padding:80px;color:var(--text-muted)">
+  <div style="font-size:48px;margin-bottom:16px">🤖</div>
+  <div style="font-size:16px;font-weight:600;margin-bottom:8px">No agents found</div>
+  <div>Run <code>python manage.py seed_agents</code> to populate the database.</div>
+</div>
+{% endfor %}
+
+<!-- ── Section 8: Recent Agent Runs ──────────────────────────────── -->
+{% if recent_runs %}
+<div class="card mt-24" id="runs">
+  <div class="card-header">
+    <span class="card-title">🕐 Recent Agent Runs</span>
+    <span class="badge badge-gray">Latest {{ recent_runs|length }}</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Run ID</th>
+          <th>Status</th>
+          <th>Started</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in recent_runs %}
+        <tr>
+          <td>
+            <a href="{% url 'ai_sales_agent_dashboard:agent_detail' run.agent.pk %}"
+               style="color:var(--accent-blue);text-decoration:none;font-weight:600">
+              {{ run.agent.icon }} {{ run.agent.name|truncatechars:30 }}
+            </a>
+          </td>
+          <td><code>{{ run.run_id|truncatechars:16 }}</code></td>
+          <td>
+            {% if run.status == 'success' %}
+            <span class="badge badge-green">✅ Success</span>
+            {% elif run.status == 'error' %}
+            <span class="badge badge-red">❌ Error</span>
+            {% elif run.status == 'running' %}
+            <span class="badge badge-blue">⚡ Running</span>
+            {% else %}
+            <span class="badge badge-gray">{{ run.status }}</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted)">{{ run.started_at|date:"d M Y H:i" }}</td>
+          <td style="color:var(--text-muted)">
+            {% if run.duration_seconds %}{{ run.duration_seconds }}s{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── Stat grid overrides for dashboard ────────────────────────────── */
+.mb-32  { margin-bottom: 32px; }
+.mt-24  { margin-top: 24px; }
+.search-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+</style>
+{% endblock %}
+
+{% block topbar_title %}🤖 AI Sales Agent Intelligence Hub{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}" class="btn btn-sm btn-outline btn-topbar">🏥 Hospitals</a>
+<a href="{% url 'ai_sales_agent_dashboard:workflow_eagle_eye' %}" class="btn btn-sm btn-primary btn-topbar">🦅 Eagle-Eye</a>
+<span class="topbar-badge">🔒 Superuser</span>
+{% endblock %}
+
+<script>
+function filterAgents(query) {
+  const q   = (query || '').toLowerCase().trim();
+  const pf  = document.getElementById('phaseFilter').value;
+
+  document.querySelectorAll('.agent-card').forEach(card => {
+    const matchQ = !q ||
+      card.dataset.name.includes(q) ||
+      card.dataset.phase.includes(q) ||
+      (card.dataset.tags || '').includes(q);
+    const matchP = !pf || card.dataset.phase === pf;
+    card.closest('.agent-card') && (card.style.display = (matchQ && matchP) ? '' : 'none');
+  });
+
+  // Hide empty phase sections
+  document.querySelectorAll('.phase-section').forEach(section => {
+    const visible = section.querySelectorAll('.agent-card:not([style*="display: none"]):not([style*="display:none"])');
+    section.style.display = visible.length ? '' : 'none';
+  });
+}
+</script>

@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ app.ref_no }} — Visa Dept{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-passport"></i> {{ app.ref_no }} <span class="vm-pill {{ app.status }}">{{ app.status_label }}</span></h1>
+          <p>{{ app.applicant_name }} — {{ app.country.name }}</p>
+        </div>
+        <div class="lm-header-stats">
+          {% if app.custom_letter_body %}
+          <a href="{% url 'visa:admin_print' app.pk %}" class="btn btn-ghost btn-sm" target="_blank"
+             style="color:#000;border-color:rgba(255,255,255,0.3)">
+            <i class="fas fa-print"></i> Print
+          </a>
+          {% endif %}
+          {% if app.status in 'hod_approved,processing' %}
+          <button class="btn btn-green btn-sm" onclick="Modal.open('issueModal')">
+            <i class="fas fa-stamp"></i> Issue Letter
+          </button>
+          <button class="btn btn-red btn-sm" onclick="Modal.open('rejectModal')">
+            <i class="fas fa-times"></i> Reject
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if no_template %}
+    <div class="alert-banner warn">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div><strong>No letter template found</strong> for {{ app.company.code }} → {{ app.country.name }}, and no default template is configured.
+      {% if is_superuser %}
+      Draft the letter manually below, or <a href="{% url 'visa:template_create' %}">create a template</a>.
+      {% else %}
+      Draft the letter manually below, or contact a superadmin to add a template for this company/country pairing.
+      {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="vm-detail-grid">
+
+      <!-- Left: details + letter editor -->
+      <div>
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-user"></i> Applicant</div>
+          <div class="form-block-body">
+            <div class="vm-detail-row"><span class="vm-detail-label">Name</span><span class="vm-detail-val">{{ app.applicant_name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Designation</span><span class="vm-detail-val">{{ app.designation }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Company</span><span class="vm-detail-val">{{ app.company.name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Country</span><span class="vm-detail-val">{{ app.country.name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Travel</span><span class="vm-detail-val">{{ app.visit_start_date|date:"d F Y" }} — {{ app.visit_end_date|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Entry Type</span><span class="vm-detail-val">{{ app.get_entry_type_display }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Passport No.</span><span class="vm-detail-val vm-mono">{{ app.passport_number }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Passport Expiry</span><span class="vm-detail-val">{{ app.passport_expiry_date|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">HOD</span><span class="vm-detail-val">{{ app.hod_name }}</span></div>
+          </div>
+        </div>
+
+        {% if jurisdiction_variants %}
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-map-marker-alt"></i> Jurisdiction Version</div>
+          <div class="form-block-body">
+            <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px">
+              {{ app.company.code }} → {{ app.country.name }} has {{ jurisdiction_variants|length }} letter versions. Switching overwrites the draft below with that version's text (rendered for this applicant).
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              {% for variant in jurisdiction_variants %}
+              <form method="post" action="{% url 'visa:admin_switch_letter_jurisdiction' app.pk variant.pk %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-sm">
+                  <i class="fas fa-file-alt"></i> {{ variant.jurisdiction|default:"Default" }}
+                </button>
+              </form>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-file-alt"></i> Invitation Letter <small style="font-weight:400;color:var(--text-muted);font-size:11px;margin-left:8px">Editable before print</small></div>
+          <div class="form-block-body">
+            <form method="post" action="{% url 'visa:admin_save_letter' app.pk %}">
+              {% csrf_token %}
+              <textarea class="vm-letter-editor" name="letter_body" id="letterBody">{{ app.custom_letter_body }}</textarea>
+              <div class="form-field" style="margin-top:12px">
+                <label class="form-label">Remark</label>
+                <textarea class="form-textarea" name="remark" rows="2"
+                  placeholder="Why was the letter changed? (optional)"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <button type="submit" class="btn btn-navy">
+                  <i class="fas fa-save"></i> Save Letter
+                </button>
+                {% if app.custom_letter_body %}
+                <a href="{% url 'visa:admin_print' app.pk %}" target="_blank" class="btn btn-ghost">
+                  <i class="fas fa-print"></i> Print / Download
+                </a>
+                {% endif %}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: review panel + remarks + dept notes + log -->
+      <div>
+        {% if app.status in 'hod_approved,processing' %}
+        <!-- Review panel — highlighted and sticky so the decision controls stay
+             on screen while the letter is reviewed on the left. -->
+        <div class="vm-review-panel" style="margin-bottom:20px">
+          <div class="form-block-hdr"><i class="fas fa-clipboard-check"></i> Visa Department Review</div>
+          <div class="form-block-body">
+            <p class="vm-review-hint">
+              Check the letter on the left, add a remark, then issue or reject. The applicant is emailed either way.
+            </p>
+            <div class="form-field">
+              <label class="form-label">Remark</label>
+              <textarea class="form-textarea" id="deptRemark" rows="3"
+                placeholder="Add a remark for this application (optional)"></textarea>
+              <span class="form-hint">Carried into the Issue / Reject dialog and the activity log</span>
+            </div>
+            <button class="btn btn-green" style="width:100%;margin-top:10px" onclick="Modal.open('issueModal')">
+              <i class="fas fa-stamp"></i> Issue Letter
+            </button>
+            <button class="btn btn-red" style="width:100%;margin-top:8px" onclick="Modal.open('rejectModal')">
+              <i class="fas fa-times"></i> Reject Application
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Stage remarks -->
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-comment-dots"></i> Remarks</div>
+          <div class="form-block-body">
+            {% if app.applicant_remark or app.hod_remark or app.visa_dept_remark %}
+              {% if app.applicant_remark %}
+              <div class="vm-remark applicant">
+                <div class="vm-remark-who">Applicant — {{ app.applicant_name }}</div>
+                <div class="vm-remark-text">{{ app.applicant_remark }}</div>
+              </div>
+              {% endif %}
+              {% if app.hod_remark %}
+              <div class="vm-remark hod">
+                <div class="vm-remark-who">HOD — {{ app.hod_name }}</div>
+                <div class="vm-remark-text">{{ app.hod_remark }}</div>
+              </div>
+              {% endif %}
+              {% if app.visa_dept_remark %}
+              <div class="vm-remark dept">
+                <div class="vm-remark-who">Visa Department</div>
+                <div class="vm-remark-text">{{ app.visa_dept_remark }}</div>
+              </div>
+              {% endif %}
+            {% else %}
+            <div class="vm-remark-empty">No remarks recorded yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if app.visa_dept_notes %}
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-sticky-note"></i> Dept Notes</div>
+          <div class="form-block-body" style="font-size:13px">{{ app.visa_dept_notes }}</div>
+        </div>
+        {% endif %}
+
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-history"></i> Activity Log</div>
+          <div class="form-block-body">
+            {% if logs %}
+            <ul class="vm-log">
+              {% for log in logs %}
+              <li class="vm-log-item">
+                <span class="vm-log-dot {{ log.action }}"></span>
+                <div style="flex:1">
+                  <div class="vm-log-action">{{ log.get_action_display }}</div>
+                  <div class="vm-log-by">by {{ log.performed_by.get_full_name|default:log.performed_by.username }}</div>
+                  {% if log.notes %}<div class="vm-log-notes">{{ log.notes }}</div>{% endif %}
+                </div>
+                <div class="vm-log-time">{{ log.timestamp|date:"d M Y H:i" }}</div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div style="color:var(--text-muted);font-size:13px">No activity yet.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Issue Modal -->
+<div class="lmodal-overlay" id="issueModal">
+  <div class="lmodal">
+    <div class="lmodal-hdr" style="background:var(--green-lt)">
+      <div class="lmodal-icon" style="background:var(--green)"><i class="fas fa-stamp"></i></div>
+      <div>
+        <h3 style="color:var(--green)">Issue Letter</h3>
+        <p>Applicant will be notified by email</p>
+      </div>
+      <button onclick="Modal.close('issueModal')" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+    <form method="post" action="{% url 'visa:admin_approve' app.pk %}">
+      {% csrf_token %}
+      <div class="lmodal-body">
+        <div class="form-field">
+          <label class="form-label">Remark</label>
+          <textarea class="form-textarea" name="remark" id="issueRemark" rows="3"
+            placeholder="Add a remark for this application (optional)"></textarea>
+        </div>
+      </div>
+      <div class="lmodal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.close('issueModal')">Cancel</button>
+        <button type="submit" class="btn btn-green"><i class="fas fa-stamp"></i> Issue</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="lmodal-overlay" id="rejectModal">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-times-circle"></i></div>
+      <div>
+        <h3>Reject Application</h3>
+        <p>Applicant will be notified by email</p>
+      </div>
+      <button onclick="Modal.close('rejectModal')" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+    <form method="post" action="{% url 'visa:admin_reject' app.pk %}">
+      {% csrf_token %}
+      <div class="lmodal-body">
+        <div class="form-field">
+          <label class="form-label">Rejection Reason <span class="req">*</span></label>
+          <textarea class="form-textarea" name="reason" rows="3" required placeholder="Reason for rejection..."></textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Remark</label>
+          <textarea class="form-textarea" name="remark" id="rejectRemark" rows="2"
+            placeholder="Additional remark (optional)"></textarea>
+        </div>
+      </div>
+      <div class="lmodal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.close('rejectModal')">Cancel</button>
+        <button type="submit" class="btn btn-red"><i class="fas fa-times"></i> Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+<script>
+  // The review panel's remark box is outside the Issue / Reject forms, so copy
+  // it into whichever dialog the reviewer opens rather than losing what they
+  // typed. An existing value in the dialog always wins.
+  (function () {
+    var panel = document.getElementById('deptRemark');
+    if (!panel) return;
+    [['issueModal', 'issueRemark'], ['rejectModal', 'rejectRemark']].forEach(function (pair) {
+      var target = document.getElementById(pair[1]);
+      if (!target) return;
+      document.querySelectorAll('[onclick*="' + pair[0] + '"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (panel.value.trim() && !target.value.trim()) target.value = panel.value;
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}

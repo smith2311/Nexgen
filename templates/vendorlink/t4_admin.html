@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 4.4 — Admin Console.
+
+Wireframe
+    breadcrumb / title
+    ┌ stats strip ─────────────────────────────────────────────────┐
+    ┌ section cards: Users · Registrations · Assessments · Masters ·┐
+    │                Capability config · Insights                   │
+    └ note on destructive actions ──────────────────────────────────┘
+
+An overview and a set of routes, not a second implementation of the admin
+areas. Each card links to the existing screen that owns those writes, all of
+which already carry their own permission checks and audit trail — the console
+adds a way in, not a second way to change things.
+
+Destructive actions use VL.confirmDestructive (typed confirmation) wherever
+they are offered; that lives in the component library rather than here so
+every screen gets the same guard.
+
+States: any count can be zero; the console itself is admin-gated.
+{% endcomment %}
+
+{% block title %}Admin Console — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">Admin</span>
+            </nav>
+            <h1 class="vl-title">Admin Console</h1>
+            <p class="vl-subtitle">Accounts, reference data and the review queues.</p>
+        </div>
+    </div>
+
+    <div class="vl-kpis" style="margin-bottom:var(--vl-4);">
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Registrations</div>
+            <div class="vl-kpi__value">{{ stats.users }}</div>
+            <div class="vl-kpi__delta">{{ stats.pending_regs }} pending</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Requests</div>
+            <div class="vl-kpi__value">{{ stats.requests }}</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Bids</div>
+            <div class="vl-kpi__value">{{ stats.bids }}</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Assessments</div>
+            <div class="vl-kpi__value">{{ stats.assessments }}</div>
+            <div class="vl-kpi__delta">{{ stats.awaiting_review }} awaiting review</div>
+        </div>
+    </div>
+
+    <div style="display:grid;gap:var(--vl-3);grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+        {% for s in sections %}
+        <a class="vl-card" href="{% url s.url %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-card__body">
+                <div style="font-weight:600;font-size:var(--vl-t-body);">{{ s.label }}</div>
+                <div class="vl-meta" style="margin-top:2px;">{{ s.hint }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="vl-banner vl-banner--info" style="margin-top:var(--vl-4);">
+        <div class="vl-banner__body">
+            <div class="vl-banner__title">Destructive actions ask you to type the record's name</div>
+            <div>
+                Deleting a user, vendor or rate card is confirmed by typing its name, not by
+                clicking through a dialog — the point is that it cannot be carried by muscle
+                memory. Each action still runs on its own screen, with its own permission check.
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+{% endblock %}

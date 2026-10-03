@@ -1,0 +1,447 @@
+{% extends "ai_sales_agent_dashboard/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}{{ hospital.name }} — Hospital Account{% endblock %}
+{% block topbar_title %}🏥 {{ hospital.name }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'ai_sales_agent_dashboard:hospital_edit' hospital.pk %}" class="btn-topbar btn-topbar-outline">
+  ✏️ Edit
+</a>
+<a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}" class="btn-topbar btn-topbar-outline">← Hospitals</a>
+{% endblock %}
+
+{% block extra_style %}
+/* ── Hero Profile Card ── */
+.profile-hero {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 800px) { .profile-hero { grid-template-columns: 1fr; } }
+
+.profile-avatar {
+  width: 70px; height: 70px;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+.profile-name { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+.profile-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+.profile-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Pipeline Progress ── */
+.pipeline-progress {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.pipeline-steps {
+  display: flex; align-items: center; gap: 0;
+  overflow-x: auto; padding-bottom: 4px;
+}
+.pipeline-step-item {
+  display: flex; align-items: center; flex-shrink: 0;
+}
+.pipeline-step-node {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  min-width: 80px; text-align: center;
+}
+.pipeline-step-node.past { opacity: .7; }
+.pipeline-step-node.current {
+  background: rgba(124,58,237,.15);
+  border: 1px solid rgba(124,58,237,.35);
+}
+.pipeline-step-node.future { opacity: .3; }
+.step-icon  { font-size: 14px; }
+.step-label { font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); font-weight: 600; }
+.pipeline-step-arrow { color: var(--text-muted); font-size: 12px; padding: 0 2px; flex-shrink: 0; }
+
+/* ── Info Grid ── */
+.info-row-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.info-row-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.info-row-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.info-row-value { font-size: 14px; color: var(--text-primary); font-weight: 600; }
+
+/* ── Activity Timeline ── */
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before {
+  content: '';
+  position: absolute; left: 10px; top: 0; bottom: 0; width: 2px;
+  background: var(--border);
+}
+.timeline-item { position: relative; margin-bottom: 20px; }
+.timeline-dot {
+  position: absolute; left: -24px; top: 4px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent-purple);
+  border: 2px solid var(--bg-card);
+  z-index: 1;
+}
+.timeline-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.timeline-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.timeline-agent { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+.timeline-time  { font-size: 11px; color: var(--text-muted); }
+.timeline-summary { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.timeline-outcome {
+  display: inline-block; margin-top: 6px;
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; background: rgba(124,58,237,.1); color: #a78bfa;
+  text-transform: uppercase;
+}
+
+/* Agent involvement cards */
+.agent-involvement {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; text-decoration: none;
+  transition: all .2s;
+}
+.agent-involvement:hover { border-color: var(--accent-purple); }
+
+/* Score ring */
+.score-ring {
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  background: conic-gradient(var(--ring-color, #7c3aed) var(--ring-pct, 0%), rgba(0,0,0,0.08) 0%);
+  position: relative;
+}
+.score-ring::before {
+  content: '';
+  position: absolute; inset: 8px;
+  border-radius: 50%;
+  background: var(--bg-card);
+}
+.score-ring-val {
+  font-size: 16px; font-weight: 800; color: var(--text-primary);
+  position: relative; z-index: 1; line-height: 1;
+}
+.score-ring-label { font-size: 8px; color: var(--text-muted); position: relative; z-index: 1; }
+
+/* Right sidebar */
+.detail-sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  height: fit-content;
+  position: sticky; top: 80px;
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero Profile -->
+<div class="profile-hero">
+  <div class="profile-avatar" style="background:{{ hospital.pipeline_stage_color }}22;border:1px solid {{ hospital.pipeline_stage_color }}44">
+    🏥
+  </div>
+  <div>
+    <div class="profile-name">{{ hospital.name }}</div>
+    <div class="profile-subtitle">
+      {% if hospital.hospital_type %}{{ hospital.hospital_type }} · {% endif %}
+      {% if hospital.city %}{{ hospital.city }}{% if hospital.state %}, {{ hospital.state }}{% endif %}{% endif %}
+      {% if hospital.country %} · {{ hospital.country }}{% endif %}
+    </div>
+    <div class="profile-tags">
+      <span class="badge {% if hospital.icp_tier == 'hot' %}badge-hot{% elif hospital.icp_tier == 'warm' %}badge-warm{% else %}badge-cold{% endif %}">
+        {% if hospital.icp_tier == 'hot' %}🔥{% elif hospital.icp_tier == 'warm' %}🌡️{% else %}❄️{% endif %}
+        {{ hospital.icp_tier|upper }}
+      </span>
+      <span class="badge badge-purple">{{ hospital.get_status_display }}</span>
+      {% if hospital.speciality %}
+      <span class="badge badge-gray">🩺 {{ hospital.speciality }}</span>
+      {% endif %}
+      {% if hospital.bed_count %}
+      <span class="badge badge-gray">🏥 {{ hospital.bed_count }} beds</span>
+      {% endif %}
+      {% if hospital.hospital_code %}
+      <code style="font-size:11px">{{ hospital.hospital_code }}</code>
+      {% endif %}
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+    <!-- Score rings -->
+    <div style="display:flex;gap:12px">
+      <div style="text-align:center">
+        <div class="score-ring"
+             style="--ring-color:{% if hospital.lead_score >= 70 %}#22c55e{% elif hospital.lead_score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %};
+                    --ring-pct:{{ hospital.lead_score|floatformat:0 }}%">
+          <div class="score-ring-val">{{ hospital.lead_score }}</div>
+          <div class="score-ring-label">score</div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Lead</div>
+      </div>
+      {% if hospital.icp_score %}
+      <div style="text-align:center">
+        <div class="score-ring"
+             style="--ring-color:#a78bfa;--ring-pct:{{ hospital.icp_score|floatformat:0 }}%">
+          <div class="score-ring-val">{{ hospital.icp_score }}</div>
+          <div class="score-ring-label">score</div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px">ICP</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if hospital.deal_value %}
+    <div style="font-size:13px;color:var(--accent-green);font-weight:700">
+      💰 ₹{{ hospital.deal_value|floatformat:0 }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Pipeline Progress -->
+<div class="pipeline-progress">
+  <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px">
+    Pipeline Stage
+  </div>
+  <div class="pipeline-steps">
+    {% for stage in stage_order %}
+    <div class="pipeline-step-item">
+      <div class="pipeline-step-node {% if forloop.counter0 < current_stage_idx %}past{% elif forloop.counter0 == current_stage_idx %}current{% else %}future{% endif %}">
+        <div class="step-icon">
+          {% if stage == 'raw' %}📌{% elif stage == 'mql' %}💡{% elif stage == 'sal' %}🤝{% elif stage == 'sql' %}✅{% elif stage == 'demo' %}🎥{% elif stage == 'proposal' %}📋{% elif stage == 'negotiation' %}⚖️{% else %}🏆{% endif %}
+        </div>
+        <div class="step-label">{{ stage|upper }}</div>
+      </div>
+      {% if not forloop.last %}
+      <div class="pipeline-step-arrow">›</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Info Grid -->
+<div class="info-row-grid">
+  {% if hospital.contact_name %}
+  <div class="info-row-item">
+    <div class="info-row-label">👤 Contact</div>
+    <div class="info-row-value">{{ hospital.contact_name }}</div>
+    {% if hospital.contact_role %}<div style="font-size:11px;color:var(--text-muted)">{{ hospital.contact_role }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if hospital.contact_email %}
+  <div class="info-row-item">
+    <div class="info-row-label">📧 Email</div>
+    <div class="info-row-value" style="font-size:12px">
+      <a href="mailto:{{ hospital.contact_email }}" style="color:var(--accent-cyan)">{{ hospital.contact_email }}</a>
+    </div>
+  </div>
+  {% endif %}
+  {% if hospital.contact_phone %}
+  <div class="info-row-item">
+    <div class="info-row-label">📞 Phone</div>
+    <div class="info-row-value">{{ hospital.contact_phone }}</div>
+  </div>
+  {% endif %}
+  {% if hospital.website %}
+  <div class="info-row-item">
+    <div class="info-row-label">🌐 Website</div>
+    <div class="info-row-value" style="font-size:12px">
+      <a href="{{ hospital.website }}" target="_blank" rel="noopener" style="color:var(--accent-cyan)">
+        {{ hospital.website|truncatechars:30 }}
+      </a>
+    </div>
+  </div>
+  {% endif %}
+  {% if hospital.assigned_rep %}
+  <div class="info-row-item">
+    <div class="info-row-label">🧑‍💼 Assigned Rep</div>
+    <div class="info-row-value">{{ hospital.assigned_rep }}</div>
+  </div>
+  {% endif %}
+  {% if hospital.assigned_channel %}
+  <div class="info-row-item">
+    <div class="info-row-label">📡 Channel</div>
+    <div class="info-row-value">{{ hospital.assigned_channel }}</div>
+  </div>
+  {% endif %}
+  {% if hospital.next_action %}
+  <div class="info-row-item" style="grid-column: span 2">
+    <div class="info-row-label">⏭ Next Action</div>
+    <div class="info-row-value">{{ hospital.next_action }}</div>
+    {% if hospital.next_action_date %}<div style="font-size:11px;color:var(--text-muted)">📅 {{ hospital.next_action_date }}</div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- 2-column layout for agents + activities -->
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px">
+
+  <!-- Left: Agent Involvement -->
+  <div>
+    <div class="card mb-16">
+      <div class="card-header">
+        <span class="card-title">🤖 Agents Involved ({{ involved_agents|length }})</span>
+      </div>
+      <div style="padding:14px">
+        {% for agent in involved_agents %}
+        <a href="{% url 'ai_sales_agent_dashboard:agent_detail' agent.pk %}" class="agent-involvement">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">{{ agent.icon }}</span>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary)">{{ agent.short_name|default:agent.name }}</div>
+              <code style="font-size:10px">{{ agent.workflow_id }}</code>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted)">→</div>
+        </a>
+        {% empty %}
+        <div class="text-muted fs-13" style="padding:12px 0;text-align:center">
+          No activity yet.<br>
+          <span style="font-size:11px">Will populate when DB integration is active.</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if hospital.notes %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">📝 Notes</span></div>
+      <div class="card-body" style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.7">{{ hospital.notes }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: Activity Timeline -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📅 Agent Activity Timeline</span>
+        <span class="badge badge-gray">{{ activities|length }} events</span>
+      </div>
+      <div class="card-body">
+        {% if activities %}
+        <div class="timeline">
+          {% for act in activities %}
+          <div class="timeline-item">
+            <div class="timeline-dot"
+                 style="background:{% if act.activity_type == 'lead_gen' %}#2563eb{% elif act.activity_type == 'scored' %}#0891b2{% elif act.activity_type == 'qualified' %}#059669{% elif act.activity_type == 'email_sent' or act.activity_type == 'outreach' %}#db2777{% elif act.activity_type == 'meeting_sched' %}#7c3aed{% elif act.activity_type == 'crm_handoff' %}#22c55e{% else %}#6b7280{% endif %}">
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <a href="{% url 'ai_sales_agent_dashboard:agent_detail' act.agent.pk %}"
+                   style="text-decoration:none">
+                  <span class="timeline-agent">{{ act.agent.icon }} {{ act.agent.short_name|default:act.agent.workflow_id }}</span>
+                </a>
+                <span class="badge badge-purple">{{ act.get_activity_type_display }}</span>
+                <span class="timeline-time" style="margin-left:auto">{{ act.occurred_at|date:"M d, H:i" }}</span>
+              </div>
+              {% if act.summary %}
+              <div class="timeline-summary">{{ act.summary }}</div>
+              {% endif %}
+              {% if act.outcome %}
+              <span class="timeline-outcome">{{ act.outcome }}</span>
+              {% endif %}
+
+              <!-- Show input/output data if available -->
+              {% if act.output_data %}
+              <details style="margin-top:8px">
+                <summary style="font-size:11px;color:var(--text-muted);cursor:pointer">📤 View Output Data</summary>
+                <pre style="margin-top:8px;background:rgba(0,0,0,0.04);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--accent-blue);overflow-x:auto;max-height:200px">{{ act.output_data|safe }}</pre>
+              </details>
+              {% endif %}
+              {% if act.input_data %}
+              <details style="margin-top:4px">
+                <summary style="font-size:11px;color:var(--text-muted);cursor:pointer">📥 View Input Data</summary>
+                <pre style="margin-top:8px;background:rgba(0,0,0,0.04);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:#059669;overflow-x:auto;max-height:200px">{{ act.input_data|safe }}</pre>
+              </details>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:40px 0;color:var(--text-muted)">
+          <div style="font-size:36px;margin-bottom:12px">📋</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">No activity yet</div>
+          <div style="font-size:12px">
+            Agent activities will appear here once the agent database is integrated.
+            Each agent action on this account (email sent, call prep, scoring, etc.) will be logged here with full input/output data.
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Runs Table -->
+{% if runs %}
+<div class="card mt-24">
+  <div class="card-header">
+    <span class="card-title">⚡ Agent Runs for this Hospital</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Status</th>
+          <th>Started</th>
+          <th>Duration</th>
+          <th>Output</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr>
+          <td>
+            <a href="{% url 'ai_sales_agent_dashboard:agent_detail' run.agent.pk %}" style="color:var(--text-primary);font-weight:600">
+              {{ run.agent.icon }} {{ run.agent.short_name|default:run.agent.name }}
+            </a>
+          </td>
+          <td>
+            {% if run.status == 'success' %}<span class="badge badge-active">✅ Success</span>
+            {% elif run.status == 'failed'  %}<span class="badge badge-hot">❌ Failed</span>
+            {% elif run.status == 'running' %}<span class="badge badge-warm">⏳ Running</span>
+            {% else %}<span class="badge badge-gray">{{ run.status }}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ run.started_at|date:"M d, H:i" }}</td>
+          <td class="text-muted">
+            {% if run.duration_seconds %}{{ run.duration_seconds|floatformat:1 }}s{% else %}—{% endif %}
+          </td>
+          <td class="text-muted">{{ run.records_out }} records</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

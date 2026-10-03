@@ -1,0 +1,423 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Simple CI/CD — written for a SHELL EXECUTOR runner with podman.
+#
+#   every branch   →  check    : syntax errors, linters, SonarQube
+#                    notify    : mail the quality digest to whoever pushed
+#   staging only   →  smoke    : build the image, boot the stack, curl it
+#                    promote   : fast-forward `main` to `staging` if smoke passed
+#
+# IMPORTANT — why there is no `image:` or `services:` anywhere below.
+# A shell executor runs each job as an ordinary process on the runner host; it
+# silently IGNORES `image:` and `services:`. The previous version of this file
+# relied on both (python:3.13-slim + a postgres service + docker:dind), so it
+# could never have worked here. Anything that needs a container now starts one
+# explicitly with podman.
+#
+# The identical smoke check runs locally with:
+#   ./scripts/ci-smoke.sh
+# ─────────────────────────────────────────────────────────────────────────────
+
+stages:
+  - check
+  - smoke
+  - build
+  - promote
+  - deploy
+  - notify
+
+# ── Syntax & fatal import errors ─────────────────────────────────────────────
+# Runs in a throwaway container so nothing is installed onto the runner host and
+# the host's Python is never touched.
+syntax-check:
+  stage: check
+  script:
+    - |
+      podman run --rm \
+        -v "$CI_PROJECT_DIR":/src:ro \
+        -w /src \
+        docker.io/library/python:3.13-slim \
+        sh -c 'pip install --quiet flake8 &&
+               flake8 . --select=E9,F63,F7,F82 --statistics'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ── Code quality (report-only for now) ───────────────────────────────────────
+# flake8 and bandit, in a throwaway container so the runner host's Python is
+# untouched. Both run even if the first one fails, so a style nit cannot hide a
+# security finding.
+#
+# black and isort used to run here too and were removed: they reported 260 and
+# 99 files and could never have reached zero, because black strips the aligned
+# assignment columns this codebase uses deliberately in 719 places. See the
+# rationale at the top of scripts/ci-quality.sh.
+#
+# allow_failure: true deliberately. These have never been enforced on this
+# codebase, so the first runs are a report rather than a gate — turning them
+# blocking on day one would just wedge every deploy. Flip it off once the
+# backlog is clear.
+code-quality:
+  stage: check
+  allow_failure: true
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+  script:
+    - ./scripts/ci-quality.sh
+  # reports:codequality is the whole point: GitLab renders these findings inline
+  # on the changed lines of a merge request and in the pipeline's Code Quality
+  # tab, so a reviewer never has to open a job log to see what the warning was.
+  #
+  # when: always because the job is expected to fail while allow_failure is on —
+  # without it the artifacts would only be published on the runs that had
+  # nothing to report.
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths:
+      - quality-reports/
+    reports:
+      codequality: quality-reports/gl-code-quality-report.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ── SonarQube ────────────────────────────────────────────────────────────────
+# Runs only when SONAR_HOST_URL is set, so the pipeline stays green for anyone
+# without a Sonar server rather than failing on a missing variable.
+#
+# sonar-project.properties sets qualitygate.wait=true, so the scanner blocks
+# until the gate is computed and exits non-zero if it fails. Paired with
+# allow_failure that surfaces the verdict without gating deploys yet.
+sonarqube:
+  stage: check
+  allow_failure: true
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+  script:
+    - |
+      mkdir -p quality-reports
+      rc=0
+      podman run --rm \
+        -e SONAR_HOST_URL="$SONAR_HOST_URL" \
+        -e SONAR_TOKEN="$SONAR_TOKEN" \
+        -v "$CI_PROJECT_DIR":/usr/src \
+        docker.io/sonarsource/sonar-scanner-cli:latest \
+        > quality-reports/sonar-output.txt 2>&1 || rc=$?
+      cat quality-reports/sonar-output.txt
+
+      # Separate "the server is down" from "your code failed the gate". The
+      # distinction is the whole value of the notification: one is an outage to
+      # report to whoever runs Sonar, the other is work for the author. A mail
+      # that only says "sonarqube failed" is the problem we set out to fix.
+      if [ "$rc" -eq 0 ]; then
+        printf 'ok\n' > quality-reports/sonar-status.txt
+      elif grep -qiE 'failed to query server version|bad gateway|connection refused|could not connect|unknown host|timed out|502|503|504' quality-reports/sonar-output.txt; then
+        { printf 'unreachable\n'; grep -iE '^[0-9:.]* *ERROR|ERROR ' quality-reports/sonar-output.txt | tail -5; } > quality-reports/sonar-status.txt
+      else
+        { printf 'gate-failed\n'; grep -iE 'QUALITY GATE|^[0-9:.]* *ERROR|ERROR ' quality-reports/sonar-output.txt | tail -5; } > quality-reports/sonar-status.txt
+      fi
+      exit $rc
+  # when: always — the status file only exists to describe a failure, so it must
+  # survive one.
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths:
+      - quality-reports/
+  timeout: 30m
+  rules:
+    # Both conditions matter: no server configured means skip, not fail.
+    - if: '$SONAR_HOST_URL && $CI_COMMIT_BRANCH == "staging"'
+    - if: '$SONAR_HOST_URL && $CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ── Mail the quality digest to whoever pushed ────────────────────────────────
+# GitLab will not do this itself, for two independent reasons:
+#
+#   1. code-quality and sonarqube are allow_failure:true, so when they fail the
+#      pipeline is "passed with warnings", not "failed". GitLab's pipeline email
+#      fires on `failed`. No event, no mail — and the pipeline looks green.
+#   2. Even a genuine failed-pipeline mail carries only the project, branch,
+#      commit and the NAMES of the failed jobs. It never embeds log output, so it
+#      could not say what the warning actually was.
+#
+# Needs SMTP under Settings → CI/CD → Variables, using the same variable names
+# the application already uses (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD,
+# DEFAULT_FROM_EMAIL) so the values copy straight across from .env. With none of
+# them set the job still passes and just prints the digest, so this file is safe
+# to merge before the variables exist.
+notify-quality:
+  stage: notify
+  allow_failure: true
+  # `needs:` is what makes this timely. A DAG job starts as soon as its own
+  # dependencies finish, so the mail goes out right after the check stage instead
+  # of waiting for smoke, build, promote and deploy — despite `notify` being the
+  # last stage in the list.
+  #
+  # optional: true on both, because neither is in every pipeline: sonarqube runs
+  # only on staging and only when SONAR_HOST_URL is set. A `needs:` naming a job
+  # that is absent is a config error, not a skip.
+  needs:
+    - job: code-quality
+      artifacts: true
+      optional: true
+    - job: sonarqube
+      artifacts: true
+      optional: true
+  # when: always, NOT on_failure. allow_failure:true makes a failed job count as
+  # SUCCESS for pipeline flow, so an on_failure job would never fire here. The
+  # script reads the reports and decides for itself whether to send anything.
+  when: always
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+  script:
+    # Bare `-e NAME` pass-through rather than -e NAME="$NAME": podman omits a
+    # variable that is unset on the host instead of passing an empty one, and the
+    # password never appears on a command line the trace could echo.
+    - |
+      podman run --rm \
+        -v "$CI_PROJECT_DIR":/src:ro \
+        -w /src \
+        -e EMAIL_HOST -e EMAIL_PORT -e EMAIL_HOST_USER -e EMAIL_HOST_PASSWORD \
+        -e EMAIL_USE_TLS -e EMAIL_USE_SSL -e EMAIL_TIMEOUT -e DEFAULT_FROM_EMAIL \
+        -e QUALITY_NOTIFY_CC -e QUALITY_NOTIFY_ALWAYS \
+        -e GITLAB_USER_NAME -e GITLAB_USER_EMAIL \
+        -e CI_PROJECT_PATH -e CI_COMMIT_REF_NAME -e CI_COMMIT_SHORT_SHA \
+        -e CI_COMMIT_TITLE -e CI_PIPELINE_URL -e CI_JOB_URL \
+        docker.io/library/python:3.13-slim \
+        python /src/scripts/ci_notify_quality.py
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ── Does the app actually build, boot and serve? ─────────────────────────────
+# This replaces the old `django-check` job as well: scripts/ci-smoke.sh runs
+# `manage.py check` and the missing-migration check inside the real container,
+# against a real Postgres, after a real migrate + collectstatic.
+#
+# resource_group serialises this job — two concurrent pipelines would otherwise
+# both try to publish host port 8021 and one would fail to start.
+smoke:
+  stage: smoke
+  resource_group: smoke
+  variables:
+    COMPOSE_CMD: "podman-compose"
+    # Unique per pipeline so container names never collide.
+    COMPOSE_PROJECT_NAME: "nexgen-ci-$CI_PIPELINE_ID"
+    CI_APP_PORT: "8021"
+    CI_HEALTH_HOST: "localhost"
+    CI_BOOT_TIMEOUT: "600"
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+    - command -v podman-compose >/dev/null || { echo "✗ podman-compose not installed on this runner" >&2; exit 1; }
+  script:
+    - ./scripts/ci-smoke.sh
+  timeout: 50m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+# ── Fast-forward main to staging, but only if everything above passed ────────
+# Needs a masked CI/CD variable `PROMOTE_TOKEN` (Project Access Token, role
+# Maintainer, scope write_repository), and `main` must allow it to push.
+#
+# Deliberately NO `needs:` — a `needs` DAG would let this run even if
+# syntax-check or smoke failed. Plain stage ordering means promote only starts
+# once every earlier job has passed.
+promote-to-main:
+  stage: promote
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      set -eu
+
+      if [ -z "${PROMOTE_TOKEN:-}" ]; then
+        echo "✗ PROMOTE_TOKEN is not set — cannot push to main." >&2
+        echo "  Add it under Settings → CI/CD → Variables (masked)." >&2
+        echo "  Do NOT tick 'Protected' unless 'staging' is a protected branch," >&2
+        echo "  or the variable will not be injected into this job." >&2
+        exit 1
+      fi
+
+      # A shell executor shares the host with everything else, so work in a
+      # private temp dir and always clean it up — never in the prod checkout.
+      workdir=$(mktemp -d)
+      trap 'rm -rf "$workdir"' EXIT INT TERM
+
+      # Clone with CI_JOB_TOKEN, not PROMOTE_TOKEN. Every job gets a job token
+      # with read access to its own project, so the clone cannot fail on a
+      # missing read_repository scope ("You are not allowed to download code",
+      # HTTP 403). PROMOTE_TOKEN is then used only for the push below — the one
+      # thing a job token genuinely cannot do.
+      git clone --quiet \
+        "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" \
+        "$workdir/repo"
+      cd "$workdir/repo"
+      git fetch --quiet origin main "$CI_COMMIT_REF_NAME"
+
+      if [ "$(git rev-parse origin/main)" = "$CI_COMMIT_SHA" ]; then
+        echo "✓ main is already at $CI_COMMIT_SHA — nothing to promote"
+        exit 0
+      fi
+
+      # Refuse anything that isn't a clean fast-forward. If main has commits
+      # staging doesn't, promoting would either lose them or need a real merge —
+      # that is a human decision, not a pipeline's.
+      if ! git merge-base --is-ancestor origin/main "$CI_COMMIT_SHA"; then
+        echo "✗ main has diverged from staging — not a fast-forward." >&2
+        echo "  main:    $(git rev-parse --short origin/main)" >&2
+        echo "  staging: $(git rev-parse --short "$CI_COMMIT_SHA")" >&2
+        echo "  Merge main into staging, then push staging again." >&2
+        exit 1
+      fi
+
+      echo "→ fast-forwarding main: $(git rev-parse --short origin/main) → $(git rev-parse --short "$CI_COMMIT_SHA")"
+      if ! git push "https://oauth2:${PROMOTE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" \
+             "${CI_COMMIT_SHA}:refs/heads/main"; then
+        echo "✗ push to main was rejected." >&2
+        echo "  Check, in order:" >&2
+        echo "   1. PROMOTE_TOKEN has the write_repository scope" >&2
+        echo "   2. its role is Maintainer (Developer cannot push to a protected branch)" >&2
+        echo "   3. Settings → Repository → Protected branches → main → Allowed to push" >&2
+        exit 1
+      fi
+      echo "✓ main now points at $CI_COMMIT_SHA"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+# ── Publish the verified image to the registry ───────────────────────────────
+# Runs on staging, immediately after smoke has proven this exact commit builds
+# and serves. Tagged by commit SHA so the artifact is immutable and traceable:
+# the deploy job later pulls this same tag rather than rebuilding, which is what
+# makes "what we tested is what ships" literally true.
+#
+# TAG SCHEME (one immutable identity + one moving pointer per stream):
+#   app:<40-char-sha>  immutable, exactly one per build. What deploys and what
+#                      rolls back — never reused, never moved.
+#   app:staging        moving pointer at the tip of staging. Replaces the
+#                      `latest` this job used to push: `latest` conventionally
+#                      means "newest release", and pushing it from a branch that
+#                      has never reached production inverts that. `latest` is now
+#                      moved only by publish-version, on a git tag.
+#   app:vX.Y.Z         a release, added by publish-version as an alias.
+#
+# The two tags here are the SAME image — one build, one manifest digest, pushed
+# under two names. The registry is content-addressed, so the layers are stored
+# once; two rows in the registry UI is a listing of names, not duplicated bytes.
+#
+# Descriptive metadata lives in OCI labels (see the Dockerfile), not smeared
+# across tag names — `podman inspect` on any tag answers which commit, branch
+# and build time produced it.
+#
+# Uses CI_REGISTRY_USER/PASSWORD — the job token — so no registry secret of ours
+# is involved in pushing.
+build-image:
+  stage: build
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+  script:
+    - podman login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - |
+      # --label, not --build-arg: buildah does not invalidate a cached LABEL
+      # layer when a build-arg changes, and this runner keeps its layer cache
+      # between pipelines. See the Dockerfile comment.
+      podman build \
+        --label org.opencontainers.image.version="$CI_COMMIT_REF_NAME" \
+        --label org.opencontainers.image.revision="$CI_COMMIT_SHA" \
+        --label org.opencontainers.image.created="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --label org.opencontainers.image.source="$CI_PROJECT_URL" \
+        -t "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA" \
+        -t "$CI_REGISTRY_IMAGE/app:staging" \
+        .
+    - podman push "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA"
+    - podman push "$CI_REGISTRY_IMAGE/app:staging"
+    - echo "✓ published $CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA (also tagged :staging)"
+  timeout: 50m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+# ── Give the verified image a human-readable version name ────────────────────
+# Triggered by `git tag v5.3.0 && git push origin v5.3.0`. The SHA tag above is
+# the real artifact; this only adds a second name for it, because a 40-character
+# hex string tells nobody which release is on prod.
+#
+# It does NOT rebuild. It pulls the SHA image and re-pushes it under the version
+# name, so app:v5.3.0 and app:<sha> are the same layers by construction — the
+# version can never drift from what smoke actually verified. Rebuilding would
+# reinstall pip dependencies at today's versions and quietly produce a different
+# image under a name that claims to be the tested one.
+#
+# The fallback exists because build-image only runs for the tip of a staging
+# push: push three commits at once and the middle two have no published image to
+# alias. Building then is the honest option, but the tag no longer carries the
+# smoke guarantee, so it says so.
+#
+# This job also owns `latest`, which is the only tag that should carry it: the
+# newest thing a human has deliberately released. It moves here and nowhere else.
+#
+# One wart, stated rather than hidden: because the alias path does not rebuild,
+# the image keeps the OCI labels from its staging build, so
+# org.opencontainers.image.version reads "staging" rather than "v5.3.0". Not
+# worth rebuilding to fix — that would forfeit the same-layers guarantee above.
+# org.opencontainers.image.revision is the commit SHA and is always exact; use
+# it, not the version label, to identify what an image really is.
+publish-version:
+  stage: build
+  before_script:
+    - command -v podman >/dev/null || { echo "✗ podman not installed on this runner" >&2; exit 1; }
+  script:
+    - podman login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - |
+      if podman pull "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA"; then
+        echo "→ aliasing the smoke-verified image as $CI_COMMIT_TAG"
+        podman tag "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA" \
+                   "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_TAG"
+      else
+        echo "! no published image for $CI_COMMIT_SHA — this commit was never a"
+        echo "  staging tip, so there is nothing to alias. Building from source;"
+        echo "  $CI_COMMIT_TAG will NOT be a smoke-verified artifact."
+        podman build \
+          --label org.opencontainers.image.version="$CI_COMMIT_TAG" \
+          --label org.opencontainers.image.revision="$CI_COMMIT_SHA" \
+          --label org.opencontainers.image.created="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          --label org.opencontainers.image.source="$CI_PROJECT_URL" \
+          -t "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_TAG" \
+          -t "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA" \
+          .
+        podman push "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_SHA"
+      fi
+    - podman push "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_TAG"
+    # `latest` = the newest deliberate release, moved only here.
+    - podman tag "$CI_REGISTRY_IMAGE/app:$CI_COMMIT_TAG" "$CI_REGISTRY_IMAGE/app:latest"
+    - podman push "$CI_REGISTRY_IMAGE/app:latest"
+    - echo "✓ published $CI_REGISTRY_IMAGE/app:$CI_COMMIT_TAG (also moved :latest)"
+  timeout: 50m
+  rules:
+    - if: $CI_COMMIT_TAG
+
+# ── Deploy to production (manual) ────────────────────────────────────────────
+# Runs on main or on a version tag, and only when a human clicks it. Because
+# promote-to-main is a fast-forward, main's SHA is identical to the staging SHA
+# that smoke verified and build-image published — so this pulls a tag that
+# provably exists and was tested.
+#
+# On a tag pipeline the deploy script uses $CI_COMMIT_TAG instead, which
+# publish-version has just pushed in the earlier `build` stage.
+#
+# resource_group serialises deploys so two people cannot half-deploy different
+# commits at once. environment: gives GitLab the deployment history and the
+# one-click "re-deploy previous version" button.
+deploy-production:
+  stage: deploy
+  environment:
+    name: production
+    url: $PROD_URL
+  resource_group: production
+  script:
+    - ./scripts/deploy-production.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: false
+    - if: $CI_COMMIT_TAG
+      when: manual
+      allow_failure: false

@@ -1,0 +1,49 @@
+/* Forecasting Dashboard — uses meritrack-core.css design system */
+
+.mt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); }
+.stat-card .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1em; color: #fff; margin-bottom: 10px; }
+.stat-card .stat-value { font-size: 1.7em; font-weight: 700; color: var(--mt-gray-800); line-height: 1; }
+.stat-card .stat-label { font-size: 0.82em; color: var(--mt-gray-600); margin-top: 4px; }
+.stat-card.danger .stat-value { color: var(--mt-danger); }
+.stat-card.warning .stat-value { color: var(--mt-warning); }
+.mt-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); margin-bottom: 20px; }
+.mt-card h3 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+.mt-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+.mt-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.mt-table th { text-align: left; padding: 10px 12px; background: var(--mt-gray-50); color: var(--mt-gray-600); font-weight: 600; border-bottom: 2px solid var(--mt-gray-200); }
+.mt-table td { padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); }
+.mt-table tr:hover { background: var(--mt-gray-50); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-purple { background: var(--mt-purple-light); color: var(--mt-purple-dark); }
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 0.9em; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-mt-primary { background: var(--mt-primary); color: #fff; }
+.btn-mt-primary:hover { background: var(--mt-primary-dark); }
+.bar-chart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 8px; font-size: 0.82em; }
+.bar-label { width: 160px; text-align: right; color: var(--mt-gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.bar-track { flex: 1; background: var(--mt-gray-100); border-radius: 6px; height: 22px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; display: flex; align-items: center; padding-left: 8px; font-size: 0.8em; font-weight: 600; color: #fff; min-width: 24px; }
+.bar-count { width: 50px; text-align: right; font-weight: 600; color: var(--mt-gray-800); flex-shrink: 0; }
+.trend-chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.trend-bar { flex: 1; border-radius: 4px 4px 0 0; min-width: 14px; transition: height 0.5s ease; cursor: pointer; position: relative; }
+.trend-bar:hover { opacity: 0.85; }
+.trend-bar .tip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--mt-gray-800); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 0.72em; white-space: nowrap; z-index: 10; }
+.trend-bar:hover .tip { display: block; }
+.alert-card { padding: 14px 18px; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+.alert-card.critical { background: var(--mt-danger-light); border: 1px solid var(--mt-danger-border); }
+.alert-card.warning { background: var(--mt-warning-light); border: 1px solid var(--mt-warning-border); }
+.alert-card.info { background: var(--mt-info-light); border: 1px solid var(--mt-info-border); }
+.alert-icon { font-size: 1.3em; flex-shrink: 0; }
+.alert-content { flex: 1; }
+.alert-content .title { font-weight: 700; font-size: 0.9em; color: var(--mt-gray-800); }
+.alert-content .detail { font-size: 0.82em; color: var(--mt-gray-700); margin-top: 2px; }
+.confidence-bar { display: flex; gap: 2px; }
+.confidence-bar .seg { height: 6px; width: 20px; border-radius: 3px; background: var(--mt-gray-200); }
+.confidence-bar .seg.filled { background: var(--mt-primary); }
+.filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-bar select { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--mt-gray-300); font-size: 0.88em; }

@@ -1,0 +1,1058 @@
+{% comment %}
+Bid Analytics' behaviour — RFI card expand/collapse, the AI Evaluate busy
+state, the price-premium heatmap's bid-selection control, and the Meril
+GPT drawer (open/close, file attach, ask, markdown rendering). Extracted
+byte-for-byte from bid_analytics.html's old {% templatetag openblock %} extra_js
+{% templatetag closeblock %} block.
+{% endcomment %}
+<script>
+function mgptOpen(prefill) {
+    var drawer = document.getElementById('mgpt-drawer');
+    var scrim = document.getElementById('mgpt-scrim');
+    var q = document.getElementById('mgpt-q');
+    if (!drawer) return;
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    if (scrim) scrim.hidden = false;
+    /* Kept for the CSS hook, not for the Feedback button: that button no
+       longer renders anywhere in VendorLink (see base.html), so the
+       body.mgpt-open step-aside rule it existed for is gone with it. */
+    document.body.classList.add('mgpt-open');
+    if (prefill && q) q.value = prefill;
+    if (q) setTimeout(function () { q.focus(); }, 160);
+}
+
+function mgptClose() {
+    var drawer = document.getElementById('mgpt-drawer');
+    var scrim = document.getElementById('mgpt-scrim');
+    if (!drawer) return;
+    drawer.classList.remove('open');
+    document.body.classList.remove('mgpt-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (scrim) scrim.hidden = true;
+}
+
+document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') mgptClose();
+});
+
+/* ── Drawer width ──────────────────────────────────────────────────────────
+ * Dragged from the left edge, remembered per browser.
+ *
+ * The panel was a fixed 420px, which is fine for a paragraph and far too
+ * narrow for the tables and charts the chat renders — a four-column vendor
+ * comparison had to be scrolled sideways inside it.
+ *
+ * The width lives in a CSS custom property, so one value drives the panel and
+ * the Feedback button's step-aside; the clamp() in the stylesheet is what
+ * enforces the bounds, and the same bounds are applied here so the stored
+ * value can never drift outside them.
+ */
+(function () {
+    'use strict';
+
+    var STORE_KEY = 'vendorlink.merilgpt.drawerWidth';
+    var DEFAULT_W = 420;
+    var MIN_W = 320;
+
+    var drawer = document.getElementById('mgpt-drawer');
+    if (!drawer) { return; }
+    var grip = drawer.querySelector('[data-mgpt="grip"]');
+
+    function maxWidth() {
+        /* Matches the stylesheet's 96vw: a sliver of the page stays visible so
+           the drawer never reads as a full-screen takeover. */
+        return Math.round(window.innerWidth * 0.96);
+    }
+
+    function clampWidth(px) {
+        return Math.max(MIN_W, Math.min(px, maxWidth()));
+    }
+
+    function applyWidth(px, persist) {
+        var width = clampWidth(px);
+        drawer.style.setProperty('--vlx-gpt-w', width + 'px');
+        /* Mirrored onto <body> so the Feedback button's rule, which is not a
+           descendant of the drawer, can read the same value. */
+        document.body.style.setProperty('--vlx-gpt-w', width + 'px');
+        if (grip) { grip.setAttribute('aria-valuenow', String(width)); }
+        if (persist) {
+            try { window.localStorage.setItem(STORE_KEY, String(width)); }
+            catch (e) { /* private window, or storage disabled — not worth failing over */ }
+        }
+        return width;
+    }
+
+    function storedWidth() {
+        try {
+            var raw = window.localStorage.getItem(STORE_KEY);
+            var px = raw ? parseInt(raw, 10) : NaN;
+            return isNaN(px) ? DEFAULT_W : px;
+        } catch (e) {
+            return DEFAULT_W;
+        }
+    }
+
+    applyWidth(storedWidth(), false);
+
+    /* A stored width wider than the window after a resize or a rotation would
+       leave the drawer pinned off-screen, so it is re-clamped rather than
+       trusted. Not persisted: shrinking the window should not permanently
+       shrink the preference. */
+    window.addEventListener('resize', function () {
+        applyWidth(storedWidth(), false);
+    });
+
+    if (!grip) { return; }
+
+    var dragging = false;
+    var startX = 0;
+    var startW = 0;
+
+    grip.addEventListener('pointerdown', function (ev) {
+        dragging = true;
+        startX = ev.clientX;
+        startW = drawer.getBoundingClientRect().width;
+        drawer.classList.add('is-resizing');
+        document.body.classList.add('vlx-gpt-resizing');
+        /* Capture, so the drag survives the pointer leaving this 14px strip —
+           which happens on the very first pixel of any real drag. */
+        if (grip.setPointerCapture) { grip.setPointerCapture(ev.pointerId); }
+        ev.preventDefault();
+    });
+
+    grip.addEventListener('pointermove', function (ev) {
+        if (!dragging) { return; }
+        /* The grip is on the LEFT edge of a right-anchored panel, so dragging
+           left (a negative delta) makes it wider. */
+        applyWidth(startW + (startX - ev.clientX), false);
+    });
+
+    function endDrag(ev) {
+        if (!dragging) { return; }
+        dragging = false;
+        drawer.classList.remove('is-resizing');
+        document.body.classList.remove('vlx-gpt-resizing');
+        if (grip.releasePointerCapture && ev && ev.pointerId !== undefined) {
+            try { grip.releasePointerCapture(ev.pointerId); } catch (e) { /* already gone */ }
+        }
+        /* Persisted once at the end, not on every move: writing to
+           localStorage on each pointermove is a synchronous write per frame. */
+        applyWidth(drawer.getBoundingClientRect().width, true);
+    }
+    grip.addEventListener('pointerup', endDrag);
+    grip.addEventListener('pointercancel', endDrag);
+
+    /* Double-click to reset — the quickest way back from a drag that went too
+       far, and discoverable from the grip's own tooltip. */
+    grip.addEventListener('dblclick', function () {
+        applyWidth(DEFAULT_W, true);
+    });
+
+    /* Keyboard: a splitter that only responds to a pointer is unusable for
+       anyone who does not use one. */
+    grip.addEventListener('keydown', function (ev) {
+        var step = ev.shiftKey ? 80 : 24;
+        var current = drawer.getBoundingClientRect().width;
+        if (ev.key === 'ArrowLeft') { applyWidth(current + step, true); }
+        else if (ev.key === 'ArrowRight') { applyWidth(current - step, true); }
+        else if (ev.key === 'Home') { applyWidth(DEFAULT_W, true); }
+        else { return; }
+        ev.preventDefault();
+    });
+}());
+
+function cdToggle(id) {
+    var row = document.getElementById(id);
+    if (!row) return;
+    row.classList.toggle('open');
+    var btn = row.querySelector('.vlx-cd-vrow-btn');
+    if (btn) btn.setAttribute('aria-expanded', row.classList.contains('open') ? 'true' : 'false');
+}
+
+function cdToggleCard(pk) {
+    var card = document.getElementById('cdcard-' + pk);
+    var body = document.getElementById('cdbody-' + pk);
+    if (!card || !body) return;
+    var collapsed = body.classList.toggle('collapsed');
+    card.classList.toggle('open', !collapsed);
+    var head = card.querySelector('.vlx-cd-card-head');
+    if (head) head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+
+function cdToggleDateGroup(gid) {
+    var body = document.getElementById('cdgroup-' + gid);
+    var chev = document.getElementById('cdchev-' + gid);
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    if (chev) chev.classList.toggle('open', !body.classList.contains('collapsed'));
+}
+
+/* Reveal the RFI whose evaluation was just started.
+
+   request_evaluate redirects back here with ?evaluated=<pk>. Both the date
+   group and the RFI card render `collapsed`, and the AI Bid Evaluator block --
+   spinner, recommendation, reasoning -- lives inside the card body. So the
+   banner said "results will appear on this page shortly" and nothing ever
+   appeared: the result was rendered but two accordions deep, and the user had
+   no reason to know where to look.
+
+   The polling script inside that body keeps working either way (collapsed is
+   a CSS state, not a script one) and location.reload() preserves the query
+   string, so the card re-opens on the reload that follows completion. */
+function cdRevealEvaluated() {
+    var pk = new URLSearchParams(window.location.search).get('evaluated');
+    if (!pk) { return; }
+
+    var card = document.getElementById('cdcard-' + pk);
+    var body = document.getElementById('cdbody-' + pk);
+    /* Null when the active filters exclude that RFI -- nothing to reveal. */
+    if (!card || !body) { return; }
+
+    var group = card.closest('.vlx-date-groupbody');
+    if (group && group.classList.contains('collapsed')) {
+        group.classList.remove('collapsed');
+        var chev = document.getElementById(group.id.replace('cdgroup-', 'cdchev-'));
+        if (chev) { chev.classList.add('open'); }
+    }
+
+    body.classList.remove('collapsed');
+    card.classList.add('open');
+    var head = card.querySelector('.vlx-cd-card-head');
+    if (head) { head.setAttribute('aria-expanded', 'true'); }
+
+    var target = document.getElementById('eval-' + pk) || card;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+document.addEventListener('DOMContentLoaded', cdRevealEvaluated);
+
+function cdGetCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function mgptEscapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function mgptInline(s) {
+    return mgptEscapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+/* A markdown pipe table, or null when these lines are not one.
+ *
+ * The model returns report.table for structured output, but it also writes
+ * plain markdown tables into the answer text — and those rendered as
+ * paragraphs full of pipe characters, which is the other half of "I asked for
+ * a table and did not get one".
+ *
+ * Built with createElement and textContent throughout: cell text comes from
+ * the model, and building it into an HTML string would make any stray angle
+ * bracket in a vendor name an injection point. */
+function mgptTableFrom(lines) {
+    if (lines.length < 2) { return null; }
+
+    function cells(line) {
+        var trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+        return trimmed.split('|').map(function (c) { return c.trim(); });
+    }
+    /* The separator row is what distinguishes a table from a line that merely
+       contains pipes: |---|:--:| and nothing else. */
+    var sep = lines[1].trim();
+    if (!/^\|?[\s:|-]+\|?$/.test(sep) || sep.indexOf('-') === -1) { return null; }
+
+    var header = cells(lines[0]);
+    if (!header.length) { return null; }
+
+    var wrap = document.createElement('div');
+    wrap.className = 'vlx-gpt-mdtable-wrap';
+    var table = document.createElement('table');
+    table.className = 'vlx-gpt-mdtable';
+
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    header.forEach(function (label) {
+        var th = document.createElement('th');
+        th.textContent = label;
+        htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    lines.slice(2).forEach(function (line) {
+        if (!line.trim()) { return; }
+        var tr = document.createElement('tr');
+        var row = cells(line);
+        for (var i = 0; i < header.length; i++) {
+            var td = document.createElement('td');
+            /* Padded to the header width: a model that drops a trailing empty
+               cell would otherwise shift every later column left by one. */
+            td.textContent = row[i] === undefined ? '' : row[i];
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap.outerHTML;
+}
+
+function mgptRenderMarkdown(text) {
+    var lines = String(text).replace(/\r\n/g, '\n').split('\n');
+    var html = '';
+    var openDepth = 0;
+    /* Consumed by the table scanner below, so the pipe rows are not also
+       rendered as paragraphs. */
+    var skipUntil = -1;
+    lines.forEach(function (rawLine, index) {
+        if (index <= skipUntil) { return; }
+
+        if (rawLine.indexOf('|') !== -1) {
+            var block = [];
+            for (var j = index; j < lines.length; j++) {
+                if (lines[j].indexOf('|') === -1) { break; }
+                block.push(lines[j]);
+            }
+            var rendered = mgptTableFrom(block);
+            if (rendered) {
+                while (openDepth > 0) { html += '</ul>'; openDepth--; }
+                html += rendered;
+                skipUntil = index + block.length - 1;
+                return;
+            }
+        }
+
+        var m = rawLine.match(/^(\s*)-\s+(.*)$/);
+        if (m) {
+            var depth = Math.floor(m[1].replace(/\t/g, '  ').length / 2) + 1;
+            while (openDepth < depth) { html += '<ul>'; openDepth++; }
+            while (openDepth > depth) { html += '</ul>'; openDepth--; }
+            html += '<li>' + mgptInline(m[2]) + '</li>';
+        } else {
+            while (openDepth > 0) { html += '</ul>'; openDepth--; }
+            var trimmed = rawLine.trim();
+            if (trimmed) html += '<p>' + mgptInline(trimmed) + '</p>';
+        }
+    });
+    while (openDepth > 0) { html += '</ul>'; openDepth--; }
+    return html;
+}
+
+function mgptFill(text) {
+    var q = document.getElementById('mgpt-q');
+    mgptOpen();
+    q.value = text;
+    q.focus();
+}
+
+/* ── Attachments ──────────────────────────────────────────────────────────
+ * Limits mirror vendorlink/gptfiles.py. This is a courtesy pre-check so an
+ * operator sees "31 MB — too large" instantly instead of after a 31 MB upload;
+ * the server enforces the same rules independently. */
+var MGPT_MAX_FILES = {{ gpt_files.max_files }};
+var MGPT_MAX_BYTES = {{ gpt_files.max_mb }} * 1024 * 1024;
+var MGPT_EXTS = {{ gpt_files.extensions|safe }};
+var mgptFiles = [];
+
+function mgptFmtSize(bytes) {
+    var mb = bytes / (1024 * 1024);
+    return mb >= 0.1 ? mb.toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
+function mgptWhyBad(file) {
+    var dot = file.name.lastIndexOf('.');
+    var ext = dot === -1 ? '' : file.name.slice(dot).toLowerCase();
+    if (MGPT_EXTS.indexOf(ext) === -1) { return 'type not supported'; }
+    if (file.size > MGPT_MAX_BYTES) { return mgptFmtSize(file.size) + ' — over the limit'; }
+    if (!file.size) { return 'file is empty'; }
+    return null;
+}
+
+function mgptPickFiles(fileList) {
+    Array.prototype.forEach.call(fileList, function (file) {
+        // De-duplicated by name+size: picking the same file twice would spend
+        // one of only four slots on a copy.
+        var dupe = mgptFiles.some(function (f) {
+            return f.file.name === file.name && f.file.size === file.size;
+        });
+        if (dupe) { return; }
+        if (mgptFiles.length >= MGPT_MAX_FILES) { return; }
+        mgptFiles.push({ file: file, why: mgptWhyBad(file) });
+    });
+    // The input is cleared so re-picking the same file after removing it works;
+    // a file input keeps its value otherwise and fires no change event.
+    document.getElementById('mgpt-files').value = '';
+    mgptRenderFiles();
+}
+
+function mgptRemoveFile(index) {
+    mgptFiles.splice(index, 1);
+    mgptRenderFiles();
+}
+
+function mgptRenderFiles() {
+    var list = document.getElementById('mgpt-filelist');
+    var btn = document.getElementById('mgpt-attach-btn');
+    list.innerHTML = '';
+    mgptFiles.forEach(function (entry, index) {
+        var row = document.createElement('div');
+        row.className = 'vlx-gpt-file' + (entry.why ? ' bad' : '');
+        row.innerHTML =
+            '<i class="fas ' + (entry.why ? 'fa-triangle-exclamation' : 'fa-file-lines') + '"></i>' +
+            '<span class="vlx-gpt-file-name"></span>' +
+            (entry.why ? '<span class="vlx-gpt-file-why"></span>' : '') +
+            '<span class="vlx-gpt-file-size">' + mgptFmtSize(entry.file.size) + '</span>' +
+            '<button type="button" class="vlx-gpt-file-x" title="Remove">&times;</button>';
+        // textContent, not innerHTML — a filename is user-supplied and could
+        // otherwise inject markup into this panel.
+        row.querySelector('.vlx-gpt-file-name').textContent = entry.file.name;
+        if (entry.why) { row.querySelector('.vlx-gpt-file-why').textContent = entry.why; }
+        row.querySelector('.vlx-gpt-file-x').addEventListener('click', function () {
+            mgptRemoveFile(index);
+        });
+        list.appendChild(row);
+    });
+    btn.disabled = mgptFiles.length >= MGPT_MAX_FILES;
+    btn.innerHTML = mgptFiles.length
+        ? '<i class="fas fa-paperclip"></i> ' + mgptFiles.length + ' of ' + MGPT_MAX_FILES + ' attached'
+        : '<i class="fas fa-paperclip"></i> Attach';
+}
+
+/* Busy state for the AI Evaluate buttons.
+   Bound to the form's submit event on purpose: the previous version disabled
+   the button from its own onclick, and because submission is the button's
+   activation behaviour — which runs after click handlers — the browser found a
+   disabled submitter and never sent the POST. By the time 'submit' fires the
+   form data is already built, so disabling here is safe and still blocks a
+   double-submit. */
+(function () {
+    document.querySelectorAll('.vlx-eval-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var btn = form.querySelector('.vlx-cd-btn-ai');
+            if (!btn) { return; }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="vlx-spin vlx-spin-w"></span>&nbsp;Evaluating…';
+        });
+    });
+}());
+
+/* Drag-and-drop onto the composer. The attach control used to be drawn with a
+   dashed border, which reads as a drop zone — so this makes the affordance
+   real instead of removing it. dragenter/dragover both need preventDefault or
+   the browser navigates to the dropped file instead of handing it over. */
+(function () {
+    var composer = document.getElementById('mgpt-composer');
+    if (!composer) { return; }
+    var depth = 0;   // dragenter/leave fire per descendant; count to avoid flicker
+
+    function show() { composer.classList.add('is-drop'); }
+    function hide() { depth = 0; composer.classList.remove('is-drop'); }
+
+    composer.addEventListener('dragenter', function (ev) {
+        ev.preventDefault(); depth++; show();
+    });
+    composer.addEventListener('dragover', function (ev) { ev.preventDefault(); });
+    composer.addEventListener('dragleave', function () {
+        depth--; if (depth <= 0) { hide(); }
+    });
+    composer.addEventListener('drop', function (ev) {
+        ev.preventDefault(); hide();
+        if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length) {
+            mgptPickFiles(ev.dataTransfer.files);
+        }
+    });
+}());
+
+function mgptAsk() {
+    var q = document.getElementById('mgpt-q');
+    var btn = document.getElementById('mgpt-btn');
+    var answerEl = document.getElementById('mgpt-answer');
+    var readEl = document.getElementById('mgpt-read');
+    var question = q.value.trim();
+    var good = mgptFiles.filter(function (entry) { return !entry.why; });
+
+    // A question is optional when something is attached — the server supplies a
+    // default task in that case (see ask_meril_gpt).
+    if (!question && !good.length) { q.focus(); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Thinking…';
+    answerEl.style.display = 'block';
+    answerEl.className = 'vlx-gpt-answer is-loading';
+    answerEl.textContent = good.length
+        ? 'Meril GPT is reading your ' + good.length + ' file(s) and every request’s bids…'
+        : 'Meril GPT is reading every request’s bids…';
+    readEl.style.display = 'none';
+    readEl.innerHTML = '';
+
+    // FormData, not URLSearchParams — and deliberately no Content-Type header:
+    // the browser has to set it so it can include the multipart boundary.
+    var body = new FormData();
+    body.set('question', question);
+    /* Threading. Without this every question opened a fresh conversation and
+       the recent-chats list filled with one-turn stubs. */
+    if (mgptConversationId) { body.set('conversation_id', mgptConversationId); }
+    good.forEach(function (entry) { body.append('files', entry.file); });
+
+    mgptAppendTurn('user', question || ('Attached ' + good.length + ' file(s)'));
+
+    fetch("{% url 'vendorlink:merilgpt_ask' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': cdGetCsrf() },
+        body: body,
+    })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+            if (res.ok) {
+                answerEl.style.display = 'none';
+                mgptAppendTurn(
+                    'bot', res.data.answer, true,
+                    res.data.report, res.data.sources_label, res.data.source,
+                );
+                if (res.data.conversation_id) {
+                    mgptConversationId = res.data.conversation_id;
+                    /* Reloaded only while the list is open: a hidden panel does
+                       not need refreshing, and this fires on every answer. */
+                    if (!document.getElementById('mgpt-hist').hidden) { mgptLoadHistory(); }
+                }
+                q.value = '';
+                mgptFiles = [];
+                mgptRenderFiles();
+            } else {
+                answerEl.className = 'vlx-gpt-answer error';
+                answerEl.textContent = res.data.error || 'Meril GPT could not answer that — try again.';
+            }
+            mgptRenderRead(res.data);
+        })
+        .catch(function () {
+            answerEl.className = 'vlx-gpt-answer error';
+            answerEl.textContent = 'Could not reach Meril GPT — check your connection and try again.';
+        })
+        .finally(function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Ask';
+        });
+}
+
+/* What the model actually read. Truncation is surfaced because it changes how
+ * far the answer can be trusted — an answer drawn from the first 40k characters
+ * of a 900-page PDF is not an answer about the whole PDF. */
+function mgptRenderRead(data) {
+    var readEl = document.getElementById('mgpt-read');
+    var chips = [];
+    (data.files || []).forEach(function (f) {
+        var warn = f.truncated || (f.notes && f.notes.length);
+        var label = f.name + ' · ' + f.size + (f.truncated ? ' · excerpt only' : '');
+        chips.push({ warn: warn, text: label, notes: (f.notes || []).join('; ') });
+    });
+    (data.file_errors || []).forEach(function (message) {
+        chips.push({ warn: true, text: message, notes: '' });
+    });
+    if (!chips.length) { return; }
+
+    chips.forEach(function (chip) {
+        var span = document.createElement('span');
+        span.className = 'vlx-gpt-read-chip' + (chip.warn ? ' warn' : '');
+        span.innerHTML = '<i class="fas ' + (chip.warn ? 'fa-circle-exclamation' : 'fa-circle-check') + '"></i>';
+        var text = document.createElement('span');
+        text.textContent = chip.text;
+        span.appendChild(text);
+        if (chip.notes) { span.title = chip.notes; }
+        readEl.appendChild(span);
+    });
+    readEl.style.display = 'flex';
+}
+
+function cdSelectBid(el) {
+    var target = el.dataset.target;
+    var amtEl = document.getElementById('costamt-' + target);
+    var lblEl = document.getElementById('costlbl-' + target);
+    if (amtEl) amtEl.innerHTML = '<span class="vlx-cd-cost-cur">' + el.dataset.currency + '</span> ' + el.dataset.total;
+    if (lblEl) lblEl.textContent = 'Chosen revision';
+
+    // Move the row highlight + Chosen chip to this vendor's chosen revision.
+    var table = el.closest('table');
+    if (table) {
+        table.querySelectorAll('tbody tr').forEach(function (tr) { tr.classList.remove('best'); });
+        table.querySelectorAll('.vlx-best-chip').forEach(function (chip) { chip.remove(); });
+        var row = el.closest('tr');
+        row.classList.add('best');
+        var strong = row.querySelector('td strong');
+        if (strong) {
+            var chip = document.createElement('span');
+            chip.className = 'vlx-best-chip';
+            chip.textContent = 'Chosen';
+            strong.insertAdjacentElement('afterend', chip);
+        }
+    }
+
+    fetch('/vendorlink/bids/' + el.value + '/select/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': cdGetCsrf() },
+    }).catch(function () {});
+}
+
+/* ── Bulk/date report builder ───────────────────────────────────────────── */
+(function () {
+    var btn = document.getElementById('vlxBuildReport');
+    if (!btn) { return; }
+    btn.addEventListener('click', function () {
+        var params = new URLSearchParams();
+        var selected = Array.prototype.map.call(
+            document.querySelectorAll('.vlx-report-pick input:checked'),
+            function (input) { return input.value; }
+        );
+        var from = document.getElementById('vlxReportFrom');
+        var to = document.getElementById('vlxReportTo');
+        var country = document.getElementById('cd-country');
+        params.set('ai', '1');
+        if (selected.length) { params.set('ids', selected.join(',')); }
+        if (from && from.value) { params.set('date_from', from.value); }
+        if (to && to.value) { params.set('date_to', to.value); }
+        if (!selected.length && country && country.value) { params.set('country', country.value); }
+        window.location.href = "{% url 'vendorlink:report_bulk' %}?" + params.toString();
+    });
+}());
+
+/* ── Resizable heatmap + PNG export ─────────────────────────────────────── */
+(function () {
+    var box = document.getElementById('vlxHeatBox');
+    var table = document.getElementById('vlxQuoteHeatmap');
+    var slider = document.getElementById('vlxHeatSize');
+    var dl = document.getElementById('vlxHeatDownload');
+    if (!box || !table) { return; }
+
+    if (slider) {
+        slider.addEventListener('input', function () {
+            var value = Number(slider.value || 34);
+            box.style.setProperty('--vlx-qh-cell', value + 'px');
+            box.style.setProperty('--vlx-qh-col', Math.max(98, value * 3.4) + 'px');
+        });
+    }
+
+    /* Sort the vendor rows.
+
+       Re-stacks the existing <tr>s rather than refetching, so sorting can
+       never change a number -- only the order they are read in. The keys come
+       off the data-* attributes the template writes, so the comparison uses
+       the same values that are painted.
+
+       "original" is the server's order (most bids first, then name), kept as
+       data-order so it can always be restored. */
+    var sort = document.getElementById('vlxHeatSort');
+    var body = document.getElementById('vlxHeatBody');
+    if (sort && body) {
+        var num = function (tr, key) { return Number(tr.dataset[key]); };
+        var comparators = {
+            /* A vendor with no premium at all sorts last either way: the
+               template writes 9999 for a null average. */
+            'avg-asc':  function (a, b) { return num(a, 'avg') - num(b, 'avg'); },
+            'avg-desc': function (a, b) { return num(b, 'avg') - num(a, 'avg'); },
+            'wins':     function (a, b) {
+                return num(b, 'wins') - num(a, 'wins') || num(a, 'avg') - num(b, 'avg');
+            },
+            'name':     function (a, b) {
+                return a.dataset.vendor.localeCompare(b.dataset.vendor);
+            },
+            'original': function (a, b) { return num(a, 'order') - num(b, 'order'); }
+        };
+
+        sort.addEventListener('change', function () {
+            var compare = comparators[sort.value] || comparators.original;
+            Array.prototype.slice.call(body.rows)
+                .sort(compare)
+                .forEach(function (tr) { body.appendChild(tr); });
+        });
+    }
+
+    function roundedRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function fitText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+        var words = String(text || '').split(/\s+/);
+        var line = '';
+        var lines = [];
+        words.forEach(function (word) {
+            var test = line ? line + ' ' + word : word;
+            if (ctx.measureText(test).width > maxWidth && line) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = test;
+            }
+        });
+        if (line) { lines.push(line); }
+        lines = lines.slice(0, maxLines || 2);
+        if (lines.length && words.length && lines.length === maxLines) {
+            while (ctx.measureText(lines[lines.length - 1] + '...').width > maxWidth && lines[lines.length - 1].length) {
+                lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1);
+            }
+            lines[lines.length - 1] += '...';
+        }
+        lines.forEach(function (part, index) { ctx.fillText(part, x, y + index * lineHeight); });
+    }
+
+    function drawNoBid(ctx, x, y, w, h) {
+        ctx.fillStyle = '#F3F4F6';
+        roundedRect(ctx, x, y, w, h, 5);
+        ctx.fill();
+        ctx.strokeStyle = '#E5E7EB';
+        for (var px = x - h; px < x + w; px += 8) {
+            ctx.beginPath();
+            ctx.moveTo(px, y + h);
+            ctx.lineTo(px + h, y);
+            ctx.stroke();
+        }
+    }
+
+    function downloadHeatmap() {
+        var rows = Array.prototype.slice.call(table.rows);
+        if (!rows.length) { return; }
+        var rfiCount = rows[0].cells.length - 2;
+        var vendorW = 190;
+        var summaryW = 128;
+        var cellW = Math.max(92, Number(slider && slider.value || 34) * 2.7);
+        var rowH = 40;
+        var headH = 92;
+        var pad = 28;
+        var titleH = 54;
+        var width = pad * 2 + vendorW + summaryW + (rfiCount * cellW);
+        var height = pad * 2 + titleH + headH + ((rows.length - 1) * rowH);
+        var canvas = document.createElement('canvas');
+        var scale = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#0B1C30';
+        ctx.font = '700 18px Arial, sans-serif';
+        ctx.fillText('Price Premium Heatmap', pad, pad + 18);
+        ctx.font = '12px Arial, sans-serif';
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('Premium over the cheapest comparable bid for each RFI and currency', pad, pad + 38);
+
+        var x0 = pad;
+        var y0 = pad + titleH;
+        var widths = [vendorW];
+        for (var i = 0; i < rfiCount; i += 1) { widths.push(cellW); }
+        widths.push(summaryW);
+
+        ctx.font = '700 11px Arial, sans-serif';
+        ctx.fillStyle = '#475569';
+        var x = x0;
+        Array.prototype.forEach.call(rows[0].cells, function (cell, index) {
+            fitText(ctx, cell.innerText.replace(/\s+/g, ' ').trim(), x + 8, y0 + 18, widths[index] - 14, 14, 4);
+            x += widths[index];
+        });
+
+        rows.slice(1).forEach(function (row, rowIndex) {
+            var y = y0 + headH + rowIndex * rowH;
+            var cx = x0;
+            Array.prototype.forEach.call(row.cells, function (cell, index) {
+                var text = cell.innerText.replace(/\s+/g, ' ').trim();
+                var w = widths[index];
+                if (index === 0 || index === row.cells.length - 1) {
+                    ctx.fillStyle = '#F8FAFC';
+                    ctx.fillRect(cx, y, w - 2, rowH - 2);
+                    ctx.fillStyle = '#0F172A';
+                    ctx.font = index === 0 ? '700 12px Arial, sans-serif' : '12px Arial, sans-serif';
+                    fitText(ctx, text, cx + 8, y + 16, w - 14, 14, 2);
+                } else if (cell.classList.contains('none')) {
+                    drawNoBid(ctx, cx + 4, y + 4, w - 10, rowH - 10);
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.font = '700 12px Arial, sans-serif';
+                    ctx.fillText('-', cx + w / 2 - 3, y + 25);
+                } else {
+                    var style = window.getComputedStyle(cell);
+                    ctx.fillStyle = style.backgroundColor || '#E2E8F0';
+                    roundedRect(ctx, cx + 4, y + 4, w - 10, rowH - 10, 5);
+                    ctx.fill();
+                    if (cell.classList.contains('best')) {
+                        ctx.strokeStyle = '#15803D';
+                        ctx.lineWidth = 2;
+                        roundedRect(ctx, cx + 5, y + 5, w - 12, rowH - 12, 5);
+                        ctx.stroke();
+                    }
+                    ctx.fillStyle = style.color || '#111827';
+                    ctx.font = '700 12px Arial, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(text, cx + w / 2, y + 25);
+                    ctx.textAlign = 'left';
+                }
+                cx += w;
+            });
+        });
+
+        var a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'vendorlink-price-premium-heatmap.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        if (window.VL) { window.VL.toast('success', 'Heatmap image downloaded'); }
+    }
+
+    if (dl) { dl.addEventListener('click', downloadHeatmap); }
+}());
+
+/* ── Recent chats ────────────────────────────────────────────────────────────
+ * The drawer keeps one thread at a time and remembers which, so follow-up
+ * questions land in the same conversation. The list is capped server-side at
+ * GptConversation.KEEP_RECENT and anything older is deleted, so what is shown
+ * here is the entire stored history rather than a page of it.
+ * ------------------------------------------------------------------------- */
+var mgptConversationId = null;
+
+var MGPT_SOURCE_LABELS = {
+    portal: 'Answered from VendorLink data',
+    document: 'Answered from your attached file',
+    general: 'Answered from general knowledge — not portal data',
+    both: 'Answered from your file and VendorLink data'
+};
+
+function mgptAppendTurn(who, text, asMarkdown, report, sourcesLabel, answerSource) {
+    var thread = document.getElementById('mgpt-thread');
+    if (!thread) { return; }
+    var row = document.createElement('div');
+    row.className = 'vlx-gpt-turn vlx-gpt-turn--' + who;
+    var bubble = document.createElement('div');
+    bubble.className = 'vlx-gpt-bubble';
+    if (asMarkdown) {
+        bubble.innerHTML = mgptRenderMarkdown(text || '');
+    } else {
+        /* textContent, not innerHTML: this is the user's own words coming back
+           out of an input, and rendering it as markup would be a stored-XSS
+           hole on their own screen. */
+        bubble.textContent = text || '';
+    }
+
+    /* The structured report: tables, charts, KPIs and a CSV button.
+     *
+     * VL.renderReport already builds every part of this and is used by the
+     * chat panel on four other screens — this one asked the model for a table
+     * and a chart on every request (see GPT_ANSWER_SCHEMA) and then dropped
+     * the result, which is why "show me that as a table" produced prose.
+     *
+     * Guarded because the library is a separate file: if it failed to load,
+     * saying so beats leaving a silent gap the reader would take for "there
+     * was nothing to show". */
+    if (report) {
+        if (window.VL && typeof window.VL.renderReport === 'function') {
+            var card = window.VL.renderReport(report);
+            if (card) {
+                /* Marks this as a chat card, which is what vl-gptreport.css
+                   scopes on. The class has to live on the CARD rather than on
+                   the bubble around it: expanding moves the card to <body> so
+                   that position:fixed resolves against the viewport instead of
+                   the transformed drawer, and a rule scoped to the bubble
+                   stops matching the instant it moves -- the card rendered as
+                   unstyled browser defaults. */
+                card.classList.add('vl-chatcard');
+                bubble.appendChild(card);
+            }
+        } else {
+            var warn = document.createElement('div');
+            warn.className = 'vl-meta';
+            warn.textContent = 'A table or chart came back but could not be drawn — '
+                + 'the report library did not load. Reload the page and ask again.';
+            bubble.appendChild(warn);
+        }
+    }
+
+    /* Which of the three sources answered.
+     *
+     * Shown because the alternative is the reader guessing. The complaint this
+     * came from was "I attached a PDF and it answered about VendorLink"; with
+     * the chip, a mis-route is visible as a mis-route rather than as a model
+     * that makes things up. */
+    if (answerSource && MGPT_SOURCE_LABELS[answerSource]) {
+        var srcChip = document.createElement('div');
+        srcChip.className = 'vlx-gpt-source';
+        srcChip.textContent = MGPT_SOURCE_LABELS[answerSource];
+        bubble.insertBefore(srcChip, bubble.firstChild);
+    }
+
+    if (sourcesLabel) {
+        var src = document.createElement('div');
+        src.className = 'vlx-gpt-sources';
+        var lead = document.createElement('b');
+        lead.textContent = 'From your documents: ';
+        src.appendChild(lead);
+        /* textContent: these are filenames the user chose. */
+        src.appendChild(document.createTextNode(sourcesLabel));
+        bubble.appendChild(src);
+    }
+
+    row.appendChild(bubble);
+    thread.appendChild(row);
+    thread.scrollTop = thread.scrollHeight;
+}
+
+function mgptNewChat() {
+    mgptConversationId = null;
+    var thread = document.getElementById('mgpt-thread');
+    if (thread) { thread.innerHTML = ''; }
+    var answerEl = document.getElementById('mgpt-answer');
+    if (answerEl) { answerEl.style.display = 'none'; }
+    var readEl = document.getElementById('mgpt-read');
+    if (readEl) { readEl.style.display = 'none'; readEl.innerHTML = ''; }
+    var q = document.getElementById('mgpt-q');
+    if (q) { q.value = ''; q.focus(); }
+    mgptMarkActiveChat();
+}
+
+function mgptToggleHistory() {
+    var panel = document.getElementById('mgpt-hist');
+    var btn = document.getElementById('mgpt-hist-btn');
+    if (!panel) { return; }
+    var opening = panel.hidden;
+    panel.hidden = !opening;
+    btn.setAttribute('aria-pressed', String(opening));
+    if (opening) { mgptLoadHistory(); }
+}
+
+function mgptLoadHistory() {
+    var list = document.getElementById('mgpt-hist-list');
+    var note = document.getElementById('mgpt-hist-note');
+    if (!list) { return; }
+    list.innerHTML = '<div class="vlx-gpt-hist-empty">Loading…</div>';
+    fetch("{% url 'vendorlink:merilgpt_conversations' %}")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            list.innerHTML = '';
+            if (note) {
+                note.textContent = data.kept
+                    ? ('last ' + data.kept + ' kept') : '';
+            }
+            if (!data.conversations.length) {
+                list.innerHTML = '<div class="vlx-gpt-hist-empty">No earlier chats yet.</div>';
+                return;
+            }
+            data.conversations.forEach(function (c) {
+                var row = document.createElement('div');
+                row.className = 'vlx-gpt-hist-row';
+                row.dataset.chatId = c.id;
+
+                var open = document.createElement('button');
+                open.type = 'button';
+                open.className = 'vlx-gpt-hist-open';
+                var title = document.createElement('span');
+                title.textContent = c.title || 'Untitled';
+                var when = document.createElement('small');
+                when.textContent = new Date(c.updated_at).toLocaleDateString()
+                    + ' · ' + c.turns + (c.turns === 1 ? ' msg' : ' msgs');
+                open.appendChild(title);
+                open.appendChild(when);
+                open.addEventListener('click', function () { mgptOpenChat(c.id); });
+
+                var del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'vlx-gpt-hist-del';
+                del.title = 'Delete this chat';
+                del.setAttribute('aria-label', 'Delete chat: ' + (c.title || 'Untitled'));
+                del.innerHTML = '<i class="fas fa-trash-can"></i>';
+                del.addEventListener('click', function () { mgptDeleteChat(c.id); });
+
+                row.appendChild(open);
+                row.appendChild(del);
+                list.appendChild(row);
+            });
+            mgptMarkActiveChat();
+        })
+        .catch(function () {
+            /* History is a convenience. It must never take the chat down with
+               it, so a failure leaves the composer working. */
+            list.innerHTML = '<div class="vlx-gpt-hist-empty">Could not load your chats.</div>';
+        });
+}
+
+function mgptMarkActiveChat() {
+    Array.prototype.forEach.call(
+        document.querySelectorAll('#mgpt-hist-list .vlx-gpt-hist-row'),
+        function (row) {
+            row.classList.toggle(
+                'is-active', String(mgptConversationId) === row.dataset.chatId);
+        });
+}
+
+function mgptOpenChat(id) {
+    fetch("{% url 'vendorlink:merilgpt_conversations' %}" + id + '/')
+        .then(function (r) {
+            if (!r.ok) { throw new Error('not found'); }
+            return r.json();
+        })
+        .then(function (data) {
+            mgptConversationId = data.id;
+            var thread = document.getElementById('mgpt-thread');
+            thread.innerHTML = '';
+            data.messages.forEach(function (m) {
+                /* Reopened threads redraw their tables and charts too: the
+                   report was already stored on the message, and replaying only
+                   the prose made a reopened chat look poorer than the live
+                   one. */
+                mgptAppendTurn(
+                    m.role === 'user' ? 'user' : 'bot', m.body,
+                    m.role !== 'user', m.role === 'user' ? null : m.report,
+                    /* No sources label on replay — which documents retrieval
+                       picked was never stored — but the answer source was, so
+                       the chip survives a reload. */
+                    null, m.role === 'user' ? null : m.source,
+                );
+            });
+            var answerEl = document.getElementById('mgpt-answer');
+            if (answerEl) { answerEl.style.display = 'none'; }
+            mgptMarkActiveChat();
+        })
+        .catch(function () {
+            var list = document.getElementById('mgpt-hist-list');
+            if (list) {
+                list.innerHTML = '<div class="vlx-gpt-hist-empty">'
+                    + 'That chat is no longer available.</div>';
+            }
+        });
+}
+
+function mgptDeleteChat(id) {
+    /* The in-page dialog is callback-driven, so the work moves into a named
+       function both paths can call. The native confirm() stays as a fallback
+       for the case where vl-confirm.js has not loaded: losing the delete
+       entirely would be worse than an ugly prompt. */
+    if (window.VLConfirm) {
+        window.VLConfirm.open({
+            message: 'Delete this chat? This cannot be undone.',
+            action: 'Delete chat',
+            tone: 'danger',
+        }, function () { mgptDeleteChatConfirmed(id); });
+        return;
+    }
+    if (window.confirm('Delete this chat? This cannot be undone.')) {
+        mgptDeleteChatConfirmed(id);
+    }
+}
+
+function mgptDeleteChatConfirmed(id) {
+    fetch("{% url 'vendorlink:merilgpt_conversations' %}" + id + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': cdGetCsrf() },
+    })
+        .then(function () {
+            /* Deleting the thread on screen leaves the drawer holding an id
+               that no longer exists, so it is reset rather than left to fail
+               on the next question. */
+            if (String(mgptConversationId) === String(id)) { mgptNewChat(); }
+            mgptLoadHistory();
+        })
+        .catch(function () { mgptLoadHistory(); });
+}
+</script>

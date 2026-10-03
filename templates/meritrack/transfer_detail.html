@@ -1,0 +1,245 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Transfer Detail — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'css/datatables-2.0.8.min.css' %}">
+<style>
+.detail-meta { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
+.meta-card { background:var(--mt-gray-50); border:1px solid var(--mt-gray-200); border-radius:8px; padding:14px; }
+.meta-card .label { font-size:.75rem; color:var(--mt-gray-400); text-transform:uppercase; letter-spacing:.04em; }
+.meta-card .value { font-size:1rem; font-weight:600; margin-top:2px; }
+.status-badge { display:inline-block; padding:4px 12px; border-radius:12px; font-size:.78rem; font-weight:600; }
+.badge-active   { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.badge-completed{ background:var(--mt-info-light); color:var(--mt-primary); }
+.badge-closed   { background:var(--mt-gray-100); color:var(--mt-gray-700); }
+.badge-cancelled{ background:var(--mt-danger-light); color:var(--mt-danger); }
+.action-bar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+</style>
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-exchange-alt"></i> Transfer Detail</h1>
+<p id="sessionKeyDisplay" style="font-family:ui-monospace,monospace;opacity:.8">{{ session_key }}</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <a href="{% url 'meritrack:transfer_dashboard' %}" class="hero-btn"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <!-- Loading state -->
+    <div id="loadingState" aria-hidden="true">
+        <div class="detail-meta">
+            <div class="meta-card"><div class="mt-sk mt-sk-line" style="width:46%;"></div><div class="mt-sk mt-sk-line" style="width:72%;margin:0;"></div></div>
+            <div class="meta-card"><div class="mt-sk mt-sk-line" style="width:56%;"></div><div class="mt-sk mt-sk-line" style="width:80%;margin:0;"></div></div>
+            <div class="meta-card"><div class="mt-sk mt-sk-line" style="width:40%;"></div><div class="mt-sk mt-sk-line" style="width:66%;margin:0;"></div></div>
+            <div class="meta-card"><div class="mt-sk mt-sk-line" style="width:50%;"></div><div class="mt-sk mt-sk-line" style="width:58%;margin:0;"></div></div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+            <div class="mt-sk-row"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.7;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.4;border-bottom:none;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+        </div>
+    </div>
+
+    <!-- Session content -->
+    <div id="sessionContent" style="display:none">
+        <!-- Meta cards -->
+        <div class="detail-meta">
+            <div class="meta-card">
+                <div class="label">Status</div>
+                <div class="value" id="dStatus">—</div>
+            </div>
+            <div class="meta-card">
+                <div class="label">From Hospital</div>
+                <div class="value" id="dHospital">—</div>
+            </div>
+            <div class="meta-card">
+                <div class="label">To Hospital</div>
+                <div class="value" id="dTo">—</div>
+            </div>
+            <div class="meta-card">
+                <div class="label">Rep</div>
+                <div class="value" id="dRep">—</div>
+            </div>
+            <div class="meta-card">
+                <div class="label">Scans</div>
+                <div class="value" id="dScans">—</div>
+            </div>
+            <div class="meta-card">
+                <div class="label">Started</div>
+                <div class="value" id="dStarted">—</div>
+            </div>
+        </div>
+
+        <!-- Manager actions -->
+        {% if is_manager %}
+        <div class="action-bar" id="managerActions" style="display:none">
+            <button class="btn-mt btn-success" id="btnComplete" onclick="completeSession()" style="display:none"><i class="fas fa-check"></i> Force Complete</button>
+            <label class="btn-mt btn-primary" style="cursor:pointer">
+                <i class="fas fa-upload"></i> Upload Confirmation
+                <input type="file" id="attachmentFile" style="display:none" onchange="uploadAttachment()">
+            </label>
+            <button class="btn-mt btn-secondary" id="btnDownload" onclick="downloadAttachment()" style="display:none"><i class="fas fa-download"></i> Download Attachment</button>
+            <button class="btn-mt btn-danger" id="btnTerminate" onclick="terminateSession()" style="display:none"><i class="fas fa-times"></i> Terminate</button>
+        </div>
+        {% endif %}
+
+        <!-- Scan log table -->
+        <div class="card">
+            <h3 style="margin:0 0 14px"><i class="fas fa-list"></i> Scanned Items</h3>
+            <div class="table-responsive-wrap">
+            <table id="scanTable" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Serial Number</th>
+                        <th>Product Name</th>
+                        <th>Batch</th>
+                        <th>Expiry</th>
+                        <th>GTIN</th>
+                        <th>Scanned At</th>
+                    </tr>
+                </thead>
+                <tbody id="scanBody"></tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/datatables-2.0.8.min.js' %}"></script>
+<script>
+const SESSION_KEY = '{{ session_key }}';
+const IS_MANAGER = {{ is_manager|yesno:"true,false" }};
+const API = '/meritrack/api/transfers/';
+let sessionData = null;
+let dtTable;
+
+const STATUS_BADGE = {
+    active: '<span class="status-badge badge-active">Active</span>',
+    completed: '<span class="status-badge badge-completed">Completed</span>',
+    closed: '<span class="status-badge badge-closed">Closed</span>',
+    cancelled: '<span class="status-badge badge-cancelled">Cancelled</span>',
+};
+
+/* Non-blocking feedback; falls back to alert() if the UI layer is absent. */
+function notify(msg, type) {
+    if (window.mtToast) window.mtToast(msg, type || 'info');
+    else alert(msg);
+}
+
+function getCsrf() {
+    return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    dtTable = $('#scanTable').DataTable({
+        data: [],
+        columns: [
+            { data: null, render: (d, t, r, m) => m.row + 1, orderable: false },
+            { data: 'serial_number' },
+            { data: 'product_name', defaultContent: '—' },
+            { data: 'batch_number', defaultContent: '—' },
+            { data: 'expiry_date', defaultContent: '—' },
+            { data: 'gtin_code', defaultContent: '—' },
+            { data: 'scanned_at', render: d => d ? new Date(d).toLocaleString() : '—' },
+        ],
+        pageLength: 25,
+        language: { search: 'Search:', lengthMenu: 'Show _MENU_' },
+    });
+    await loadSession();
+});
+
+async function loadSession() {
+    const r = await fetch(API + 'by_session_key/?session_key=' + SESSION_KEY);
+    document.getElementById('loadingState').style.display = 'none';
+    if (!r.ok) {
+        document.getElementById('sessionContent').innerHTML = '<div style="padding:40px;text-align:center;color:var(--mt-danger)">Session not found.</div>';
+        document.getElementById('sessionContent').style.display = 'block';
+        return;
+    }
+    sessionData = await r.json();
+    renderSession();
+}
+
+function renderSession() {
+    const s = sessionData;
+    document.getElementById('dStatus').innerHTML = STATUS_BADGE[s.status] || s.status;
+    document.getElementById('dHospital').textContent = (s.from_hospital_details && s.from_hospital_details.name) || '—';
+    document.getElementById('dTo').textContent = (s.to_hospital_details && s.to_hospital_details.name) || '—';
+    const rep = s.initiated_by_details;
+    document.getElementById('dRep').textContent = rep ? ((rep.first_name || rep.last_name) ? `${rep.first_name || ''} ${rep.last_name || ''}`.trim() : rep.username) : '—';
+    document.getElementById('dScans').textContent = s.total_products ?? (s.transferred_products || []).length;
+    document.getElementById('dStarted').textContent = s.started_at ? new Date(s.started_at).toLocaleString() : '—';
+
+    if (IS_MANAGER) {
+        document.getElementById('managerActions').style.display = 'flex';
+        const active = s.status === 'active';
+        const completed = s.status === 'completed';
+        // Force-complete only while active; confirm/close (upload) while active or completed.
+        document.getElementById('btnComplete').style.display = active ? 'inline-flex' : 'none';
+        document.getElementById('btnTerminate').style.display = (s.status !== 'closed' && s.status !== 'cancelled') ? 'inline-flex' : 'none';
+        if (s.attachment_details) {
+            document.getElementById('btnDownload').style.display = 'inline-flex';
+        }
+    }
+
+    dtTable.clear().rows.add(s.transferred_products || []).draw();
+    document.getElementById('sessionContent').style.display = 'block';
+}
+
+async function completeSession() {
+    if (!confirm('Mark this transfer as completed (awaiting confirmation)?')) return;
+    const r = await fetch(API + 'complete_transfer/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ session_key: SESSION_KEY }),
+    });
+    if (r.ok) { notify('Transfer marked complete — awaiting confirmation.', 'success'); await loadSession(); }
+    else { const e = await r.json().catch(() => ({})); notify(e.error || 'Failed to complete transfer', 'error'); }
+}
+
+async function terminateSession() {
+    if (!confirm('Terminate (cancel) this transfer? This cannot be undone.')) return;
+    const r = await fetch(API + 'terminate_transfer/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ session_key: SESSION_KEY }),
+    });
+    if (r.ok) { notify('Transfer terminated.', 'warning'); await loadSession(); }
+    else { const e = await r.json().catch(() => ({})); notify(e.error || 'Termination failed', 'error'); }
+}
+
+async function uploadAttachment() {
+    const file = document.getElementById('attachmentFile').files[0];
+    if (!file) return;
+    if (!confirm('Uploading the confirmation document will CLOSE this transfer and move the stock to the destination hospital. Continue?')) {
+        document.getElementById('attachmentFile').value = '';
+        return;
+    }
+    const fd = new FormData();
+    fd.append('session_key', SESSION_KEY);
+    fd.append('file', file);
+    const r = await fetch(API + 'upload_attachment/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: fd });
+    if (r.ok) {
+        const res = await r.json().catch(() => ({}));
+        let msg = 'Confirmation uploaded — transfer closed.';
+        if (res.moved != null) msg += ` ${res.moved} item(s) moved to the destination hospital`;
+        if (res.skipped) msg += `, ${res.skipped} unmatched (see notes)`;
+        notify(msg + '.', 'success');
+        loadSession();
+    } else { const e = await r.json().catch(() => ({})); notify(e.error || 'Upload failed', 'error'); }
+}
+
+function downloadAttachment() {
+    window.open(API + 'download_attachment/?session_key=' + SESSION_KEY);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 3.1 — VendorLink Dashboard / Launcher.
+
+Wireframe
+    breadcrumb / title / [quick actions rail]
+    ┌ 7 KPI tiles ────────────────────────────────────────────────┐
+    ┌ Needs Attention (queue) ────┐┌ Recent Activity (timeline) ──┐
+
+The two panels answer different questions and are deliberately not the same
+list: "Needs Attention" is a work queue — every row is something a person must
+act on and every row is a link. "Recent Activity" is read-only history. A
+dashboard that shows the same counts twice in two shapes is what made the old
+launcher feel busy without being useful.
+
+States: empty (each panel has its own), loading (server-rendered, none),
+error (none — read-only), permission (tiles are visible to any viewer; the
+quick actions that write are gated on can_edit).
+{% endcomment %}
+
+{% block title %}VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb"><span class="current">VendorLink</span></nav>
+            <h1 class="vl-title">VendorLink</h1>
+            <p class="vl-subtitle">3PL vendor management and procurement.</p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn" href="{% url 'vendorlink:t3_vendor_master' %}">Vendors</a>
+            <a class="vl-btn" href="{% url 'vendorlink:analytics_dashboard' %}">Bid Analytics</a>
+            <a class="vl-btn" href="{% url 'vendorlink:t3_commercial' %}">Commercial</a>
+            <a class="vl-btn" href="{% url 'vendorlink:t3_kpi' %}">KPI</a>
+            {% if can_edit %}
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:request_create' %}">Raise a request</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vl-kpis" style="margin-bottom:var(--vl-4);">
+        <a class="vl-kpi" href="{% url 'vendorlink:t3_vendor_master' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Active vendors</div>
+            <div class="vl-kpi__value">{{ kpis.vendors }}</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:registration_list' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Pending regs</div>
+            <div class="vl-kpi__value">{{ kpis.pending_regs }}</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:request_list' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Open requests</div>
+            <div class="vl-kpi__value">{{ kpis.open_requests }}</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:analytics_dashboard' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Submitted bids</div>
+            <div class="vl-kpi__value">{{ kpis.bids }}</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:t3_commercial' %}?status=expiring" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Expiring contracts</div>
+            <div class="vl-kpi__value">{{ kpis.expiring }}</div>
+            <div class="vl-kpi__delta">within {{ warning_days }}d</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:assessment_list' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Pending assessments</div>
+            <div class="vl-kpi__value">{{ kpis.pending_assessments }}</div>
+        </a>
+        <a class="vl-kpi" href="{% url 'vendorlink:analytics_dashboard' %}" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">AI evaluations</div>
+            <div class="vl-kpi__value">{{ kpis.evaluations }}</div>
+            <div class="vl-kpi__delta">completed</div>
+        </a>
+    </div>
+
+    <div style="display:grid;gap:var(--vl-3);grid-template-columns:repeat(auto-fit,minmax(340px,1fr));">
+        <div class="vl-card">
+            <div class="vl-card__head">
+                <h2 class="vl-card__title">Needs attention</h2>
+                <span class="vl-meta">{{ attention|length }} item{{ attention|length|pluralize }}</span>
+            </div>
+            {% if attention %}
+            <div style="padding:var(--vl-2) 0;">
+                {% for item in attention %}
+                <a href="{{ item.url }}"
+                   style="display:flex;align-items:center;gap:var(--vl-3);padding:var(--vl-2) var(--vl-4);
+                          text-decoration:none;color:inherit;border-bottom:1px solid var(--vl-border);">
+                    <span class="vl-chip vl-chip--{% if item.kind == 'expired' %}expired{% elif item.kind == 'expiring' %}expiring-soon{% else %}pending{% endif %}">
+                        {{ item.kind }}
+                    </span>
+                    <span style="flex:1;min-width:0;font-size:var(--vl-t-sm);">{{ item.label }}</span>
+                    {% if item.when %}<span class="vl-meta">{{ item.when|date:"d M y" }}</span>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="vl-empty">
+                <div class="vl-empty__title">Nothing needs attention</div>
+                <div class="vl-empty__hint">No expiring contracts or pending approvals.</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">Recent activity</h2></div>
+            {% if activity %}
+            <div class="vl-card__body">
+                <ol class="vl-timeline">
+                    {% for a in activity %}
+                    <li class="vl-timeline__item">
+                        <span class="vl-timeline__dot vl-timeline__dot--{{ a.kind }}"></span>
+                        <div style="flex:1;min-width:0;">
+                            <a href="{{ a.url }}" style="font-size:var(--vl-t-sm);color:var(--vl-ink);text-decoration:none;">{{ a.text }}</a>
+                            <div class="vl-meta">{{ a.when|date:"d M Y H:i" }}</div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% else %}
+            <div class="vl-empty">
+                <div class="vl-empty__title">No activity yet</div>
+                <div class="vl-empty__hint">Requests, bids and evaluations appear here as they happen.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

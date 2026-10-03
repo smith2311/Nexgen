@@ -1,0 +1,24 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/material-rework/delete_batch_modal.css' %}">
+
+<div class="del-overlay" id="delOverlay" onclick="if(event.target===this)closeDelModal()">
+    <div class="del-box">
+        <div class="del-head">
+            <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+            <h3>Delete Batch</h3>
+        </div>
+        <div class="del-body">
+            <p>Delete batch <strong id="del_ref_display" style="color:#1d4ed8;font-family:monospace;"></strong>?</p>
+            <p style="color:#9ca3af;font-size:.82rem;">This permanently removes the batch and all its items and <strong>cannot be undone</strong>.</p>
+            <div id="del_ajax_err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:7px 10px;margin-top:8px;font-size:.82rem;color:#b91c1c;"></div>
+        </div>
+        <div class="del-foot">
+            <button type="button" class="del-cancel-btn" onclick="closeDelModal()">Cancel</button>
+            <button type="button" class="del-confirm-btn" id="delConfirmBtn" onclick="doDeleteBatch()">
+                <i class="fas fa-trash"></i> Yes, Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/material-rework/delete_batch_modal.js' %}"></script>

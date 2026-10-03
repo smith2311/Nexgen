@@ -1,0 +1,116 @@
+# Django Core
+Django==5.1.4
+djangorestframework==3.14.0
+
+# ASGI / WebSockets
+channels>=4.0
+daphne>=4.0
+uvicorn[standard]==0.25.0
+
+# Database
+psycopg[binary]>=3.1
+PyMySQL==1.1.1
+
+# Production
+gunicorn==22.0.0
+whitenoise==6.6.0
+
+# Environment
+python-dotenv==1.0.0
+
+# Auth / SSO
+# Hardened XML parser for vendor-uploaded DOCX/XLSX (vendorlink/gptfiles.py).
+# It already arrived as a transitive dependency of social-auth-core; pinned
+# here because code now imports it directly and a transitive dep can vanish.
+defusedxml==0.7.1
+social-auth-app-django==5.4.1
+social-auth-core==4.5.4
+PyJWT==2.8.0
+
+# Security
+django-cors-headers==4.3.1
+django-ratelimit==4.1.0
+
+# Background Tasks
+celery==5.3.6
+redis==5.0.1
+
+# Image Processing
+Pillow>=10.0.0
+
+# PDF Generation
+xhtml2pdf==0.2.16
+
+# Speech / Audio
+SpeechRecognition==3.10.4
+pydub==0.25.1
+vosk==0.3.44
+gTTS==2.5.4
+soundfile
+# Local speech-to-text for the rs2t translator (CTranslate2, CPU, no API key)
+faster-whisper==1.2.0
+# faster-whisper pulls huggingface-hub, which would otherwise bump click past
+# the <8.2 ceiling gTTS requires.
+click>=7.1,<8.2
+
+# Translation / NLP
+# openai is still used by the GS1 parsers (meritrack / product_scanning) as an
+# optional enrichment step. The rs2t translator uses
+# local Whisper + the self-hosted Ollama server instead.
+openai>=1.54.0
+deep-translator
+indic-transliteration==2.3.54
+langdetect
+langid==1.1.6
+nltk==3.8.1
+
+# Data
+numpy==1.26.4
+pandas>=2.0.0
+openpyxl>=3.1.0
+geonamescache==3.0.1
+xlrd>=2.0.1
+python-dateutil>=2.8.0
+reportlab>=4.2.0
+
+# PDF parsing
+pypdf>=5.1.0
+
+# HTTP
+requests==2.31.0
+httpx>=0.25,<1.0
+anyio>=4.6
+
+# HTML sanitisation
+# Needed because VendorLink renders operator-authored request copy
+# (intro/header/scope/footer) as HTML. Those four fields were going through
+# a bare |safe, which is stored XSS: anyone who can raise a request could
+# persist a <script> that fires for every vendor and admin who opens it.
+# nh3 rather than bleach: bleach is archived upstream and its own README
+# points here. Drives the safe_richtext filter in vendorlink/templatetags.
+nh3>=0.2.15
+
+# Testing
+pytest==8.0.0
+pytest-django==4.7.0
+factory-boy==3.3.0
+
+# Code Quality
+# black is deliberately absent: it strips the aligned assignment columns this
+# codebase uses on purpose in 719 places. See scripts/ci-quality.sh.
+flake8==7.0.0
+bandit==1.7.7
+
+# VendorLink — country/region lookup for vendor coverage analytics
+geonamescache==3.0.1
+# VendorLink — rate-card PDF export in vendorlink/commercial.py
+reportlab>=4.2.0
+# Meril-V — reads supplier PDFs in services/consolidator.py
+pypdf>=5.1.0
+# VendorLink — HTML sanitisation. Operator-authored request copy
+# (intro/header/scope/footer) is rendered as HTML and was going through a bare
+# |safe, which is stored XSS: anyone who could raise a request could persist a
+# <script> that fired for every vendor and admin who opened it. nh3 rather than
+# bleach — bleach is archived upstream and its own README points here. Drives
+# the safe_richtext filter in vendorlink/templatetags.
+nh3>=0.2.15

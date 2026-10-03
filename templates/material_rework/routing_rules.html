@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Routing Rules — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/production_list.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+<style>
+/* ── Stage picker ──────────────────────────────────────────────────────
+   A flow is an ordered list, so the control has to show order, not just
+   membership — a set of checkboxes would say "OM and PPIC are involved"
+   without saying which comes first, and the order is the whole point.
+
+   Chosen stages sit in a numbered strip; the pool below holds the rest.
+   Clicking moves a stage between them, appending at the end, which is how
+   a chain is built in practice: gates in sequence, terminal last. */
+.rr-flow      { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+                min-height: 46px; padding: 8px 10px; background: #f8fafc;
+                border: 1px dashed #cbd5e1; border-radius: 8px; }
+.rr-flow:empty::after,
+.rr-flow.is-empty::after { content: 'Click a stage below to build the flow';
+                           color: #94a3b8; font-size: .78rem; }
+.rr-chip      { display: inline-flex; align-items: center; gap: 7px;
+                padding: 6px 12px; border-radius: 999px; border: 1px solid transparent;
+                font-size: .8rem; font-weight: 700; cursor: pointer;
+                background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
+.rr-chip--terminal { background: #dcfce7; color: #166534; border-color: #86efac; }
+.rr-chip--pool     { background: #fff; color: #475569; border-color: #d1d5db; font-weight: 600; }
+.rr-chip--pool:hover { background: #f1f5f9; }
+.rr-chip__n   { display: inline-flex; align-items: center; justify-content: center;
+                width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,.7);
+                font-size: .68rem; font-weight: 800; }
+.rr-arrow     { color: #94a3b8; font-size: .8rem; }
+.rr-pool      { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.rr-hint      { font-size: .74rem; color: #64748b; margin-top: 8px; line-height: 1.55; }
+.rr-card      { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+                padding: 20px; margin-bottom: 18px; }
+.rr-card h3   { margin: 0 0 4px; font-size: .95rem; font-weight: 700; color: #06152b; }
+.rr-sub       { font-size: .78rem; color: #64748b; margin: 0 0 16px; }
+.rr-btn       { padding: 9px 20px; border: none; border-radius: 7px; font-size: .84rem;
+                font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.rr-btn--save { background: #059669; color: #fff; }
+.rr-btn--del  { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
+.rr-field     { font-size: .83rem; font-weight: 600; color: #374151;
+                display: block; margin-bottom: 6px; }
+.rr-select    { border: 1px solid #d1d5db; border-radius: 7px; padding: 8px 11px;
+                font-size: .85rem; font-family: inherit; background: #fff; }
+.rr-warn      { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+                padding: 12px 16px; color: #92400e; font-size: .8rem; margin-bottom: 18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:masters' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back to Masters</a>
+
+    <div class="md-header">
+        <h1><i class="fas fa-diagram-project"></i> Routing Rules</h1>
+        <p>
+            Decide who reviews a rework batch, and in what order. A flow runs left to right
+            and ends where the material actually moves — Production (which books the slot)
+            or Warehouse (straight into the rework round trip, no review).
+        </p>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="background:{% if msg.tags == 'error' %}#fef2f2{% else %}#ecfdf5{% endif %};border:1px solid {% if msg.tags == 'error' %}#fca5a5{% else %}#6ee7b7{% endif %};border-radius:6px;padding:12px 16px;margin-bottom:14px;color:{% if msg.tags == 'error' %}#991b1b{% else %}#065f46{% endif %};font-size:.86rem;">
+        <i class="fas fa-{% if msg.tags == 'error' %}circle-exclamation{% else %}check-circle{% endif %}"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="rr-warn">
+        <i class="fas fa-circle-info"></i>
+        <strong>A Type of Rework rule beats a Requested By rule.</strong>
+        Assigning a type such as Damage is how you send a batch straight to whoever should
+        handle it, whoever raised it. Editing a rule affects <strong>new</strong> uploads only —
+        every batch keeps the flow it started on, so reordering a flow can never re-route
+        work already in progress.
+    </div>
+
+    {% comment %}
+    Type rules first, because they are the ones that override. Reading the
+    screen top to bottom then matches the order the engine applies them.
+    {% endcomment %}
+    <div class="rr-card">
+        <h3><i class="fas fa-wrench" style="color:#b45309;"></i> By Type of Rework <span style="font-weight:600;color:#64748b;font-size:.8rem;">— wins outright</span></h3>
+        <p class="rr-sub">A batch with one of these rework types follows this flow regardless of who requested it.</p>
+        {% if type_rules %}
+        {% for rule in type_rules %}
+        {% include "material_rework/_routing_rule_row.html" with rule=rule %}
+        {% endfor %}
+        {% else %}
+        <div class="md-empty" style="padding:20px;">No rework-type rules. Every batch follows its requester's flow.</div>
+        {% endif %}
+    </div>
+
+    <div class="rr-card">
+        <h3><i class="fas fa-user-tag" style="color:#0369a1;"></i> By Requested By</h3>
+        <p class="rr-sub">Used when the batch's rework type has no rule of its own.</p>
+        {% if requester_rules %}
+        {% for rule in requester_rules %}
+        {% include "material_rework/_routing_rule_row.html" with rule=rule %}
+        {% endfor %}
+        {% else %}
+        <div class="md-empty" style="padding:20px;">No requester rules — every upload falls back to {{ default_chain_label }}.</div>
+        {% endif %}
+
+        {% if unruled_requested_by %}
+        <div class="rr-hint" style="margin-top:14px;color:#92400e;">
+            <i class="fas fa-triangle-exclamation"></i>
+            No rule yet for:
+            {% for o in unruled_requested_by %}<strong>{{ o.name }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+            Uploads from these fall back to <strong>{{ default_chain_label }}</strong> — the longest flow,
+            so nothing skips a review by accident.
+        </div>
+        {% endif %}
+    </div>
+
+    {% comment %}Add a rule.{% endcomment %}
+    <div class="rr-card" id="rr-add">
+        <h3><i class="fas fa-plus" style="color:#059669;"></i> Add a flow</h3>
+        <p class="rr-sub">Key the rule on one thing: a Requested By option, or a Type of Rework.</p>
+
+        <form method="post" data-rr-form>
+            {% csrf_token %}
+
+            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
+                <div>
+                    <label class="rr-field" for="rr-kind">Applies to</label>
+                    <select name="key_kind" id="rr-kind" class="rr-select" required>
+                        <option value="requested_by">Requested By</option>
+                        <option value="rework_type">Type of Rework</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="rr-field" for="rr-key">Option</label>
+                    <select name="key_id" id="rr-key" class="rr-select" required>
+                        {% comment %}
+                        Only options without a rule are offered. A second rule for the
+                        same option would make which one wins depend on row order, and
+                        the server refuses it anyway — so it is not offered here.
+                        {% endcomment %}
+                        <optgroup label="Requested By" data-kind="requested_by">
+                        {% for o in unruled_requested_by %}
+                            <option value="{{ o.pk }}" data-kind="requested_by">{{ o.name }}</option>
+                        {% endfor %}
+                        </optgroup>
+                        <optgroup label="Type of Rework" data-kind="rework_type">
+                        {% for o in unruled_rework_type %}
+                            <option value="{{ o.pk }}" data-kind="rework_type">{{ o.name }}</option>
+                        {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <div>
+                    <label class="rr-field" for="rr-notes">Note <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
+                    <input type="text" name="notes" id="rr-notes" class="rr-select" maxlength="300"
+                           placeholder="Why this flow" style="min-width:220px;">
+                </div>
+                <div>
+                    <label class="rr-field">&nbsp;</label>
+                    <label style="display:inline-flex;align-items:center;gap:7px;font-size:.83rem;color:#374151;">
+                        <input type="checkbox" name="is_active" checked> Active
+                    </label>
+                </div>
+            </div>
+
+            <label class="rr-field">Flow</label>
+            <div class="rr-flow is-empty" data-rr-chain></div>
+            <div class="rr-pool" data-rr-pool>
+                {% for code, label in stage_choices %}
+                <button type="button" class="rr-chip rr-chip--pool" data-stage="{{ code }}"
+                        data-terminal="{% if code in terminal_stages %}1{% else %}0{% endif %}">
+                    <i class="fas fa-plus" style="font-size:.65rem;"></i> {{ label }}
+                </button>
+                {% endfor %}
+            </div>
+            <p class="rr-hint">
+                Gates (Order Management, PPIC) approve or reject and pass the batch on.
+                Production and Warehouse are endings — a flow must finish at exactly one of them.
+                Warehouse means no review at all: the uploader commits to the rework slot and the
+                material goes straight into the round trip.
+            </p>
+
+            <div style="margin-top:18px;">
+                <button type="submit" name="action" value="save" class="rr-btn rr-btn--save"><i class="fas fa-check"></i> Save flow</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+<script>
+/* The stage picker.
+ *
+ * A flow is an ordered list, so the chosen stages live in their own strip in
+ * the order they will run, and the hidden inputs are rewritten from that strip
+ * on every change. Submitting the strip's order is what makes the order
+ * meaningful — a checkbox group would post a set and lose it.
+ *
+ * The server re-validates the chain regardless (routing.validate_chain), so
+ * everything here is guidance, never the guarantee.
+ */
+(function () {
+    'use strict';
+
+    var TERMINALS = {};
+    document.querySelectorAll('[data-rr-pool] [data-stage]').forEach(function (btn) {
+        TERMINALS[btn.dataset.stage] = btn.dataset.terminal === '1';
+    });
+
+    function wire(form) {
+        var chain = form.querySelector('[data-rr-chain]');
+        var pool  = form.querySelector('[data-rr-pool]');
+        if (!chain || !pool) { return; }
+
+        /* The chosen list is the single source of truth; the DOM is redrawn
+           from it rather than being mutated in place, which keeps the numbers
+           and the arrows correct after any add or remove. */
+        var chosen = (chain.dataset.initial || '').split(',').filter(Boolean);
+
+        function labelFor(stage) {
+            var btn = pool.querySelector('[data-stage="' + stage + '"]');
+            return btn ? btn.textContent.trim() : stage;
+        }
+
+        function render() {
+            chain.innerHTML = '';
+            chain.classList.toggle('is-empty', chosen.length === 0);
+
+            chosen.forEach(function (stage, index) {
+                if (index > 0) {
+                    var arrow = document.createElement('span');
+                    arrow.className = 'rr-arrow';
+                    arrow.textContent = '→';
+                    chain.appendChild(arrow);
+                }
+                var chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'rr-chip' + (TERMINALS[stage] ? ' rr-chip--terminal' : '');
+                chip.title = 'Remove from this flow';
+
+                var n = document.createElement('span');
+                n.className = 'rr-chip__n';
+                n.textContent = String(index + 1);
+                chip.appendChild(n);
+                /* textContent, not innerHTML: the label comes from the stage
+                   master and there is no reason to let markup through. */
+                chip.appendChild(document.createTextNode(labelFor(stage)));
+
+                var x = document.createElement('i');
+                x.className = 'fas fa-xmark';
+                x.style.fontSize = '.7rem';
+                chip.appendChild(x);
+
+                chip.addEventListener('click', function () {
+                    chosen.splice(index, 1);
+                    render();
+                });
+                chain.appendChild(chip);
+
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'stages';
+                hidden.value = stage;
+                chain.appendChild(hidden);
+            });
+
+            /* A stage already in the flow is not offered again: validate_chain
+               rejects a repeat, so letting it be clicked twice would only
+               produce an error the user could not have predicted. */
+            pool.querySelectorAll('[data-stage]').forEach(function (btn) {
+                var used = chosen.indexOf(btn.dataset.stage) !== -1;
+                btn.disabled = used;
+                btn.style.opacity = used ? '.35' : '';
+                btn.style.cursor = used ? 'default' : 'pointer';
+            });
+        }
+
+        pool.querySelectorAll('[data-stage]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var stage = btn.dataset.stage;
+                if (chosen.indexOf(stage) !== -1) { return; }
+                if (TERMINALS[stage]) {
+                    /* One ending per flow, and it goes last. Swapping the
+                       existing terminal rather than refusing the click is the
+                       kinder reading of "I meant this ending instead". */
+                    chosen = chosen.filter(function (s) { return !TERMINALS[s]; });
+                    chosen.push(stage);
+                } else {
+                    /* A gate always belongs before the ending. */
+                    var terminalIndex = -1;
+                    chosen.forEach(function (s, i) { if (TERMINALS[s]) { terminalIndex = i; } });
+                    if (terminalIndex === -1) {
+                        chosen.push(stage);
+                    } else {
+                        chosen.splice(terminalIndex, 0, stage);
+                    }
+                }
+                render();
+            });
+        });
+
+        render();
+    }
+
+    document.querySelectorAll('[data-rr-form]').forEach(wire);
+}());
+</script>
+{% endblock %}

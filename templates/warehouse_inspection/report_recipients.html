@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Warehouse Inspection - Report Recipients{% endblock %}
+
+{% block extra_css %}
+<style>
+.wi-rr-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px;
+}
+
+.wi-rr-header h1 {
+    margin: 0 0 4px;
+    font-size: 1.6em;
+    color: #1a202c;
+}
+
+.wi-rr-header p {
+    margin: 0 0 24px;
+    color: #6b7280;
+}
+
+.wi-rr-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.wi-rr-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.wi-rr-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wi-rr-form label {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: #374151;
+}
+
+.wi-rr-form input[type="email"],
+.wi-rr-form input[type="text"] {
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95em;
+    min-width: 220px;
+}
+
+.wi-rr-btn {
+    background: #0076c8;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wi-rr-btn:hover {
+    background: #005fa3;
+}
+
+.wi-rr-btn-remove {
+    background: none;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.wi-rr-btn-remove:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
+.wi-rr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+
+.wi-rr-table th,
+.wi-rr-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f1f3;
+    font-size: 0.9em;
+}
+
+.wi-rr-table th {
+    color: #6b7280;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.03em;
+}
+
+.wi-rr-empty {
+    text-align: center;
+    color: #6b7280;
+    padding: 24px;
+}
+
+.wi-rr-message {
+    display: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 0.9em;
+}
+
+.wi-rr-message.success {
+    display: block;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.wi-rr-message.error {
+    display: block;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wi-rr-page">
+    <div class="wi-rr-header">
+        <h1><i class="fas fa-envelope"></i> Report Recipients</h1>
+        <p>Everyone listed here (and active) receives the daily activity report and the inspection summary email. Add or remove people any time - it takes effect on the next send, no deploy needed.</p>
+    </div>
+
+    <div id="wiRrMessage" class="wi-rr-message"></div>
+
+    <div class="wi-rr-card">
+        <form id="wiRrAddForm" class="wi-rr-form">
+            <div class="form-group">
+                <label for="wiRrEmail">Email *</label>
+                <input type="email" id="wiRrEmail" required placeholder="name@merillife.com">
+            </div>
+            <div class="form-group">
+                <label for="wiRrName">Name (optional)</label>
+                <input type="text" id="wiRrName" placeholder="Display name">
+            </div>
+            <button type="submit" class="wi-rr-btn"><i class="fas fa-plus"></i> Add Recipient</button>
+        </form>
+    </div>
+
+    <div class="wi-rr-card">
+        <div id="wiRrTableContainer">
+            <div class="wi-rr-empty"><i class="fas fa-spinner fa-spin"></i> Loading recipients...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.WAREHOUSE_INSPECTION_REPORT_RECIPIENT_URLS = {
+    list: "{% url 'warehouse_inspection:report_recipients_list' %}",
+    add: "{% url 'warehouse_inspection:add_report_recipient' %}",
+    remove: "{% url 'warehouse_inspection:remove_report_recipient' %}"
+};
+</script>
+<script src="{% static 'js/warehouse-inspection/report_recipients.js' %}"></script>
+{% endblock %}

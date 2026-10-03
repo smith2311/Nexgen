@@ -1,0 +1,62 @@
+{% extends "visa_management/email/base_email.html" %}
+{% block title %}Application Submitted — {{ app.ref_no }}{% endblock %}
+{% block content %}
+
+<tr>
+  <td style="background:#ffffff;padding:28px 36px 0;">
+    <p style="margin:0 0 6px;color:#0f172a;font-size:16px;font-weight:600;">Dear {{ app.applicant_name }},</p>
+    <p style="margin:0;color:#5f6c7d;font-size:14px;line-height:1.6;">
+      Your visa application <strong>{{ app.ref_no }}</strong> has been submitted successfully and is now awaiting
+      approval from your reporting head.
+    </p>
+  </td>
+</tr>
+
+<!-- Application summary -->
+<tr>
+  <td style="background:#ffffff;padding:20px 36px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      <tr>
+        <td style="padding:14px 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="50%" style="vertical-align:top;padding-right:12px;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Country</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.country.name }}</p>
+              </td>
+              <td width="50%" style="vertical-align:top;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Travel Dates</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.visit_start_date|date:"d M Y" }} – {{ app.visit_end_date|date:"d M Y" }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+<!-- HOD info -->
+<tr>
+  <td style="background:#ffffff;padding:18px 36px 0;">
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 16px;">
+      <p style="margin:0 0 4px;color:#1e40af;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Awaiting Approval From</p>
+      <p style="margin:0;color:#1e3a8a;font-size:14px;font-weight:600;">{{ app.hod_name }}</p>
+      <p style="margin:2px 0 0;color:#3b5aa8;font-size:12px;">{{ app.hod_email }}</p>
+    </div>
+  </td>
+</tr>
+
+<!-- CTA -->
+<tr>
+  <td style="background:#ffffff;padding:24px 36px 32px;text-align:center;">
+    <a href="{{ view_url }}"
+       style="display:inline-block;background:linear-gradient(135deg,#0076c8,#005fa3);color:#ffffff;text-decoration:none;
+              font-size:15px;font-weight:700;padding:14px 36px;border-radius:8px;
+              letter-spacing:0.02em;box-shadow:0 4px 14px rgba(0,118,200,0.35);">
+      View Application
+    </a>
+  </td>
+</tr>
+
+{% endblock %}

@@ -1,0 +1,306 @@
+/* ============================================================================
+   VendorLink — Admin → Insights (per-user activity analytics)
+
+   Its own stylesheet rather than 200 more lines in vendorlink-ui.css: only two
+   screens load this, and both of them load Highcharts too, so keeping the pair
+   together makes what the pages cost obvious.
+
+   Charts are Highcharts, vendored at static/lib/highcharts/ — the same bundle
+   the billing dashboard uses, so nothing is fetched at runtime.
+
+   The heatmap below is CSS, not Highcharts, and deliberately so: the vendored
+   Highcharts 12.1.2 build registers only area, areaspline, bar, column, line,
+   pie, scatter and spline. It ships no heatmap module and no colour axis, so a
+   heatmap series would render an empty frame. A 7x24 CSS grid is a real
+   heatmap, adds no dependency, and themes from the tokens here.
+   ========================================================================= */
+
+/* ── Hero band — big headline numbers, in the spirit of the reference ────── */
+.vla-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.vla-herocard {
+    position: relative;
+    padding: 18px 20px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, .04);
+    overflow: hidden;
+}
+/* A 4px colour rail rather than a tinted card, so the number stays the loudest
+   thing on it — which is the whole point of a hero figure. */
+.vla-herocard::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--vla-accent, #0076c8);
+}
+.vla-herocard--blue   { --vla-accent: #0076c8; }
+.vla-herocard--cyan   { --vla-accent: #00b5e2; }
+.vla-herocard--violet { --vla-accent: #8b5cf6; }
+.vla-herocard--amber  { --vla-accent: #f59e0b; }
+.vla-herocard--green  { --vla-accent: #15803d; }
+.vla-herocard--red    { --vla-accent: #ef4444; }
+
+.vla-herocard-top {
+    display: flex; align-items: center; gap: 8px;
+    font-size: .72rem; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: #8a96a6;
+}
+.vla-herocard-ic {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border-radius: 8px;
+    background: #eef4fa;
+    color: var(--vla-accent, #0076c8);
+    font-size: .78rem;
+}
+.vla-herocard-val {
+    margin-top: 10px;
+    font-size: 2rem; line-height: 1.1; font-weight: 800;
+    color: #101828;
+    font-variant-numeric: tabular-nums;
+}
+.vla-herocard-sub { margin-top: 4px; font-size: .78rem; color: #8a96a6; }
+
+/* ── Chart cards ─────────────────────────────────────────────────────────── */
+/* auto-fit so two sit side by side on a desktop and stack on a tablet without
+   a media query per layout. */
+.vla-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.vla-grid--full { grid-template-columns: 1fr; }
+.vla-card {
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, .04);
+    min-width: 0;
+}
+.vla-card-hdr {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.vla-card-hdr h3 {
+    margin: 0; font-size: .95rem; font-weight: 700; color: #101828;
+    display: flex; align-items: center; gap: 8px;
+}
+.vla-card-hdr h3 i { color: #0076c8; font-size: .85rem; }
+.vla-card-note { font-size: .74rem; color: #8a96a6; }
+
+/* Highcharts writes its own inline height onto the container, so this is a
+   reservation that stops the card collapsing to zero and reflowing the page
+   once the script runs. */
+.vla-chart { width: 100%; min-height: 260px; }
+.vla-chart--tall { min-height: 360px; }
+
+/* ── Heatmap: 7 weekday rows x 24 hour columns ───────────────────────────── */
+.vla-heatwrap { overflow-x: auto; padding-bottom: 4px; }
+.vla-heat {
+    display: grid;
+    /* Label gutter + 24 equal hour columns. The min-width keeps cells legible
+       and lets the wrapper scroll on a phone rather than crushing them into
+       unreadable slivers. */
+    grid-template-columns: 34px repeat(24, minmax(16px, 1fr));
+    gap: 3px;
+    min-width: 560px;
+}
+.vla-heat-hr,
+.vla-heat-day {
+    font-size: .62rem; color: #8a96a6; font-weight: 600;
+    display: flex; align-items: center;
+}
+.vla-heat-hr { justify-content: center; }
+/* ── Heatmap scale: YlGnBu (ColorBrewer sequential, 5-class) ──────────────
+   Every step changes HUE as well as lightness — pale, mint, teal, blue,
+   indigo. That matters because these cells are 16px with a 3px gap: a
+   single-hue ramp (the previous five tints of one blue) separates fine in a
+   swatch and not at all in the grid, so a reader could see that a corner was
+   darker but not how much busier it actually was.
+
+   Colour-blind safe, which is why it is this and not red-amber-green. And
+   deliberately not traffic-light colours either: busy is not bad, and painting
+   the peak hour red would read as an alarm about a healthy Tuesday morning. */
+:root {
+    --vla-heat-0: #eceff3;
+    --vla-heat-1: #edf8b1;
+    --vla-heat-2: #7fcdbb;
+    --vla-heat-3: #41b6c4;
+    --vla-heat-4: #2c7fb8;
+    --vla-heat-5: #253494;
+}
+.vla-heat-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 3px;
+    /* Flatter and cooler than the old #eef2f7, which sat close enough to the
+       old level-1 tint to blur the "nobody worked" / "one person worked"
+       distinction that _heat_level goes out of its way to preserve. */
+    background: var(--vla-heat-0);
+    transition: transform .1s ease, box-shadow .1s ease;
+}
+.vla-heat-cell:hover {
+    transform: scale(1.35);
+    box-shadow: 0 2px 8px rgba(16, 32, 64, .28);
+    position: relative;
+    z-index: 2;
+}
+.vla-heat-cell[data-level="1"] { background: var(--vla-heat-1); }
+.vla-heat-cell[data-level="2"] { background: var(--vla-heat-2); }
+.vla-heat-cell[data-level="3"] { background: var(--vla-heat-3); }
+.vla-heat-cell[data-level="4"] { background: var(--vla-heat-4); }
+.vla-heat-cell[data-level="5"] { background: var(--vla-heat-5); }
+
+.vla-heat-legend {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px; font-size: .72rem; color: #8a96a6;
+}
+.vla-heat-key {
+    width: 14px; height: 14px; border-radius: 3px;
+    background: var(--vla-heat-0);
+}
+.vla-heat-key[data-level="1"] { background: var(--vla-heat-1); }
+.vla-heat-key[data-level="2"] { background: var(--vla-heat-2); }
+.vla-heat-key[data-level="3"] { background: var(--vla-heat-3); }
+.vla-heat-key[data-level="4"] { background: var(--vla-heat-4); }
+.vla-heat-key[data-level="5"] { background: var(--vla-heat-5); }
+/* The count each step stands for, under its swatch. "Less ... More" told a
+   reader the direction but not the magnitude — whether the dark corner meant
+   four actions or four hundred. */
+.vla-heat-key-wrap {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.vla-heat-key-n { font-size: .6rem; color: #9aa5b4; line-height: 1; }
+
+/* ── Legend dots, mirroring KIND_COLORS in useractivity.py ───────────────── */
+.vla-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+.vla-legend-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .76rem; color: #5b6879;
+}
+.vla-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.vla-dot--search     { background: #00b5e2; }
+.vla-dot--onboard    { background: #0076c8; }
+.vla-dot--commercial { background: #8b5cf6; }
+.vla-dot--assess     { background: #f59e0b; }
+.vla-dot--perform    { background: #15803d; }
+
+/* ── Peer standing ───────────────────────────────────────────────────────── */
+.vla-rank { display: flex; align-items: baseline; gap: 8px; }
+.vla-rank-n {
+    font-size: 2.4rem; line-height: 1; font-weight: 800; color: #0076c8;
+    font-variant-numeric: tabular-nums;
+}
+.vla-rank-of { font-size: .85rem; color: #8a96a6; }
+.vla-delta { font-weight: 800; font-variant-numeric: tabular-nums; }
+.vla-delta--up   { color: #15803d; }
+.vla-delta--down { color: #b45309; }
+
+/* ── Event feed ──────────────────────────────────────────────────────────── */
+.vla-feed { display: flex; flex-direction: column; }
+.vla-feed-row {
+    display: grid;
+    grid-template-columns: auto 92px minmax(0, 1fr) auto;
+    gap: 12px; align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid #f1f4f8;
+}
+.vla-feed-row:last-child { border-bottom: none; }
+.vla-feed-ic {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border-radius: 8px; background: #f4f7fb; color: #5b6879; font-size: .74rem;
+}
+.vla-feed-time { font-size: .74rem; color: #8a96a6; font-variant-numeric: tabular-nums; }
+.vla-feed-what { min-width: 0; font-size: .84rem; color: #101828; overflow-wrap: anywhere; }
+.vla-feed-tag { font-size: .72rem; color: #8a96a6; white-space: nowrap; }
+
+/* ── Identity strip on the individual page ───────────────────────────────── */
+.vla-idstrip { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.vla-idavatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px; flex: 0 0 auto;
+    border-radius: 50%;
+    background: #e6f2fb; color: #0076c8;
+    font-size: 1.1rem; font-weight: 800; text-transform: uppercase;
+}
+/* An account with access but no activity reads as muted rather than absent —
+   "granted, never used" is a finding, not an empty row. */
+.vla-idavatar--idle { background: #f1f4f8; color: #98a2b3; }
+.vla-kvgrid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px; flex: 1; min-width: 0; margin: 0;
+}
+.vla-kvgrid dt {
+    font-size: .68rem; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: #8a96a6;
+}
+.vla-kvgrid dd { margin: 3px 0 0; font-size: .88rem; font-weight: 600; color: #101828; }
+
+/* ── Picker + window controls ────────────────────────────────────────────── */
+.vla-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.vla-select {
+    height: 38px; padding: 0 12px;
+    border: 1px solid #d8e0ea; border-radius: 10px;
+    background: #fff; color: #101828; font: inherit; font-size: .85rem;
+    cursor: pointer; min-width: 200px;
+}
+.vla-select:focus {
+    outline: none; border-color: #0076c8; box-shadow: 0 0 0 3px rgba(0, 118, 200, .12);
+}
+
+/* ── Roster table ────────────────────────────────────────────────────────── */
+.vla-tablewrap { overflow-x: auto; }
+.vla-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.vla-table th {
+    text-align: left; padding: 10px 12px;
+    font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: #8a96a6;
+    border-bottom: 1px solid #e8edf3; white-space: nowrap;
+}
+.vla-table td { padding: 10px 12px; border-bottom: 1px solid #f1f4f8; color: #344054; }
+.vla-table tbody tr:hover { background: #fafcfe; }
+.vla-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.vla-table .strong { font-weight: 700; color: #101828; }
+.vla-who { display: flex; align-items: center; gap: 10px; }
+.vla-whoav {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; flex: 0 0 auto;
+    border-radius: 50%; background: #e6f2fb; color: #0076c8;
+    font-size: .7rem; font-weight: 800; text-transform: uppercase;
+}
+.vla-whoav--idle { background: #f1f4f8; color: #98a2b3; }
+.vla-whosub { font-size: .72rem; color: #8a96a6; }
+
+.vla-rolechip {
+    display: inline-flex; align-items: center;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: .7rem; font-weight: 700; white-space: nowrap;
+    background: #f1f4f8; color: #5b6879;
+}
+.vla-rolechip--superuser { background: #ede9fe; color: #6d28d9; }
+.vla-rolechip--admin     { background: #e6f2fb; color: #0060a6; }
+.vla-rolechip--staff     { background: #e0f8f5; color: #0f766e; }
+.vla-rolechip--vendor    { background: #fef3c7; color: #b45309; }
+
+.vla-empty {
+    padding: 40px 20px; text-align: center; color: #8a96a6;
+}
+.vla-empty i { font-size: 1.8rem; display: block; margin-bottom: 10px; color: #cbd5e1; }
+.vla-empty h4 { margin: 0 0 4px; font-size: .95rem; color: #475467; }
+
+@media (max-width: 720px) {
+    .vla-feed-row { grid-template-columns: auto minmax(0, 1fr); }
+    .vla-feed-time, .vla-feed-tag { grid-column: 2; }
+    .vla-select { min-width: 0; width: 100%; }
+    .vla-herocard-val { font-size: 1.6rem; }
+}

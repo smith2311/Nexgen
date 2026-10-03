@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Grocery Dashboard{% endblock %}
+{% block page_title %}Grocery Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<script>
+  const GS_DASH = { apiUrl: "{% url 'grocery_stock:dashboard_api' %}" };
+</script>
+
+<div class="lm-page gs-master gs-master-wide">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'grocery_stock:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Grocery Stock Management
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-gauge-high"></i> Dashboard</h1>
+          <p>Inventory value, movement and cost at a glance — <span id="gsAsOf">…</span></p>
+        </div>
+        <div class="gs-doc-actions">
+          <a class="btn" href="{% url 'grocery_stock:reports' %}">
+            <i class="fas fa-chart-column"></i> All Reports
+          </a>
+          <button class="btn" id="gsRefreshBtn">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    <div class="alert-banner error" id="gsDashError" hidden>
+      <i class="fas fa-circle-exclamation"></i>
+      <span id="gsDashErrorText"></span>
+    </div>
+
+    <!-- ═══ KPI TILES ═══ -->
+    <div class="gs-kpi-grid" id="gsKpiGrid">
+      <div class="gs-kpi gs-kpi-loading"><span class="gs-spinner"></span> Loading…</div>
+    </div>
+
+    <!-- ═══ CHARTS ═══ -->
+    <div class="gs-chart-grid">
+
+      <div class="gs-panel gs-chart-wide">
+        <div class="gs-panel-hdr">
+          <i class="fas fa-chart-line"></i> Purchase vs Consumption — last 12 months
+        </div>
+        <div class="gs-panel-body">
+          <div class="gs-chart-box"><canvas id="chartMonthly"></canvas></div>
+          <div class="gs-chart-empty" id="emptyMonthly" hidden>
+            <i class="fas fa-chart-line"></i><p>No movements yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-panel">
+        <div class="gs-panel-hdr">
+          <i class="fas fa-chart-pie"></i> Inventory value by category
+        </div>
+        <div class="gs-panel-body">
+          <div class="gs-chart-box"><canvas id="chartCategory"></canvas></div>
+          <div class="gs-chart-empty" id="emptyCategory" hidden>
+            <i class="fas fa-chart-pie"></i><p>No stock on hand.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-panel">
+        <div class="gs-panel-hdr">
+          <i class="fas fa-hourglass-half"></i> Expiry exposure
+        </div>
+        <div class="gs-panel-body">
+          <div class="gs-chart-box"><canvas id="chartExpiry"></canvas></div>
+          <div class="gs-chart-empty" id="emptyExpiry" hidden>
+            <i class="fas fa-hourglass-half"></i><p>No dated batches in stock.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-panel">
+        <div class="gs-panel-hdr">
+          <i class="fas fa-truck-field"></i> Purchases by supplier
+        </div>
+        <div class="gs-panel-body">
+          <div class="gs-chart-box"><canvas id="chartSupplier"></canvas></div>
+          <div class="gs-chart-empty" id="emptySupplier" hidden>
+            <i class="fas fa-truck-field"></i><p>No posted receipts yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-panel gs-chart-wide">
+        <div class="gs-panel-hdr">
+          <i class="fas fa-ranking-star"></i> Top purchased items
+        </div>
+        <div class="gs-panel-body gs-panel-body-flush">
+          <div class="gs-tbl-wrap" style="border:none;box-shadow:none;border-radius:0">
+            <table class="gs-tbl">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="gs-cell-num" style="width:130px">Quantity</th>
+                  <th class="gs-cell-num" style="width:150px">Purchase Value</th>
+                </tr>
+              </thead>
+              <tbody id="gsTopItems">
+                <tr><td class="gs-loading" colspan="3">
+                  <span class="gs-spinner"></span> Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="lm-toast" id="gsToast">
+  <i class="fas fa-check-circle"></i><span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/grocery_stock/grocery_common.js' %}"></script>
+<script src="{% static 'js/grocery_stock/grocery_dashboard.js' %}"></script>
+{% endblock %}

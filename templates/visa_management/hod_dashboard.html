@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}HOD — Visa Approvals{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-clipboard-check"></i> Pending Approvals</h1>
+          <p>Visa applications awaiting your decision</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ pending|length }}</div>
+            <div class="lm-hstat-lbl">Pending</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ actioned|length }}</div>
+            <div class="lm-hstat-lbl">Actioned</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Pending applications -->
+    <div class="section-hdr"><h2><i class="fas fa-hourglass-half" style="color:var(--amber)"></i> Awaiting Decision</h2></div>
+
+    {% if role == 'admin' %}
+    <div class="tbl-wrap tbl-scroll" style="--cols: 1.5fr 1.5fr 1fr 1fr 1.5fr 1.2fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Ref No</div>
+        <div>Employee</div>
+        <div>Company</div>
+        <div>Country</div>
+        <div>Travel Dates</div>
+        <div>Assigned HOD</div>
+        <div>Submitted</div>
+        <div>Action</div>
+      </div>
+      {% for a in pending %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        <div><span class="vm-mono">{{ a.ref_no }}</span></div>
+        <div>
+          <div class="tbl-name">{{ a.applicant_name }}</div>
+          <div class="tbl-sub">{{ a.designation }}</div>
+        </div>
+        <div>{{ a.company.code }}</div>
+        <div>{{ a.country.name }}</div>
+        <div style="font-size:12px;white-space:nowrap">{{ a.visit_start_date|date:"d M Y" }} — {{ a.visit_end_date|date:"d M Y" }}</div>
+        <div>
+          <div class="tbl-name" style="font-size:12.5px">{{ a.hod_name }}</div>
+          <div class="tbl-sub">{{ a.hod_email }}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ a.created_at|date:"d M Y" }}</div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:hod_review' a.pk %}" class="tbl-btn">Review →</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-check-circle" style="color:var(--green)"></i>
+        <p>No pending HOD approvals.</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="tbl-wrap tbl-scroll" style="--cols: 1.5fr 1.5fr 1fr 1fr 1.5fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Ref No</div>
+        <div>Employee</div>
+        <div>Company</div>
+        <div>Country</div>
+        <div>Travel Dates</div>
+        <div>Submitted</div>
+        <div>Action</div>
+      </div>
+      {% for a in pending %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        <div><span class="vm-mono">{{ a.ref_no }}</span></div>
+        <div>
+          <div class="tbl-name">{{ a.applicant_name }}</div>
+          <div class="tbl-sub">{{ a.designation }}</div>
+        </div>
+        <div>{{ a.company.code }}</div>
+        <div>{{ a.country.name }}</div>
+        <div style="font-size:12px;white-space:nowrap">{{ a.visit_start_date|date:"d M Y" }} — {{ a.visit_end_date|date:"d M Y" }}</div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ a.created_at|date:"d M Y" }}</div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:hod_review' a.pk %}" class="tbl-btn">Review →</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-check-circle" style="color:var(--green)"></i>
+        <p>All caught up — no pending approvals.</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recently actioned -->
+    {% if actioned %}
+    <div class="section-hdr" style="margin-top:28px"><h2><i class="fas fa-history" style="color:var(--text-muted)"></i> Recently Actioned</h2></div>
+
+    <div class="tbl-wrap tbl-scroll" style="--rcols: 1.5fr 1.5fr 1fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--rcols)">
+        <div>Ref No</div>
+        <div>Employee</div>
+        <div>Country</div>
+        <div>Status</div>
+        <div>Actioned On</div>
+      </div>
+      {% for a in actioned %}
+      <div class="tbl-row" style="grid-template-columns: var(--rcols); cursor:pointer"
+           onclick="window.location.href='{% url 'visa:hod_review' a.pk %}'">
+        <div><span class="vm-mono">{{ a.ref_no }}</span></div>
+        <div class="tbl-name">{{ a.applicant_name }}</div>
+        <div>{{ a.country.name }}</div>
+        <div><span class="vm-pill {{ a.status }}">{{ a.status_label }}</span></div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ a.hod_actioned_at|date:"d M Y" }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

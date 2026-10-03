@@ -1,0 +1,608 @@
+/* ================================================================
+   VendorLink — Component Library (.vl scope)
+   Depends on vendorlink-tokens.css. Load tokens first.
+
+   Components here are the ones Tier 1 consumes. Each is styled from
+   tokens only — no literal colours below this line except where a
+   comment says why.
+   ================================================================ */
+
+/* ── PageHeader ─────────────────────────────────────────────────
+   breadcrumb → title → subtitle → actions, in that order on every
+   screen, so the eye lands in the same place page to page. */
+.vl-pagehead {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--vl-4); flex-wrap: wrap; margin-bottom: var(--vl-4);
+}
+.vl-crumb { display: flex; align-items: center; gap: var(--vl-2);
+            font-size: var(--vl-t-meta); color: var(--vl-ink-3); margin-bottom: var(--vl-2); }
+.vl-crumb a { color: var(--vl-ink-3); text-decoration: none; }
+.vl-crumb a:hover { color: var(--vl-accent); }
+.vl-crumb .sep { color: var(--vl-300); }
+.vl-crumb .current { color: var(--vl-ink-2); font-weight: 500; }
+.vl-title { font-family: var(--vl-font-display); font-size: var(--vl-t-display);
+            font-weight: 400; letter-spacing: -.01em; margin: 0; line-height: 1.15; }
+.vl-subtitle { margin: var(--vl-1) 0 0; font-size: var(--vl-t-sm); color: var(--vl-ink-3); max-width: 68ch; }
+.vl-pagehead__actions { display: flex; align-items: center; gap: var(--vl-2); flex-wrap: wrap; }
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.vl-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--vl-2);
+    height: var(--vl-control-h); padding: 0 var(--vl-3);
+    border: 1px solid var(--vl-border); border-radius: var(--vl-r-input);
+    background: var(--vl-surface); color: var(--vl-ink);
+    font-size: var(--vl-t-sm); font-weight: 500; white-space: nowrap;
+    cursor: pointer; text-decoration: none;
+    transition: background var(--vl-fast) var(--vl-ease), border-color var(--vl-fast) var(--vl-ease);
+}
+.vl-btn:hover { background: var(--vl-100); color: var(--vl-ink); }
+.vl-btn:focus-visible { outline: 2px solid var(--vl-accent); outline-offset: 1px; }
+.vl-btn[disabled], .vl-btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.vl-btn--primary { background: var(--vl-accent); border-color: var(--vl-accent); color: var(--vl-ink-inverse); }
+.vl-btn--primary:hover { background: var(--vl-accent-hover); border-color: var(--vl-accent-hover); color: var(--vl-ink-inverse); }
+.vl-btn--ghost { background: transparent; border-color: transparent; color: var(--vl-ink-2); }
+.vl-btn--ghost:hover { background: var(--vl-100); }
+.vl-btn--danger { border-color: var(--vl-red); color: var(--vl-red); background: var(--vl-surface); }
+.vl-btn--danger:hover { background: var(--vl-red-tint); }
+.vl-btn--sm { height: 26px; padding: 0 var(--vl-2); font-size: var(--vl-t-meta); }
+.vl-btn--icon { width: var(--vl-control-h); padding: 0; }
+
+/* ── Card ───────────────────────────────────────────────────────── */
+.vl-card { background: var(--vl-surface); border: 1px solid var(--vl-border);
+           border-radius: var(--vl-r-card); }
+.vl-card__head { display: flex; align-items: center; justify-content: space-between;
+                 gap: var(--vl-3); padding: var(--vl-3) var(--vl-4);
+                 border-bottom: 1px solid var(--vl-border); }
+.vl-card__title { margin: 0; font-size: var(--vl-t-h2); font-weight: 600; letter-spacing: -.005em; }
+.vl-card__body { padding: var(--vl-4); }
+
+/* ── StatusChip — 11 variants ───────────────────────────────────
+   One shape, one type size; only the colour trio changes. The
+   variants map to real states in the data, not to moods, so a
+   reader learns the colour once and it holds everywhere. */
+.vl-chip {
+    display: inline-flex; align-items: center; gap: var(--vl-1);
+    padding: 2px var(--vl-2); border-radius: var(--vl-r-chip);
+    font-size: var(--vl-t-meta); font-weight: 600; line-height: 18px;
+    white-space: nowrap; text-transform: capitalize;
+}
+.vl-chip svg { width: 12px; height: 12px; }
+.vl-chip--pending,      .vl-chip--submitted    { background: var(--vl-100); color: var(--vl-700); }
+.vl-chip--processing,   .vl-chip--shortlisted  { background: var(--vl-blue-tint);  color: var(--vl-blue-ink); }
+.vl-chip--approved,     .vl-chip--completed,
+.vl-chip--selected                             { background: var(--vl-green-tint); color: var(--vl-green-ink); }
+/* The award is the request's one outcome, so it must not look like another
+   per-vendor tag sitting beside "Chosen rev." — amber against that green. */
+.vl-chip--awarded                              { background: #FEF3C7; color: #92400E; font-weight: 700; }
+.vl-chip--expiring-soon                        { background: var(--vl-amber-tint); color: var(--vl-amber-ink); }
+.vl-chip--rejected,     .vl-chip--expired,
+.vl-chip--failed                               { background: var(--vl-red-tint);   color: var(--vl-red-ink); }
+
+/* A processing chip pulses so a long-running job never looks stuck. */
+.vl-chip--processing::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; animation: vl-pulse 1.4s ease-in-out infinite;
+}
+@keyframes vl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* ── KpiTile ────────────────────────────────────────────────────── */
+.vl-kpis { display: grid; gap: var(--vl-3); grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.vl-kpi { background: var(--vl-surface); border: 1px solid var(--vl-border);
+          border-radius: var(--vl-r-card); padding: var(--vl-3) var(--vl-4); }
+.vl-kpi__label { font-size: var(--vl-t-meta); color: var(--vl-ink-3); text-transform: uppercase;
+                 letter-spacing: .04em; font-weight: 600; }
+.vl-kpi__value { font-family: var(--vl-mono); font-size: 22px; font-weight: 500;
+                 font-variant-numeric: tabular-nums; margin-top: var(--vl-1); line-height: 1.2; }
+.vl-kpi__delta { font-family: var(--vl-mono); font-size: var(--vl-t-meta); margin-top: 2px; color: var(--vl-ink-3); }
+.vl-kpi__delta.up   { color: var(--vl-green); }
+.vl-kpi__delta.down { color: var(--vl-red); }
+
+/* ── FilterBar ──────────────────────────────────────────────────── */
+/* flex-direction is pinned, not defaulted: this class is used on <form>, and
+   components.css sets a site-wide `form { display:flex; flex-direction:column }`
+   that beats an unset direction — leave it off and the filter bar renders as a
+   vertical stack. Same note as .vlx-toolbar / .vlx-cd-filters / .vlx-rep-filters. */
+.vl-filterbar { display: flex; flex-direction: row; align-items: center; gap: var(--vl-2);
+                flex-wrap: wrap; margin-bottom: var(--vl-3); }
+.vl-input, .vl-select {
+    height: var(--vl-control-h); padding: 0 var(--vl-2);
+    border: 1px solid var(--vl-border); border-radius: var(--vl-r-input);
+    background: var(--vl-surface); color: var(--vl-ink); font-size: var(--vl-t-sm);
+}
+.vl-input:focus, .vl-select:focus { outline: 2px solid var(--vl-accent); outline-offset: -1px; border-color: var(--vl-accent); }
+.vl-search { position: relative; display: inline-flex; align-items: center; }
+.vl-search .vl-input { padding-left: 30px; min-width: 220px; }
+.vl-search svg { position: absolute; left: var(--vl-2); width: 14px; height: 14px; color: var(--vl-ink-3); }
+
+/* Segmented toggle — for "View by Cost / Capability / All". */
+.vl-seg { display: inline-flex; border: 1px solid var(--vl-border); border-radius: var(--vl-r-input); overflow: hidden; }
+.vl-seg button {
+    height: var(--vl-control-h); padding: 0 var(--vl-3); border: none; background: var(--vl-surface);
+    color: var(--vl-ink-2); font-size: var(--vl-t-sm); font-weight: 500; cursor: pointer;
+    border-right: 1px solid var(--vl-border);
+}
+.vl-seg button:last-child { border-right: none; }
+.vl-seg button[aria-pressed="true"] { background: var(--vl-accent); color: var(--vl-ink-inverse); }
+
+/* ── DataTable ──────────────────────────────────────────────────── */
+.vl-tablewrap { overflow: auto; border: 1px solid var(--vl-border); border-radius: var(--vl-r-card);
+                background: var(--vl-surface); }
+.vl-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--vl-t-sm); }
+.vl-table th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--vl-100); color: var(--vl-ink-2);
+    text-align: left; font-weight: 600; font-size: var(--vl-t-meta);
+    text-transform: uppercase; letter-spacing: .04em;
+    padding: var(--vl-2) var(--vl-3); border-bottom: 1px solid var(--vl-border); white-space: nowrap;
+}
+.vl-table td { padding: var(--vl-2) var(--vl-3); border-bottom: 1px solid var(--vl-border); vertical-align: middle; }
+.vl-table tbody tr:last-child td { border-bottom: none; }
+.vl-table tbody tr:hover td { background: var(--vl-25); }
+.vl-table .num { text-align: right; font-family: var(--vl-mono); font-variant-numeric: tabular-nums; }
+/* Sticky first column, opt-in per table — the heatmap needs it. */
+.vl-table--stickycol th:first-child,
+.vl-table--stickycol td:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--vl-surface);
+    border-right: 1px solid var(--vl-border);
+}
+.vl-table--stickycol th:first-child { z-index: 3; background: var(--vl-100); }
+/* Row highlight after a successful action, fading out. */
+.vl-row-flash { animation: vl-flash 1.6s var(--vl-ease); }
+@keyframes vl-flash { from { background: var(--vl-accent-tint); } to { background: transparent; } }
+
+/* ── EmptyState — no illustrations, by instruction ─────────────── */
+.vl-empty { padding: var(--vl-8) var(--vl-4); text-align: center; color: var(--vl-ink-3); }
+.vl-empty svg { width: 22px; height: 22px; color: var(--vl-400); margin-bottom: var(--vl-2); }
+.vl-empty__title { font-size: var(--vl-t-body); font-weight: 600; color: var(--vl-ink); }
+.vl-empty__hint { font-size: var(--vl-t-sm); margin-top: 2px; }
+.vl-empty__cta { margin-top: var(--vl-3); }
+
+/* ── Skeleton (loading) ─────────────────────────────────────────── */
+.vl-skel { background: linear-gradient(90deg, var(--vl-100) 25%, var(--vl-200) 37%, var(--vl-100) 63%);
+           background-size: 400% 100%; animation: vl-shimmer 1.4s ease infinite;
+           border-radius: var(--vl-r-input); height: 12px; }
+.vl-skel--row { height: 34px; margin-bottom: var(--vl-2); }
+@keyframes vl-shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+
+/* ── Banner (error / warning / info, inline) ────────────────────── */
+.vl-banner { display: flex; align-items: flex-start; gap: var(--vl-2);
+             padding: var(--vl-3); border-radius: var(--vl-r-card);
+             border: 1px solid var(--vl-border); font-size: var(--vl-t-sm); }
+.vl-banner svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.vl-banner--error { background: var(--vl-red-tint);   border-color: var(--vl-red);   color: var(--vl-red-ink); }
+.vl-banner--warn  { background: var(--vl-amber-tint); border-color: var(--vl-amber); color: var(--vl-amber-ink); }
+.vl-banner--info  { background: var(--vl-blue-tint);  border-color: var(--vl-blue);  color: var(--vl-blue-ink); }
+.vl-banner__body { flex: 1; min-width: 0; }
+.vl-banner__title { font-weight: 600; }
+
+/* ── Toast ──────────────────────────────────────────────────────── */
+.vl-toasts { position: fixed; top: 76px; right: var(--vl-4); z-index: 1400;
+             display: flex; flex-direction: column; gap: var(--vl-2); }
+.vl-toast { display: flex; align-items: flex-start; gap: var(--vl-2);
+            min-width: 260px; max-width: 380px; padding: var(--vl-3);
+            background: var(--vl-950); color: var(--vl-0);
+            border-radius: var(--vl-r-card); box-shadow: var(--vl-shadow-pop);
+            font-size: var(--vl-t-sm);
+            animation: vl-toast-in var(--vl-slow) var(--vl-ease); }
+.vl-toast.is-out { animation: vl-toast-out var(--vl-fast) var(--vl-ease) forwards; }
+.vl-toast__dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex: none; }
+.vl-toast--success .vl-toast__dot { background: var(--vl-green-tint); }
+.vl-toast--error   .vl-toast__dot { background: var(--vl-red-tint); }
+.vl-toast--info    .vl-toast__dot { background: var(--vl-blue-tint); }
+@keyframes vl-toast-in  { from { opacity: 0; transform: translateX(12px); } }
+@keyframes vl-toast-out { to   { opacity: 0; transform: translateX(12px); } }
+
+/* ── PermissionDenied ───────────────────────────────────────────── */
+.vl-denied { max-width: 480px; margin: 12vh auto; text-align: center; }
+.vl-denied__title { font-family: var(--vl-font-display); font-size: 24px; margin: var(--vl-3) 0 var(--vl-1); }
+.vl-denied__why { font-size: var(--vl-t-sm); color: var(--vl-ink-3); }
+
+/* ── ConfirmModal ───────────────────────────────────────────────── */
+.vl-scrim { position: fixed; inset: 0; z-index: 1300; background: rgba(9, 9, 11, .45); }
+.vl-modal { position: fixed; z-index: 1301; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: min(440px, calc(100vw - 32px)); background: var(--vl-surface);
+            border: 1px solid var(--vl-border); border-radius: var(--vl-r-card);
+            box-shadow: var(--vl-shadow-pop); }
+
+/* ── HeatmapTable ───────────────────────────────────────────────
+   Colour is relative within a row (cheapest→dearest for that line
+   item), never absolute — an absolute scale would just paint a map
+   of which rows are big numbers. The figure is always printed on
+   top of the tint, so the tint is a second encoding and never the
+   only one. */
+.vl-heat td.vl-heat__cell { text-align: right; font-family: var(--vl-mono);
+                            font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vl-heat__cell[data-band="1"] { background: var(--vl-heat-1); }
+.vl-heat__cell[data-band="2"] { background: var(--vl-heat-2); }
+.vl-heat__cell[data-band="3"] { background: var(--vl-heat-3); }
+.vl-heat__cell[data-band="4"] { background: var(--vl-heat-4); }
+.vl-heat__cell[data-band="5"] { background: var(--vl-heat-5); }
+.vl-heat__cell--none { background: var(--vl-heat-none); color: var(--vl-400); text-align: center; }
+.vl-heat__delta { display: block; font-size: var(--vl-t-meta); color: var(--vl-ink-3); }
+.vl-heat__cell--best { box-shadow: inset 0 0 0 2px var(--vl-green); }
+.vl-heat {
+    /* Height of the vendor-name header row, and therefore the sticky offset of
+       the bid row beneath it. One value drives both so they cannot drift.
+       56px because the row measures 55px once a multi-bid vendor adds its
+       "N bids" line — an offset smaller than the real height just puts the
+       bid row back on top of the names. The name is clipped rather than
+       wrapped (below) so a long company name cannot grow the row past this. */
+    --vl-heat-vendorrow: 56px;
+}
+/* `.vl-heat thead .vl-heat__vendor-group`, not `.vl-heat__vendor-group`.
+   `.vl-table th` is (0,1,1) and sets `top: 0; z-index: 2` for every header
+   cell; a single-class selector is (0,1,0) and loses to it. Measured in the
+   browser: this row computed to `top: 0px; z-index: 2` and the bid row below
+   it to `top: 0px; z-index: 3`, so both pinned to the same line and the bid
+   row painted straight over the vendor names. */
+.vl-heat thead .vl-heat__vendor-group {
+    top: 0;
+    z-index: 5;
+    height: var(--vl-heat-vendorrow);
+    text-align: center;
+    vertical-align: middle;
+    border-right: 1px solid var(--vl-border);
+}
+/* The "Line item" cell spans both header rows and is also the sticky first
+   column, so it has to outrank every other sticky cell in the table. */
+.vl-heat thead tr:first-child th:first-child { z-index: 6; }
+.vl-heat__vendor-group span {
+    display: block;
+    color: var(--vl-ink);
+    font-size: var(--vl-t-sm);
+    text-transform: none;
+    letter-spacing: 0;
+    /* Clipped, not wrapped: a wrapped name grows the row past
+       --vl-heat-vendorrow and the sticky offset below it stops lining up.
+       The full name is on the cell's title attribute. */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.vl-heat__vendor-group small {
+    display: block;
+    margin-top: 2px;
+    color: var(--vl-ink-3);
+    font-size: var(--vl-t-meta);
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+}
+/* Two sticky header rows, stacked. The second row's offset must equal the
+   first row's height exactly, so the height is declared rather than guessed:
+   the old hard-coded `top: 38px` was shorter than the vendor row actually is
+   once a multi-bid vendor adds its "N bids" line, so the bid row rode up over
+   the vendor names and hid them the moment the matrix scrolled. The first row
+   also outranks the second on z-index, so a fractional row height can never
+   let the lower row paint over the vendor it belongs to. */
+.vl-heat thead .vl-heat__bid-head {
+    top: var(--vl-heat-vendorrow);
+    z-index: 4;
+    vertical-align: top;
+}
+.vl-table--stickycol .vl-heat__bid-head:first-child {
+    left: auto;
+    border-right: 0;
+}
+/* Capability rows are glyphs, not tints — a tick is binary and a
+   colour ramp would imply a magnitude that is not there. */
+.vl-heat__glyph { text-align: center; font-size: 14px; }
+.vl-heat__glyph.yes { color: var(--vl-green); }
+.vl-heat__glyph.no  { color: var(--vl-300); }
+.vl-heat tfoot td { position: sticky; bottom: 0; z-index: 3; background: var(--vl-100);
+                    border-top: 1px solid var(--vl-border-strong); font-weight: 700; }
+
+/* Bound the matrix so it actually scrolls. `.vl-tablewrap` is overflow:auto
+   with no height, so the wrapper grew to fit the table and neither the sticky
+   header (top:0) nor the sticky footer (bottom:0) had a scrollport to stick
+   inside. The Total row therefore sat at the natural bottom of the table,
+   below the whole capability block, off the bottom of the screen — which is
+   exactly the number the screen exists to produce. */
+.vl-heat-wrap { max-height: min(72vh, 760px); }
+
+/* Row labels must not stick to the top. `.vl-table th` pins every th to
+   `top: 0`, and `.vl-table--stickycol th:first-child` re-declares position
+   without resetting it — so each row's label is sticky both left and top.
+   That was invisible only while the wrapper had no height and never scrolled
+   vertically; bounding it above would have made every row label pile up
+   against the header. They stay sticky left, which is what the matrix needs. */
+.vl-heat tbody th { top: auto; }
+
+/* The total is a summary, not another line item — heavier weight and a rule
+   beneath it separate it from the breakdown it leads. */
+.vl-heat__total th,
+.vl-heat__total td {
+    font-weight: 700;
+    border-bottom: 2px solid var(--vl-border-strong);
+}
+.vl-heat__total th {
+    text-transform: none;
+    letter-spacing: 0;
+    background: var(--vl-100);
+}
+
+/* Names the winner in words, not just a green outline. Sits under the figure
+   so it never widens the column. */
+.vl-heat__cheapest {
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--vl-green-ink);
+    white-space: nowrap;
+}
+.vl-heat__section td { background: var(--vl-50); font-size: var(--vl-t-meta); font-weight: 700;
+                       text-transform: uppercase; letter-spacing: .04em; color: var(--vl-ink-3); }
+.vl-heat__legend { display: flex; align-items: center; gap: var(--vl-2); flex-wrap: wrap;
+                   margin-top: var(--vl-2); font-size: var(--vl-t-meta); color: var(--vl-ink-3); }
+.vl-heat__swatch { width: 22px; height: 12px; border-radius: 2px; display: inline-block; }
+
+/* ── ChatPanel (MerilGPT) ───────────────────────────────────────── */
+.vl-chat { position: fixed; top: 0; right: 0; z-index: 1200;
+           width: min(var(--vl-drawer-w), 100vw); height: 100vh;
+           background: var(--vl-surface); border-left: 1px solid var(--vl-border);
+           box-shadow: var(--vl-shadow-pop);
+           display: flex; flex-direction: column;
+           transform: translateX(100%); transition: transform var(--vl-slow) var(--vl-ease); }
+.vl-chat.is-open { transform: translateX(0); }
+.vl-chat__head { display: flex; align-items: center; gap: var(--vl-2);
+                 padding: var(--vl-3) var(--vl-4); border-bottom: 1px solid var(--vl-border); }
+.vl-chat__title { font-weight: 600; font-size: var(--vl-t-body); margin: 0; flex: 1; }
+.vl-chat__model { font-family: var(--vl-mono); font-size: var(--vl-t-meta);
+                  background: var(--vl-accent-tint); color: var(--vl-accent-ink);
+                  padding: 1px var(--vl-2); border-radius: var(--vl-r-chip); }
+.vl-chat__ctx { display: flex; gap: var(--vl-1); flex-wrap: wrap;
+                padding: var(--vl-2) var(--vl-4); border-bottom: 1px solid var(--vl-border);
+                background: var(--vl-25); }
+.vl-chat__ctxchip { font-family: var(--vl-mono); font-size: var(--vl-t-meta);
+                    background: var(--vl-100); color: var(--vl-ink-2);
+                    padding: 1px var(--vl-2); border-radius: var(--vl-r-chip); }
+.vl-chat__log { flex: 1; overflow-y: auto; padding: var(--vl-4); display: flex;
+                flex-direction: column; gap: var(--vl-3); }
+.vl-msg { max-width: 88%; }
+.vl-msg--user { align-self: flex-end; }
+.vl-msg--bot  { align-self: flex-start; }
+.vl-msg__bubble { padding: var(--vl-2) var(--vl-3); border-radius: var(--vl-r-card);
+                  font-size: var(--vl-t-sm); white-space: pre-wrap; word-break: break-word; }
+.vl-msg--user .vl-msg__bubble { background: var(--vl-accent); color: var(--vl-ink-inverse); }
+.vl-msg--bot  .vl-msg__bubble { background: var(--vl-100); color: var(--vl-ink); }
+.vl-msg__time { font-family: var(--vl-mono); font-size: var(--vl-t-meta);
+                color: var(--vl-ink-3); margin-top: 2px; }
+.vl-msg--user .vl-msg__time { text-align: right; }
+.vl-msg__acts { display: flex; gap: var(--vl-1); margin-top: var(--vl-1); opacity: 0;
+                transition: opacity var(--vl-fast) var(--vl-ease); }
+.vl-msg:hover .vl-msg__acts, .vl-msg:focus-within .vl-msg__acts { opacity: 1; }
+/* Streaming caret — a block that blinks while tokens arrive. */
+.vl-caret { display: inline-block; width: 7px; height: 14px; vertical-align: -2px;
+            background: var(--vl-ink-3); animation: vl-blink 1s steps(2) infinite; }
+@keyframes vl-blink { 50% { opacity: 0; } }
+.vl-chat__suggest { display: flex; flex-wrap: wrap; gap: var(--vl-2); }
+.vl-chat__foot { border-top: 1px solid var(--vl-border); padding: var(--vl-3) var(--vl-4); }
+/* Also a <form>, so the direction is pinned for the same reason as
+   .vl-filterbar above. Without it the site-wide column default stacks the Send
+   button under the textarea and `flex: 1` below grows the textarea vertically
+   instead of horizontally. */
+.vl-chat__composer { display: flex; flex-direction: row; gap: var(--vl-2); align-items: flex-end; }
+.vl-chat__composer textarea {
+    flex: 1; min-height: 34px; max-height: 140px; resize: vertical;
+    padding: var(--vl-2); border: 1px solid var(--vl-border);
+    border-radius: var(--vl-r-input); font-size: var(--vl-t-sm); background: var(--vl-surface);
+}
+.vl-chat__files { display: flex; flex-wrap: wrap; gap: var(--vl-2); margin-bottom: var(--vl-2); }
+.vl-chat__file { display: flex; align-items: center; gap: var(--vl-1);
+                 font-size: var(--vl-t-meta); background: var(--vl-100);
+                 border-radius: var(--vl-r-input); padding: 2px var(--vl-2); }
+.vl-chat__file img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; }
+/* Collapsed launcher. Sits left of the global Feedback button so the
+   two never overlap — see body.mgpt-open in vendorlink-ds.css for the
+   same collision handled on the legacy drawer. */
+.vl-chat-fab { position: fixed; right: var(--vl-4); bottom: 84px; z-index: 1199;
+               height: 36px; padding: 0 var(--vl-3);
+               display: inline-flex; align-items: center; gap: var(--vl-2);
+               border: 1px solid var(--vl-border); border-radius: var(--vl-r-chip);
+               background: var(--vl-surface); color: var(--vl-ink); cursor: pointer;
+               box-shadow: var(--vl-shadow-pop); font-size: var(--vl-t-sm); font-weight: 600; }
+.vl-chat-fab:hover { background: var(--vl-100); }
+
+/* ── Ranked list (AI evaluation) ────────────────────────────────── */
+.vl-rank { display: flex; flex-direction: column; gap: var(--vl-2); }
+.vl-rank__row { border: 1px solid var(--vl-border); border-radius: var(--vl-r-card);
+                background: var(--vl-surface); }
+.vl-rank__head { display: flex; align-items: center; gap: var(--vl-3);
+                 padding: var(--vl-3); cursor: pointer; width: 100%;
+                 background: none; border: none; text-align: left; }
+.vl-rank__n { font-family: var(--vl-mono); font-size: var(--vl-t-sm); font-weight: 600;
+              width: 22px; height: 22px; flex: none; border-radius: var(--vl-r-chip);
+              background: var(--vl-100); color: var(--vl-ink-2);
+              display: inline-flex; align-items: center; justify-content: center; }
+.vl-rank__row:first-child .vl-rank__n { background: var(--vl-accent); color: var(--vl-ink-inverse); }
+.vl-rank__name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.vl-rank__bar { width: 120px; height: 6px; border-radius: var(--vl-r-chip);
+                background: var(--vl-100); overflow: hidden; flex: none; }
+.vl-rank__bar span { display: block; height: 100%; background: var(--vl-accent); }
+.vl-rank__delta { font-family: var(--vl-mono); font-size: var(--vl-t-meta);
+                  color: var(--vl-ink-3); width: 64px; text-align: right; flex: none; }
+.vl-rank__body { padding: 0 var(--vl-3) var(--vl-3) 52px; font-size: var(--vl-t-sm); color: var(--vl-ink-2); }
+.vl-rank__body[hidden] { display: none; }
+
+/* Recommended-vendor hero. */
+.vl-hero { border: 1px solid var(--vl-accent); border-radius: var(--vl-r-card);
+           background: var(--vl-accent-tint); padding: var(--vl-4); }
+.vl-hero__label { font-size: var(--vl-t-meta); font-weight: 700; letter-spacing: .06em;
+                  text-transform: uppercase; color: var(--vl-accent-ink); }
+.vl-hero__name { font-family: var(--vl-font-display); font-size: 24px; margin: var(--vl-1) 0; }
+.vl-hero__why { font-size: var(--vl-t-sm); color: var(--vl-ink-2); }
+
+/* ── Three-column shell ─────────────────────────────────────────── */
+.vl-3col { display: grid; gap: var(--vl-4); align-items: start;
+           grid-template-columns: var(--vl-rail-w) minmax(0, 1fr); }
+@media (max-width: 1100px) { .vl-3col { grid-template-columns: minmax(0, 1fr); } }
+.vl-wrap { padding: var(--vl-6); max-width: 1600px; margin: 0 auto; }
+@media (max-width: 700px) { .vl-wrap { padding: var(--vl-3); } }
+
+/* ── ChatPanel: in-chat report ──────────────────────────────────
+   A report is rendered as a card inside the assistant's bubble rather
+   than as prose. The prose answer still comes first and has to stand
+   on its own — the visuals are a second reading of the same thing,
+   never the only place a number appears. */
+.vl-report { margin-top: var(--vl-2); border: 1px solid var(--vl-border);
+             border-radius: var(--vl-r-card); background: var(--vl-surface); overflow: hidden; }
+.vl-report__head { padding: var(--vl-2) var(--vl-3); border-bottom: 1px solid var(--vl-border);
+                   background: var(--vl-25); display: flex; align-items: center; gap: var(--vl-2); }
+.vl-report__title { font-family: var(--vl-font-display); font-size: 15px; margin: 0; flex: 1; }
+.vl-report__badge { font-size: var(--vl-t-meta); font-weight: 700; letter-spacing: .05em;
+                    text-transform: uppercase; color: var(--vl-accent-ink);
+                    background: var(--vl-accent-tint); padding: 1px var(--vl-2);
+                    border-radius: var(--vl-r-chip); }
+.vl-report__body { padding: var(--vl-3); display: flex; flex-direction: column; gap: var(--vl-3); }
+.vl-report__summary { font-size: var(--vl-t-sm); color: var(--vl-ink); margin: 0; }
+
+.vl-report__kpis { display: grid; gap: var(--vl-2);
+                   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.vl-report__kpi { border: 1px solid var(--vl-border); border-radius: var(--vl-r-input);
+                  padding: var(--vl-2); }
+.vl-report__kpi b { display: block; font-family: var(--vl-mono); font-size: 15px;
+                    font-variant-numeric: tabular-nums; }
+.vl-report__kpi span { font-size: var(--vl-t-meta); color: var(--vl-ink-3); }
+
+/* Fixed height: a canvas with no height collapses inside a flex column,
+   and letting it grow with the data makes long reports unscrollable. */
+.vl-report__chart { position: relative; height: 200px; }
+
+.vl-report__tablewrap { overflow-x: auto; border: 1px solid var(--vl-border);
+                        border-radius: var(--vl-r-input); }
+.vl-report__table { width: 100%; border-collapse: collapse; font-size: var(--vl-t-meta); }
+.vl-report__table th { background: var(--vl-100); text-align: left; font-weight: 700;
+                       padding: 5px var(--vl-2); white-space: nowrap;
+                       border-bottom: 1px solid var(--vl-border); }
+.vl-report__table td { padding: 5px var(--vl-2); border-bottom: 1px solid var(--vl-border);
+                       font-variant-numeric: tabular-nums; }
+.vl-report__table tr:last-child td { border-bottom: none; }
+
+.vl-report__highlights { margin: 0; padding-left: 18px; font-size: var(--vl-t-sm);
+                         color: var(--vl-ink-2); display: flex; flex-direction: column; gap: 2px; }
+.vl-report__actions { display: flex; gap: var(--vl-2); }
+
+/* ── ChatPanel: recent chats ────────────────────────────────────
+   A left column inside the drawer, toggled rather than always shown —
+   on a narrow drawer it would otherwise eat the space the report needs. */
+.vl-chat__cols { flex: 1; display: flex; min-height: 0; }
+.vl-chat__history {
+    width: 210px; flex: none; border-right: 1px solid var(--vl-border);
+    background: var(--vl-25); overflow-y: auto; padding: var(--vl-2);
+    display: flex; flex-direction: column; gap: var(--vl-1);
+}
+.vl-chat__history[hidden] { display: none; }
+.vl-chat__histhead { display: flex; align-items: center; justify-content: space-between;
+                     font-size: var(--vl-t-meta); text-transform: uppercase; letter-spacing: .05em;
+                     font-weight: 700; color: var(--vl-ink-3); padding: var(--vl-1) var(--vl-2); }
+.vl-chat__hist {
+    display: flex; align-items: flex-start; gap: var(--vl-1);
+    width: 100%; text-align: left; border: 1px solid transparent;
+    background: none; border-radius: var(--vl-r-input); padding: var(--vl-2);
+    cursor: pointer; font-size: var(--vl-t-sm); color: var(--vl-ink-2);
+}
+.vl-chat__hist:hover { background: var(--vl-100); }
+.vl-chat__hist.is-active { background: var(--vl-accent-tint); border-color: var(--vl-accent);
+                           color: var(--vl-accent-ink); }
+.vl-chat__hist span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                      white-space: nowrap; }
+.vl-chat__hist small { display: block; font-family: var(--vl-mono);
+                       font-size: 10px; color: var(--vl-ink-3); }
+
+/* Drag handle on the drawer's left edge. */
+.vl-chat__grip { position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+                 cursor: col-resize; background: transparent; }
+.vl-chat__grip:hover, .vl-chat__grip:active { background: var(--vl-accent-tint); }
+.vl-chat { width: var(--vl-drawer-w); }
+
+/* ── Timeline ───────────────────────────────────────────────────
+   Vertical rail with a dot per event. The rail is drawn on the list
+   rather than per item so it runs continuously and does not break
+   between rows of differing height. */
+.vl-timeline { list-style: none; margin: 0; padding: 0 0 0 var(--vl-3); position: relative; }
+.vl-timeline::before {
+    content: ""; position: absolute; left: 3px; top: 6px; bottom: 6px;
+    width: 1px; background: var(--vl-border);
+}
+.vl-timeline__item { display: flex; gap: var(--vl-3); padding: var(--vl-2) 0; position: relative; }
+.vl-timeline__dot {
+    position: absolute; left: calc(-1 * var(--vl-3) + 1px); top: 14px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--vl-400); box-shadow: 0 0 0 3px var(--vl-surface);
+}
+.vl-timeline__dot--request    { background: var(--vl-blue); }
+.vl-timeline__dot--bid        { background: var(--vl-accent); }
+.vl-timeline__dot--evaluation { background: var(--vl-green); }
+
+/* ── DetailDrawer ───────────────────────────────────────────────
+   480px, right side, tabbed. Distinct from .vl-chat: that one is a
+   persistent assistant panel, this is a record opened from a row and
+   closed again, so it takes a scrim and traps Escape. */
+.vl-drawer-scrim { position: fixed; inset: 0; z-index: 1250; background: rgba(9, 9, 11, .35); }
+.vl-drawer {
+    position: fixed; top: 0; right: 0; z-index: 1251;
+    width: min(480px, 100vw); height: 100vh;
+    background: var(--vl-surface); border-left: 1px solid var(--vl-border);
+    box-shadow: var(--vl-shadow-pop);
+    display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform var(--vl-slow) var(--vl-ease);
+}
+.vl-drawer.is-open { transform: translateX(0); }
+.vl-drawer__head {
+    display: flex; align-items: center; gap: var(--vl-2);
+    padding: var(--vl-3) var(--vl-4); border-bottom: 1px solid var(--vl-border);
+    position: sticky; top: 0; background: var(--vl-surface); z-index: 1;
+}
+.vl-drawer__title { margin: 0; font-size: var(--vl-t-h2); font-weight: 600; flex: 1; min-width: 0;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-drawer__body { flex: 1; overflow-y: auto; padding: var(--vl-4); }
+.vl-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--vl-border); padding: 0 var(--vl-4); }
+.vl-tab {
+    padding: var(--vl-2) var(--vl-3); border: none; background: none; cursor: pointer;
+    font-size: var(--vl-t-sm); font-weight: 500; color: var(--vl-ink-3);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.vl-tab[aria-selected="true"] { color: var(--vl-accent); border-bottom-color: var(--vl-accent); }
+
+/* ── Sparkline ──────────────────────────────────────────────────
+   Inline SVG, no chart library — a KPI tile draws one of these per
+   metric and loading Chart.js eight times over for a 60px trace
+   would cost more than the trace is worth. */
+.vl-spark { display: block; width: 100%; height: 28px; overflow: visible; }
+.vl-spark path { fill: none; stroke: var(--vl-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+
+/* ── Capability chip cloud (Vendor Master rows) ─────────────────── */
+.vl-caps { display: flex; gap: 3px; flex-wrap: wrap; }
+.vl-cap {
+    font-size: 10px; font-weight: 700; letter-spacing: .02em;
+    padding: 1px 5px; border-radius: 3px;
+    background: var(--vl-accent-tint); color: var(--vl-accent-ink);
+}
+.vl-cap--off { background: var(--vl-100); color: var(--vl-400); }
+
+/* ── Saved-filter rail ──────────────────────────────────────────── */
+.vl-rail { display: flex; flex-direction: column; gap: var(--vl-1); }
+.vl-rail__group { font-size: var(--vl-t-meta); font-weight: 700; text-transform: uppercase;
+                  letter-spacing: .04em; color: var(--vl-ink-3); margin: var(--vl-3) 0 var(--vl-1); }
+.vl-rail a {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--vl-2);
+    padding: 5px var(--vl-2); border-radius: var(--vl-r-input);
+    font-size: var(--vl-t-sm); color: var(--vl-ink-2); text-decoration: none;
+}
+.vl-rail a:hover { background: var(--vl-100); }
+.vl-rail a.is-active { background: var(--vl-accent-tint); color: var(--vl-accent-ink); font-weight: 600; }
+.vl-rail__n { font-family: var(--vl-mono); font-size: var(--vl-t-meta); color: var(--vl-ink-3); }
+
+/* Two-column shell with the filter rail on the left. */
+.vl-railed { display: grid; gap: var(--vl-4); align-items: start;
+             grid-template-columns: 210px minmax(0, 1fr); }
+@media (max-width: 900px) { .vl-railed { grid-template-columns: minmax(0, 1fr); } }
+
+/* The confirm dialog moved to its own vl-confirm.css.
+   It appears on screens built in both design systems, and three of them
+   load only vendorlink-ds.css -- styling it from here left it unstyled
+   there. That file depends on neither token family. */
+

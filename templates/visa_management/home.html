@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Visa Management{% endblock %}
+{% block page_title %}Visa Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.vmh-wrap {
+    --navy:       #0b1f3a;
+    --blue:       #0076c8;
+    --blue-lt:    #e6f2fb;
+    --accent:     #00c2a8;
+    --accent-lt:  #e0f8f5;
+    --amber:      #f59e0b;
+    --amber-lt:   #fef3c7;
+    --green:      #10b981;
+    --green-lt:   #d1fae5;
+    --purple:     #8b5cf6;
+    --purple-lt:  #ede9fe;
+    --text-primary:   #0b1f3a;
+    --text-secondary: #4a5568;
+    --bg:         #f0f4f9;
+    --surface:    #ffffff;
+    --border:     rgba(11,31,58,0.10);
+    --border-md:  rgba(11,31,58,0.18);
+    --radius-md:  10px;
+    --radius-lg:  16px;
+    --shadow-md:  0 4px 16px rgba(11,31,58,0.10);
+    --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 28px 24px 60px;
+    color: var(--text-primary);
+}
+
+.vmh-header { margin-bottom: 26px; }
+.vmh-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.vmh-header p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+.vmh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.vmh-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    text-decoration: none;
+    color: var(--text-primary);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+.vmh-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.vmh-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-md);
+    text-decoration: none;
+}
+.vmh-card:hover::after { opacity: 1; }
+
+.vmh-card.blue   { color: var(--blue);   }
+.vmh-card.teal   { color: var(--accent); }
+.vmh-card.amber  { color: var(--amber);  }
+.vmh-card.green  { color: var(--green);  }
+.vmh-card.purple { color: var(--purple); }
+.vmh-card.navy   { color: var(--navy);   }
+
+.vmh-icon {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: currentColor;
+    transition: var(--transition);
+}
+.vmh-card.blue   .vmh-icon { background: var(--blue-lt);   }
+.vmh-card.teal   .vmh-icon { background: var(--accent-lt); }
+.vmh-card.amber  .vmh-icon { background: var(--amber-lt);  }
+.vmh-card.green  .vmh-icon { background: var(--green-lt);  }
+.vmh-card.purple .vmh-icon { background: var(--purple-lt); }
+.vmh-card.navy   .vmh-icon { background: #e6ebf2;          }
+.vmh-card:hover .vmh-icon { transform: scale(1.08); }
+
+.vmh-body h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin: 0 0 5px;
+}
+.vmh-body p {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .vmh-wrap { padding: 20px 16px 48px; }
+    .vmh-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vmh-wrap">
+    <div class="vmh-header">
+        <h1><i class="fas fa-passport"></i> Visa Management</h1>
+        <p>Select a module to continue.</p>
+    </div>
+
+    <div class="vmh-grid">
+
+        {% if visa_role == 'admin' %}
+
+        <a href="{% url 'visa:admin_dashboard' %}" class="vmh-card purple">
+            <span class="vmh-icon"><i class="fas fa-tachometer-alt"></i></span>
+            <span class="vmh-body">
+                <h2>Admin Dashboard</h2>
+                <p>Manage all applications, edit invitation letters, and issue visas.</p>
+            </span>
+        </a>
+
+        {# Master data — available to Visa-Department as well as superusers. #}
+        <a href="{% url 'visa:template_list' %}" class="vmh-card navy">
+            <span class="vmh-icon"><i class="fas fa-file-alt"></i></span>
+            <span class="vmh-body">
+                <h2>Letter Templates</h2>
+                <p>Manage invitation letter templates by company and country.</p>
+            </span>
+        </a>
+
+        <a href="{% url 'visa:country_list' %}" class="vmh-card green">
+            <span class="vmh-icon"><i class="fas fa-globe"></i></span>
+            <span class="vmh-body">
+                <h2>Country Master</h2>
+                <p>Manage countries and their embassy addressing details.</p>
+            </span>
+        </a>
+
+        <a href="{% url 'visa:company_list' %}" class="vmh-card amber">
+            <span class="vmh-icon"><i class="fas fa-building"></i></span>
+            <span class="vmh-body">
+                <h2>Company Master</h2>
+                <p>Manage companies and their letterhead details.</p>
+            </span>
+        </a>
+
+        <a href="{% url 'visa:user_master' %}" class="vmh-card teal">
+            <span class="vmh-icon"><i class="fas fa-users-cog"></i></span>
+            <span class="vmh-body">
+                <h2>User Master</h2>
+                <p>Assign users to the Visa Department or as a reporting head.</p>
+            </span>
+        </a>
+
+        {% endif %}
+
+        {% if visa_role == 'hod' or is_superuser %}
+        {# HOD sees only their own pending approvals; superuser sees this in addition to admin/department modules above. #}
+        <a href="{% url 'visa:hod_dashboard' %}" class="vmh-card amber">
+            <span class="vmh-icon"><i class="fas fa-user-check"></i></span>
+            <span class="vmh-body">
+                <h2>Pending Approvals</h2>
+                <p>Review and action visa applications awaiting your approval.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if visa_role == 'applicant' or is_superuser %}
+        {# Applicant module; superuser sees this in addition to HOD/department modules above. #}
+        <a href="{% url 'visa:my_applications' %}" class="vmh-card blue">
+            <span class="vmh-icon"><i class="fas fa-list-alt"></i></span>
+            <span class="vmh-body">
+                <h2>My Applications</h2>
+                <p>View and track all your visa applications and their current status.</p>
+            </span>
+        </a>
+
+        <a href="{% url 'visa:apply_new' %}" class="vmh-card teal">
+            <span class="vmh-icon"><i class="fas fa-plus-circle"></i></span>
+            <span class="vmh-body">
+                <h2>New Application</h2>
+                <p>Submit a new visa application for business travel.</p>
+            </span>
+        </a>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

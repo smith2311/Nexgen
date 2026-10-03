@@ -1,0 +1,364 @@
+/* Dashboard — uses meritrack-core.css design system */
+
+.mt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.stat-card .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1em; color: #fff; margin-bottom: 10px; }
+.stat-card .stat-value { font-size: 1.7em; font-weight: 700; color: var(--mt-gray-800); line-height: 1; }
+.stat-card .stat-label { font-size: 0.82em; color: var(--mt-gray-600); margin-top: 4px; }
+.stat-card.danger .stat-value { color: var(--mt-danger); }
+.stat-card.warning .stat-value { color: var(--mt-warning); }
+
+.mt-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); margin-bottom: 20px; }
+.mt-card h3 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+.mt-table { width: 100%; border-collapse: collapse; }
+.mt-table th { padding: 10px 14px; text-align: left; font-size: 0.82em; color: var(--mt-gray-600); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--mt-gray-200); }
+.mt-table td { padding: 10px 14px; font-size: 0.88em; color: var(--mt-gray-800); border-bottom: 1px solid var(--mt-gray-100); }
+.mt-table tr:hover { background: var(--mt-gray-50); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-orange { background: var(--mt-orange-light); color: var(--mt-orange-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-700); }
+.badge-purple { background: var(--mt-purple-light); color: var(--mt-purple-dark); }
+
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 0.88em; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+.btn-mt-primary { background: var(--mt-primary); color: #fff; }
+.btn-mt-primary:hover { background: var(--mt-primary-dark); }
+
+.mt-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+.mt-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+
+.dash-tabs { display:flex; gap:0; border-bottom:1px solid var(--mt-gray-200); padding:0 20px; background:var(--mt-gray-50); }
+.dash-tab { padding:14px 20px; font-size:0.88em; font-weight:600; color:var(--mt-gray-600); background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; transition:all 0.18s; display:inline-flex; align-items:center; gap:7px; margin-bottom:-1px; }
+.dash-tab:hover { color:var(--mt-primary); }
+.dash-tab.active { color:var(--mt-primary); border-bottom-color:var(--mt-primary); background:#fff; }
+.dash-tab-content { padding:20px; }
+.dash-tab-content.hidden { display:none; }
+
+.table-responsive-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive-wrap table.mt-table { min-width: 700px; }
+#sessionsTable_wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#sessionsTable { min-width: 700px; }
+#sessionsTable .status-badge {
+    display: inline-block;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 0.75em; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+#sessionsTable td { vertical-align: middle; }
+#sessionsTable_wrapper .dataTables_filter input {
+    border: 1px solid var(--mt-gray-200); border-radius: 8px; padding: 6px 12px;
+    font-size: 0.85em; outline: none; transition: border-color 0.2s;
+}
+#sessionsTable_wrapper .dataTables_filter input:focus { border-color: var(--mt-primary); }
+
+@media(max-width:640px){
+    #sessionsTable_wrapper .dataTables_length,
+    #sessionsTable_wrapper .dataTables_filter { text-align: left !important; margin-bottom: 8px; }
+    #sessionsTable td, #sessionsTable th { padding: 8px 8px; font-size: 0.78em; white-space: nowrap; }
+}
+.loading-spinner { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--mt-gray-400); }
+.analytics-cta { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: linear-gradient(135deg,var(--mt-primary),var(--mt-secondary)); border-radius: 12px; color: #fff; text-decoration: none; margin-bottom: 20px; transition: opacity 0.2s; }
+.analytics-cta:hover { opacity: 0.9; }
+.analytics-cta-text { font-size: 1em; font-weight: 700; }
+.analytics-cta-sub { font-size: 0.83em; opacity: 0.85; margin-top: 3px; }
+
+@media (max-width: 768px) {
+    .mt-page { padding: 12px; }
+    .mt-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+    .mt-header h1 { font-size: 1.3em; }
+    .mt-nav { flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .mt-nav a { padding: 6px 10px; font-size: 0.78em; }
+    .mt-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-card { padding: 14px 12px; }
+    .stat-card .stat-value { font-size: 1.4em; }
+    .mt-grid-2, .mt-grid-3 { grid-template-columns: 1fr; }
+    .mt-card { padding: 16px; }
+    .mt-table th, .mt-table td { padding: 8px 10px; font-size: 0.82em; }
+    .bar-label { width: 80px; font-size: 0.75em; }
+    .analytics-cta { flex-direction: column; gap: 10px; padding: 14px 16px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MTD (MeriTrack Dashboard) - PS-style components
+   ═══════════════════════════════════════════════════════ */
+
+/* Header styles come from meritrack-core.css (incl. background animation) */
+.mtd-header .mt-nav { margin:0 16px; }
+
+/* Buttons */
+.mtd-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:10px; font-size:.85em; font-weight:600; text-decoration:none; border:none; cursor:pointer; transition:all .2s; }
+.mtd-btn-primary { background:#fff; color:var(--mt-primary-deep); }
+.mtd-btn-primary:hover { background:var(--mt-primary-lighter); }
+.mtd-btn-ghost   { background:rgba(255,255,255,.15); color:#fff; }
+.mtd-btn-ghost:hover { background:rgba(255,255,255,.28); }
+.mtd-btn-export  { background:var(--mt-gray-100); color:var(--mt-gray-800); border:1px solid var(--mt-gray-200); }
+.mtd-btn-export:hover { background:var(--mt-gray-200); }
+
+/* Alert */
+.mtd-alert { padding:10px 16px; border-radius:8px; font-size:.88em; font-weight:600; margin-bottom:10px; }
+.mtd-alert-danger  { background:var(--mt-danger-light); color:var(--mt-danger-dark); }
+.mtd-alert-success { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.mtd-alert-info    { background:var(--mt-info-light); color:var(--mt-primary-dark); }
+
+/* The old type-filter row lived here. Those options now sit inside the
+   Filters panel (see dashboard-views.css) so the bar stays one row on a
+   phone; .mtd-filter-* is retained in meritrack-core for other pages. */
+
+/* Stats grid */
+.mtd-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:12px; margin-bottom:20px; }
+.mtd-stat-card { background:#fff; border-radius:12px; padding:16px 14px; border:1px solid var(--mt-gray-200); border-left:4px solid var(--mt-gray-300); box-shadow:0 1px 3px rgba(0,0,0,.07); }
+.mtd-stat-val  { font-size:1.8em; font-weight:800; color:var(--mt-gray-900); line-height:1; }
+.mtd-stat-lbl  { font-size:.8em; color:var(--mt-gray-600); margin-top:5px; }
+
+/* Tabs */
+.mtd-tabs-outer { border-bottom:2px solid var(--mt-gray-200); margin-bottom:18px; }
+.mtd-tabs       { display:flex; gap:2px; overflow-x:auto; padding-bottom:0; }
+.mtd-tab        { display:flex; align-items:center; gap:6px; padding:12px 18px; font-size:.86em; font-weight:700; color:var(--mt-gray-600); background:none; border:none; border-bottom:3px solid transparent; cursor:pointer; white-space:nowrap; margin-bottom:-2px; transition:all .18s; }
+.mtd-tab:hover  { color:var(--mt-primary); }
+.mtd-tab.active { color:var(--mt-primary-deep); border-bottom-color:var(--mt-primary-deep); }
+.mtd-tab-badge  { background:var(--mt-gray-200); color:var(--mt-gray-600); font-size:.72em; font-weight:700; padding:2px 7px; border-radius:20px; min-width:20px; text-align:center; }
+.mtd-badge-red  { background:var(--mt-danger-light); color:var(--mt-danger); }
+.mtd-tab-content         { display:none; }
+.mtd-tab-content.active  { display:block; }
+
+/* ── Session cards ───────────────────────────────────────────────────────
+   One card = one session. The left rail and the badge row's tint both carry
+   the status colour, so a card's state reads before any word does. Both, plus
+   the hover glow, come from --mtd-rail / --mtd-tint / --mtd-glow, set per
+   [data-status] below — nothing else in the card hard-codes a status colour.
+   ---------------------------------------------------------------------- */
+.mtd-sessions-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+
+.mtd-session-card {
+    /* The responsive layer tightens the card by re-setting --mtd-pad, never
+       `padding` — the badge row's full-bleed margin is derived from it. */
+    --mtd-pad: 16px;
+    --mtd-rail: var(--mt-gray-300);
+    --mtd-tint: var(--mt-gray-50);
+    --mtd-glow: rgba(33,37,41,.16);
+    display:flex; flex-direction:column; gap:7px;
+    background:#fff;
+    border:1px solid var(--mt-gray-200);
+    border-left:4px solid var(--mtd-rail);
+    border-radius:14px;
+    /* No top padding: the badge row is full-bleed and brings its own. */
+    padding:0 var(--mtd-pad) var(--mtd-pad);
+    box-shadow:0 1px 2px rgba(33,37,41,.05), 0 1px 3px rgba(33,37,41,.06);
+}
+/* The skeleton has no badge row of its own, so it keeps a normal box. */
+.mtd-session-card.mt-sk-shell { padding-top:var(--mtd-pad); }
+
+/* Tinted, full-bleed badge row. Scoped to the session card — .mtd-card-top is
+   shared with the kanban and product cards, which stay conventionally padded. */
+.mtd-session-card > .mtd-card-top {
+    margin:0 calc(var(--mtd-pad) * -1) 3px;
+    padding:9px var(--mtd-pad);
+    background:var(--mtd-tint);
+    border-bottom:1px solid rgba(33,37,41,.055);
+    border-radius:10px 13px 0 0;   /* matches the card's radius minus its border */
+}
+
+.mtd-session-card[data-status="active"]    { --mtd-rail:var(--mt-warning);      --mtd-tint:rgba(255,193,7,.12);  --mtd-glow:rgba(255,193,7,.38); }
+.mtd-session-card[data-status="completed"] { --mtd-rail:var(--mt-info);         --mtd-tint:rgba(13,110,253,.075);--mtd-glow:rgba(13,110,253,.30); }
+.mtd-session-card[data-status="on_hold"]   { --mtd-rail:var(--mt-purple);       --mtd-tint:rgba(111,66,193,.075);--mtd-glow:rgba(111,66,193,.30); }
+.mtd-session-card[data-status="closed"]    { --mtd-rail:var(--mt-success-dark); --mtd-tint:rgba(40,167,69,.085); --mtd-glow:rgba(40,167,69,.30); }
+.mtd-session-card[data-status="terminated"],
+.mtd-session-card[data-status="cancelled"] { --mtd-rail:var(--mt-gray-300);     --mtd-tint:var(--mt-gray-50);    --mtd-glow:rgba(33,37,41,.18); }
+
+/* The lift comes from meritrack-motion; the coloured glow from here. Motion's
+   shared card-hover rule no longer lists .mtd-session-card, so this is the
+   only box-shadow in play on hover. */
+@media (hover:hover) and (pointer:fine) {
+    .mtd-session-card:hover {
+        box-shadow:0 12px 26px -12px var(--mtd-glow), 0 2px 6px rgba(33,37,41,.08);
+    }
+}
+
+.mtd-card-top          { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+.mtd-card-badges       { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+.mtd-card-meta-right   { display:flex; gap:5px; align-items:center; }
+
+/* A dot ahead of the status word — the state reads without parsing the label */
+.mtd-status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px 3px 8px; border-radius:20px; font-size:.75em; font-weight:700; letter-spacing:.02em; border:1px solid rgba(33,37,41,.07); white-space:nowrap; }
+.mtd-status-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.8; flex-shrink:0; }
+.status-active    { background:var(--mt-warning-light); color:var(--mt-warning-text); }
+.status-awaiting  { background:var(--mt-info-light); color:var(--mt-primary-dark); }
+.status-closed    { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.status-terminated{ background:var(--mt-gray-100); color:var(--mt-gray-400); }
+
+.mtd-type-badge  { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:20px; font-size:.75em; font-weight:700; border:1px solid rgba(33,37,41,.07); background:var(--mt-purple-light); color:var(--mt-purple-dark); white-space:nowrap; }
+.mtd-type-audit  { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.mtd-type-replenish { background:var(--mt-info-light); color:var(--mt-primary-dark); }
+.mtd-type-removal   { background:var(--mt-danger-light); color:var(--mt-danger-dark); }
+.mtd-type-transfer  { background:var(--mt-warning-light); color:var(--mt-warning-text); }
+
+.mtd-remark-btn { background:var(--mt-purple-light); color:var(--mt-purple-dark); border-radius:8px; padding:4px 9px; font-size:.78em; font-weight:700; }
+.mtd-remark-btn.has-wh { background:var(--mt-purple); color:#fff; }
+.mtd-att-badge  { font-size:1em; cursor:default; }
+
+.mtd-card-hospital { font-size:1.02em; font-weight:700; color:var(--mt-gray-900); line-height:1.28; letter-spacing:-.005em; overflow-wrap:anywhere; }
+.mtd-card-dept     { font-size:.8em; color:var(--mt-gray-600); margin-top:-3px; }
+
+.mtd-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; }
+.mtd-card-grid > div { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.mtd-card-key { font-size:.68em; font-weight:700; color:var(--mt-gray-500); text-transform:uppercase; letter-spacing:.06em; }
+.mtd-card-grid > div > span:last-child { font-size:.86em; color:var(--mt-gray-900); font-weight:600; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+/* Three facts sit 3-up; a fourth (Done) turns it into an even 2×2 rather than
+   leaving a ragged last row. Product cards always carry four and stay 2-up. */
+.mtd-session-card .mtd-card-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.mtd-session-card .mtd-card-grid:has(> div:nth-child(4)) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (max-width:768px) {
+    .mtd-session-card .mtd-card-grid,
+    .mtd-session-card .mtd-card-grid:has(> div:nth-child(4)) { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 10px; }
+}
+@media (max-width:380px) {
+    .mtd-session-card .mtd-card-grid,
+    .mtd-session-card .mtd-card-grid:has(> div:nth-child(4)) { grid-template-columns:minmax(0,1fr); }
+}
+
+/* margin-top:auto pins the footer to the bottom, so footers line up across a
+   row of cards whatever the hospital names do to their heights. */
+.mtd-card-footer  { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--mt-gray-100); }
+.mtd-card-link    { font-size:.83em; font-weight:700; color:var(--mt-primary); text-decoration:none; white-space:nowrap; transition:color .18s; }
+.mtd-card-link:hover { color:var(--mt-primary-deep); }
+.mtd-card-actions { display:flex; gap:5px; flex-wrap:wrap; }
+
+/* Every variant carries a 1.5px border — Reject/Hold/Resume (dashboard.html)
+   always did, and without it here the buttons in one footer differ in height. */
+.mtd-action-btn  { padding:5px 11px; border:1.5px solid transparent; border-radius:8px; font-family:inherit; font-size:.78em; font-weight:700; line-height:1.35; cursor:pointer; transition:background .18s, border-color .18s, color .18s; }
+.mtd-action-force{ background:var(--mt-success-light); color:var(--mt-success-dark); border-color:var(--mt-success-border); }
+.mtd-action-force:hover { background:var(--mt-success-border); }
+.mtd-action-term { background:var(--mt-danger-light); color:var(--mt-danger-dark); border-color:var(--mt-danger-border); }
+.mtd-action-term:hover { background:var(--mt-danger-border); }
+.mtd-action-close{ background:var(--mt-info-light); color:var(--mt-primary-dark); border-color:var(--mt-info-border); }
+.mtd-action-close:hover { background:var(--mt-info-border); }
+
+.mtd-empty-state { text-align:center; padding:40px; color:var(--mt-gray-400); }
+
+/* ── Expiry / product tables ─────────────────────────────────────────────
+   The scroll wrapper is the card; the table sits flush inside it, so the
+   tinted header runs edge to edge and the corners clip it.
+   ---------------------------------------------------------------------- */
+#expiryTableWrap,
+#stockTableWrap,
+.mtd-sessions-tablewrap > .table-responsive-wrap {
+    background:#fff;
+    border:1px solid var(--mt-gray-200);
+    border-radius:14px;
+    box-shadow:0 1px 2px rgba(33,37,41,.05), 0 1px 3px rgba(33,37,41,.06);
+}
+
+/* separate, not collapse: collapsed borders don't travel with a sticky <th>. */
+.mtd-product-tbl { width:100%; border-collapse:separate; border-spacing:0; }
+.mtd-product-tbl thead th {
+    position:sticky; top:0; z-index:2;
+    padding:11px 14px; text-align:left;
+    background:var(--mt-primary-lighter); color:var(--mt-primary-deep);
+    font-size:.74em; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+    white-space:nowrap; border-bottom:1px solid var(--mt-info-border);
+}
+.mtd-product-tbl td { padding:11px 14px; font-size:.85em; color:var(--mt-gray-800); border-bottom:1px solid var(--mt-gray-100); vertical-align:middle; }
+.mtd-product-tbl tbody tr { transition:background .15s; }
+.mtd-product-tbl tbody tr:last-child td { border-bottom:none; }
+
+/* All Scans is unpaginated and can run to thousands of rows, so on a desktop
+   it scrolls inside its own box and the header stays put. Phones keep the
+   normal page scroll — an inner scroller is miserable on a touch screen. */
+@media (min-width:769px) {
+    #stockTableWrap { max-height:min(72vh, 780px); overflow:auto; }
+    #stockTableWrap::after { display:none; }   /* the x-scroll fade would ride along vertically */
+}
+
+/* Zebra only where rows have no colour of their own: All Scans and the
+   session table view. Expiry rows are tinted by tier instead (below).
+   Above the stacking breakpoint only — under it the rows become cards. */
+@media (min-width:641px) {
+    #stockTable tbody tr:nth-child(even) { background:rgba(0,86,179,.028); }
+}
+#stockTable tbody tr:hover { background:rgba(0,86,179,.07); }
+
+/* Expiry rows: tier as a fill plus a rail on the leading cell. Both used to be
+   an inline background written by renderExpiryTable(), which no stylesheet
+   could then override — the row hover was dead on every tinted row. */
+#expiryTable tbody tr.ep-row { --ep-rail:var(--mt-gray-300); }
+#expiryTable tbody tr.ep-row > td:first-child { box-shadow:inset 3px 0 0 var(--ep-rail); }
+#expiryTable tbody tr.ep-expired { --ep-rail:var(--mt-danger);      background:var(--mt-danger-light); }
+#expiryTable tbody tr.ep-1w      { --ep-rail:var(--mt-danger-dark); background:var(--mt-danger-border); }
+#expiryTable tbody tr.ep-1m      { --ep-rail:var(--mt-orange);      background:var(--mt-warning-light); }
+#expiryTable tbody tr.ep-3m      { --ep-rail:var(--mt-warning);     background:var(--mt-warning-light); }
+#expiryTable tbody tr.ep-6m      { --ep-rail:var(--mt-success);     background:transparent; }
+#expiryTable tbody tr.ep-upcoming{ --ep-rail:var(--mt-gray-300);    background:var(--mt-gray-100); }
+#expiryTable tbody tr:hover { background:var(--mt-primary-lighter); }
+/* Tier dot ahead of the days-to-expiry figure; it inherits that tier's colour. */
+.ep-days::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; margin-right:6px; vertical-align:middle; }
+
+/* A stacked table is already a stack of cards — it needs no card around it. */
+@media (max-width:640px) {
+    #stockTableWrap,
+    .mtd-sessions-tablewrap > .table-responsive-wrap {
+        background:none; border:none; border-radius:0; box-shadow:none;
+    }
+}
+
+.ep-filter  { padding:6px 14px; border-radius:20px; border:1.5px solid var(--mt-gray-200); background:var(--mt-gray-50); color:var(--mt-gray-600); font-size:.82em; font-weight:600; cursor:pointer; transition:all .18s; }
+.ep-filter:hover  { border-color:var(--mt-danger); color:var(--mt-danger); }
+.ep-filter.active { background:var(--mt-danger); color:#fff; border-color:var(--mt-danger); }
+
+.mtd-btn-ack { padding:4px 10px; background:var(--mt-primary); color:#fff; border:none; border-radius:6px; font-size:.78em; font-weight:700; cursor:pointer; }
+.mtd-btn-ack:hover { background:var(--mt-primary-dark); }
+.mtd-btn-ack:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Expiry colour classes */
+.mtd-exp-expired  { color:var(--mt-danger) !important; }
+.mtd-exp-1w       { color:var(--mt-danger-dark) !important; }
+.mtd-exp-1m       { color:var(--mt-orange-dark) !important; }
+.mtd-exp-3m       { color:var(--mt-warning-dark) !important; }
+.mtd-exp-6m       { color:var(--mt-warning-dark) !important; }
+.mtd-exp-upcoming { color:var(--mt-gray-600) !important; }
+
+/* Spinner */
+.mtd-spinner { display:inline-block; width:24px; height:24px; border:3px solid var(--mt-gray-200); border-top-color:var(--mt-primary); border-radius:50%; animation:mtd-spin .7s linear infinite; }
+@keyframes mtd-spin { to { transform:rotate(360deg); } }
+
+/* Responsive */
+@media(max-width:768px){
+    .mtd-header-inner { flex-direction:column; align-items:flex-start; gap:10px; padding:16px 18px 0; }
+    .mtd-header-title h1 { font-size:1.15em; }
+    .mtd-stats { grid-template-columns:repeat(3,1fr); gap:8px; }
+    .mtd-sessions-grid { grid-template-columns:1fr; }
+    .mtd-tab { padding:10px 12px; font-size:.8em; }
+    /* Session card actions wrap fully on mobile */
+    .mtd-card-actions { width:100%; }
+    .mtd-action-btn { flex:1; justify-content:center; text-align:center; }
+}
+
+@media(max-width:640px){
+    .mtd-stats { grid-template-columns:repeat(2,1fr); gap:8px; }
+    .mtd-stat-val { font-size:1.5em; }
+    /* Expiry filter pills */
+    #expiryFilterBar { flex-wrap:wrap; gap:6px; }
+    .ep-filter { min-height:40px; }
+    /* Stock search full-width */
+    #stockSearch { width:100% !important; min-width:0 !important; }
+    /* Sessions grid single col */
+    .mtd-sessions-grid { grid-template-columns:1fr; gap:10px; }
+}
+
+@media(max-width:480px){
+    .mtd-stats { grid-template-columns:repeat(2,1fr); gap:6px; }
+    .mtd-stat-val { font-size:1.3em; }
+    .mtd-stat-lbl { font-size:.72em; }
+    .mtd-stat-card { padding:12px 8px; }
+    .mtd-tab { padding:8px 10px; font-size:.78em; gap:4px; }
+    .mtd-product-tbl th, .mtd-product-tbl td { padding:7px 8px; font-size:.78em; }
+    /* Session cards compact */
+    .mtd-session-card { --mtd-pad:12px; }
+    /* Action buttons full-width */
+    .mtd-card-actions { flex-direction:column; }
+    .mtd-action-btn { width:100%; }
+}

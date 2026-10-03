@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sub Logistics — Upload Data{% endblock %}
+{% block page_title %}Subsidiary Logistics Cost — Upload{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/subsidiary_logistic/sub.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'sub:dashboard' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Dashboard
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-arrow-up"></i> Upload Data</h1>
+          <p>Upload an Excel file — preview every row before saving to the database.</p>
+        </div>
+        <div class="lm-header-stats" id="previewStats" style="display:none;">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statTotal">0</div>
+            <div class="lm-hstat-lbl">Rows</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statValid" style="color:#4ade80;">0</div>
+            <div class="lm-hstat-lbl">Valid</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statErrors" style="color:#f87171;">0</div>
+            <div class="lm-hstat-lbl">Errors</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lm-tabs">
+        <button class="lm-tab-btn active" data-tab="tab-upload" onclick="switchSubTab('tab-upload')">
+          <i class="fas fa-file-arrow-up"></i> Upload File
+        </button>
+        <button class="lm-tab-btn" data-tab="tab-preview" id="previewTabBtn" onclick="switchSubTab('tab-preview')" disabled>
+          <i class="fas fa-eye"></i> Preview &amp; Save
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="sub-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Tab 1: Upload File -->
+    <div class="lm-tab-content active" id="tab-upload">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;" class="upload-grid">
+
+        <!-- Drop zone -->
+        <div>
+          <div class="sub-upload-zone" id="dropZone" onclick="document.getElementById('excelFile').click()">
+            <div class="upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+            <p id="dropLabel">Click or drag &amp; drop your Excel file here</p>
+            <small>.xlsx format only</small>
+            <input type="file" id="excelFile" name="excel_file" accept=".xlsx"
+                   style="display:none" onchange="onFileSelected(this)">
+          </div>
+
+          <div id="fileInfo" style="display:none;margin-top:10px;">
+            <div style="background:var(--accent-lt);border:1px solid rgba(0,194,168,.3);border-radius:8px;padding:11px 15px;font-size:13px;color:#067a6a;display:flex;align-items:center;gap:10px;">
+              <i class="fas fa-file-excel" style="font-size:1.2rem;"></i>
+              <div>
+                <div style="font-weight:600;" id="fileNameLabel">file.xlsx</div>
+                <div style="font-size:12px;margin-top:2px;">Ready to preview — click <strong>Preview Data</strong> below.</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="uploadError" style="display:none;margin-top:10px;">
+            <div class="sub-alert error" id="uploadErrorText"></div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button type="button" class="sub-btn sub-btn-navy" id="previewBtn" onclick="doPreview()" disabled>
+              <i class="fas fa-eye"></i> Preview Data
+            </button>
+            <a href="{% url 'sub:template_download' %}" class="sub-btn sub-btn-amber">
+              <i class="fas fa-file-arrow-down"></i> Download Template
+            </a>
+            <a href="{% url 'sub:dashboard' %}" class="sub-btn sub-btn-ghost">Cancel</a>
+          </div>
+
+          <div id="loadingIndicator" style="display:none;margin-top:14px;">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--text-muted);">
+              <i class="fas fa-circle-notch fa-spin" style="color:var(--blue);"></i>
+              Parsing file…
+            </div>
+          </div>
+        </div>
+
+        <!-- Column guide -->
+        <div class="sub-col-guide">
+          <h4><i class="fas fa-table-columns" style="color:var(--blue);margin-right:6px;"></i> Expected Columns</h4>
+          <div class="sub-col-row">
+            <span class="sub-col-letter">A</span>
+            <span class="sub-col-name">Country</span>
+          </div>
+          <div class="sub-col-row">
+            <span class="sub-col-letter">B</span>
+            <span class="sub-col-name">Total Sales (In Cr.)</span>
+          </div>
+          <div class="sub-col-row">
+            <span class="sub-col-letter">C</span>
+            <span class="sub-col-name">OB Logistics Cost</span>
+          </div>
+          <div class="sub-col-row">
+            <span class="sub-col-letter">D</span>
+            <span class="sub-col-name">Operational Cost</span>
+          </div>
+          <div class="sub-col-row">
+            <span class="sub-col-letter">E</span>
+            <span class="sub-col-name">Date (DD-MM-YYYY)</span>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:var(--amber-lt);border-radius:8px;font-size:12px;color:#92400e;">
+            <i class="fas fa-circle-info" style="margin-right:5px;"></i>
+            Columns C and D are optional. Row 1 is the header — do not delete it.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Preview & Save -->
+    <div class="lm-tab-content" id="tab-preview">
+      <div id="previewContent">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+
+<!-- Hidden save form -->
+<form method="post" id="saveForm" action="{% url 'sub:upload' %}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="rows_json" id="rowsJsonInput">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PREVIEW_URL = "{% url 'sub:upload_preview' %}";
+const CSRF_TOKEN  = "{{ csrf_token }}";
+</script>
+<script src="{% static 'js/subsidiary_logistic/sub.js' %}"></script>
+{% endblock %}

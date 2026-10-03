@@ -1,0 +1,212 @@
+/* ================================================================
+   VendorLink — Design Tokens ("editorial terminal")
+   ================================================================
+
+   The single source of truth for colour, type, spacing, radii and
+   elevation in the redesigned VendorLink surfaces.
+
+   WHY A NEW SCOPE (.vl) INSTEAD OF REDEFINING --vlx-*
+   ---------------------------------------------------
+   VendorLink already ships a working design system — "Enterprise
+   Precision", scoped to .vlx in vendorlink-ds.css — across roughly
+   twenty screens, all of them in daily use and covered by tests.
+   Redefining --vlx-* in place would restyle every one of those
+   screens the instant this file loads, including the ones not yet
+   redesigned, leaving the module visibly half-migrated.
+
+   So this is a parallel scope. A page opts in by using .vl instead
+   of .vlx, tier by tier, and the two can sit side by side in the
+   same build with no interference: different class, different
+   variable prefix, no shared selectors. When the last tier lands,
+   .vlx and vendorlink-ds.css can be deleted in one commit.
+
+   DIFFERENCES FROM .vlx, AND WHY
+   ------------------------------
+   - Neutral zinc base instead of blue-tinted greys, with a single
+     indigo accent. The old palette had blue in the surfaces *and*
+     the accent, so nothing stood out as clickable.
+   - Radii tightened (8px cards / 4px inputs, was 16px / 10px) and
+     shadows dropped to hairline borders. Rounded + shadowed reads
+     as consumer; this is a tool people stare at all day.
+   - A display serif, used only for page titles and hero numbers.
+   - An explicit 4-step spacing scale, so density is a decision
+     rather than whatever each screen happened to pick.
+
+   TYPE DEPENDENCIES
+   -----------------
+   Inter          — self-hosted, static/css/google-fonts.css
+   JetBrains Mono — self-hosted, declared in vendorlink-ds.css
+   Instrument Serif — loaded per-page (see _vl_head.html). Falls back
+                    through a real serif stack, so a blocked or
+                    failed webfont degrades rather than breaks.
+   ================================================================ */
+
+.vl {
+    /* ── Neutral ramp (zinc) ──────────────────────────────────────
+       Surfaces and text both come from one ramp so contrast pairs
+       are predictable: 950 on 0, 500 on 0 for muted, and so on. */
+    --vl-0:    #FFFFFF;
+    --vl-25:   #FCFCFD;
+    --vl-50:   #FAFAFA;
+    --vl-100:  #F4F4F5;
+    --vl-200:  #E4E4E7;
+    --vl-300:  #D4D4D8;
+    --vl-400:  #A1A1AA;
+    --vl-500:  #71717A;
+    --vl-600:  #52525B;
+    --vl-700:  #3F3F46;
+    --vl-800:  #27272A;
+    --vl-900:  #18181B;
+    --vl-950:  #09090B;
+
+    /* ── Semantic surfaces ─────────────────────────────────────── */
+    --vl-canvas:      var(--vl-50);
+    --vl-surface:     var(--vl-0);
+    --vl-surface-2:   var(--vl-100);
+    --vl-border:      #E5E5E5;
+    --vl-border-strong: var(--vl-300);
+
+    /* ── Ink ───────────────────────────────────────────────────── */
+    --vl-ink:         var(--vl-950);
+    --vl-ink-2:       var(--vl-600);
+    --vl-ink-3:       var(--vl-500);
+    --vl-ink-inverse: var(--vl-0);
+
+    /* ── Accent — exactly one ──────────────────────────────────
+       Deep indigo. Everything interactive is this colour and
+       nothing else is, which is what makes it scannable. */
+    --vl-accent:      #4338CA;
+    --vl-accent-hover:#3730A3;
+    --vl-accent-tint: #EEF2FF;
+    --vl-accent-ink:  #312E81;
+
+    /* ── Semantic status ──────────────────────────────────────────
+       Each is a trio: line (borders/glyphs), tint (chip bg), ink
+       (chip text). Tints stay pale enough that a table with a chip
+       in every row still reads as a table, not a paint chart. */
+    --vl-green:       #15803D;
+    --vl-green-tint:  #DCFCE7;
+    --vl-green-ink:   #14532D;
+
+    --vl-amber:       #B45309;
+    --vl-amber-tint:  #FEF3C7;
+    --vl-amber-ink:   #78350F;
+
+    --vl-red:         #B91C1C;
+    --vl-red-tint:    #FEE2E2;
+    --vl-red-ink:     #7F1D1D;
+
+    --vl-blue:        #1D4ED8;
+    --vl-blue-tint:   #DBEAFE;
+    --vl-blue-ink:    #1E3A8A;
+
+    /* Heatmap diverging ramp — cheap to dear. Deliberately not the
+       semantic green/red above: those mean "approved"/"rejected",
+       and a price being high is neither. */
+    --vl-heat-1: #DCFCE7;
+    --vl-heat-2: #ECFCCB;
+    --vl-heat-3: #FEF9C3;
+    --vl-heat-4: #FED7AA;
+    --vl-heat-5: #FECACA;
+    --vl-heat-none: repeating-linear-gradient(135deg, #FAFAFA 0 4px, #F4F4F5 4px 8px);
+
+    /* ── Categorical chart series ──────────────────────────────
+       Eight hues in a fixed slot order, for charts whose colour
+       says *which thing* rather than *how much* or *how good* — a
+       doughnut of vendors, a multi-series line.
+
+       Deliberately NOT the semantic five above. Green/amber/red
+       there mean approved/pending/rejected, and a vendor is not a
+       state; borrowing them makes a chart look like a verdict.
+
+       The order is the accessibility mechanism, not decoration:
+       these eight clear the adjacent-pair colour-vision gate
+       (worst adjacent CVD ΔE 9.1, normal-vision ΔE 19.6) in this
+       sequence, so slots must be filled 1→8 and never reordered
+       or cycled. Slots 3, 4 and 5 sit under 3:1 against a white
+       surface, so anything wearing them also carries a legend or
+       a label — which every report card does, since the table is
+       drawn directly beneath the chart.
+
+       Past eight categories, the smallest fold into one neutral
+       "Other" slice rather than a ninth hue nobody can name. */
+    --vl-cat-1: #2A78D6;   /* blue    */
+    --vl-cat-2: #EB6834;   /* orange  */
+    --vl-cat-3: #1BAF7A;   /* aqua    */
+    --vl-cat-4: #EDA100;   /* yellow  */
+    --vl-cat-5: #E87BA4;   /* magenta */
+    --vl-cat-6: #008300;   /* green   */
+    --vl-cat-7: #4A3AA7;   /* violet  */
+    --vl-cat-8: #E34948;   /* red     */
+    --vl-cat-other: #A1A1AA;
+
+    /* ── Type ──────────────────────────────────────────────────── */
+    --vl-font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    --vl-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --vl-mono: 'JetBrains Mono VL', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --vl-t-display: 28px;   /* page titles, hero numbers — serif */
+    --vl-t-h2:      16px;
+    --vl-t-body:    13px;
+    --vl-t-sm:      12px;
+    --vl-t-meta:    11px;   /* mono meta: timestamps, ids, deltas */
+
+    /* ── Spacing — 8/12/16/24, plus 4 for inside-chip nudges ───── */
+    --vl-1: 4px;
+    --vl-2: 8px;
+    --vl-3: 12px;
+    --vl-4: 16px;
+    --vl-6: 24px;
+    --vl-8: 32px;
+
+    /* ── Radii ─────────────────────────────────────────────────── */
+    --vl-r-input: 4px;
+    --vl-r-card:  8px;
+    --vl-r-chip:  999px;
+
+    /* ── Controls ──────────────────────────────────────────────── */
+    --vl-control-h: 32px;
+
+    /* ── Elevation — borders do the work; shadow only for things
+       that genuinely float above the page (drawers, menus). ───── */
+    --vl-shadow-none: none;
+    --vl-shadow-pop:  0 8px 24px rgba(9, 9, 11, .10), 0 2px 6px rgba(9, 9, 11, .06);
+
+    /* ── Motion ────────────────────────────────────────────────── */
+    --vl-ease: cubic-bezier(.4, 0, .2, 1);
+    --vl-fast: 120ms;
+    --vl-slow: 260ms;
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    /* Wide enough for a report: a KPI row, a chart and a table all have to
+       be readable in here, and 420px forced every table to scroll. Capped
+       against the viewport so it never covers the whole page, and the
+       reader can drag it wider still (persisted per browser). */
+    --vl-drawer-w: min(720px, 94vw);
+    --vl-drawer-min: 380px;
+    --vl-rail-w:   280px;
+
+    background: var(--vl-canvas);
+    color: var(--vl-ink);
+    font-family: var(--vl-font);
+    font-size: var(--vl-t-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.vl *, .vl *::before, .vl *::after { box-sizing: border-box; }
+.vl button, .vl input, .vl select, .vl textarea { font-family: inherit; font-size: inherit; }
+
+/* Numbers, ids, timestamps and money are mono and tabular everywhere,
+   so columns of them line up without per-table styling. */
+.vl-mono { font-family: var(--vl-mono); font-variant-numeric: tabular-nums; }
+.vl-meta { font-family: var(--vl-mono); font-size: var(--vl-t-meta); color: var(--vl-ink-3);
+           font-variant-numeric: tabular-nums; }
+.vl-display { font-family: var(--vl-font-display); font-weight: 400; letter-spacing: -.01em; }
+
+/* Respect a reduced-motion preference for every transition this
+   system defines, rather than leaving it to each component. */
+@media (prefers-reduced-motion: reduce) {
+    .vl, .vl * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}

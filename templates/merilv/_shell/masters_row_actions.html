@@ -1,0 +1,49 @@
+{% load merilv_ui %}
+{% comment %}
+The Edit + Delete pair every master row carries, so the two controls sit in the
+same order and read the same on all ten tables.
+
+Delete posts to the one registry-driven endpoint (masters_row_delete) and always
+demands a confirmation naming the row, because none of these masters has an
+undo — a hard delete is a hard delete.
+
+Blue edits, red deletes — the same colour scheme the card head uses, so the two
+controls are identifiable at a glance in a dense table without reading tooltips.
+
+The pair lives in a flex wrapper rather than sitting directly in a
+text-align:right cell. A bare button and a form element resolve their inline
+baselines differently, which left the two icons at slightly different heights;
+flex with align-items:center takes the baseline out of the equation, and the gap
+replaces the newline whitespace that was padding them apart unevenly.
+
+Params
+    key       MASTER_SHEETS key, the delete endpoint's target
+    pk        row primary key
+    label     what the row is, shown in the confirmation ("MHPL / ABC123")
+    noun      singular master name for the confirmation title, e.g. "material"
+    on_edit   JS call for the edit button; omit to render Delete only
+{% endcomment %}
+<td class="mv-col-actions mv-col-actions--pair">
+    <div class="mv-row-actions">
+        {% if on_edit %}
+        <button type="button" class="mv-btn mv-btn--icon mv-btn--tint-blue" title="Edit" onclick="{{ on_edit }}">{% icon "edit" 16 %}</button>
+        {% endif %}
+        {% comment %}
+        The confirm attributes belong on the button, not on the form.
+        datatable.js's interceptor submits through `trigger.form`, which is a
+        property of form *controls* only; on a <form> it is undefined and the
+        handler falls through to `trigger.click()`, and dispatching a click at
+        a form does not submit it — so the confirmation appeared, Delete was
+        pressed, and nothing happened.
+        {% endcomment %}
+        <form method="post" action="{% url 'merilv:masters_row_delete' key %}" class="mv-row-delete">
+            {% csrf_token %}
+            <input type="hidden" name="pk" value="{{ pk }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="mv-btn mv-btn--icon mv-btn--danger" title="Delete"
+                    data-mv-confirm="Delete {{ noun }} {{ label }}? This cannot be undone."
+                    data-mv-confirm-title="Delete {{ noun }}?"
+                    data-mv-confirm-ok="Delete">{% icon "trash" 16 %}</button>
+        </form>
+    </div>
+</td>

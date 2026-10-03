@@ -1,0 +1,362 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Reports → User Activity → one user. Admin-only individual tracking.
+
+Charts are Highcharts (see reports_users.html for the why). Every series is
+built in merilv/useractivity.py; this template only places containers.
+
+Six views of the same data, each answering something the others cannot:
+  * Daily trend, stacked by work type, with the user's own average as a dashed
+    plotLine and a cumulative line on a second axis — the last is what turns
+    "busy days" into "are they still working".
+  * Active window per day — the "how much time" trend.
+  * Hour-of-day — the shift pattern, in Asia/Kolkata.
+  * Weekday — averaged per occurrence, not summed.
+  * Work mix donut + per-source bar — WHAT they did.
+  * Event feed — the actual sequence.
+
+Plus a peer-standing panel: rank, team median, and a signed delta. Performance
+only means something relative, and an admin should not have to eyeball whether
+4,000 scans is a lot.
+
+Honesty caveat, same as the roster: "Active window" is an engagement span, not
+attendance. No login/logout tracking exists in this module.
+{% endcomment %}
+
+{% block mv_title %}{{ identity.name|default:subject.username }} — User Activity{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:reports' %}">Reports</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:user_activity' %}?days={{ days }}">User Activity</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ identity.name|default:subject.username }}</span>
+{% endblock %}
+
+{% block mv_heading %}{{ identity.name|default:subject.username }}{% endblock %}
+{% block mv_sub %}
+<p class="mv-page-header__sub">
+    {{ identity.username }}{% if identity.email %} · {{ identity.email }}{% endif %}
+    · {{ since|date:"d M Y" }} to {{ until|date:"d M Y" }}
+</p>
+{% endblock %}
+
+{% block mv_actions %}
+{% comment %}
+The picker jumps sideways to another user without going back to the roster.
+It posts to the *list* view, which redirects — so "All users" (an empty value)
+lands on the roster and a pk lands on that person's page, from one control.
+{% endcomment %}
+<form method="get" action="{% url 'merilv:user_activity' %}" class="mv-row">
+    <select class="mv-select mv-userpick" name="user" onchange="this.form.submit()"
+            aria-label="Track a specific user">
+        <option value="">← All users</option>
+        {% for option in picker %}
+        <option value="{{ option.id }}" {% if option.id == subject.pk %}selected{% endif %}>
+            {{ option.name }}{% if option.role %} — {{ option.role }}{% endif %} · {{ option.total }}
+        </option>
+        {% endfor %}
+    </select>
+    <select class="mv-select" name="days" onchange="this.form.submit()" aria-label="Reporting window">
+        {% for value, label in windows %}
+        <option value="{{ value }}" {% if days == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+{% endblock %}
+
+{% block mv_body %}
+
+{# ── Identity ────────────────────────────────────────────────────────────── #}
+<div class="mv-card">
+    <div class="mv-row" style="gap:var(--mv-4);align-items:flex-start;flex-wrap:wrap;">
+        <span class="mv-avatar mv-avatar--lg{% if not stats.total %} mv-avatar--idle{% endif %}">
+            {{ identity.name|default:subject.username|initials }}
+        </span>
+        <div class="mv-statgrid" style="flex:1;min-width:0;">
+            <div>
+                <div class="mv-statgrid__k">Role</div>
+                <div class="mv-statgrid__v">
+                    {% if identity.role %}
+                    <span class="mv-tier {{ identity.role|role_tier_class }}">{{ identity.role }}</span>
+                    {% else %}<span class="mv-fg-3">No Meril-V role</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="mv-statgrid__k">Plant access</div>
+                {# No mapping means unrestricted, not "no access" — rbac.plant_scope. #}
+                <div class="mv-statgrid__v">
+                    {% if identity.plants %}<span class="mv-mono">{{ identity.plants|join:", " }}</span>
+                    {% else %}<span class="mv-fg-3">All plants</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="mv-statgrid__k">Reports to</div>
+                <div class="mv-statgrid__v">{{ identity.manager|default:"—" }}</div>
+            </div>
+            <div>
+                <div class="mv-statgrid__k">Account</div>
+                <div class="mv-statgrid__v">
+                    {% if identity.is_active %}<span class="mv-badge mv-badge--ok">Active</span>
+                    {% else %}<span class="mv-badge mv-badge--danger">Disabled</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="mv-statgrid__k">Last login</div>
+                <div class="mv-statgrid__v">
+                    {% if identity.last_login %}{{ identity.last_login|date:"d M Y, H:i" }}
+                    {% else %}<span class="mv-fg-3">Never</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Headline metrics ────────────────────────────────────────────────────── #}
+<div class="mv-kpis" style="margin-top:var(--mv-4);">
+    <div class="mv-kpi mv-kpi--active">
+        <span class="mv-kpi__icon">{% icon "activity" %}</span>
+        <span class="mv-kpi__label">Total Actions</span>
+        <span class="mv-kpi__value">{{ stats.total }}</span>
+        <span class="mv-kpi__sub">{% icon "activity" 12 %} across all consoles</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "history" %}</span>
+        <span class="mv-kpi__label">Active Days</span>
+        <span class="mv-kpi__value">{{ stats.active_days }}</span>
+        <span class="mv-kpi__sub">{% icon "history" 12 %} of {{ days }} in window</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "chart" %}</span>
+        <span class="mv-kpi__label">Per Active Day</span>
+        <span class="mv-kpi__value">{{ stats.per_active_day }}</span>
+        {# "per active hour", not a flat hourly rate: the divisor is the window below. #}
+        <span class="mv-kpi__sub">{% icon "chart" 12 %} {{ stats.actions_per_hour }} per active hour</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "clock" %}</span>
+        <span class="mv-kpi__label">Active Window</span>
+        <span class="mv-kpi__value">{{ stats.active_seconds|duration }}</span>
+        <span class="mv-kpi__sub">{% icon "clock" 12 %} first→last action per day</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "box" %}</span>
+        <span class="mv-kpi__label">Session Time</span>
+        <span class="mv-kpi__value">{{ stats.session_seconds|duration }}</span>
+        <span class="mv-kpi__sub">{% icon "box" 12 %} console sessions only</span>
+    </div>
+</div>
+
+{% if stats.total %}
+
+<div class="mv-chartgrid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);">
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "activity" %} Daily activity</h2>
+            <span class="mv-t-caption mv-fg-3">
+                Stacked by type · dashed line = their own average · dotted = cumulative
+            </span>
+        </div>
+        <div id="chartTrend" class="mv-chart mv-chart--tall"></div>
+    </div>
+
+    {# ── Peer standing ───────────────────────────────────────────────────── #}
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "chart" %} Standing</h2>
+        {% if peers.rank %}
+        <div class="mv-rank">
+            <span class="mv-rank__n">#{{ peers.rank }}</span>
+            <span class="mv-rank__of">of {{ peers.of }} active user{{ peers.of|pluralize }}</span>
+        </div>
+        <dl class="mv-dl" style="margin-top:var(--mv-3);">
+            <dt>Their actions</dt><dd class="mv-mono">{{ peers.mine }}</dd>
+            <dt>Team median</dt><dd class="mv-mono">{{ peers.median }}</dd>
+            <dt>Busiest user</dt><dd class="mv-mono">{{ peers.top }}</dd>
+            <dt>vs median</dt>
+            <dd>
+                {% comment %}
+                Median, not mean — one bulk-paste session of 300 scans drags an
+                average far enough to make everyone else look idle.
+                {% endcomment %}
+                {% if peers.vs_median_pct > 0 %}
+                <span class="mv-delta mv-delta--up">+{{ peers.vs_median_pct }}%</span>
+                {% elif peers.vs_median_pct < 0 %}
+                <span class="mv-delta mv-delta--down">{{ peers.vs_median_pct }}%</span>
+                {% else %}<span class="mv-mono">at median</span>{% endif %}
+            </dd>
+        </dl>
+        {% else %}
+        <p class="mv-t-caption">Not ranked — no activity in this window.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mv-chartgrid">
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "clock" %} Time on task per day</h2>
+            <span class="mv-t-caption mv-fg-3">Engagement window, not attendance</span>
+        </div>
+        <div id="chartMinutes" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "clock" %} When they work</h2>
+        <div id="chartHours" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "layers" %} Work mix</h2>
+        <div id="chartMix" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "history" %} Weekday pattern</h2>
+            <span class="mv-t-caption mv-fg-3">Average per occurrence</span>
+        </div>
+        <div id="chartWeekdays" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "list" %} What exactly they did</h2>
+            <span class="mv-t-caption mv-fg-3">{{ breakdown|length }} of {{ breakdown_all|length }} activities used</span>
+        </div>
+        <div id="chartSources" class="mv-chart mv-chart--tall"></div>
+    </div>
+</div>
+
+{# ── Numeric breakdown ───────────────────────────────────────────────────── #}
+<div class="mv-card" style="margin-top:var(--mv-4);">
+    <h2 class="mv-card__title">{% icon "table" %} Breakdown</h2>
+    <div class="mv-table-wrap">
+        <table class="mv-table mv-table--zebra mv-table--dense">
+            <thead>
+                <tr><th>Activity</th><th>Type</th><th class="mv-num">Count</th><th class="mv-num">Share</th></tr>
+            </thead>
+            <tbody>
+                {% for row in breakdown %}
+                <tr>
+                    <td class="mv-inline">{% icon row.icon 14 %} {{ row.label }}</td>
+                    <td>
+                        <span class="mv-legend__item">
+                            <span class="mv-legend__dot mv-legend__dot--{{ row.kind }}"></span>
+                            <span class="mv-t-caption">{{ row.kind|capfirst }}</span>
+                        </span>
+                    </td>
+                    <td class="mv-num mv-mono mv-t-strong">{{ row.n }}</td>
+                    <td class="mv-num mv-mono">{{ row.pct|pct }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# ── Span ────────────────────────────────────────────────────────────────── #}
+<div class="mv-card" style="margin-top:var(--mv-4);">
+    <div class="mv-statgrid">
+        <div>
+            <div class="mv-statgrid__k">First action</div>
+            <div class="mv-statgrid__v">{{ stats.first_seen|date:"d M Y, H:i" }}</div>
+        </div>
+        <div>
+            <div class="mv-statgrid__k">Last action</div>
+            <div class="mv-statgrid__v">
+                {{ stats.last_seen|date:"d M Y, H:i" }}
+                <span class="mv-t-caption mv-fg-3">({{ stats.last_seen|timesince }} ago)</span>
+            </div>
+        </div>
+        <div>
+            <div class="mv-statgrid__k">Busiest day</div>
+            <div class="mv-statgrid__v">
+                {{ stats.busiest_day|date:"d M Y" }}
+                <span class="mv-t-caption mv-fg-3">({{ stats.busiest_day_count }} actions)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Event feed ──────────────────────────────────────────────────────────── #}
+<div class="mv-card" style="margin-top:var(--mv-4);">
+    <div class="mv-card__head">
+        <h2 class="mv-card__title">{% icon "activity" %} Recent activity</h2>
+        <span class="mv-t-caption mv-fg-3">
+            {% comment %}
+            The count is the whole feed, not this page — "25 events" on a user
+            with hundreds would read as the total and understate them. The cap
+            is stated because the feed is deliberately the most recent N
+            rather than everything ever.
+            {% endcomment %}
+            Newest first · {{ events_total }} event{{ events_total|pluralize }}
+            {% if events_page.has_other_pages %}
+            &nbsp;·&nbsp; page {{ events_page.number }} of {{ events_page.paginator.num_pages }}
+            {% endif %}
+        </span>
+    </div>
+    {% if events %}
+    <div class="mv-feed">
+        {% for event in events %}
+        <div class="mv-feed__row">
+            <span class="mv-feed__icon">{% icon event.icon 14 %}</span>
+            <span class="mv-feed__time">{{ event.at|date:"d M H:i" }}</span>
+            <span class="mv-feed__what">{{ event.what|default:"—" }}</span>
+            <span class="mv-feed__label">
+                <span class="mv-legend__dot mv-legend__dot--{{ event.kind }}" style="display:inline-block;"></span>
+                {{ event.label }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if events_page.has_other_pages %}
+    <div class="mv-feed__pager">
+        <span class="mv-t-caption mv-fg-3">
+            Showing {{ events_page.start_index }}–{{ events_page.end_index }} of {{ events_total }}
+        </span>
+        {% comment %}
+        pagination_links owns the hrefs: it carries every other active GET
+        param through, so paging the feed cannot silently reset the ?days=
+        window the rest of the page is reporting on. "events_page" names this
+        paginator's own key.
+        {% endcomment %}
+        {% pagination_links events_page param="events_page" %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="mv-t-caption">No events in this window.</p>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="mv-empty" style="margin-top:var(--mv-4);">
+    {% icon "search-x" 48 %}
+    <div class="mv-empty__title">Nothing logged in this window</div>
+    <p class="mv-empty__text">
+        {{ identity.name|default:subject.username }} has Meril-V access but recorded no activity
+        between {{ since|date:"d M Y" }} and {{ until|date:"d M Y" }}. Try a longer window.
+    </p>
+</div>
+{% endif %}
+
+{{ charts|json_script:"uaData" }}
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'merilv/js/user_activity.js' %}"></script>
+<script>
+(function () {
+    if (!window.mvUserActivity) { return; }
+    var data = window.mvUserActivity.readPayload('uaData');
+    if (!data || !data.has_data) { return; }
+    var ua = window.mvUserActivity;
+    ua.applyTheme();
+
+    ua.stackedTrend('chartTrend', data.trend, { cumulative: true, average: true });
+    ua.minutesTrend('chartMinutes', data.minutes_per_day);
+    ua.hourColumn('chartHours', data.hours);
+    ua.donut('chartMix', data.mix);
+    ua.weekdayColumn('chartWeekdays', data.weekdays);
+    ua.rankedBar('chartSources', data.sources.names, data.sources.values);
+})();
+</script>
+{% endblock %}

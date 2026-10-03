@@ -1,0 +1,9 @@
+{% autoescape off %}Warehouse Inspection - Still Open
+
+The following checklist items are still marked No and have not been resolved. This reminder repeats daily until each item is answered Yes.
+
+{% for row in rows %}- {{ row.ticket.checkpoint.checkpoint_name }} | Building: {{ row.ticket.building.building_name }} | Floor: {{ row.ticket.floor.floor_name }} | Condition: {{ row.ticket.condition_category.condition_category_name }} | Open from {{ row.opened_on|date:"d M Y" }} to {{ row.as_of|date:"d M Y" }} ({{ row.days_open }} day{{ row.days_open|pluralize }}){% if row.ticket.last_response.comments %} | Last comment: {{ row.ticket.last_response.comments }}{% endif %}{% if row.ticket.last_response.photo %} | Photo: {{ row.ticket.last_response.photo_absolute_url }}{% endif %}
+{% endfor %}
+
+For any query, please contact us at {{ contact_email }}.
+{% endautoescape %}

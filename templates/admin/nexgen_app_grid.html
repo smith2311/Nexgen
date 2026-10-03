@@ -1,0 +1,67 @@
+{% load i18n %}
+{% comment %}
+  Dashboard app grid.
+
+  Deliberately NOT a replacement for admin/app_list.html — that template is
+  also included by admin/nav_sidebar.html, whose quick-filter JS walks
+  `th[scope=row] a`. Keeping the two separate means the sidebar keeps working
+  exactly as Django ships it while the dashboard gets the card treatment.
+
+  The `app-<label>` class is what carries the hue: nexgen-admin.css maps each
+  app label to an --nx-h value, and the card spine, hover bloom, and header
+  aurora all read from it.
+{% endcomment %}
+
+{% if app_list %}
+  <div class="nx-grid" id="nx-grid">
+    {% for app in app_list %}
+      <section class="nx-card app-{{ app.app_label }}{% if app.app_url in request.path|urlencode %} current-app{% endif %}"
+               data-search="{{ app.name|lower }} {{ app.app_label }}{% for model in app.models %} {{ model.name|lower }} {{ model.object_name|lower }}{% endfor %}">
+        <header class="nx-card-head">
+          <div>
+            <p class="nx-card-label">{{ app.app_label }}</p>
+            <h2 class="nx-card-name">
+              <a href="{{ app.app_url }}" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+            </h2>
+          </div>
+          <span class="nx-card-count">{% blocktranslate count counter=app.models|length %}{{ counter }} model{% plural %}{{ counter }} models{% endblocktranslate %}</span>
+        </header>
+
+        <ul class="nx-models">
+          {% for model in app.models %}
+            {% with model_name=model.object_name|lower %}
+              <li class="nx-model model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                {% if model.admin_url %}
+                  <a class="nx-model-link" href="{{ model.admin_url }}" id="{{ app.app_label }}-{{ model_name }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                {% else %}
+                  <span class="nx-model-plain" id="{{ app.app_label }}-{{ model_name }}">{{ model.name }}</span>
+                {% endif %}
+
+                <span class="nx-model-actions">
+                  {% if model.add_url %}
+                    <a class="nx-act" href="{{ model.add_url }}"
+                       aria-label="{% blocktranslate with name=model.name %}Add {{ name }}{% endblocktranslate %}"
+                       aria-describedby="{{ app.app_label }}-{{ model_name }}">
+                      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </a>
+                  {% endif %}
+                  {% if model.admin_url %}
+                    <a class="nx-act" href="{{ model.admin_url }}"
+                       aria-label="{% if model.view_only %}{% blocktranslate with name=model.name %}View {{ name }}{% endblocktranslate %}{% else %}{% blocktranslate with name=model.name %}Change {{ name }}{% endblocktranslate %}{% endif %}"
+                       aria-describedby="{{ app.app_label }}-{{ model_name }}">
+                      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8h9M9 4.5 12.5 8 9 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </a>
+                  {% endif %}
+                </span>
+              </li>
+            {% endwith %}
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+
+    <p class="nx-grid-empty" id="nx-grid-empty" hidden>{% translate 'No app or model matches that filter. Press Escape to clear it.' %}</p>
+  </div>
+{% else %}
+  <div class="nx-grid-empty">{% translate 'You don’t have permission to view or edit anything.' %}</div>
+{% endif %}

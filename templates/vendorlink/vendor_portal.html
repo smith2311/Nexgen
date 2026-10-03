@@ -1,0 +1,496 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+{% comment %}
+The external vendor's home screen.
+
+Deliberately standalone rather than {% templatetag openblock %} extends "base.html" {% templatetag closeblock %}: a vendor is not
+a Meril employee, and base.html's chrome is the internal platform's — an app
+switcher, a notification bell, a sidebar of modules they have no access to.
+They get their own topbar and nothing else.
+
+Colours are the VendorLink design system's, lifted as named custom properties
+rather than linking vendorlink-ds.css: that stylesheet scopes every token to
+the `.vlx` class and carries ~2,500 lines for screens this page does not have.
+The values below are the same ones (--vlx-primary, --vlx-secondary, --vlx-gold
+and friends), so the portal and the rest of VendorLink stay in step visually
+without this page inheriting a component library it uses four classes of.
+
+Gold, not green, marks a win. That is the design system's own rule — green is
+"approved/active", amber is "needs attention", and a winning quote is neither.
+{% endcomment %}
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor Portal — Meril VendorLink</title>
+<link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+<style>
+:root {
+    --vp-canvas:    #F6F8FB;
+    --vp-surface:   #FFFFFF;
+    --vp-divider:   #E5E9F0;
+    --vp-ink:       #0B1C30;
+    --vp-ink-soft:  #44474D;
+    --vp-ink-mute:  #94A3B8;
+    --vp-primary:   #000618;
+    --vp-navy:      #0F1F3A;
+    --vp-blue:      #0061A6;
+    --vp-blue-tint: #E0F2FE;
+    --vp-green:     #16A34A;
+    --vp-green-tint:#DCFCE7;
+    --vp-amber:     #D97706;
+    --vp-amber-tint:#FEF3C7;
+    --vp-red:       #DC2626;
+    --vp-red-tint:  #FEE2E2;
+    --vp-gold:      #A16207;
+    --vp-gold-tint: #FEF9C3;
+    --vp-r-md:      10px;
+    --vp-r-lg:      16px;
+    --vp-sh-1:      0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+    --vp-sh-2:      0 10px 30px rgba(15,31,58,.14), 0 2px 8px rgba(15,31,58,.08);
+    --vp-mono:      'JetBrains Mono', 'SF Mono', Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+    margin: 0; padding: 0;
+    background: var(--vp-canvas);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--vp-ink);
+    min-height: 100vh; display: flex; flex-direction: column;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.vp-topbar {
+    background: var(--vp-primary);
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between;
+    height: 66px; box-shadow: var(--vp-sh-1);
+}
+.vp-topbar-left { display: flex; align-items: center; gap: 14px; }
+.vp-topbar-logo {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,.14);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem; color: #fff;
+}
+.vp-topbar-title { font-size: 1.05rem; font-weight: 600; color: #fff; }
+.vp-topbar-sub   { font-size: 0.78rem; color: rgba(255,255,255,.7); }
+.vp-logout {
+    padding: 8px 18px; border-radius: var(--vp-r-md); border: 1px solid rgba(255,255,255,.3);
+    background: rgba(255,255,255,.1); color: #fff; font-size: 0.82rem;
+    font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 7px;
+    transition: background .15s;
+}
+.vp-logout:hover { background: rgba(255,255,255,.2); }
+
+/* ── Hero ──────────────────────────────────────────────────────────── */
+.vp-hero { background: var(--vp-navy); padding: 34px 40px 30px; color: #fff; }
+.vp-hero-inner {
+    max-width: 1120px; margin: 0 auto;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; flex-wrap: wrap;
+}
+.vp-hero-greeting { font-size: 0.82rem; color: rgba(255,255,255,.65); margin-bottom: 4px; }
+.vp-hero-name { font-size: 1.65rem; font-weight: 600; margin-bottom: 4px; }
+.vp-hero-company {
+    font-size: 0.9rem; color: rgba(255,255,255,.8);
+    display: flex; align-items: center; gap: 8px;
+}
+.vp-hero-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #4ADE80; box-shadow: 0 0 6px rgba(74,222,128,.7); flex-shrink: 0;
+}
+/* The primary call to action lives in the hero, not below the fold: on a
+   portal whose whole purpose is quoting, "go and quote" should never need
+   scrolling to find. */
+.vp-hero-cta {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 11px 20px; border-radius: var(--vp-r-md);
+    background: #fff; color: var(--vp-navy);
+    font-size: .88rem; font-weight: 600; text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+}
+.vp-hero-cta:hover { transform: translateY(-1px); box-shadow: var(--vp-sh-2); }
+
+/* ── Main body ─────────────────────────────────────────────────────── */
+.vp-body { flex: 1; max-width: 1120px; width: 100%; margin: 0 auto; padding: 32px 20px 56px; }
+.vp-section {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin: 0 0 14px;
+}
+.vp-section-title {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--vp-ink-soft); margin: 0;
+}
+.vp-section-link {
+    font-size: .78rem; font-weight: 600; color: var(--vp-blue); text-decoration: none;
+}
+.vp-section-link:hover { text-decoration: underline; }
+.vp-block { margin: 0 0 34px; }
+
+/* ── Stat tiles ─────────────────────────────────────────────────────── */
+.vp-stats { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.vp-stat {
+    background: var(--vp-surface); border: 1px solid var(--vp-divider);
+    border-radius: 14px; padding: 18px 20px; box-shadow: var(--vp-sh-1);
+    /* The accent bar is what stops near-identical white tiles reading as one
+       undifferentiated block. */
+    border-left: 4px solid var(--vp-stat-accent, var(--vp-blue));
+}
+.vp-stat--todo { --vp-stat-accent: var(--vp-amber); }
+.vp-stat--won  { --vp-stat-accent: var(--vp-gold); }
+.vp-stat__n {
+    font-size: 1.9rem; font-weight: 700; line-height: 1.05;
+    color: var(--vp-stat-accent, var(--vp-blue));
+    font-variant-numeric: tabular-nums;
+}
+.vp-stat__lbl {
+    font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--vp-ink-soft); margin-top: 5px;
+}
+.vp-stat__sub { font-size: .76rem; color: #6b7280; margin-top: 4px; line-height: 1.5; }
+
+/* ── Open-to-quote cards ────────────────────────────────────────────── */
+.vp-quote-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.vp-quote {
+    background: var(--vp-surface); border: 1px solid var(--vp-divider);
+    border-left: 4px solid var(--vp-amber);
+    border-radius: 14px; padding: 16px 18px; text-decoration: none; color: inherit;
+    display: flex; flex-direction: column; gap: 8px;
+    box-shadow: var(--vp-sh-1); transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.vp-quote:hover { transform: translateY(-2px); box-shadow: var(--vp-sh-2); border-color: rgba(0,97,166,.35); border-left-color: var(--vp-amber); }
+.vp-quote__subject { font-size: .92rem; font-weight: 600; line-height: 1.4; }
+.vp-quote__meta { font-size: .76rem; color: #6b7280; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.vp-quote__foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-top: 2px;
+}
+.vp-quote__go { font-size: .8rem; font-weight: 600; color: var(--vp-blue); }
+
+/* ── Pills ──────────────────────────────────────────────────────────── */
+.vp-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 600; white-space: nowrap;
+    background: #EEF2F7; color: var(--vp-ink-soft);
+}
+.vp-pill--blue  { background: var(--vp-blue-tint);  color: #075985; }
+.vp-pill--green { background: var(--vp-green-tint); color: #14532D; }
+.vp-pill--amber { background: var(--vp-amber-tint); color: #92400E; }
+.vp-pill--red   { background: var(--vp-red-tint);   color: #7F1D1D; }
+.vp-pill--gold  { background: var(--vp-gold-tint);  color: var(--vp-gold); }
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+.vp-card {
+    background: var(--vp-surface); border: 1px solid var(--vp-divider);
+    border-radius: var(--vp-r-lg); box-shadow: var(--vp-sh-1); overflow: hidden;
+}
+.vp-tablewrap { overflow-x: auto; }
+/* The min-width is what makes the horizontal scroll readable rather than
+   merely present: without it the narrowest viewport squeezes the request
+   column to a few characters and wraps every title over six lines, which
+   costs more vertical space than the scroll saves. */
+.vp-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+.vp-table thead { background: var(--vp-navy); }
+.vp-table th {
+    padding: 11px 16px; text-align: left; white-space: nowrap;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: #fff;
+}
+.vp-table td {
+    padding: 13px 16px; font-size: 13px; vertical-align: middle;
+    border-top: 1px solid var(--vp-divider);
+}
+.vp-table tbody tr:hover { background: var(--vp-canvas); }
+.vp-table .num { font-family: var(--vp-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vp-table .right { text-align: right; }
+.vp-row-awarded { background: #FFFDF2; }
+.vp-row-awarded:hover { background: #FEF9C3; }
+.vp-cell-title { font-weight: 600; color: var(--vp-ink); }
+.vp-cell-sub { font-size: 11.5px; color: var(--vp-ink-mute); margin-top: 2px; }
+.vp-total { font-weight: 700; color: var(--vp-ink); }
+.vp-cur { font-size: 11px; color: var(--vp-ink-mute); font-weight: 600; margin-right: 3px; }
+.vp-viewlink { color: var(--vp-blue); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.vp-viewlink:hover { text-decoration: underline; }
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+.vp-empty { padding: 44px 24px; text-align: center; }
+.vp-empty__icon {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 14px;
+    background: var(--vp-blue-tint); color: var(--vp-blue);
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+.vp-empty h3 { margin: 0 0 6px; font-size: 1rem; font-weight: 600; }
+.vp-empty p { margin: 0; font-size: .84rem; color: #6b7280; line-height: 1.6; }
+
+/* Info box */
+.vp-info {
+    background: var(--vp-surface); border-radius: var(--vp-r-lg);
+    border: 1px solid var(--vp-divider); padding: 18px 20px; margin-top: 8px;
+    display: flex; align-items: flex-start; gap: 14px;
+    font-size: 0.84rem; line-height: 1.6;
+}
+.vp-info-icon {
+    width: 34px; height: 34px; border-radius: var(--vp-r-md);
+    background: var(--vp-blue-tint); display: flex; align-items: center; justify-content: center;
+    color: var(--vp-blue); font-size: 0.9rem; flex-shrink: 0; margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+    .vp-topbar { padding: 0 16px; }
+    .vp-hero { padding: 26px 16px 24px; }
+    .vp-body { padding: 24px 14px 40px; }
+    .vp-hero-cta { width: 100%; justify-content: center; }
+}
+/* Touch targets, matching the design system's own pointer:coarse pass. */
+@media (pointer: coarse) {
+    .vp-logout, .vp-hero-cta, .vp-viewlink { min-height: 44px; display: inline-flex; align-items: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="vp-topbar">
+    <div class="vp-topbar-left">
+        <div class="vp-topbar-logo"><i class="fas fa-truck-field"></i></div>
+        <div>
+            <div class="vp-topbar-title">Meril VendorLink</div>
+            <div class="vp-topbar-sub">Vendor Portal</div>
+        </div>
+    </div>
+    <a href="{% url 'logout' %}" class="vp-logout">
+        <i class="fas fa-right-from-bracket"></i> Sign Out
+    </a>
+</div>
+
+<!-- Hero -->
+<div class="vp-hero">
+    <div class="vp-hero-inner">
+        <div>
+            <div class="vp-hero-greeting">Welcome back</div>
+            <div class="vp-hero-name">
+                {% if vendor_reg %}{{ vendor_reg.contact_person }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}
+            </div>
+            {% if vendor_reg %}
+            <div class="vp-hero-company">
+                <div class="vp-hero-dot"></div>
+                {{ vendor_reg.vendor_name }}
+                {% if vendor_reg.country %}&nbsp;&middot;&nbsp;{{ vendor_reg.country }}{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <a href="{% url 'vendorlink:request_list' %}" class="vp-hero-cta">
+            <i class="fas fa-file-invoice-dollar"></i>
+            {% if open_to_quote_count %}Quote {{ open_to_quote_count }} open request{{ open_to_quote_count|pluralize }}{% else %}Browse bid requests{% endif %}
+            <i class="fas fa-arrow-right" style="font-size:.75rem;"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Body -->
+<div class="vp-body">
+
+    {# ── Your record ──────────────────────────────────────────────────── #}
+    <div class="vp-block">
+        <div class="vp-section"><h2 class="vp-section-title">Your Record</h2></div>
+        <div class="vp-stats">
+            {% if open_to_quote_count %}
+            <div class="vp-stat vp-stat--todo">
+                <div class="vp-stat__n">{{ open_to_quote_count }}</div>
+                <div class="vp-stat__lbl">Awaiting your quote</div>
+                <div class="vp-stat__sub">Open request{{ open_to_quote_count|pluralize }} you have not bid on</div>
+            </div>
+            {% endif %}
+            <div class="vp-stat">
+                <div class="vp-stat__n">{{ bids_submitted|default:"0" }}</div>
+                <div class="vp-stat__lbl">Bid{{ bids_submitted|pluralize }} submitted</div>
+                <div class="vp-stat__sub">
+                    {% if requests_bid_on %}across {{ requests_bid_on }} request{{ requests_bid_on|pluralize }}{% else %}No bids submitted yet{% endif %}
+                </div>
+            </div>
+            <div class="vp-stat vp-stat--won">
+                <div class="vp-stat__n">{{ bids_won|default:"0" }}</div>
+                <div class="vp-stat__lbl">Bid{{ bids_won|pluralize }} won</div>
+                <div class="vp-stat__sub">
+                    {% if bids_won %}Currently awarded to you{% else %}Awards land here once made{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Open to quote ────────────────────────────────────────────────── #}
+    {% if open_to_quote %}
+    <div class="vp-block">
+        <div class="vp-section">
+            <h2 class="vp-section-title">Awaiting Your Quote</h2>
+            {% if open_to_quote_count > open_to_quote|length %}
+            <a href="{% url 'vendorlink:request_list' %}" class="vp-section-link">See all {{ open_to_quote_count }} &rarr;</a>
+            {% endif %}
+        </div>
+        <div class="vp-quote-grid">
+            {% for r in open_to_quote %}
+            <a href="{% url 'vendorlink:request_detail' r.pk %}" class="vp-quote">
+                <div class="vp-quote__subject">{{ r.subject }}</div>
+                <div class="vp-quote__meta">
+                    <span><i class="fas fa-location-dot"></i> {{ r.country }}</span>
+                    {% if r.reference_id %}<span style="font-family:var(--vp-mono);">{{ r.reference_id }}</span>{% endif %}
+                </div>
+                <div class="vp-quote__foot">
+                    {% if r.bid_close_at %}
+                    <span class="vp-pill vp-pill--amber">
+                        <i class="fas fa-clock"></i> Closes {{ r.bid_close_at|date:"d M Y" }}
+                    </span>
+                    {% else %}
+                    <span class="vp-pill vp-pill--green"><i class="fas fa-door-open"></i> Open</span>
+                    {% endif %}
+                    <span class="vp-quote__go">Submit a quote <i class="fas fa-arrow-right"></i></span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Awards ───────────────────────────────────────────────────────── #}
+    {% comment %}
+    There is no "awaiting your reply" state: an award is decided by the
+    requester the moment it is made, not something the vendor confirms. See
+    vendorlink/models.py (BidAward) and vendorlink/awards.py.
+    {% endcomment %}
+    {% if won_awards %}
+    <div class="vp-block">
+        <div class="vp-section"><h2 class="vp-section-title">Requests Currently Awarded To You</h2></div>
+        <div class="vp-card">
+            <div class="vp-tablewrap">
+                <table class="vp-table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th class="right">Awarded amount</th>
+                            <th>Awarded</th>
+                            <th class="right"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in won_awards %}
+                        <tr class="vp-row-awarded">
+                            <td>
+                                <div class="vp-cell-title">{{ a.vendor_request.subject }}</div>
+                                <div class="vp-cell-sub">
+                                    {% if a.vendor_request.reference_id %}{{ a.vendor_request.reference_id }} &middot; {% endif %}Bid #{{ a.bid.bid_number }}
+                                </div>
+                            </td>
+                            <td class="right num vp-total">
+                                {% if a.awarded_amount %}<span class="vp-cur">{{ a.awarded_currency }}</span>{{ a.awarded_amount|floatformat:"2g" }}{% else %}&mdash;{% endif %}
+                            </td>
+                            <td style="white-space:nowrap;">{{ a.awarded_at|date:"d M Y" }}</td>
+                            <td class="right">
+                                <a href="{% url 'vendorlink:request_detail' a.vendor_request.pk %}" class="vp-viewlink">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Every bid they have submitted ────────────────────────────────── #}
+    <div class="vp-block">
+        <div class="vp-section">
+            <h2 class="vp-section-title">Your Bids</h2>
+            {% if my_bids %}<span class="vp-section-link" style="color:var(--vp-ink-mute);">{{ my_bids|length }} total</span>{% endif %}
+        </div>
+        <div class="vp-card">
+            {% if my_bids %}
+            <div class="vp-tablewrap">
+                <table class="vp-table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Bid</th>
+                            <th class="right">Total quoted</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th class="right"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bid in my_bids %}
+                        <tr {% if bid.is_awarded_to_me %}class="vp-row-awarded"{% endif %}>
+                            <td>
+                                <div class="vp-cell-title">{{ bid.vendor_request.subject|truncatechars:60 }}</div>
+                                <div class="vp-cell-sub">
+                                    {% if bid.vendor_request.reference_id %}{{ bid.vendor_request.reference_id }} &middot; {% endif %}{{ bid.vendor_request.country }}
+                                </div>
+                            </td>
+                            <td class="num">#{{ bid.bid_number }}</td>
+                            {% comment %}
+                            The number the vendor actually stood behind. Every
+                            cost line was already listed on the request page and
+                            never once added up, so a vendor could not answer
+                            "what did I quote?" from their own portal at all.
+                            Attached by the view through views._bid_total -- the
+                            same function the staff comparison screens rank on,
+                            so both sides quote one figure.
+
+                            A bid with no cost line filled at all sums to 0, and
+                            0 is falsy here on purpose: "—" is honest about a
+                            quote that carries no prices, "0.00" would read as a
+                            free offer.
+                            {% endcomment %}
+                            <td class="right num vp-total">
+                                {% if bid.total_cost %}
+                                <span class="vp-cur">{{ bid.currency }}</span>{{ bid.total_cost|floatformat:"2g" }}
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                            <td>
+                                {% if bid.is_awarded_to_me %}
+                                <span class="vp-pill vp-pill--gold"><i class="fas fa-trophy"></i> Awarded</span>
+                                {% elif bid.status == 'shortlisted' %}
+                                <span class="vp-pill vp-pill--green"><i class="fas fa-star"></i> Shortlisted</span>
+                                {% elif bid.status == 'rejected' %}
+                                <span class="vp-pill vp-pill--red"><i class="fas fa-xmark"></i> Not selected</span>
+                                {% else %}
+                                <span class="vp-pill vp-pill--blue"><i class="fas fa-clock"></i> Submitted</span>
+                                {% endif %}
+                            </td>
+                            <td style="white-space:nowrap;color:#6b7280;">{{ bid.submitted_at|date:"d M Y" }}</td>
+                            <td class="right">
+                                <a href="{% url 'vendorlink:request_detail' bid.vendor_request.pk %}" class="vp-viewlink">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="vp-empty">
+                <div class="vp-empty__icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                <h3>No bids submitted yet</h3>
+                <p>
+                    Open a bid request and submit your quotation &mdash; every bid you send
+                    will be listed here with its total.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vp-info">
+        <div class="vp-info-icon"><i class="fas fa-circle-info"></i></div>
+        <div>
+            For questions about your vendor account or active bid requests, contact the
+            Meril Global SCM team at
+            <a href="mailto:scm@merillife.com" style="color:var(--vp-blue);font-weight:600;">scm@merillife.com</a>.
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

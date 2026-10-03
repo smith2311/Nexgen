@@ -1,0 +1,82 @@
+{% load merilv_ui %}
+{% comment %}
+The action bar every master table carries: icon + title + record count on the
+left, then Import / Export / Clear / Add on the right — in that order on all
+twelve tabs, so the destructive button is never where the additive one was on the
+previous tab. (Template sits with the master picker above instead, since it is
+scoped to the selected table.)
+
+Colour is consistent across the whole console and carries the meaning, so the row
+is scannable without reading the labels: green produces a file, violet consumes
+one, amber exports, red destroys, solid blue adds. The row-level Edit/Delete pair
+in masters_row_actions.html follows the same scheme.
+
+Params
+    title       card title
+    icon        merilv_ui icon name
+    count       record count for the badge
+    key         MASTER_SHEETS key — drives Template/Import/Clear. Omit for a
+                tab that has no spreadsheet form (Entity Rules, Roles).
+    entity      entity code to scope Import/Clear to, or "" for all
+    add_url     href for the Add button (a dedicated create page)
+    add_modal   modal id for the Add button instead, when adding is inline
+    add_label   Add button text; defaults to "Add"
+    add_title   heading to stamp on the modal when add_modal is used
+{% endcomment %}
+<div class="mv-mx-card__id">
+    <span class="mv-mx-card__icon">{% icon icon 18 %}</span>
+    <h2 class="mv-mx-card__title">{{ title }}</h2>
+    <span class="mv-mx-count">{{ count|default:0 }}</span>
+</div>
+
+<div class="mv-mx-card__actions">
+    {% comment %}
+    No Template button here — it lives next to the master picker above, scoped to
+    the selected table, so there is exactly one of it per screen. The import
+    dialog still links to the same template, which is where it matters most.
+    {% endcomment %}
+    {% if key %}
+    {% comment %}
+    Import is the Master Data Upload capability, which only Admin holds by
+    default — master_import is gated on it server-side, so drawing the button
+    for a manager would only offer them a 403. Export stays open: reading a
+    master is not changing one.
+    {% endcomment %}
+    {% if mv_can_master_upload %}
+    <button type="button" class="mv-btn mv-btn--sm mv-btn--tint-violet" data-mv-open-modal="mvImportModal">{% icon "upload" %} Import Excel</button>
+    {% endif %}
+    <a href="{% url 'merilv:masters_export' key %}{% if entity %}?entity={{ entity|urlencode }}{% endif %}" class="mv-btn mv-btn--sm mv-btn--tint-warn">{% icon "download" %} Export</a>
+    <form method="post" action="{% url 'merilv:masters_clear' key %}" class="mv-mx-card__clear">
+        {% csrf_token %}
+        {% if entity %}<input type="hidden" name="entity" value="{{ entity }}">{% endif %}
+        {% comment %}
+        The message says "every row", never the count shown in the badge: that
+        badge is the *filtered* count, while Clear ignores the search box and
+        empties the whole table. Quoting it would understate what the button does.
+
+        The confirm attributes belong on the BUTTON. datatable.js submits through
+        `trigger.form`, a property only form *controls* have; on a <form> it is
+        undefined and the handler falls through to `trigger.click()`, and
+        clicking a form submits nothing — so the dialog appeared, Clear was
+        pressed, and the table stayed exactly as it was. Same defect the row
+        Edit/Delete pair had (see masters_row_actions.html).
+        {% endcomment %}
+        <button type="submit" class="mv-btn mv-btn--sm mv-btn--danger"
+                data-mv-confirm="This deletes every {{ title|lower }} row{% if entity %} for {{ entity }}{% endif %}, including any not matching the current search. It cannot be undone."
+                data-mv-confirm-title="Clear all {{ title }} data?"
+                data-mv-confirm-ok="Clear all data"
+                data-mv-confirm-type="{% if entity %}{{ entity }}{% else %}CLEAR{% endif %}">
+            {% icon "trash" %} Clear all data
+        </button>
+    </form>
+    {% endif %}
+
+    {% if add_url %}
+    <a href="{{ add_url }}" class="mv-btn mv-btn--sm mv-btn--primary">{% icon "plus" %} {{ add_label|default:"Add" }}</a>
+    {% elif add_modal %}
+    <button type="button" class="mv-btn mv-btn--sm mv-btn--primary"
+            data-mv-open-modal="{{ add_modal }}" data-mv-reset-title="{{ add_title|default:"Add" }}">
+        {% icon "plus" %} {{ add_label|default:"Add" }}
+    </button>
+    {% endif %}
+</div>

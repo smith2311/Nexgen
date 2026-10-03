@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Material Rework — Module Launch</title>
+</head>
+<!--
+  Launch announcement for the Material Rework module.
+
+  Material Rework is a STANDALONE module on the NexGen platform, served at
+  /material-rework/ with its own app, sidebar entry, roles and masters. It is
+  not part of Meril-V, which is a separate module at /meril-v/. An earlier
+  draft of this mail framed it as a Meril-V launch; that was wrong.
+
+  Built with tables and inline styles only — no flexbox, grid or external
+  stylesheet — because Outlook is the primary reader here.
+-->
+<body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#172033;-webkit-text-size-adjust:100%;">
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;margin:0;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:780px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.12);">
+
+          <!-- ── Header ───────────────────────────────────────────────── -->
+          <tr>
+            <td style="background:#0f766e;padding:34px 34px 30px;color:#ffffff;">
+              <div style="font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#ccfbf1;">NexGen Platform &middot; New Module</div>
+              <h1 style="margin:12px 0 10px;font-size:34px;line-height:1.15;font-weight:800;color:#ffffff;">Material Rework is Live</h1>
+              <p style="margin:0;font-size:16px;line-height:1.65;color:#ecfeff;">
+                One digital workflow to raise, approve, release, rework, receive and report material rework &mdash; with every quantity and every action attributable.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ── Where to find it ─────────────────────────────────────── -->
+          <tr>
+            <td style="padding:22px 34px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;">
+                <tr>
+                  <td style="padding:16px 18px;font-size:14px;line-height:1.7;color:#334155;">
+                    <strong style="color:#0f172a;">Where to find it:</strong>
+                    Sign In to <a href="https://nexgen.e-meril.in/" style="color:#0f766e;font-weight:700;text-decoration:underline;">nexgen.e-meril.in</a> and open <strong>Material Rework</strong> from the left sidebar, or the <strong>Material Rework</strong> tile on your dashboard.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 34px 6px;">
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;">Dear Team,</p>
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#334155;">
+                We are pleased to announce the launch of the <strong>Material Rework</strong> module. It replaces the spreadsheet-and-email handling of rework requests with a single tracked workflow, so that at any point it is clear where a batch is, who it is waiting on, how much material has physically moved, and what has been reworked, lost or received back.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ── Three-step summary ───────────────────────────────────── -->
+          <tr>
+            <td style="padding:18px 34px 4px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td width="33.33%" valign="top" style="padding:8px;">
+                    <div style="border:1px solid #dbeafe;border-radius:14px;padding:16px;background:#f8fafc;">
+                      <div style="font-size:24px;font-weight:800;color:#0f766e;">01</div>
+                      <div style="margin-top:6px;font-size:14px;font-weight:700;color:#0f172a;">Raise</div>
+                      <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#475569;">Upload a request on the standard Excel template, validated against master data.</div>
+                    </div>
+                  </td>
+                  <td width="33.33%" valign="top" style="padding:8px;">
+                    <div style="border:1px solid #dbeafe;border-radius:14px;padding:16px;background:#f8fafc;">
+                      <div style="font-size:24px;font-weight:800;color:#0f766e;">02</div>
+                      <div style="margin-top:6px;font-size:14px;font-weight:700;color:#0f172a;">Route &amp; review</div>
+                      <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#475569;">The batch follows the approval flow configured for that requester and type of rework.</div>
+                    </div>
+                  </td>
+                  <td width="33.33%" valign="top" style="padding:8px;">
+                    <div style="border:1px solid #dbeafe;border-radius:14px;padding:16px;background:#f8fafc;">
+                      <div style="font-size:24px;font-weight:800;color:#0f766e;">03</div>
+                      <div style="margin-top:6px;font-size:14px;font-weight:700;color:#0f172a;">Rework &amp; close</div>
+                      <div style="margin-top:6px;font-size:13px;line-height:1.55;color:#475569;">Release to production, rework, return, count back in, and close with a full record.</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── Capabilities ─────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:22px 34px 4px;">
+              <h2 style="margin:0 0 14px;font-size:20px;line-height:1.3;color:#0f172a;">What the module does</h2>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 10px;">
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Excel upload with validation.</strong> Requests are raised on a downloadable template and checked against the master data before the batch is created &mdash; an unknown country, vertical or department is rejected at upload rather than discovered three stages later.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Configurable approval flows.</strong> Who reviews a batch is master data, not fixed code. An admin sets rules per <em>Requested By</em> and per <em>Type of Rework</em> on the Routing Rules screen, and a batch takes the matching chain.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>A batch's route is fixed when it is raised.</strong> Changing a routing rule affects new requests only. Work already in motion can never be re-routed, stranded or have a stage skipped under it.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Role-based queues.</strong> Each team sees only what is waiting on them &mdash; Order Management, PPIC, Production and Warehouse each have their own inbox, ordered by priority.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>The full physical rework cycle.</strong> Warehouse release to production, rework on the floor, production return, and warehouse receipt and count &mdash; each leg recording quantity, person and time.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Partial acceptance and rework loss.</strong> Production accepts a quantity per line rather than all-or-nothing; the balance stays pending. Material lost during rework is recorded with a reason, so the shortfall is explained rather than unaccounted.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Receipt mismatch flagging.</strong> If the quantity counted back into the warehouse does not reconcile, the line is flagged as a mismatch instead of quietly closing.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Rework slot booking.</strong> Production books a slot window against the batch, so a request carries the dates the work is planned for.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Priority and reference numbers.</strong> Every batch carries High / Medium / Low priority and a unique reference number to quote in any conversation about it.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Email notifications with action links.</strong> Each stage notifies the responsible team's mailbox with a secure link into the batch, so a reviewer can act straight from the mail. The link binds to the first browser session that opens it and will not work from another, so a forwarded mail cannot be used to approve on someone else's behalf.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Reports, exports and labels.</strong> A filterable report with Excel and CSV download, printable batch labels, and per-user activity so the record shows not just what happened to the material but who moved it.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Live status on your own uploads.</strong> The person who raised a request can see where it is and what each reviewer said, without asking anyone.</td>
+                </tr>
+                <tr>
+                  <td width="28" valign="top" style="color:#0f766e;font-size:18px;font-weight:700;">&#10003;</td>
+                  <td style="font-size:14px;line-height:1.6;color:#334155;"><strong>Rejections carry their reason.</strong> A rejected batch shows which stage rejected it and the reviewer's comments, so the requester knows what to correct before raising it again.</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── Roles ────────────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:24px 34px 4px;">
+              <h2 style="margin:0 0 6px;font-size:20px;line-height:1.3;color:#0f172a;">Role-wise access</h2>
+              <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#64748b;">Your role decides which queues and actions you see. Ask the module admin if you need a role changed.</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+                <tr>
+                  <td style="padding:13px 16px;background:#f1f5f9;font-size:13px;font-weight:800;color:#0f172a;">Role</td>
+                  <td style="padding:13px 16px;background:#f1f5f9;font-size:13px;font-weight:800;color:#0f172a;">What they do</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">Material Rework User</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Raise requests by Excel upload and track their own batches and reviewer comments.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">Order Management</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Review the OM queue and approve or reject, with comments recorded against the batch.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">PPIC</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Review the PPIC queue and approve or reject before the batch reaches its terminal stage.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">Production</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Confirm accepted quantity per line, book the rework slot, carry out the rework and return it with reworked and lost quantities.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">Warehouse</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Release material to production against the batch, then receive and count it back in, recording inward/outward numbers and any mismatch.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;">Admin</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;color:#475569;">Manage users and roles, all master data, routing rules and reports, with visibility of every queue.</td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0;font-size:12.5px;line-height:1.6;color:#64748b;">
+                The former <em>HOD</em> approval step has been retired &mdash; no flow routes to it. Existing HOD members remain visible on the user screen so their access can be reassigned.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ── Data captured ────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:26px 34px 4px;">
+              <h2 style="margin:0 0 14px;font-size:20px;line-height:1.3;color:#0f172a;">What each request records</h2>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;">
+                <tr>
+                  <td style="padding:13px 16px;background:#f1f5f9;font-size:13px;font-weight:800;color:#0f172a;" width="30%">Stage</td>
+                  <td style="padding:13px 16px;background:#f1f5f9;font-size:13px;font-weight:800;color:#0f172a;">Captured</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Batch header</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Reference number, company, vertical, department, requested by, type of rework, location, priority, rework slot from/to, subject, raised by and raised at.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Per material line</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Material code, batch, serial number, manufacturing and expiry date, from/to country, from/to storage location, quantity, box number and remarks.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Review</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Reviewer name, e-mail, decision, comments and timestamp &mdash; recorded separately for Order Management, PPIC and Production.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Production review</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Accepted quantity, pending quantity and production remarks per line.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Warehouse release</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Quantity released to production, handover remarks, released by and released at.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Production return</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Reworked quantity, quantity lost in rework, rework loss reason, returned by and returned at.</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;color:#0f172a;font-weight:700;">Warehouse receipt</td>
+                  <td style="padding:13px 16px;border-top:1px solid #e2e8f0;font-size:13.5px;line-height:1.6;color:#475569;">Quantity received, inward and outward number, warehouse remarks, receipt mismatch flag, received by and received at.</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ── Masters ──────────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:26px 34px 4px;">
+              <h2 style="margin:0 0 10px;font-size:20px;line-height:1.3;color:#0f172a;">Master data an admin controls</h2>
+              <p style="margin:0 0 12px;font-size:14px;line-height:1.65;color:#334155;">
+                All of the following are maintained in the module &mdash; no code change or release is needed to add to them:
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:8px;">
+                <tr>
+                  <td width="33.33%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Company</td>
+                  <td width="33.33%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Vertical</td>
+                  <td width="33.33%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Department</td>
+                </tr>
+                <tr>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Requested By</td>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Type of Rework</td>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Rework Location</td>
+                </tr>
+                <tr>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Country</td>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Routing Rules</td>
+                  <td style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px;font-size:13px;color:#334155;">Users &amp; roles</td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0;font-size:12.5px;line-height:1.6;color:#64748b;">
+                Each department also carries the mailbox its notifications are sent to, so a team change is a master-data edit rather than a support request.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ── Flow ─────────────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:26px 34px 8px;">
+              <div style="background:#ecfeff;border:1px solid #99f6e4;border-radius:16px;padding:18px;">
+                <h2 style="margin:0 0 10px;font-size:18px;line-height:1.3;color:#115e59;">The flow, end to end</h2>
+                <p style="margin:0 0 12px;font-size:14px;line-height:1.8;color:#334155;">
+                  <strong>Standard:</strong> Upload &rarr; Order Management &rarr; PPIC &rarr; Production review (accept quantity, book slot) &rarr; Warehouse release &rarr; Production rework &rarr; Production return &rarr; Warehouse receipt &amp; count &rarr; Closed and reportable.
+                </p>
+                <p style="margin:0;font-size:14px;line-height:1.8;color:#334155;">
+                  <strong>Production-raised:</strong> where Production is the requester there is nothing for Production to approve, so the batch goes straight into the warehouse leg carrying the slot the uploader committed to.
+                </p>
+                <p style="margin:12px 0 0;font-size:12.5px;line-height:1.6;color:#0f766e;">
+                  Gates and their order are configurable; the sequence above is the default. A requester with no rule configured takes the longest chain, not the shortest &mdash; an extra approval is an inconvenience, a skipped one is a material loss.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- ── Close ────────────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:22px 34px 32px;">
+              <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;">
+                Please use the <strong>Material Rework</strong> module for all material rework activity from now on. Requests raised outside it will not be tracked, reportable or auditable.
+              </p>
+              <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#475569;">
+                <strong>Note on naming:</strong> this module was previously referred to as <em>Material Disposition</em>. That name is retired &mdash; <strong>Material Rework</strong> is the current and only active module.
+              </p>
+              <p style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#475569;">
+                For access, a role change or any question, please contact the Global SCM &mdash; IT team.
+              </p>
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#334155;">
+                Warm Regards,<br>
+                <strong>SCM Digital Support</strong><br>
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <div style="max-width:780px;margin:14px auto 0;font-size:12px;line-height:1.6;color:#64748b;text-align:center;">
+          Internal communication for NexGen platform users &middot; Meril Life Sciences
+        </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

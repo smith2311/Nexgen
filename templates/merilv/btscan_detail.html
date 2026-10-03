@@ -1,0 +1,149 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+BT Scanning console. Three things distinguish it from the Branch Transfer plan
+screen, all of them from the legacy bt-scanner.js: cartons that scans land in,
+a colour zone per carton, and a per-session location priority. Progress numbers
+are the plan's own picked_qty — this console does not keep a second set.
+{% endcomment %}
+
+{% block mv_title %}{{ session }} — BT Scanning{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:outbound' %}?mode=btscan">Outbound Scanner · BT Scanning</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ session }}</span>
+{% endblock %}
+{% block mv_heading %}{{ session }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ plan }} · {{ entity.code }}{% if payload.focus_key %} · focused on {{ payload.focus_key }}{% endif %}</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:btscan_export' session.pk %}" class="mv-btn">{% icon "download" %} Export cartons</a>
+{% if can_operate and not session.is_finished %}
+<form method="post" action="{% url 'merilv:btscan_finish' session.pk %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="mv-btn mv-btn--primary">{% icon "check" %} Finish session</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block mv_body %}
+<div id="mvBtScan" data-mv-root
+     data-state-url="{% url 'merilv:btscan_state' session.pk %}"
+     data-scan-url="{% url 'merilv:btscan_scan' session.pk %}"
+     data-undo-url="{% url 'merilv:btscan_undo' session.pk %}"
+     data-box-new-url="{% url 'merilv:btscan_box_new' session.pk %}"
+     data-focus-url="{% url 'merilv:btscan_focus' session.pk %}"
+     data-priority-url="{% url 'merilv:btscan_priority' session.pk %}"
+     data-can-operate="{% if can_operate and not session.is_finished %}1{% else %}0{% endif %}">
+
+    <div class="mv-kpis">
+        <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Picked</span><span class="mv-kpi__value" data-mv="kpi-picked">0</span><span class="mv-kpi__sub">of <span data-mv="kpi-required">0</span> planned</span></div>
+        <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Pending</span><span class="mv-kpi__value" data-mv="kpi-pending">0</span><span class="mv-kpi__sub">still to pick</span></div>
+        <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Cartons</span><span class="mv-kpi__value" data-mv="kpi-boxes">0</span><span class="mv-kpi__sub">opened this session</span></div>
+        <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "chart" %}</span><span class="mv-kpi__label">Progress</span><span class="mv-kpi__value"><span data-mv="kpi-percent">0</span>%</span><span class="mv-kpi__sub">of the focused plan</span></div>
+    </div>
+
+    {% if can_operate and not session.is_finished %}
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "scan" %} Scan into <span class="mv-mono" data-mv="active-box">—</span></h2>
+        <div class="mv-field">
+            <input class="mv-input mv-input--mono mv-input--lg" data-mv="scan-input"
+                   placeholder="Listening to scanner…" autocomplete="off" autofocus>
+            <span class="mv-hint" data-mv="status">Ready to scan. Keyboard input is focused.</span>
+        </div>
+        <div class="mv-card__footer">
+            <button type="button" class="mv-btn" data-mv="undo">{% icon "undo" %} Undo last</button>
+            <div class="mv-table-toolbar__spacer"></div>
+            <select class="mv-select mv-select--sm" data-mv="new-box-zone" aria-label="Zone for the next carton">
+                {% for key, label in zones %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+            <button type="button" class="mv-btn mv-btn--primary" data-mv="new-box">{% icon "box" %} Close carton &amp; start next</button>
+        </div>
+    </div>
+
+    <div class="mv-card">
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtFocusKey">Focus mode — receiving plant</label>
+                <div style="display:flex;gap:var(--mv-2);">
+                    <select class="mv-select" id="mvBtFocusKey" data-mv="focus-key">
+                        <option value="">All plants</option>
+                    </select>
+                    <button type="button" class="mv-btn" data-mv="focus-apply">Apply</button>
+                </div>
+                <span class="mv-hint">Narrows the engine too, not just the table — a locked picker cannot consume another plant's line.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtPriorityInput">Location priority</label>
+                <div style="display:flex;gap:var(--mv-2);">
+                    <input class="mv-input mv-input--mono" id="mvBtPriorityInput" data-mv="priority" value="{{ session.location_priority }}" placeholder="FG02, FG01, FG03">
+                    <button type="button" class="mv-btn" data-mv="priority-apply">Apply</button>
+                </div>
+                <span class="mv-hint">Blank falls back to the entity's configured order.</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mv-card mv-card--flush">
+        <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+            <h2 class="mv-card__title">{% icon "box" %} Cartons</h2>
+        </div>
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense">
+            <thead><tr><th>Carton</th><th>Zone</th><th class="mv-num">Units</th><th>Status</th></tr></thead>
+            <tbody data-mv="box-rows"></tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="mv-card mv-card--flush">
+        <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+            <h2 class="mv-card__title">{% icon "list" %} Plan lines</h2>
+            <span class="mv-t-caption" data-mv="line-count"></span>
+        </div>
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense mv-table--zebra">
+            <thead><tr>
+                <th>SKU Code</th><th>Receiving Plant</th><th>Line Zone</th><th>Assigned Batch</th>
+                <th class="mv-num">Planned</th><th class="mv-num">Picked</th><th class="mv-num">Pending</th>
+            </tr></thead>
+            <tbody data-mv="line-rows"></tbody>
+        </table>
+        </div>
+    </div>
+
+    {% if feed %}
+    <div class="mv-card mv-card--flush">
+        <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+            <h2 class="mv-card__title">{% icon "history" %} Scan feed</h2>
+            <span class="mv-t-caption">{{ counts.accepted }} accepted · {{ counts.rejected }} rejected</span>
+        </div>
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense">
+            {% comment %}
+            build_scan_feed returns plain dicts, not ScanLog rows — keys are
+            label / family / reason_code / message / created_at / target.
+            {% endcomment %}
+            <thead><tr><th>When</th><th>Code</th><th>Result</th><th>Carton</th><th>Message</th></tr></thead>
+            <tbody>
+                {% for row in feed %}
+                <tr>
+                    <td class="mv-t-caption">{{ row.created_at|date:"H:i:s" }}</td>
+                    <td class="mv-mono">{{ row.label|truncatechars:30 }}</td>
+                    <td><span class="mv-badge mv-badge--{{ row.family }}">{{ row.reason_code }}</span></td>
+                    <td class="mv-mono mv-t-caption">{{ row.target|default:"—" }}</td>
+                    <td class="mv-t-caption">{{ row.message|truncatechars:64 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'merilv/js/btscan.js' %}"></script>
+{% endblock %}

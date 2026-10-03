@@ -1,0 +1,53 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Master Data → Entities. The list; each row opens the full config page.{% endcomment %}
+
+{% block mv_title %}Entities — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Entities</span>
+{% endblock %}
+{% block mv_heading %}Entities{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Barcode parsing and matching rules, per business unit.</p>{% endblock %}
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-mx-card__head">
+        {% url 'merilv:masters_entity_create' as mv_add_url %}
+        {% comment %}
+        No key= here on purpose: an entity is ~40 parsing flags, not a row of a
+        spreadsheet, so it has no template/import/clear — only the create page
+        and the per-row config screen.
+        {% endcomment %}
+        {% include "merilv/_shell/masters_card_head.html" with title="Entity Rules" icon="key" count=result_count add_url=mv_add_url add_label="Add Entity" %}
+    </div>
+
+    {% if rows %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead><tr><th>Code</th><th>Name</th><th>Company</th><th>Serials</th><th>Box Capacity</th><th>Partial Export</th><th>Status</th><th class="mv-col-actions"></th></tr></thead>
+        <tbody>
+            {% for e in rows %}
+            <tr data-mv-href="{% url 'merilv:masters_entity_edit' e.pk %}" class="mv-row-link">
+                <td class="mv-t-strong mv-mono">{{ e.code }}</td>
+                <td>{{ e.name }}</td>
+                <td class="mv-fg-3">{{ e.company_name|default:"—" }}</td>
+                <td>{% if e.supports_serial %}<span class="mv-badge mv-badge--ok">Yes</span>{% else %}<span class="mv-badge mv-badge--neutral">No</span>{% endif %}</td>
+                <td>{% if e.enforce_box_capacity %}<span class="mv-badge mv-badge--warn">Enforced</span>{% else %}<span class="mv-badge mv-badge--neutral">Off</span>{% endif %}</td>
+                <td>{% if e.allow_partial_export %}<span class="mv-badge mv-badge--ok">Allowed</span>{% else %}<span class="mv-badge mv-badge--neutral">Blocked</span>{% endif %}</td>
+                <td>{% if e.is_active %}<span class="mv-badge mv-badge--ok">Active</span>{% else %}<span class="mv-badge mv-badge--neutral">Inactive</span>{% endif %}</td>
+                <td class="mv-col-actions">{% icon "chevron" 16 %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "building" 48 %}<div class="mv-empty__title">No entities yet</div><p class="mv-empty__text">Add the first business unit to start scanning.</p>
+        <a href="{% url 'merilv:masters_entity_create' %}" class="mv-btn mv-btn--primary mv-empty__action">{% icon "plus" %} Add Entity</a></div>
+    {% endif %}
+</div>
+{% endblock %}

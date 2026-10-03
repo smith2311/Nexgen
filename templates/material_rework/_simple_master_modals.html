@@ -1,0 +1,60 @@
+{% comment %}
+Add / Edit / Delete modals for one "simple" master. Paired with
+_simple_master_panel.html — same include arguments (title, action, field).
+The ids are derived from `action`, which is also the views.py action stem, so
+the three modals and the server handler stay in step by construction.
+
+Markup mirrors the hand-written modals further down masters.html
+(md-modal-close / md-modal-title / md-fg / md-check / btn-full) — those are the
+only modal classes masters.css defines, so anything else renders unstyled.
+{% endcomment %}
+
+<div class="md-overlay" id="add_{{ action }}">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('add_{{ action }}')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-plus" style="color:#0076c8"></i> Add {{ title_singular }}</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="add_{{ action }}">
+            <div class="md-fg">
+                <label>{{ title_singular }} Name <span class="req">*</span></label>
+                <input type="text" name="{{ field }}" placeholder="{{ placeholder }}" required>
+            </div>
+            <button type="submit" class="btn-full"><i class="fas fa-plus"></i> Add {{ title_singular }}</button>
+        </form>
+    </div>
+</div>
+
+<div class="md-overlay" id="edit_{{ action }}">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('edit_{{ action }}')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-edit" style="color:#0076c8"></i> Edit {{ title_singular }}</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="edit_{{ action }}">
+            <input type="hidden" name="id" id="e_{{ action }}_id">
+            <div class="md-fg">
+                <label>{{ title_singular }} Name <span class="req">*</span></label>
+                <input type="text" name="{{ field }}" id="e_{{ action }}_name" required>
+            </div>
+            <div class="md-check">
+                <input type="checkbox" name="is_active" id="e_{{ action }}_active">
+                <label for="e_{{ action }}_active">Active</label>
+            </div>
+            <button type="submit" class="btn-full">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<div class="md-overlay" id="delete_{{ action }}">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('delete_{{ action }}')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-trash" style="color:#ef4444"></i> Delete {{ title_singular }}</p>
+        <p style="color:#6b7280;margin-bottom:18px;">
+            Delete <strong id="del_{{ action }}_name" style="color:#374151"></strong>?
+        </p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="delete_{{ action }}">
+            <input type="hidden" name="id" id="del_{{ action }}_id">
+            <button type="submit" class="btn-full-red"><i class="fas fa-trash"></i> Yes, Delete</button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,259 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → Couriers. One shared modal handles both add and edit — courier_save
+takes an optional `pk`, so the same POST target creates or updates. Edit fills
+the modal from the clicked row's data-* attributes; no per-row page needed.
+{% endcomment %}
+
+{% block mv_title %}Couriers — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Couriers</span>
+{% endblock %}
+{% block mv_heading %}Couriers{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Courier partners, vehicles and plant coverage.</p>{% endblock %}
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-mx-card__head">
+        {% include "merilv/_shell/masters_card_head.html" with title="Courier Master" icon="truck" count=result_count key="couriers" add_modal="mvCourierModal" add_label="Add Courier" add_title="Add courier" %}
+    </div>
+
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search">{% icon "search" %}<input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Name, number or vehicle…"></div>
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">{{ result_count }} courier{{ result_count|pluralize }}</span>
+    </form>
+    {% if rows %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        {% comment %}#18 — "Customers" is the column whose absence made the Customer→Courier link untestable: nothing on this screen said which customers use a courier.{% endcomment %}
+        <thead><tr><th>Courier No</th><th>Name</th><th>Plant</th><th>Vehicle</th><th>Veh. Type</th><th>Transit</th><th>GSTIN</th><th>Customers</th><th>Status</th><th class="mv-col-actions mv-col-actions--pair">Actions</th></tr></thead>
+        <tbody>
+            {% for c in rows %}
+            <tr class="{% if not c.is_active %}mv-fg-3{% endif %}"
+                data-pk="{{ c.pk }}" data-name="{{ c.courier_name }}" data-plant="{{ c.plant }}"
+                data-number="{{ c.courier_number }}" data-vehicle="{{ c.vehicle_number }}"
+                data-vehicletype="{{ c.vehicle_type }}" data-gstin="{{ c.gstin }}"
+                data-mode="{{ c.mode_of_transit }}"
+                data-active="{{ c.is_active|yesno:'1,0' }}">
+                <td class="mv-mono mv-t-strong">{{ c.courier_number|default:"—" }}</td>
+                <td class="mv-t-strong">{{ c.courier_name }}</td>
+                <td class="mv-mono">{{ c.plant|default:"—" }}</td>
+                <td class="mv-mono">{{ c.vehicle_number|default:"—" }}</td>
+                <td>{{ c.vehicle_type|default:"—" }}</td>
+                {% comment %}
+                Mode of transit — what the outbound Finish Delivery form
+                pre-selects for this carrier. Blank leaves that form on its own
+                Road default, which is what every dispatch got before.
+                {% endcomment %}
+                <td>{{ c.mode_of_transit|transit_label|default:"—" }}</td>
+                <td class="mv-mono">{{ c.gstin|default:"—" }}</td>
+                <td>
+                    {% comment %}
+                    A disclosure rather than a bare count: the count is the
+                    answer to "is this courier in use", the list is the answer to
+                    "by whom", and only the first is wanted on every row at once.
+                    Native <details> for the same reason as the org tree — the
+                    open state is the browser's, not ours to track.
+                    {% endcomment %}
+                    {% if c.customer_count %}
+                    <details class="mv-usage">
+                        <summary>
+                            <span class="mv-badge mv-badge--info">{{ c.customer_count }}</span>
+                            customer{{ c.customer_count|pluralize }}
+                            {% if c.unmatched_count %}
+                            {% comment %}
+                            The count is not a per-plant figure when some of it
+                            is customers whose plant matches no row of this
+                            name. Said here rather than left to the reader: the
+                            same number appearing on two rows of one carrier is
+                            exactly what the plant split was meant to stop, and
+                            it has to be visibly a different thing.
+                            {% endcomment %}
+                            <span class="mv-badge mv-badge--neutral mv-badge--sm">{{ c.matched_count }} at {{ c.plant|default:"this plant" }}</span>
+                            {% endif %}
+                        </summary>
+                        <ul class="mv-usage__list">
+                            {% for u in c.customers %}
+                            <li>
+                                <a href="{% url 'merilv:masters_customers' %}?q={{ u.customer_code|urlencode }}"
+                                   class="mv-mono">{{ u.customer_code }}</a>
+                                {% if u.customer_name %}<span class="mv-fg-3">{{ u.customer_name|truncatechars:26 }}</span>{% endif %}
+                                {% if u.is_override %}
+                                {% comment %}"This customer uses this courier out of this plant" is a different fact from "this is their default", so it is labelled rather than merged.{% endcomment %}
+                                <span class="mv-badge mv-badge--neutral mv-badge--sm">plant override{% if u.plant %} · {{ u.plant }}{% endif %}</span>
+                                {% endif %}
+                                {% if u.plant_unmatched %}
+                                {% comment %}
+                                Shown against every row of this carrier because
+                                which of its plants serves them is unknown —
+                                not because they belong to all of them.
+                                {% endcomment %}
+                                <span class="mv-badge mv-badge--warn mv-badge--sm">plant {{ u.plant|default:"—" }} not on this courier</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <a href="{% url 'merilv:masters_customers' %}?courier={{ c.courier_name|urlencode }}"
+                           class="mv-btn mv-btn--sm">{% icon "users" 12 %} Open in Customer Master</a>
+                    </details>
+                    {% else %}
+                    <span class="mv-t-caption mv-fg-3">none</span>
+                    {% endif %}
+                </td>
+                <td>{% if c.is_active %}<span class="mv-badge mv-badge--ok">Active</span>{% else %}<span class="mv-badge mv-badge--neutral">Inactive</span>{% endif %}</td>
+                {% include "merilv/_shell/masters_row_actions.html" with key="couriers" pk=c.pk noun="courier" label=c.courier_name on_edit="mvEditCourier(this.closest('tr'))" %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "truck" 48 %}<div class="mv-empty__title">No couriers yet</div><p class="mv-empty__text">Add one to start assigning them on Finish Delivery.</p></div>
+    {% endif %}
+</div>
+
+{% if rows and not linked_customer_total and not unlinked_couriers %}
+{% comment %}
+#18 — the honest empty state. Probed against the real database: 7,480 customers
+and not one has a courier assigned, because the Customer master was imported
+from an extract with no courier column (its `raw_data` headers are City / Date /
+Fax# / Email / Name 1..3 / PAN No / GST No. and so on — no courier anywhere).
+
+Without this banner every courier reads "none" and the screen looks exactly like
+the bug the client reported, even now that it works. So say which of the two it
+is, and say what fills it.
+{% endcomment %}
+<div class="mv-alert mv-alert--info" style="margin-top:var(--mv-space-4);">
+    {% icon "info" %}
+    <div>
+        <strong>No customer is assigned to a courier yet.</strong>
+        The Customer Master carries no courier column in the extract it was
+        imported from, so there is nothing to show here — not a broken link.
+        <div class="mv-t-caption" style="margin-top:4px;">
+            Fill it either way: set <em>Default courier</em> on a customer in
+            <a href="{% url 'merilv:masters_customers' %}">Customer Master</a>,
+            or add a <span class="mv-mono">Courier Partner</span> column to the
+            customer sheet and re-import — the importer already reads it.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if unlinked_couriers %}
+{% comment %}
+#18 — the diagnostic. A customer whose courier name does not match any courier
+in the master is linked to nothing, and from the Courier module that looks
+exactly like "the data doesn't populate". Surfaced rather than hidden, the same
+way the org tree surfaces its orphans: this is a real data fault an admin has to
+see, and silently omitting it is how it stays broken.
+{% endcomment %}
+<div class="mv-alert mv-alert--warn" style="margin-top:var(--mv-space-4);">
+    {% icon "alert" %}
+    <div>
+        <strong>{{ unlinked_couriers|length }} courier name{{ unlinked_couriers|pluralize }} used by customers but not in this master.</strong>
+        Those customers are linked to nothing, so they will not appear against any courier above.
+        <div class="mv-mono mv-t-caption" style="margin-top:4px;">
+            {% for name in unlinked_couriers %}{{ name }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        </div>
+        <div class="mv-t-caption" style="margin-top:4px;">
+            Add each as a courier, or correct the spelling on the customer — a name has to match exactly.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if unplaced_customers %}
+{% comment %}
+The plant-split counterpart of the notice above. A carrier held at several
+plants keeps its customers per plant, so a customer whose own plant matches
+none of those rows lands against no courier. That is a real data fault — the
+plant is wrong on the customer, or the carrier is missing a row for it — and a
+customer silently absent from every courier looks exactly like a customer with
+no courier at all, which is a different problem with a different fix.
+{% endcomment %}
+<div class="mv-alert mv-alert--warn" style="margin-top:var(--mv-space-4);">
+    {% icon "alert" %}
+    <div>
+        <strong>{{ unplaced_customers|length }} customer{{ unplaced_customers|pluralize }} point at a courier that has no row for their plant.</strong>
+        They are counted against every row of that carrier and marked, because which of its
+        plants serves them is unknown — so those rows show the same figure until this is fixed.
+        <div class="mv-mono mv-t-caption" style="margin-top:4px;">
+            {% for entry in unplaced_customers|slice:":12" %}{{ entry.customer_code }} ({{ entry.plant|default:"no plant" }} → {{ entry.courier_name }}){% if not forloop.last %} · {% endif %}{% endfor %}
+            {% if unplaced_customers|length > 12 %} · and {{ unplaced_customers|length|add:"-12" }} more{% endif %}
+        </div>
+        <div class="mv-t-caption" style="margin-top:4px;">
+            Add that courier at the customer's plant, or correct the plant on the customer.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% include "merilv/_shell/masters_import_modal.html" with key="couriers" label="couriers" match_on="courier code + plant" %}
+
+<div class="mv-modal-scrim" id="mvCourierModal">
+    <div class="mv-modal" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'merilv:masters_courier_save' %}" id="mvCourierForm">
+            {% csrf_token %}
+            <input type="hidden" name="pk" value="">
+            <div class="mv-modal__head"><h2 class="mv-t-h2" id="mvCourierModalTitle">Add courier</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button></div>
+            <div class="mv-modal__body">
+                <div class="mv-field"><label class="mv-label" for="mvCName">Courier name <span class="mv-req">*</span></label>
+                    <input class="mv-input" id="mvCName" name="courier_name" required></div>
+                <div class="mv-field-row">
+                    <div class="mv-field"><label class="mv-label" for="mvCPlant">Plant</label><input class="mv-input mv-input--mono" id="mvCPlant" name="plant"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCNumber">Courier number</label><input class="mv-input mv-input--mono" id="mvCNumber" name="courier_number"></div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field"><label class="mv-label" for="mvCVehicle">Vehicle number</label><input class="mv-input mv-input--mono" id="mvCVehicle" name="vehicle_number"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCVehicleType">Vehicle type</label><input class="mv-input" id="mvCVehicleType" name="vehicle_type" placeholder="e.g. Truck, Tempo, Air"></div>
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvCMode">Mode of transit</label>
+                    <input class="mv-input" id="mvCMode" name="mode_of_transit" list="mvTransitModes"
+                           placeholder="Road / Air / Rail / Sea / By Hand">
+                    {% comment %}
+                    The label carries the SAP code the invoice sheet will write
+                    for this courier — M1 air/rail, M2 surface/by hand. The
+                    value stays the word; merilv/transit.py maps it on export.
+                    {% endcomment %}
+                    <datalist id="mvTransitModes">
+                        {% for value, label in transit_modes %}<option value="{{ value }}" label="{{ label }}"></option>{% endfor %}
+                    </datalist>
+                    <span class="mv-hint">Pre-selected on Finish Delivery for this courier. Leave blank to default to Road.</span>
+                </div>
+                <div class="mv-field"><label class="mv-label" for="mvCGstin">GSTIN of courier partner</label><input class="mv-input mv-input--mono" id="mvCGstin" name="gstin" maxlength="20" placeholder="e.g. 24AABCU9603R1ZM"></div>
+                <label class="mv-check"><input type="checkbox" name="is_active" value="1" id="mvCActive" checked><span class="mv-t-body">Active</span></label>
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function mvEditCourier(row) {
+    var f = document.getElementById('mvCourierForm');
+    f.pk.value = row.dataset.pk;
+    f.courier_name.value = row.dataset.name;
+    f.plant.value = row.dataset.plant;
+    f.courier_number.value = row.dataset.number;
+    f.vehicle_number.value = row.dataset.vehicle;
+    f.vehicle_type.value = row.dataset.vehicletype || '';
+    f.mode_of_transit.value = row.dataset.mode || '';
+    f.gstin.value = row.dataset.gstin || '';
+    f.is_active.checked = row.dataset.active === '1';
+    document.getElementById('mvCourierModalTitle').textContent = 'Edit courier';
+    document.getElementById('mvCourierModal').classList.add('is-open');
+}
+</script>
+{% endblock %}

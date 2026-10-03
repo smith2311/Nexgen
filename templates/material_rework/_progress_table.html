@@ -1,0 +1,144 @@
+{% comment %}
+Progress by user: one row per person, one column per kind of work.
+
+Included from two places — the dashboard's "All users" view and the Full
+Report tab — so the two cannot drift. Everything else on the report is batch-
+or line-shaped: it says what happened to the material but never who moved it.
+
+Users with zero are listed on purpose. "Holds a role and has done nothing" is
+usually the thing being looked for, and an absent row cannot be read as a zero.
+{% endcomment %}
+    {% comment %}
+    ── Per-user progress ────────────────────────────────────────────────────
+    Everything else on this report is batch- or line-shaped: it says what
+    happened to the material but never who moved it. This is the same work
+    counted by person.
+
+    It sits inside the Full Report tab and honours the filter bar above, so
+    the window and scope always match the batch table underneath it — a
+    section reporting a different period on the same screen would be worse
+    than no section.
+
+    Users with zero are listed on purpose. "Holds a role and has done nothing"
+    is usually the thing being looked for, and an absent row cannot be read as
+    a zero.
+    {% endcomment %}
+    <div class="report-wrap" style="margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;padding:18px 20px 0;">
+        <div>
+          <h3 style="margin:0 0 4px;font-size:1rem;font-weight:800;color:#06152b;">
+            <i class="fas fa-user-check" style="color:#0369a1;"></i> Progress by user
+          </h3>
+          <p style="margin:0;font-size:.78rem;color:#6b7280;">
+            Every action each person took, over the filters selected above.
+            Reviews are decisions; lines released, returned and received are the material actually moving.
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="background:#e0f2fe;color:#0369a1;padding:4px 11px;border-radius:9px;font-size:.74rem;font-weight:700;white-space:nowrap;">
+            {{ progress.totals.active_users }} active
+          </span>
+          {% if progress.totals.idle_users %}
+          <span style="background:#fef3c7;color:#92400e;padding:4px 11px;border-radius:9px;font-size:.74rem;font-weight:700;white-space:nowrap;">
+            {{ progress.totals.idle_users }} nothing yet
+          </span>
+          {% endif %}
+          <span style="background:#f1f5f9;color:#475569;padding:4px 11px;border-radius:9px;font-size:.74rem;font-weight:700;white-space:nowrap;">
+            {{ progress.totals.total }} action{{ progress.totals.total|pluralize }}
+          </span>
+        </div>
+      </div>
+
+      {% if progress.rows %}
+      <div class="report-tbl-scroll">
+        <table class="report-table" id="progressTable">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              {% for key, label in progress.columns %}
+              <th style="text-align:right;">{{ label }}</th>
+              {% endfor %}
+              <th style="text-align:right;">Total</th>
+              <th style="text-align:right;" title="Units released to production">Units out</th>
+              <th style="text-align:right;" title="Units production reworked and returned">Units reworked</th>
+              <th style="text-align:right;" title="Units warehouse counted back in">Units in</th>
+              <th>Last action</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in progress.rows %}
+          {% comment %}
+          A row with no actions is tinted rather than hidden, so it reads as a
+          deliberate zero at a glance instead of looking like missing data.
+          {% endcomment %}
+          <tr{% if not row.total %} style="background:#fcfcfd;"{% endif %}>
+            <td>
+              <div style="font-weight:700;font-size:.84rem;color:#06152b;">
+                {{ row.name }}
+                {% if not row.is_active %}
+                <span style="margin-left:6px;background:#fee2e2;color:#991b1b;font-size:.64rem;font-weight:800;padding:1px 7px;border-radius:8px;">DISABLED</span>
+                {% endif %}
+              </div>
+              <div style="font-size:.74rem;color:#9ca3af;">{{ row.email|default:row.username|default:"—" }}</div>
+            </td>
+            {% comment %}
+            min-width so the chips pair up instead of stacking one per line.
+            An admin can hold all six roles, and in a narrow column that made
+            a single row six lines tall and taller than the eight around it.
+            {% endcomment %}
+            <td style="min-width:190px;">
+              {% if row.roles %}
+              {% for role in row.roles %}<span style="display:inline-block;background:#eef2ff;color:#4338ca;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:8px;margin:1px 2px 1px 0;white-space:nowrap;">{{ role }}</span>{% endfor %}
+              {% else %}
+              {% comment %}
+              Activity from somebody who no longer holds a role. Kept visible:
+              the work happened, and hiding it would make this section
+              impossible to reconcile with the batch table above.
+              {% endcomment %}
+              <span style="font-size:.7rem;color:#9ca3af;">no role</span>
+              {% endif %}
+            </td>
+            {% for n in row.cells %}
+            <td style="text-align:right;font-variant-numeric:tabular-nums;">
+              {% if n %}<strong>{{ n }}</strong>{% else %}<span style="color:#d1d5db;">0</span>{% endif %}
+            </td>
+            {% endfor %}
+            <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:800;color:{% if row.total %}#0369a1{% else %}#d1d5db{% endif %};">
+              {{ row.total }}
+            </td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">{{ row.qty_released|default:"—" }}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">{{ row.qty_reworked|default:"—" }}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">{{ row.qty_received|default:"—" }}</td>
+            <td style="font-size:.76rem;color:#6b7280;white-space:nowrap;">
+              {% if row.last_action %}{{ row.last_action|date:"d M Y, H:i" }}{% else %}<span style="color:#d1d5db;">Never</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr style="background:#f8fafc;font-weight:800;">
+              <td colspan="2" style="font-size:.8rem;color:#06152b;">
+                {{ progress.totals.users }} user{{ progress.totals.users|pluralize }}
+              </td>
+              {% for n in progress.totals.cells %}
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">{{ n }}</td>
+              {% endfor %}
+              <td style="text-align:right;font-variant-numeric:tabular-nums;color:#0369a1;">{{ progress.totals.total }}</td>
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">{{ progress.totals.qty_released }}</td>
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">{{ progress.totals.qty_reworked }}</td>
+              <td style="text-align:right;font-variant-numeric:tabular-nums;">{{ progress.totals.qty_received }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:36px 20px 40px;text-align:center;">
+        <i class="fas fa-user-slash" style="font-size:2rem;color:#d1d5db;display:block;margin-bottom:10px;"></i>
+        <p style="color:#9ca3af;font-size:.85rem;margin:0;">
+          Nobody holds a Material Rework role and nothing has been recorded.
+        </p>
+      </div>
+      {% endif %}
+    </div>

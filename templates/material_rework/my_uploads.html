@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Uploads — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/my_uploads.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-list-alt"></i> My Uploads</h1>
+        <p>Track the status of all batches you have submitted. Click <strong>View</strong> to see full ticket details.</p>
+    </div>
+
+    <div class="md-table-wrap">
+        {% if batches %}
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Reference #</th>
+                    <th>Uploaded At</th>
+                    <th>Vertical</th>
+                    <th>Department</th>
+                    <th>Requested By</th>
+                    <th>Items</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>HOD Reviewed</th>
+                    <th>Comments</th>
+                    <th>Preview</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in batches %}
+            <tr data-batch-id="{{ b.id }}" data-status="{{ b.status }}">
+                <td><span style="font-family:monospace;font-size:.82rem;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:2px 7px;border-radius:4px;">{{ b.reference_number|default:b.id }}</span></td>
+                <td>{{ b.uploaded_at|date:"d M Y H:i" }}</td>
+                <td>{{ b.vertical.name }}</td>
+                <td>{{ b.department.name }}</td>
+                <td>
+                    {% if b.requested_by %}{{ b.requested_by.name }}{% elif b.source %}<span class="badge-src {{ b.source }}">{{ b.get_source_display }}</span>{% else %}—{% endif %}
+                </td>
+                <td>{{ b.item_count }}</td>
+                <td style="font-size:.78rem;max-width:160px;">{{ b.subject|default:"—"|truncatechars:50 }}</td>
+                <td data-field="status">
+                    {% if b.status == 'pending_ppic' %}<span class="badge" style="background:#e0f2fe;color:#0369a1;">Pending PPIC</span>
+                    {% elif b.status == 'ppic_approved' %}<span class="badge" style="background:#d1fae5;color:#065f46;">PPIC Approved</span>
+                    {% elif b.status == 'ppic_rejected' %}<span class="badge badge-rejected">PPIC Rejected</span>
+                    {% elif b.status == 'pending_hod' %}<span class="badge badge-pending">Pending HOD</span>
+                    {% elif b.status == 'hod_approved' %}<span class="badge badge-approved">HOD Approved</span>
+                    {% elif b.status == 'hod_rejected' %}<span class="badge badge-rejected">HOD Rejected</span>
+                    {% elif b.status == 'production_done' %}<span class="badge badge-prod">Production Done</span>
+                    {% elif b.status == 'completed' %}<span class="badge badge-done">Completed</span>
+                    {% endif %}
+                </td>
+                <td data-field="hod_reviewed">{{ b.hod_reviewed_at|date:"d M Y H:i"|default:"—" }}</td>
+                <td data-field="hod_comments">{{ b.hod_comments|default:"—"|truncatechars:40 }}</td>
+                <td>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button class="btn-view" onclick="openBatch({{ b.id }})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        {% if b.status == 'hod_rejected' %}
+                        <a href="{% url 'material_rework:replace_batch' b.id %}"
+                           style="padding:5px 12px;background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:5px;font-size:.76rem;font-weight:600;display:inline-flex;align-items:center;gap:4px;text-decoration:none;white-space:nowrap;">
+                            <i class="fas fa-file-upload"></i> Replace
+                        </a>
+                        <button onclick="openDeleteConfirm({{ b.id }},'{{ b.reference_number|default:b.id|escapejs }}')"
+                           style="padding:5px 12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:5px;font-size:.76rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="md-empty">
+            <i class="fas fa-inbox" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+            No uploads yet. <a href="{% url 'material_rework:upload' %}" style="color:#0076c8;">Upload your first batch</a>.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<div class="slide-overlay" id="slideOverlay" onclick="if(event.target===this)closePanel()">
+    <div class="slide-panel">
+        <div class="panel-head">
+            <span class="panel-title" id="panelTitle"><i class="fas fa-ticket-alt" style="color:#0076c8;"></i> Ticket Preview</span>
+            <button class="panel-close" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="panel-body" id="panelBody">
+            <div style="text-align:center;padding:48px;color:#9ca3af;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>Loading…</div>
+        </div>
+        <div class="panel-foot" id="panelFoot">
+            <button type="button" onclick="closePanel()" style="width:100%;padding:10px;background:#f1f5f9;color:#374151;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Page Loader -->
+<div id="pageLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#dc2626;border-radius:50%;animation:spin .85s linear infinite;"></div>
+  <div style="text-align:center;">
+    <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Deleting batch…</p>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div style="position:fixed;inset:0;background:rgba(6,21,43,.55);z-index:999999;display:none;align-items:center;justify-content:center;padding:16px;" id="deleteOverlay">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.22);overflow:hidden;">
+        <div style="padding:18px 22px;background:#fef2f2;border-bottom:1px solid #fecaca;display:flex;align-items:center;gap:10px;">
+            <i class="fas fa-exclamation-triangle" style="color:#dc2626;font-size:1.1rem;"></i>
+            <h3 style="margin:0;font-size:.97rem;font-weight:700;color:#991b1b;flex:1;">Delete Batch</h3>
+            <button onclick="closeDeleteConfirm()" style="background:none;border:none;font-size:1.1rem;color:#9ca3af;cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:20px 22px;">
+            <p style="margin:0 0 6px;font-size:.88rem;color:#374151;">
+                Are you sure you want to delete batch <strong id="delRefDisplay" style="font-family:monospace;color:#dc2626;"></strong>?
+            </p>
+            <p style="margin:0;font-size:.82rem;color:#9ca3af;">This action cannot be undone. All items in this batch will be permanently removed.</p>
+        </div>
+        <div style="padding:0 22px 18px;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+            <div id="myup_del_err" style="display:none;font-size:.8rem;color:#b91c1c;margin-right:auto;"></div>
+            <button type="button" onclick="closeDeleteConfirm()" style="padding:8px 18px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+            <button type="button" id="myupDelBtn" onclick="doMyupDelete()" style="padding:8px 20px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                <i class="fas fa-trash"></i> Yes, Delete
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DELETE_URL_TPL  = "{% url 'material_rework:delete_batch' 0 %}".replace('/0/', '/');
+const REPLACE_URL_TPL = "{% url 'material_rework:replace_batch' 0 %}".replace('/0/', '/');
+const POLL_URL        = "{% url 'material_rework:my_uploads_status' %}";
+const UPLOAD_URL      = "{% url 'material_rework:upload' %}";
+const BATCHES = {
+{% for b in batches %}
+    {{ b.id }}: {
+        id: {{ b.id }},
+        reference_number: "{{ b.reference_number|default:b.id|escapejs }}",
+        uploaded_at: "{{ b.uploaded_at|date:'d M Y H:i' }}",
+        vertical: "{{ b.vertical.name|escapejs }}",
+        department: "{{ b.department.name|escapejs }}",
+        requested_by: "{{ b.requested_by.name|default:''|escapejs }}",
+        status: "{{ b.status }}",
+        status_display: "{{ b.get_status_display|escapejs }}",
+        hod_reviewed_at: "{{ b.hod_reviewed_at|date:'d M Y H:i'|default:'—' }}",
+        hod_comments: "{{ b.hod_comments|escapejs }}",
+        subject: "{{ b.subject|default:''|escapejs }}",
+        items: [
+            {% for item in b.items.all %}
+            {
+                material: "{{ item.material|escapejs }}",
+                batch_no: "{{ item.batch_no|default:''|escapejs }}",
+                serial_number: "{{ item.serial_number|default:''|escapejs }}",
+                country: "{{ item.country|default:''|escapejs }}",
+                mfg_date: "{{ item.mfg_date|default:''|escapejs }}",
+                exp_date: "{{ item.exp_date|default:''|escapejs }}",
+                from_storage_location: "{{ item.from_storage_location|default:''|escapejs }}",
+                to_storage_location: "{{ item.to_storage_location|default:''|escapejs }}",
+                item_date: "{{ item.item_date|default:''|escapejs }}",
+                qty: "{{ item.qty|floatformat:0 }}",
+                box_no: "{{ item.box_no|default:''|escapejs }}",
+                remark: "{{ item.remark|default:''|escapejs }}",
+                status: "{{ item.status }}",
+                status_display: "{{ item.get_status_display|escapejs }}",
+                accepted_qty: "{{ item.accepted_qty|floatformat:0 }}",
+                pending_qty: "{{ item.pending_qty|floatformat:0 }}"
+            },
+            {% endfor %}
+        ]
+    },
+{% endfor %}
+};
+const STATUS_BADGE = {
+    'pending_ppic':               ['#e0f2fe','#0369a1','Pending PPIC'],
+    'ppic_approved':              ['#d1fae5','#065f46','PPIC Approved'],
+    'ppic_rejected':              ['#fee2e2','#991b1b','PPIC Rejected'],
+    'pending_hod':                ['#fef3c7','#92400e','Pending HOD'],
+    'hod_approved':               ['#dbeafe','#1e40af','HOD Approved'],
+    'hod_rejected':               ['#fee2e2','#991b1b','HOD Rejected'],
+    'pending_requester_approval': ['#fef9c3','#854d0e','Pending Approval'],
+    'production_done':            ['#ede9fe','#5b21b6','Production Done'],
+    'completed':                  ['#d1fae5','#065f46','Completed'],
+    'pending_production':         ['#dbeafe','#1e40af','Pending Production'],
+    'accepted':                   ['#d1fae5','#065f46','Accepted'],
+    'rejected':                   ['#fee2e2','#991b1b','Rejected'],
+    'pending_warehouse':          ['#ede9fe','#5b21b6','Pending Warehouse'],
+    'received':                   ['#d1fae5','#065f46','Received'],
+    'ppic_rejected':              ['#fee2e2','#991b1b','PPIC Rejected'],
+};
+</script>
+<script src="{% static 'js/material-rework/my_uploads.js' %}"></script>
+{% endblock %}

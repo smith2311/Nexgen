@@ -1,0 +1,130 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Transfer Sessions — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'css/datatables-2.0.8.min.css' %}">
+<style>
+.status-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:.78rem; font-weight:600; }
+.badge-active   { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.badge-completed{ background:var(--mt-info-light); color:var(--mt-primary); }
+.badge-closed   { background:var(--mt-gray-100); color:var(--mt-gray-700); }
+.badge-cancelled{ background:var(--mt-danger-light); color:var(--mt-danger); }
+</style>
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-exchange-alt"></i> Transfer Sessions</h1>
+<p>Hospital-to-Hospital product transfer tracking</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    {% comment %}
+    H2H no longer has a page of its own — it is one of the scanner's session
+    types, and ?type=transfer lands there with it already picked.
+    {% endcomment %}
+    <a href="{% url 'meritrack:scanner_form' %}?type=transfer" class="hero-btn hero-btn-solid"><i class="fas fa-plus"></i> New Transfer</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card"><div class="num" id="sTotal">—</div><div class="lbl">Total</div></div>
+        <div class="stat-card"><div class="num" id="sActive" style="color:var(--mt-success)">—</div><div class="lbl">Active</div></div>
+        <div class="stat-card"><div class="num" id="sCompleted" style="color:var(--mt-primary)">—</div><div class="lbl">Completed</div></div>
+        <div class="stat-card"><div class="num" id="sClosed">—</div><div class="lbl">Closed</div></div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="card">
+        <div class="toolbar" style="margin-bottom:12px">
+            <div class="filter-tabs">
+                <button class="filter-tab active" onclick="setFilter('',this)">All</button>
+                <button class="filter-tab" onclick="setFilter('active',this)">Active</button>
+                <button class="filter-tab" onclick="setFilter('completed',this)">Completed</button>
+                <button class="filter-tab" onclick="setFilter('closed',this)">Closed</button>
+            </div>
+        </div>
+        <div class="table-responsive-wrap wide">
+        <table id="transferTable" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Transfer ID</th>
+                    <th>From Hospital</th>
+                    <th>To Hospital</th>
+                    <th>Rep</th>
+                    <th>Scans</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="transferBody"></tbody>
+        </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/datatables-2.0.8.min.js' %}"></script>
+<script>
+let currentFilter = '';
+let dtTable;
+
+const STATUS_BADGE = {
+    active: '<span class="status-badge badge-active">Active</span>',
+    completed: '<span class="status-badge badge-completed">Completed</span>',
+    closed: '<span class="status-badge badge-closed">Closed</span>',
+    cancelled: '<span class="status-badge badge-cancelled">Cancelled</span>',
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    dtTable = $('#transferTable').DataTable({
+        processing: true,
+        data: [],
+        columns: [
+            { data: 'transfer_id', defaultContent: '—' },
+            { data: 'from_hospital_name', defaultContent: '—' },
+            { data: 'to_hospital_name', defaultContent: '—' },
+            { data: 'rep_name', defaultContent: '—' },
+            { data: 'scan_count', className: 'dt-center' },
+            { data: 'status', render: s => STATUS_BADGE[s] || s },
+            { data: 'started_at', render: d => d ? new Date(d).toLocaleDateString() : '—' },
+            { data: 'session_key', orderable: false, render: k => `<a href="/meritrack/transfers/${k}/" class="btn-mt btn-primary btn-sm"><i class="fas fa-eye"></i> View</a>` },
+        ],
+        pageLength: 25,
+        language: { search: 'Search:', lengthMenu: 'Show _MENU_' },
+    });
+    loadData();
+});
+
+async function loadData() {
+    // Stats come from the unfiltered list; the table reflects the active tab filter.
+    const [allR, filteredR] = await Promise.all([
+        fetch('/meritrack/api/transfers/my_transfers/'),
+        fetch('/meritrack/api/transfers/my_transfers/' + (currentFilter ? '?status=' + currentFilter : '')),
+    ]);
+    if (!allR.ok || !filteredR.ok) return;
+    const all = (await allR.json()).transfers || [];
+    const filtered = (await filteredR.json()).transfers || [];
+
+    document.getElementById('sTotal').textContent = all.length;
+    document.getElementById('sActive').textContent = all.filter(s => s.status === 'active').length;
+    document.getElementById('sCompleted').textContent = all.filter(s => s.status === 'completed').length;
+    document.getElementById('sClosed').textContent = all.filter(s => s.status === 'closed').length;
+
+    dtTable.clear().rows.add(filtered).draw();
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadData();
+}
+</script>
+{% endblock %}

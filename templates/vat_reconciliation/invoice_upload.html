@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Invoice Upload — VAT Reconciliation{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/vat_reconciliation/vat_invoice.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<script>
+const INV_CONFIG = {
+  urls: {
+    list:     "{% url 'vat:invoice_list_api' %}",
+    upload:   "{% url 'vat:invoice_upload_api' %}",
+    process:  "{% url 'vat:invoice_process_api' 0 %}".replace('/0/', '/'),
+    del:      "{% url 'vat:invoice_delete_api' 0 %}".replace('/0/', '/'),
+    detail:   "{% url 'vat:invoice_detail_api' 0 %}".replace('/0/', '/'),
+    detailPage: "{% url 'vat:invoice_detail_page' 0 %}".replace('/0/', '/'),
+  }
+};
+</script>
+
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vat:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        VAT Reconciliation
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-invoice"></i> Invoice Upload</h1>
+          <p>Upload third-party VAT invoices, then process OCR → translation → VAT reconciliation</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat"><div class="lm-hstat-val" id="statTotal">—</div><div class="lm-hstat-lbl">Invoices</div></div>
+          <div class="lm-hstat"><div class="lm-hstat-val" id="statMatched">—</div><div class="lm-hstat-lbl">Matched</div></div>
+          <div class="lm-hstat"><div class="lm-hstat-val" id="statDiscrepancy">—</div><div class="lm-hstat-lbl">Discrepancy</div></div>
+        </div>
+      </div>
+      <div class="lm-tabs">
+        <button class="lm-tab-btn active" data-tab="tab-list" onclick="switchLmTab('tab-list')"><i class="fas fa-list"></i> All Invoices</button>
+        <button class="lm-tab-btn" data-tab="tab-upload" onclick="switchLmTab('tab-upload')"><i class="fas fa-upload"></i> Upload Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    <!-- TAB 1 — LIST -->
+    <div class="lm-tab-content active" id="tab-list">
+      <div class="filter-bar fi fi-1">
+        <div class="search-wrap" id="lmSearchWrap">
+          <i class="fas fa-search"></i>
+          <input type="text" id="listSearch" placeholder="Search invoice no, country, status…">
+        </div>
+      </div>
+
+      <div class="actions-bar fi fi-2">
+        <div class="actions-left">
+          <button class="btn btn-navy btn-sm" onclick="switchLmTab('tab-upload')"><i class="fas fa-plus"></i> Upload Invoice</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadList()"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+        <div class="record-count" id="recordCountBadge">Loading…</div>
+      </div>
+
+      <div class="loading-overlay" id="listLoading" style="display:none"><span class="loading-spinner"></span> Loading invoices…</div>
+
+      <div class="tbl-wrap fi fi-3">
+        <div class="tbl-head">
+          <div>ID</div><div>Invoice No</div><div>Country</div><div>Taxable</div>
+          <div>Expected VAT</div><div>Invoice VAT</div><div>Variance</div><div>Status</div><div>Actions</div>
+        </div>
+        <div id="tblBody"><div class="loading-overlay"><span class="loading-spinner"></span> Loading…</div></div>
+        <div class="pagi"><div class="pagi-info" id="pagiInfo">—</div><div class="pagi-btns" id="pagiBtns"></div></div>
+      </div>
+    </div><!-- /tab-list -->
+
+    <!-- TAB 2 — UPLOAD -->
+    <div class="lm-tab-content" id="tab-upload">
+      <div class="section-hdr fi fi-1"><h2>Upload Invoice</h2></div>
+
+      <div class="upload-layout">
+        <div>
+          <form id="invForm" onsubmit="event.preventDefault()">
+            {% csrf_token %}
+            <div class="upload-autodetect" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--text-muted);">
+              <i class="fas fa-magic" style="color:var(--blue)"></i>
+              Just upload the invoice — the language, invoice number and date are detected automatically during processing.
+            </div>
+          </form>
+
+          <div id="fileListWrap" style="display:none;margin-bottom:12px;"></div>
+
+          <div class="upload-zone fi fi-1" id="dropZone">
+            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <div class="upload-title">Drop invoice file(s) here</div>
+            <div class="upload-sub">or click to browse — multiple files allowed</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">.pdf</span><span class="fmt-chip">.jpg</span>
+              <span class="fmt-chip">.jpeg</span><span class="fmt-chip">.png</span>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none" onchange="onFileInput(this)">
+          </div>
+        </div>
+
+        <div class="upload-side">
+          <div class="form-submit-block fi fi-2">
+            <button class="btn btn-navy btn-lg" onclick="submitUpload(this)"><i class="fas fa-upload"></i> Upload</button>
+            <button class="btn btn-green" id="processBtn" onclick="uploadAndProcess(this)"><i class="fas fa-cogs"></i> Upload &amp; Process Invoice</button>
+            <button class="btn btn-ghost" onclick="switchLmTab('tab-list')"><i class="fas fa-arrow-left"></i> Cancel</button>
+          </div>
+
+          <div class="form-help fi fi-4">
+            <h4>📋 Processing Steps</h4>
+            <ul>
+              <li>OCR extraction of invoice fields</li>
+              <li>Translation to English</li>
+              <li>Country &amp; currency identification</li>
+              <li>VAT calculation (HSN / flat)</li>
+              <li>Tolerance check &amp; reconciliation</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-upload -->
+
+  </div><!-- /lm-inner -->
+</div><!-- /lm-page -->
+
+
+<!-- ═══ DELETE MODAL ═══ -->
+<div class="lmodal-overlay" id="deleteModalOverlay">
+  <div class="lmodal">
+    <div class="lmodal-hdr"><div class="lmodal-icon"><i class="fas fa-trash"></i></div><div><h3>Confirm Deletion</h3><p>This action removes the invoice &amp; its data</p></div></div>
+    <div class="lmodal-body">
+      <div class="lmodal-record">
+        <div style="padding:10px 14px;background:var(--bg);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Record to be deleted</div>
+        <div id="deleteModalRows"></div>
+      </div>
+    </div>
+    <div class="lmodal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()"><i class="fas fa-arrow-left"></i> Cancel</button>
+      <button class="btn btn-red" onclick="confirmDelete(this)"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="lm-toast" id="lmToast"><i class="fas fa-check-circle"></i><span class="toast-msg">Done</span></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/vat_reconciliation/vat_invoice_upload.js' %}"></script>
+{% endblock %}

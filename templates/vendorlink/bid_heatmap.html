@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 1.3 — Bid Comparison Heatmap.
+
+Cost lines and capabilities down the left (sticky), one column per vendor bid
+across (scrollable, sticky header).
+
+Colour rules, both enforced in bidcompare.py rather than here:
+  * cost cells are banded cheapest→dearest *within their own row*, and only
+    against columns quoted in the same currency;
+  * capability rows are ✓ / — glyphs, never tints — a tick is binary and a
+    ramp would imply a magnitude that does not exist.
+
+The number is always printed on top of the tint, so colour is a second
+encoding and never the only one.
+{% endcomment %}
+
+{% block title %}Compare bids — {{ vendor_request.subject }}{% endblock %}
+
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:bid_analytics' %}">Bid Analytics</a>
+                <span class="sep">/</span>
+                <span class="current">Compare</span>
+            </nav>
+            <h1 class="vl-title">{{ vendor_request.subject }}</h1>
+            <p class="vl-subtitle">
+                {{ matrix.columns|length }} bid{{ matrix.columns|length|pluralize }} side by side,
+                grouped by vendor — cheapest to dearest per line item.
+            </p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn" href="{% url 'vendorlink:evaluation_detail' vendor_request.pk %}">AI evaluation</a>
+            <a class="vl-btn" href="{% url 'vendorlink:request_detail' vendor_request.pk %}">Open request</a>
+            <button type="button" class="vl-btn" id="vlExportCsv">Export CSV</button>
+        </div>
+    </div>
+
+    {% comment %}
+    Every figure below is converted to INR, so this is a disclosure rather
+    than a warning: a converted number is indistinguishable from a quoted one
+    unless the screen says what rate produced it. The old banner said no
+    cross-currency comparison was offered, which is no longer true.
+    {% endcomment %}
+    {% if matrix.fx_used %}
+    <div class="vl-banner" style="margin-bottom:var(--vl-3);">
+        <div class="vl-banner__body">
+            <div class="vl-banner__title">Shown in INR</div>
+            <div>
+                Vendors quoted in {{ matrix.currencies|join:", " }}. Converted at
+                {% for used in matrix.fx_used %}1&nbsp;{{ used.base }}&nbsp;=&nbsp;{{ used.rate|floatformat:2 }}&nbsp;INR{% if used.is_stale %} <strong>(rate is stale)</strong>{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                Each vendor's own quoted figure is on their column header.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if matrix.unconverted %}
+    <div class="vl-banner vl-banner--warn" style="margin-bottom:var(--vl-3);">
+        <div class="vl-banner__body">
+            <div class="vl-banner__title">Not converted, so not compared</div>
+            <div>
+                No exchange rate was available for
+                {{ matrix.unconverted|join:", " }} — those columns are shown in the
+                currency quoted and are excluded from the cheapest-per-row marks
+                rather than converted at an assumed rate.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if matrix.has_data %}
+    <div class="vl-filterbar">
+        <div class="vl-seg" id="vlViewSeg" role="group" aria-label="What to show">
+            <button type="button" data-value="cost"       aria-pressed="{% if view_mode == 'cost' %}true{% else %}false{% endif %}">Cost</button>
+            <button type="button" data-value="capability" aria-pressed="{% if view_mode == 'capability' %}true{% else %}false{% endif %}">Capability</button>
+            <button type="button" data-value="all"        aria-pressed="{% if view_mode != 'cost' and view_mode != 'capability' %}true{% else %}false{% endif %}">All</button>
+        </div>
+        <label class="vl-btn" style="cursor:pointer;">
+            <input type="checkbox" id="vlShowDelta" checked style="margin-right:6px;"> Show delta %
+        </label>
+        <span class="vl-meta" style="margin-left:auto;">All figures in INR · cheapest per row marked</span>
+    </div>
+
+    {% comment %}
+    vl-heat-wrap bounds the height. `.vl-tablewrap` is overflow:auto with no
+    height of its own, so the container never scrolled vertically and the
+    sticky footer had no scrollport to stick inside — the Total row, the one
+    number this screen exists to produce, sat at the natural bottom of the
+    table below ten capability rows and off the screen.
+    {% endcomment %}
+    <div class="vl-tablewrap vl-heat-wrap">
+        <table class="vl-table vl-table--stickycol vl-heat" id="vlHeat">
+            <thead>
+                <tr>
+                    <th scope="col" rowspan="2" style="min-width:190px;">Line item</th>
+                    {% for group in matrix.vendor_groups %}
+                    <th scope="colgroup" colspan="{{ group.colspan }}" class="vl-heat__vendor-group"
+                        title="{{ group.vendor_name }}{% if group.bid_count > 1 %} — {{ group.bid_count }} bids{% endif %}">
+                        <span>{{ group.vendor_name }}</span>
+                        {% if group.bid_count > 1 %}<small>{{ group.bid_count }} bids</small>{% endif %}
+                    </th>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    {% for col in matrix.columns %}
+                    <th scope="col" class="vl-heat__bid-head" style="min-width:150px;">
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                                <span class="vl-chip vl-chip--{{ col.status|default:'submitted' }}">{{ col.status|default:"submitted" }}</span>
+                                {% comment %}
+                                Two different facts, kept visibly different.
+
+                                "Chosen rev." is per vendor: which of THEIR
+                                revisions represents them here. It only appears
+                                when the vendor actually filed more than one —
+                                a vendor with a single bid had no choice to
+                                make, and badging it anyway is what made a
+                                one-award request look like it had two winners.
+
+                                "Awarded" is the request's single outcome, and
+                                it is matched on the exact awarded bid rather
+                                than on the vendor, so it lands on the revision
+                                that was actually awarded.
+                                {% endcomment %}
+                                {% if col.is_selected and col.sibling_count > 1 %}
+                                <span class="vl-chip vl-chip--selected"
+                                      title="Of this vendor's {{ col.sibling_count }} revisions, this is the one being compared">Chosen rev.</span>
+                                {% endif %}
+                                {% if award and award.bid_id == col.pk %}
+                                <span class="vl-chip vl-chip--awarded"
+                                      title="Awarded to {{ award.vendor_name }} — {{ award.get_status_display }}"><i class="fas fa-trophy"></i> Awarded</span>
+                                {% endif %}
+                            </span>
+                            <span class="vl-meta">{{ col.currency }} · Revision {{ col.bid_number }}</span>
+                        </div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+
+            <tbody>
+                {% comment %}Cost block{% endcomment %}
+                <tr class="vl-heat__section vl-heat-cost"><td colspan="{{ matrix.columns|length|add:1 }}">Cost</td></tr>
+
+                {% comment %}
+                The all-in total leads the cost block rather than sitting in a
+                table footer. It is the number this screen exists to produce
+                and it was the one number you could not see: below the whole
+                capability block, off the bottom of the page. Pinning it to the
+                bottom instead is not an option either - the fixed "Ask
+                MerilGPT" button sits at z-index 1199, which no stacking order
+                inside the table can win. Leading the block puts each vendor's
+                all-in figure directly under their name, where it is read
+                first. Keeps `vl-heat-cost` so the Cost/Capability toggle and
+                the CSV export treat it like any other cost row.
+                {% endcomment %}
+                <tr class="vl-heat-cost vl-heat__total">
+                    <th scope="row">Total</th>
+                    {% for cell in matrix.total_row.cells %}
+                    {% if cell.value is None %}
+                    <td class="vl-heat__cell vl-heat__cell--none">&mdash;</td>
+                    {% else %}
+                    <td class="vl-heat__cell{% if cell.is_best %} vl-heat__cell--best{% endif %}" data-band="{{ cell.band }}">
+                        {{ cell.value|floatformat:2 }}
+                        {% if cell.delta_pct %}<span class="vl-heat__delta vl-delta">+{{ cell.delta_pct }}%</span>{% endif %}
+                        {% comment %}
+                        `is_best` is decided within a currency, never across
+                        them, so on a mixed-currency request the marker has to
+                        name the currency it won in - otherwise two columns
+                        both read "Cheapest" and the badge means nothing.
+                        {% endcomment %}
+                        {% if cell.is_best %}
+                        <span class="vl-heat__cheapest">Cheapest</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% for row in matrix.cost_rows %}
+                <tr class="vl-heat-cost">
+                    <th scope="row" style="font-weight:500;text-transform:none;letter-spacing:0;">{{ row.label }}</th>
+                    {% for cell in row.cells %}
+                    {% if cell.value is None %}
+                    <td class="vl-heat__cell vl-heat__cell--none">—</td>
+                    {% else %}
+                    <td class="vl-heat__cell{% if cell.is_best %} vl-heat__cell--best{% endif %}" data-band="{{ cell.band }}">
+                        {{ cell.value|floatformat:2 }}
+                        {% if cell.delta_pct %}<span class="vl-heat__delta vl-delta">+{{ cell.delta_pct }}%</span>{% endif %}
+                    </td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+
+                {% comment %}Capability block — glyphs only{% endcomment %}
+                <tr class="vl-heat__section vl-heat-cap"><td colspan="{{ matrix.columns|length|add:1 }}">Capability</td></tr>
+                {% for row in matrix.capability_rows %}
+                <tr class="vl-heat-cap">
+                    <th scope="row" style="font-weight:500;text-transform:none;letter-spacing:0;">{{ row.label }}</th>
+                    {% for cell in row.cells %}
+                    {% if not cell.has_vendor %}
+                    <td class="vl-heat__glyph" title="No linked vendor record — capability unknown">
+                        <span class="vl-meta">n/a</span>
+                    </td>
+                    {% else %}
+                    <td class="vl-heat__glyph {% if cell.yes %}yes{% else %}no{% endif %}">{% if cell.yes %}✓{% else %}—{% endif %}</td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+    {% comment %}
+    No cheapest-to-dearest ramp any more. Shading every cell answered "where
+    on a scale does this quote sit", which is not the question — one mark on
+    the cheapest cell per row is. See bidcompare._row.
+    {% endcomment %}
+    <div class="vl-heat__legend">
+        <span class="vl-heat__cheapest" style="position:static;">Cheapest</span>
+        <span>= lowest INR figure on that row</span>
+        <span style="margin-left:var(--vl-3);">
+            <span class="vl-heat__swatch" style="background:var(--vl-heat-none);"></span> not quoted
+        </span>
+        <span style="margin-left:var(--vl-3);">&Delta;% is how far above the cheapest INR figure that row&rsquo;s quote sits.</span>
+    </div>
+
+    {% else %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No bids submitted yet</div>
+        <div class="vl-empty__hint">There is nothing to compare until a vendor responds to this request.</div>
+        <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:request_detail' vendor_request.pk %}">Open request</a></div>
+    </div></div>
+    {% endif %}
+</div>
+
+{% include "vendorlink/_vl_chat.html" with ctx_chips=chat_chips suggestions=chat_suggestions %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    var table = document.getElementById('vlHeat');
+    if (!table) { return; }
+
+    // Cost / Capability / All — filtering rows client-side keeps the toggle
+    // instant and avoids a round trip that would lose the scroll position.
+    var seg = document.getElementById('vlViewSeg');
+    function applyView(value) {
+        table.querySelectorAll('.vl-heat-cost').forEach(function (r) {
+            r.hidden = (value === 'capability');
+        });
+        table.querySelectorAll('.vl-heat-cap').forEach(function (r) {
+            r.hidden = (value === 'cost');
+        });
+    }
+    if (seg) {
+        seg.addEventListener('vl:segment', function (e) { applyView(e.detail.value); });
+        var pressed = seg.querySelector('button[aria-pressed="true"]');
+        if (pressed) { applyView(pressed.dataset.value); }
+    }
+
+    var deltaToggle = document.getElementById('vlShowDelta');
+    if (deltaToggle) {
+        deltaToggle.addEventListener('change', function () {
+            table.querySelectorAll('.vl-delta').forEach(function (d) {
+                d.style.display = deltaToggle.checked ? '' : 'none';
+            });
+        });
+    }
+
+    // CSV of exactly what is on screen, built from the DOM so a hidden view
+    // never exports rows the reader cannot see.
+    document.getElementById('vlExportCsv').addEventListener('click', function () {
+        var lines = [];
+        table.querySelectorAll('tr').forEach(function (tr) {
+            if (tr.hidden) { return; }
+            var cells = [];
+            tr.querySelectorAll('th,td').forEach(function (cell) {
+                var text = (cell.innerText || '').replace(/\s+/g, ' ').trim();
+                cells.push('"' + text.replace(/"/g, '""') + '"');
+            });
+            lines.push(cells.join(','));
+        });
+        var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'bid-comparison-{{ vendor_request.pk }}.csv';
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(a.href);
+        a.remove();
+        if (window.VL) { window.VL.toast('success', 'CSV downloaded'); }
+    });
+}());
+</script>
+{% endblock %}

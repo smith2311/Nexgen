@@ -1,0 +1,13 @@
+{% with url_name=request.resolver_match.url_name %}
+<nav class="mt-nav" aria-label="MeriTrack navigation">
+{% if can_view_dashboard %}<a href="{% url 'meritrack:dashboard' %}"{% if url_name == 'dashboard' or url_name == 'session_detail' %} class="active" aria-current="page"{% endif %}><i class="fas fa-chart-pie"></i><span>Dashboard</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:inventory' %}"{% if url_name == 'inventory' %} class="active" aria-current="page"{% endif %}><i class="fas fa-warehouse"></i><span>Inventory</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:orders' %}"{% if url_name == 'orders' %} class="active" aria-current="page"{% endif %}><i class="fas fa-truck"></i><span>Orders</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:hospital_master' %}"{% if url_name == 'hospital_master' %} class="active" aria-current="page"{% endif %}><i class="fas fa-hospital"></i><span>Hospitals</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:product_catalog' %}"{% if url_name == 'product_catalog' %} class="active" aria-current="page"{% endif %}><i class="fas fa-box"></i><span>Catalog</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:transfer_dashboard' %}"{% if url_name == 'transfer_dashboard' or url_name == 'transfer_detail' %} class="active" aria-current="page"{% endif %}><i class="fas fa-exchange-alt"></i><span>Transfers</span></a>{% endif %}
+    {% if can_view_performance %}<a href="{% url 'meritrack:salesperson_dashboard' %}"{% if url_name == 'salesperson_dashboard' %} class="active" aria-current="page"{% endif %}><i class="fas fa-user-tie"></i><span>Performance</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:analytics' %}"{% if url_name == 'analytics' %} class="active" aria-current="page"{% endif %}><i class="fas fa-chart-bar"></i><span>Analytics</span></a>{% endif %}
+    {% if can_view_dashboard %}<a href="{% url 'meritrack:reconciliation_dashboard' %}"{% if url_name == 'reconciliation_dashboard' or url_name == 'reconciliation_detail' %} class="active" aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i><span>Reconcile</span></a>{% endif %}
+</nav>
+{% endwith %}

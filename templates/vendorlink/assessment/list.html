@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+3PL Capability Assessment — Phase 3. Review queue for external vendor
+self-assessments, rebuilt in the vlx-* design system to match Vendor Master,
+Bid Analytics and the Commercial Database. The previous version of this file
+used the older vl-* stylesheet, which is why it looked like a different
+product from every screen around it.
+{% endcomment %}
+
+{% block title %}3PL Capability Assessment — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.vlx-statustabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+.vlx-statustab { text-decoration:none; padding:7px 15px; border-radius:999px; border:1px solid #d1d5db; background:#fff; font-size:.82rem; font-weight:600; color:#475569; display:inline-flex; align-items:center; gap:7px; }
+.vlx-statustab:hover { border-color:var(--vlx-secondary); color:var(--vlx-secondary); }
+.vlx-statustab.active { background:var(--vlx-secondary); border-color:var(--vlx-secondary); color:#fff; }
+.vlx-statustab__n { font-size:.72rem; background:rgba(0,0,0,.12); border-radius:999px; padding:1px 7px; }
+.vlx-statustab.active .vlx-statustab__n { background:rgba(255,255,255,.25); }
+
+.vlx-status { display:inline-flex; align-items:center; padding:3px 11px; border-radius:999px; font-size:.76rem; font-weight:700; white-space:nowrap; }
+.vlx-status--invited { background:#f1f5f9; color:#475569; }
+.vlx-status--draft { background:#e0f2fe; color:#0369a1; }
+.vlx-status--submitted { background:#fef3c7; color:#92400e; }
+.vlx-status--under_review { background:#f3e8ff; color:#6d28d9; }
+.vlx-status--approved { background:#dcfce7; color:#166534; }
+.vlx-status--rejected { background:#fee2e2; color:#991b1b; }
+
+.vlx-mini-progress { width:96px; height:7px; border-radius:99px; background:#eef1f6; overflow:hidden; }
+.vlx-mini-progress__fill { height:100%; background:var(--vlx-secondary); }
+.vlx-mini-progress-label { font-size:.72rem; color:#64748b; margin-left:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">3PL Capability Assessment</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">3PL Capability Assessment</h1>
+                <span class="vlx-count-badge">{{ assessments|length }} assessment{{ assessments|length|pluralize }}</span>
+            </div>
+            <p class="vlx-subtitle">External vendor self-assessments — invite, review and promote approved vendors into the Vendor Master.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:index' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if is_vm_admin %}
+            <a href="{% url 'vendorlink:assessment_invite' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-paper-plane"></i> Invite Vendor</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-statustabs">
+        <a href="?" class="vlx-statustab {% if not status_filter %}active{% endif %}">All</a>
+        {% for code, label in status_choices %}
+        <a href="?status={{ code }}" class="vlx-statustab {% if status_filter == code %}active{% endif %}">
+            {{ label }}
+            {% if code == "submitted" and pending_count %}<span class="vlx-statustab__n">{{ pending_count }}</span>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="vlx-card vlx-card--flush">
+        {% if assessments %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table" style="min-width:960px;">
+            <thead>
+                <tr>
+                    <th>Company / Email</th>
+                    <th>Status</th>
+                    <th>Completion</th>
+                    <th>Submitted</th>
+                    <th>Reviewed By</th>
+                    <th>Created</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in assessments %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ a.company_name|default:a.vendor_email|first|upper }}</span>
+                            <div class="vlx-stack0">
+                                <span class="vlx-cell__title">{{ a.company_name|default:"—" }}</span>
+                                <span class="vlx-cell__sub">{{ a.vendor_email }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="vlx-status vlx-status--{{ a.status }}">{{ a.get_status_display }}</span></td>
+                    <td>
+                        <div style="display:flex;align-items:center;">
+                            <div class="vlx-mini-progress"><div class="vlx-mini-progress__fill" style="width:{{ a.completion_percentage }}%"></div></div>
+                            <span class="vlx-mini-progress-label">{{ a.completion_percentage }}%</span>
+                        </div>
+                    </td>
+                    <td>{{ a.submitted_at|date:"d M Y"|default:"—" }}</td>
+                    <td>{{ a.reviewed_by|default:"—" }}</td>
+                    <td>{{ a.created_at|date:"d M Y" }}</td>
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            <a href="{% url 'vendorlink:assessment_review' a.pk %}" class="vlx-iconbtn" title="Review"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-clipboard-list"></i></div>
+            <h3>No assessments found</h3>
+            <p>
+                {% if status_filter %}No assessments have this status yet.
+                {% else %}Invite a vendor to start their 3PL Capability Assessment.{% endif %}
+            </p>
+            {% if is_vm_admin and not status_filter %}
+            <a href="{% url 'vendorlink:assessment_invite' %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-paper-plane"></i> Invite Vendor</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}

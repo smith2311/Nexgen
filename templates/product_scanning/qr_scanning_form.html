@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Meril - Cardio Stock Audit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/qr_scanning_form.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-main">
+    {% if can_view_only %}
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:.88em;color:#1e40af;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:1.1em;">👁</span>
+        <strong>View Only</strong> — You can view the scanner interface but cannot start sessions or record scans.
+    </div>
+    {% endif %}
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <h1>Cardio Stock Audit</h1>
+                <p>Scan consignment stock at hospital locations</p>
+            </div>
+            {% if can_view_dashboard %}
+            <a href="/product_scanning/dashboard/" class="link-btn">
+                Dashboard
+            </a>
+            {% endif %}
+            <a href="{% url 'product_scanning:salesperson_dashboard' %}" class="link-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                📊 My Performance
+            </a>
+            <a href="{% url 'product_scanning:user_guide' %}" class="link-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+                📖 Guide
+            </a>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- User Info -->
+        <div class="user-info">
+            <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+            <span style="color:#64748b;font-size:0.9em;">{{ user.email }}</span>
+        </div>
+
+        <!-- Step Indicators -->
+        <div class="steps">
+            <div class="step active" id="step1-indicator">
+                <div>Step 1</div>
+                <small>Setup</small>
+            </div>
+            <div class="step" id="step2-indicator">
+                <div>Step 2</div>
+                <small>Scan</small>
+            </div>
+            <div class="step" id="step3-indicator">
+                <div>Step 3</div>
+                <small>Review</small>
+            </div>
+        </div>
+
+        <!-- Step 1: Batch & Hospital Selection -->
+        <div id="step1" class="form-section active">
+            <h2 style="margin-bottom: 20px; color: #1e293b; font-size: 1.2em;">Start Audit Session</h2>
+            
+            <div class="form-group">
+                <label for="hospitalSelect">Hospital Name *</label>
+                <select id="hospitalSelect" required onchange="updateHospitalInfo()">
+                    <option value="">-- Select a Hospital --</option>
+                    {% for hospital in hospitals %}
+                    <option value="{{ hospital.id }}" data-sap-code="{{ hospital.sap_code }}" data-province="{{ hospital.province }}">
+                        {{ hospital.name }}{% if hospital.sap_code %} ({{ hospital.sap_code }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Session Type Toggle -->
+            <div class="type-toggle">
+                <label style="margin-bottom:10px; display:block; font-weight:600; color:#1e293b; font-size:0.9em;">Session Type *</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <label class="type-toggle-label" id="typeNormalLabel">
+                        <input type="radio" name="sessionType" value="normal" checked onchange="toggleSessionType()" style="width:18px;height:18px;accent-color:#0076c8;">
+                        <span style="font-weight:600;">Stock Audit</span>
+                    </label>
+                    <label class="type-toggle-label transfer" id="typeTransferLabel">
+                        <input type="radio" name="sessionType" value="transfer" onchange="toggleSessionType()" style="width:18px;height:18px;accent-color:#f97316;">
+                        <span style="font-weight:600;">H2H Transfer</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- To Hospital Dropdown (for H2H transfers) -->
+            <div id="toHospitalGroup" class="form-group" style="display:none;">
+                <label for="toHospitalSelect">Destination Hospital *</label>
+                <select id="toHospitalSelect" onchange="updateToHospitalInfo()">
+                    <option value="">-- Select Destination Hospital --</option>
+                    {% for hospital in hospitals %}
+                    <option value="{{ hospital.id }}" data-name="{{ hospital.name }}" data-sap-code="{{ hospital.sap_code }}">
+                        {{ hospital.name }}{% if hospital.sap_code %} ({{ hospital.sap_code }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div id="transferRoutePreview" style="display:none; margin-top:10px; background:linear-gradient(135deg, #f97316 0%, #ea580c 100%); color:#fff; padding:12px; border-radius:10px; text-align:center;">
+                    <div style="font-size:0.8em; opacity:0.9;">Transfer Route</div>
+                    <div style="font-weight:700; font-size:1.05em; margin-top:4px;"><span id="routeFrom">-</span> &rarr; <span id="routeTo">-</span></div>
+                </div>
+            </div>
+
+            <!-- Hospital Info Display -->
+            <div id="hospitalInfo" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 0.85em;">
+                <div style="margin: 4px 0;"><strong style="color:#64748b;">Hospital:</strong> <span id="infoHospitalName" style="color:#1e293b;"></span></div>
+                <div style="margin: 4px 0;"><strong style="color:#64748b;">SAP Code:</strong> <span id="infoSapCode" style="color:#1e293b;"></span></div>
+                <div style="margin: 4px 0;"><strong style="color:#64748b;">Province:</strong> <span id="infoProvince" style="color:#1e293b;"></span></div>
+            </div>
+
+            <!-- Auto-generated Session ID Display -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 0.85em;">
+                <div style="margin: 4px 0;"><strong style="color:#166534;">Session ID:</strong></div>
+                <div style="font-family: ui-monospace, monospace; background: #ffffff; padding: 8px 10px; border-radius: 6px; word-break: break-all; color: #0076c8; font-weight: 600; margin-top:6px;" id="batchIdDisplay">
+                    Loading...
+                </div>
+                <small style="color: #94a3b8; margin-top: 5px; display: block;">Auto-updates with date, your initials &amp; hospital code.</small>
+            </div>
+
+            <div class="info-box">
+                <strong>Note:</strong> Session ID format: DDMMYY-Initials-HospCode. Groups all products scanned in this session.
+            </div>
+
+            <button class="btn-primary" onclick="startScanning()">
+                Start Audit
+            </button>
+        </div>
+
+        <!-- Step 2: QR Scanning -->
+        <div id="step2" class="form-section">
+            <div class="session-info" id="sessionInfo" style="display:none;">
+                <div class="session-info-item">
+                    <span class="session-info-label">Session:</span>
+                    <span class="session-info-value" id="displayBatch"></span>
+                </div>
+                <div class="session-info-item">
+                    <span class="session-info-label">Hospital:</span>
+                    <span class="session-info-value" id="displayHospital"></span>
+                </div>
+                <div class="session-info-item">
+                    <span class="session-info-label">Scanned:</span>
+                    <span class="session-info-value" id="productCount">0</span>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 10px; color: #1e293b; font-size: 1.15em;">Scan Product QR / Barcode</h2>
+
+            <!-- Input Mode Toggle -->
+            <div style="display:flex; gap:0; margin-bottom:10px; background:#f1f5f9; border-radius:10px; padding:3px;">
+                <button id="modeBtnCamera" onclick="switchInputMode('camera')"
+                        style="flex:1; padding:9px 12px; border:none; border-radius:8px; font-size:0.85em; font-weight:700; cursor:pointer; background:#0076c8; color:white; transition:all 0.2s; box-shadow:0 2px 8px rgba(0,118,200,0.3);">
+                    📷 Camera
+                </button>
+                <button id="modeBtnScanner" onclick="switchInputMode('scanner')"
+                        style="flex:1; padding:9px 12px; border:none; border-radius:8px; font-size:0.85em; font-weight:700; cursor:pointer; background:transparent; color:#64748b; transition:all 0.2s;">
+                    🔫 Scanner Gun
+                </button>
+            </div>
+
+            <!-- ═══ NO-SERIAL TOGGLE — always visible in both camera & scanner gun mode ═══ -->
+            <button id="skipSerialBtn" onclick="toggleSkipSerial()"
+                    style="display:flex; align-items:center; gap:12px; width:100%; margin-bottom:14px;
+                           background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);
+                           color:#78350f; border:2px solid #fbbf24;
+                           padding:12px 16px; border-radius:12px; cursor:pointer;
+                           font-family:inherit; text-align:left; transition:all 0.25s;
+                           box-shadow:0 1px 4px rgba(251,191,36,0.25);">
+                <span id="skipSerialIcon" style="font-size:1.5em; line-height:1; flex-shrink:0;">🏷️</span>
+                <span style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;">
+                    <span id="skipSerialLabel"
+                          style="font-weight:700; font-size:0.88em; color:#78350f; line-height:1.2;">Products Without Serial Numbers</span>
+                    <span id="skipSerialSublabel"
+                          style="font-weight:400; font-size:0.76em; color:#a16207; line-height:1.3;">Tap to skip serial prompts (e.g. balloons, consumables)</span>
+                </span>
+                <span style="font-size:0.72em; font-weight:700; padding:4px 10px; border-radius:20px;
+                             background:#fbbf24; color:#78350f; flex-shrink:0;
+                             letter-spacing:0.03em; transition:all 0.25s;" id="skipSerialPill">OFF</span>
+            </button>
+
+            <!-- 2-scan workflow banner: shows when SN captured, waiting for product details -->
+            <div id="pendingSerialBanner" style="display:none; background:#fffbeb; border:2px solid #f59e0b; padding:12px 14px; border-radius:10px; margin-bottom:12px; color:#92400e;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                    <div>
+                        <div style="font-weight:700; font-size:0.9em;">Serial Number Captured</div>
+                        <div style="margin-top:4px; font-size:0.85em;">SN: <span id="pendingSerialValue" style="font-family:ui-monospace,monospace; font-weight:700; background:#ffffff; padding:2px 8px; border-radius:4px; border:1px solid #f59e0b; color:#1e293b;"></span></div>
+                        <div style="margin-top:3px; font-size:0.8em; color:#b45309;">Now scan the product details barcode</div>
+                    </div>
+                    <button onclick="clearPendingSerial()" style="background:#fee2e2; color:#dc2626; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75em; font-weight:600; flex-shrink:0;">Clear</button>
+                </div>
+            </div>
+
+            <!-- Awaiting SN scan banner: product details held, waiting for SN barcode -->
+            <div id="awaitingSNBanner" style="display:none; background:#eff6ff; border:2px solid #3b82f6; padding:12px 14px; border-radius:10px; margin-bottom:12px; color:#1e40af;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                    <div>
+                        <div style="font-weight:700; font-size:0.9em;">Scan Serial Number Now</div>
+                        <div style="margin-top:4px; font-size:0.8em;" id="awaitingSNDetails"></div>
+                        <div style="margin-top:3px; font-size:0.8em; color:#2563eb;">Point camera at the serial number barcode</div>
+                    </div>
+                    <button onclick="clearAwaitingSN()" style="background:#fee2e2; color:#dc2626; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:0.75em; font-weight:600; flex-shrink:0;">Cancel</button>
+                </div>
+                <!-- Manual serial entry option while awaiting SN scan -->
+                <div style="margin-top:10px; border-top:1px solid #bfdbfe; padding-top:8px;">
+                    <a href="#" onclick="toggleAwaitingSNManualInput(); return false;" style="font-size:0.82em; color:#2563eb; text-decoration:underline;">Or type serial number manually</a>
+                    <div id="awaitingSNManualArea" style="display:none; margin-top:8px; display:none;">
+                        <div style="display:flex; gap:6px;">
+                            <input type="text" id="awaitingSNManualInput"
+                                   placeholder="Type serial number..."
+                                   autocomplete="off" autocorrect="off"
+                                   style="flex:1; padding:8px 10px; border:1.5px solid #3b82f6; border-radius:6px; font-size:0.9em;"
+                                   onkeydown="if(event.key==='Enter') submitAwaitingSNManual()">
+                            <button onclick="submitAwaitingSNManual()" style="background:#3b82f6; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; font-size:0.85em; cursor:pointer;">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ SCANNER GUN PANEL (shown when mode = scanner) ═══ -->
+            <div id="scannerGunPanel" style="display:none; margin-bottom:14px;">
+                <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border-radius:12px; padding:16px; border:1px solid #334155;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="display:inline-block; width:9px; height:9px; background:#10b981; border-radius:50%; animation:sgPulse 1.5s ease-in-out infinite; flex-shrink:0;"></span>
+                        <span style="color:#94a3b8; font-size:0.75em; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">Scanner Gun — Click below &amp; scan</span>
+                    </div>
+                    <textarea id="scannerGunInput"
+                        placeholder="📡 Aim scanner at barcode / QR code and fire..."
+                        rows="2"
+                        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                        oninput="handleScannerGunInput()"
+                        style="width:100%; background:#0f172a; color:#e2e8f0; border:2px solid #334155; border-radius:8px; padding:12px 14px; font-family:ui-monospace,monospace; font-size:1em; resize:none; outline:none; transition:border-color 0.2s; caret-color:#0076c8; display:block;"
+                        onfocus="this.style.borderColor='#0076c8'"
+                        onblur="this.style.borderColor='#334155'"
+                    ></textarea>
+
+                    <!-- Live parsed field preview — auto-populated by JS after each scan -->
+                    <div id="scannerGunPreview" style="display:none; margin-top:12px;"></div>
+
+                    <!-- Bulk queue status -->
+                    <div id="sgQueueStatus" style="display:none; margin-top:8px; text-align:center; color:#64748b; font-size:0.78em; font-weight:600; padding:4px 0;"></div>
+
+                </div>
+
+                <!-- Fallback: type individual fields when barcode can't be scanned -->
+                <details style="margin-top:10px; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; overflow:hidden;">
+                    <summary style="padding:10px 14px; cursor:pointer; font-weight:600; color:#92400e; font-size:0.85em; list-style:none; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Can't scan? Fill fields manually</span>
+                        <span style="font-size:0.75em; font-weight:400; color:#b45309;">tap to expand</span>
+                    </summary>
+                    <div style="padding:10px 14px 14px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <input type="text"   id="f_serial"   placeholder="Serial Number"   style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="text"   id="f_gtin"     placeholder="GTIN Code"        style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="text"   id="f_matcode"  placeholder="Material Code"    style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="text"   id="f_name"     placeholder="Product Name"     style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="text"   id="f_batch"    placeholder="Batch / Lot No."  style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="date"   id="f_expiry"   placeholder="Expiry Date"      style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="date"   id="f_received" placeholder="Received Date"    style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                            <input type="number" id="f_qty"      placeholder="Quantity" min="1"  style="padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:0.9em;">
+                        </div>
+                        <button class="btn-success" onclick="submitManualFields()" style="width:100%;margin-top:12px;">
+                            Submit Entry
+                        </button>
+                    </div>
+                </details>
+            </div>
+
+            <!-- ═══ CAMERA SECTION (shown by default, hidden in scanner gun mode) ═══ -->
+            <div id="cameraScanSection">
+                <!-- Quick paste fallback inside camera mode -->
+                <details id="manualEntryPanel" style="margin-bottom:12px; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; overflow:hidden;">
+                    <summary style="padding:12px 14px; cursor:pointer; font-weight:600; color:#92400e; list-style:none; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Paste Raw QR / Manual Entry</span>
+                        <span style="font-size:0.75em; font-weight:400; color:#b45309;">tap to expand</span>
+                    </summary>
+                    <div style="padding:12px 14px 16px;">
+                        <p style="font-size:0.85em; color:#64748b; margin:0 0 10px;">Paste raw GS1 / QR data — parsed fields appear automatically:</p>
+                        <textarea id="manualQRInput"
+                            placeholder="Paste raw GS1 / QR string here"
+                            style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:ui-monospace,monospace;font-size:0.85em;min-height:50px;resize:vertical;"
+                            oninput="handleCameraManualInput()"
+                        ></textarea>
+                        <!-- Live parse preview — shown 2 s after input, no auto-submit -->
+                        <div id="cameraManualPreview" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;"></div>
+                        <button id="cameraManualSubmitBtn" onclick="submitCameraManualQR()" style="display:none; width:100%; margin-top:8px; background:#0076c8; color:white; border:none; padding:10px; border-radius:8px; font-weight:700; font-size:0.88em; cursor:pointer;">
+                            Submit this scan
+                        </button>
+                    </div>
+                </details>
+
+                <div class="qr-instruction" style="margin-bottom:10px;">
+                    Hold camera steady - supports QR, GS1 DataMatrix, EAN-13, Code128
+                </div>
+
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                    <div class="qr-scanner-container">
+                        <div id="qr-reader"></div>
+                    </div>
+
+                    <!-- Scan Controls -->
+                    <div style="display:flex;gap:8px;margin-top:10px;width:min(300px, 100%);">
+                        <button id="pauseScanBtn" onclick="toggleScanning()"
+                                style="flex:1;background:#f97316;color:white;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">
+                            Pause
+                        </button>
+                        <button onclick="finishScanning()"
+                                style="flex:2;background:#0076c8;color:white;border:none;padding:10px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">
+                            Finish Scanning
+                        </button>
+                    </div>
+
+
+                </div>
+            </div>
+
+            <!-- Alert Messages -->
+            <div id="alertContainer" style="margin-bottom:14px;"></div>
+
+            <!-- ERROR TRAY — only scans that failed auto-submit appear here for retry/dismiss -->
+            <div id="errorTraySection" style="display:none;"></div>
+
+            <!-- SCANNED ITEMS — products confirmed (submitted) to backend -->
+            <div id="productsList" style="margin-top:14px;"></div>
+
+            <div class="button-group">
+                <button class="btn-secondary" onclick="goBackToSetup()">Back</button>
+                <button class="btn-success" onclick="finishScanning()">Complete Session</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Review & Complete -->
+        <div id="step3" class="form-section">
+            <h2 style="margin-bottom: 20px; color: #1e293b; font-size: 1.15em;">Session Summary</h2>
+
+            <div class="session-info">
+                <div class="session-info-item">
+                    <span class="session-info-label">Scanned By:</span>
+                    <span class="session-info-value">{{ user.get_full_name|default:user.username }}</span>
+                </div>
+                <div class="session-info-item">
+                    <span class="session-info-label">Session:</span>
+                    <span class="session-info-value" id="reviewBatch"></span>
+                </div>
+                <div class="session-info-item">
+                    <span class="session-info-label">Hospital:</span>
+                    <span class="session-info-value" id="reviewHospital"></span>
+                </div>
+                <div class="session-info-item">
+                    <span class="session-info-label">Products:</span>
+                    <span class="session-info-value" id="reviewCount"></span>
+                </div>
+            </div>
+
+            <div class="products-list" id="reviewProductsList"></div>
+
+            <div class="form-group">
+                <label for="sessionNotes">Additional Notes (Optional)</label>
+                <textarea 
+                    id="sessionNotes" 
+                    placeholder="Any additional notes about this audit session"
+                    style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 6px; font-family: inherit; min-height: 80px;"
+                ></textarea>
+            </div>
+
+            <div class="form-group" style="margin-top:4px;">
+                <label for="batchRemark" style="color:#7c3aed;font-weight:600;">💬 Batch Remark (Optional)</label>
+                <p style="font-size:0.82em;color:#6b7280;margin:2px 0 8px;">Add a remark about this entire batch — visible to the warehouse team.</p>
+                <textarea
+                    id="batchRemark"
+                    placeholder="e.g. Some items near expiry, urgent review needed…"
+                    style="width:100%;padding:12px;border:2px solid #ddd6fe;border-radius:6px;font-family:inherit;min-height:70px;background:#faf5ff;"
+                ></textarea>
+            </div>
+
+            <div class="button-group" style="margin-top:20px;">
+                <button class="btn-secondary" onclick="goBackToScanning()" style="flex:1;">
+                    Back to Scanning
+                </button>
+                <button class="btn-success" onclick="submitSession()" style="flex:2;">
+                    Complete & Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner-loader"></div>
+</div>
+
+<!-- Serial Number Dialog Modal -->
+<div id="serialModal" class="serial-modal-overlay">
+    <div class="serial-modal">
+        <h3>Serial Number Not Detected</h3>
+        <p style="color:#6b7280;font-size:0.9em;margin:4px 0 0;">The scanned barcode didn’t contain a serial number (GS1 AI 21).</p>
+        <div class="sm-found" id="smFoundData"></div>
+
+        <div class="sm-btns">
+            <button class="sm-btn-yes" onclick="smChooseYes()">
+                Scan SN Barcode
+            </button>
+            <button class="sm-btn-no" onclick="smChooseNo()">
+                No Serial Number
+            </button>
+            <button class="sm-btn-cancel" onclick="smCancel()">Cancel</button>
+        </div>
+
+        <!-- Type manually (secondary option) -->
+        <div style="text-align:center; margin-top:10px;">
+            <a href="#" onclick="smShowManualInput(); return false;" style="font-size:0.82em; color:#6b7280; text-decoration:underline;">Or type serial number manually</a>
+        </div>
+        <div class="sm-serial-input" id="smSerialInputArea">
+            <input type="text" id="smSerialInput"
+                   placeholder="Type the serial number..."
+                   autocomplete="off" autocorrect="off"
+                   onkeydown="if(event.key==='Enter') smSubmitWithSerial()">
+            <button onclick="smSubmitWithSerial()">Submit with Serial</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"salespersonName":"{{ user.get_full_name|default:user.username }}","canViewOnly":{{ can_view_only|yesno:"true,false" }}}</script>
+<script src="{% static 'js/html5-qrcode.min.js' %}"></script>
+<script src="{% static 'js/zxing-library.min.js' %}"></script>
+<script src="{% static 'js/qr_scanning_form.js' %}"></script>
+{% endblock %}

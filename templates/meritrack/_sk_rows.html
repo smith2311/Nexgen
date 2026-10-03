@@ -1,0 +1,17 @@
+{% comment %}
+Shimmering placeholder rows for a table that is about to be filled by JS.
+Usage: {% include 'meritrack/_sk_rows.html' with cols=10 rows="12345678" %}
+`cols` must match the table's column count so the colspan stays valid.
+{% endcomment %}
+{% for _ in rows|default:"123456" %}
+<tr class="mt-sk-tr" aria-hidden="true">
+    <td colspan="{{ cols|default:8 }}" style="padding:0;border:none;background:none;">
+        <div class="mt-sk-row">
+            <div class="mt-sk"></div>
+            <div class="mt-sk"></div>
+            <div class="mt-sk"></div>
+            <div class="mt-sk"></div>
+        </div>
+    </td>
+</tr>
+{% endfor %}

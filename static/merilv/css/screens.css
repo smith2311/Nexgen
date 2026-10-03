@@ -1,0 +1,1777 @@
+/* ============================================================================
+   Meril-V — screen-specific overrides
+
+   Everything reusable lives in components.css; this file holds the handful of
+   layouts that are genuinely one screen's shape (the scanner console's 3
+   columns, delivery cards, the KPI-tile-into-table layout). Still 100% tokens
+   — no inline hex, no off-scale pixels.
+   ========================================================================= */
+
+
+/* ── Outbound / Branch Transfer / ZVA05 scanner console ──────────────────────
+   Three bands, following the legacy Outbound Scanner this screen replaced:
+
+       [ Session · Progress · Focus · Receptacle · Actions      ]  rail
+       [ scan input                                             ]  scanner
+       [ deliveries                    | recent scans           ]  work
+
+   Why this way round:
+
+   * The scanner gets its own full-width band. It is the one control a picker
+     touches every few seconds, and it is not something to go hunting for in a
+     column. The band holds the mode tabs, the input and the outcome of the
+     last scan — nothing else, so it stays shallow.
+   * The deliveries take the wide side of the bottom band. They carry nine
+     columns of material, batch, plant and progress; nothing else on this
+     screen needs width the way they do.
+   * Recent scans take the narrow side. A running list of one-line facts reads
+     fine at 320px, and reading it is checking on the picking rather than on
+     the last scan — which is why it sits beside the work rather than under
+     the input.
+
+   The bottom band has a definite height taken from the viewport, so its two
+   panels are equal AND bounded: each scrolls inside itself instead of one of
+   them running away with the page. */
+.mv-console {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    /* rail, scanner, work. Only the last one grows, and it is given a floor:
+       the two panels on it hold a nine-column table and a running list, and
+       below about 420px neither shows enough rows to be worth the trip. Where
+       the viewport cannot pay for that, the page scrolls rather than the
+       panels shrinking to a few rows each.
+
+       720, up from 560. A dense row in this panel is ~30px, and the band pays
+       for a filter bar, a sticky header, a pager and a totals footer before
+       the first row — so the floor buys roughly five more rows, which is what
+       "expand the delivery area" is asking for. It is also the other half of
+       the nested-scrollbar fix below: one scroller is only an improvement if
+       it is tall enough to be worth scrolling. */
+    grid-template-rows: auto auto minmax(720px, 1fr);
+    gap: var(--mv-space-3);
+    align-items: stretch;
+    /* What sits above the console inside <main>: the sticky page header, the
+       body's top padding, the scan-mode tabs and the gap under them, plus the
+       body's bottom padding. Measured against the real stack rather than
+       guessed — it was 300px, which left ~60px of screen unused under the
+       console on a 1080p monitor, and those 60px are rows of the table.
+
+       The 560px floor on the work band is the other half of the same answer.
+       On a laptop the console already exceeds the viewport and the page
+       scrolls, so the floor — not the viewport — is what decides how many rows
+       are visible there, and 420 was about eleven. Raising it costs a little
+       more page scroll on a screen that was scrolling anyway, and buys rows on
+       exactly the machines that had fewest. */
+    --mv-console-chrome: 238px;
+    height: calc(100vh - var(--mv-navbar-h) - var(--mv-console-chrome));
+    min-height: 620px;
+}
+/* The Recent scans panel's expand control sizes the whole work band, not the
+   log alone: the two panels share that band at equal heights, so giving the
+   log more room gives the delivery list beside it the same. */
+/* Expanded gives the work band the page's own scroll to grow into: the console
+   becomes taller than the viewport and everything above it scrolls away, which
+   is the trade an operator asks for when they want to read the log. */
+.mv-console.is-log-expanded { --mv-console-chrome: 96px; }
+
+.mv-console__left   { grid-column: 1 / -1; grid-row: 1; }
+.mv-console__middle { grid-column: 1 / -1; grid-row: 2; }
+.mv-console__right  { grid-column: 1;      grid-row: 3; }
+.mv-console__log    { grid-column: 2;      grid-row: 3; }
+
+@media (max-width: 1100px) {
+    /* Stacked, page-scrolled. Recent scans goes under the deliveries rather
+       than beside them: a 320px column and a nine-column table cannot both be
+       readable here, and a fixed viewport height on a stacked layout only
+       produces scrollbars inside scrollbars. */
+    .mv-console {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        height: auto;
+        min-height: 0;
+    }
+    .mv-console__left,
+    .mv-console__middle,
+    .mv-console__right,
+    .mv-console__log { grid-column: 1; grid-row: auto; }
+}
+
+/* Left rail --------------------------------------------------------------- */
+/* Five blocks across the top. auto-fit rather than repeat(5): at 1100px five
+   210px blocks do not fit, and wrapping to two rows of readable blocks beats
+   five unreadable ones. */
+.mv-console__left {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: var(--mv-space-3);
+    align-items: stretch;
+}
+
+.mv-session-timer {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+    font-family: var(--mv-font-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--mv-fg);
+}
+.mv-session-timer svg { color: var(--mv-fg-3); }
+
+.mv-receptacle__code { font-family: var(--mv-font-mono); font-size: 1.125rem; font-weight: 600; }
+.mv-receptacle__meta { margin-top: var(--mv-space-1); }
+
+.mv-focus-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mv-space-2);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border-radius: var(--mv-radius-md);
+    background: linear-gradient(135deg, var(--mv-primary-container), var(--mv-accent-teal));
+    color: #fff;
+}
+.mv-focus-banner__key { font-family: var(--mv-font-mono); font-weight: 600; }
+.mv-focus-banner a, .mv-focus-banner button {
+    background: none; border: none; padding: 0;
+    color: #fff; opacity: .85; font: inherit; cursor: pointer; text-decoration: underline;
+}
+.mv-focus-banner a:hover, .mv-focus-banner button:hover { opacity: 1; }
+
+.mv-console__left-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mv-space-2);
+}
+
+/* ── Rail blocks ─────────────────────────────────────────────────────────────
+   Five of them, one shape: a titled head and a body. Uniform because a rail
+   whose blocks each invent their own heading weight reads as five unrelated
+   widgets, and because an operator learns *positions* — the pending count is
+   the second block, always, whatever the entity is configured for. */
+/* Tight. The rail is reference — how long have I been on this, how much is
+   left, which delivery am I locked to — consulted every few minutes. The list
+   underneath is read continuously, and the two are competing for the same
+   column of pixels, so the reference side gives way. Nothing is removed: all
+   five blocks and every number stay, in about two thirds of the height. */
+.mv-rail__block { padding: var(--mv-space-2) var(--mv-space-3); }
+.mv-rail__head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-2);
+    margin-bottom: 2px;
+}
+.mv-rail__title {
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--mv-fg-3);
+}
+.mv-rail__sub { margin-top: var(--mv-space-1); color: var(--mv-fg-3); }
+.mv-rail__pct { font-size: var(--mv-t-caption-size); font-weight: 600; color: var(--mv-fg-2); }
+/* The focus block holds one of two mutually exclusive children, so it carries
+   no body padding of its own — whichever shows brings its own. */
+.mv-rail__block--focus .mv-focus-prompt,
+.mv-rail__block--focus .mv-focus-banner { margin: 0; }
+
+/* ── The three numbers ───────────────────────────────────────────────────────
+   Total / Scanned / Pending, side by side and equal width so the eye lands on
+   the same spot every time, tabular figures so a digit changing does not shift
+   the ones beside it. Repainted every poll (scanner.js:renderProgress). */
+.mv-qtygrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--mv-space-2); }
+.mv-qtygrid__cell {
+    display: flex; flex-direction: column; gap: 0;
+    padding: 4px var(--mv-space-1);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    text-align: center;
+}
+.mv-qtygrid__cell--ok      { background: var(--mv-ok-bg); }
+.mv-qtygrid__cell--pending { background: var(--mv-warn-bg); }
+.mv-qtygrid__n {
+    font-size: 1.125rem; font-weight: 700; line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    color: var(--mv-fg);
+}
+.mv-qtygrid__cell--ok      .mv-qtygrid__n { color: var(--mv-ok); }
+.mv-qtygrid__cell--pending .mv-qtygrid__n { color: var(--mv-warn); }
+.mv-qtygrid__k {
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-3);
+}
+.mv-progbar {
+    margin-top: 6px;
+    height: 5px; border-radius: 999px;
+    background: var(--mv-surface-container-hi);
+    overflow: hidden;
+}
+.mv-progbar__fill {
+    display: block; height: 100%;
+    border-radius: inherit;
+    background: var(--mv-ok);
+    transition: width 300ms var(--mv-ease-state);
+}
+
+/* Scan band ------------------------------------------------------------------ */
+.mv-console__middle { display: flex; flex-direction: column; min-width: 0; }
+
+/* ── Scan frame ──────────────────────────────────────────────────────────────
+   The scanner, across the top: mode tabs and status line on one row, the input
+   below, the outcome of the last scan below that. Shallow on purpose — every
+   row it takes is a row the deliveries underneath do not get. */
+.mv-scanframe {
+    display: flex;
+    flex-direction: column;
+    /* Tighter than the console's own rhythm on purpose: this band holds three
+       things that belong together — mode, input, outcome — and every step
+       between them is a row the list underneath does not get. */
+    gap: var(--mv-space-2);
+    box-sizing: border-box;
+}
+.mv-scanframe__head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-3); flex-wrap: wrap;
+}
+/* The status line sits in the head beside the mode tabs rather than under the
+   input: it is one line of text that was taking a full row of its own. */
+.mv-scanframe__head .mv-scan-statusline { margin: 0; flex: 1 1 200px; min-width: 0; justify-content: flex-end; }
+
+/* ── Recent scans ────────────────────────────────────────────────────────────
+   The narrow panel beside the deliveries. It fills its half of the work band
+   and the list inside it takes whatever the head and the filter bar leave,
+   scrolling within itself — so the band's height, not the number of scans, is
+   what decides how tall this gets. */
+.mv-console__log { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.mv-scanpanel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    padding: var(--mv-space-3) var(--mv-space-4);
+}
+.mv-scanpanel .mv-rail__title { display: inline-flex; align-items: center; gap: var(--mv-space-1); }
+.mv-scanpanel .mv-scanfilter { margin-bottom: var(--mv-space-2); }
+/* Overrides the shared .mv-scanlog 200px cap: here the list IS the panel, so
+   it takes the leftover height rather than stopping short with the panel's own
+   space unused below it. */
+.mv-scanpanel .mv-scanlog {
+    flex: 1 1 auto;
+    margin-top: 0;
+    min-height: 120px;
+    max-height: none;
+    padding: var(--mv-space-2);
+}
+.mv-scanpanel .mv-scanrow { flex: 0 0 auto; }
+
+/* Concise rows ---------------------------------------------------------------
+   The wide row puts the time in a fixed 72px column beside the badge, then the
+   code and message beside that — three columns, which needs about 560px to
+   read. This panel is 320px. So the row stacks instead: badge and time on one
+   line, then the code, then the message. Same information, same data-*
+   contract, a third of the width. */
+.mv-scanlog--concise .mv-scanrow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-height: 0;
+    padding: var(--mv-space-2) var(--mv-space-3);
+}
+.mv-scanlog--concise .mv-scanrow__time {
+    width: auto;
+    padding-top: 0;
+    order: 2;
+    font-size: 0.68rem;
+}
+.mv-scanlog--concise .mv-scanrow__badge { order: 1; }
+.mv-scanlog--concise .mv-scanrow__body { order: 3; }
+.mv-scanlog--concise .mv-scanrow__actions { order: 4; margin-left: auto; }
+.mv-scanlog--concise .mv-scanrow__code { font-size: var(--mv-t-caption-size); }
+.mv-scanlog--concise .mv-scanrow__msg {
+    /* Two lines, then an ellipsis. A TARGET_MISMATCH message runs to a full
+       sentence and would otherwise make one row as tall as four. The whole
+       message stays in the title attribute and in the row's own detail. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.mv-scanlog--concise .mv-scanrow__serial { font-size: 0.68rem; }
+.mv-scanlog--concise .mv-scanrow__edit { opacity: 1; }
+
+/* ── Partial by default, full on request ─────────────────────────────────────
+   Collapsed is the unmodified state, so the server-rendered page IS the
+   default and there is no expand-then-snap-back on load.
+
+   The control sizes the whole work band, not the log alone: the deliveries and
+   Recent scans share that band at equal heights, so giving one more room gives
+   the other the same. Nothing is ever hidden by it — the scanner band above is
+   outside the rule entirely, which is what makes this partial and never full.
+   */
+.mv-scanfilter__size { flex: 0 0 auto; }
+.mv-scanfilter__size svg { transition: transform var(--mv-dur-state) var(--mv-ease-state); }
+.mv-console.is-log-expanded .mv-scanfilter__size svg { transform: rotate(180deg); }
+
+@media (max-width: 1100px) {
+    /* Stacked and page-scrolled: the panel has no band to fill, so the list
+       goes back to a capped height of its own rather than growing without
+       limit, and the rows have the width to go back to one line each. */
+    .mv-scanpanel { height: auto; }
+    .mv-scanpanel .mv-scanlog { max-height: 340px; }
+    .mv-console.is-log-expanded .mv-scanpanel .mv-scanlog { max-height: 65vh; }
+    .mv-scanlog--concise .mv-scanrow { flex-direction: row; align-items: flex-start; gap: var(--mv-space-3); }
+    .mv-scanlog--concise .mv-scanrow__time { width: 72px; padding-top: 2px; order: 0; }
+    .mv-scanlog--concise .mv-scanrow__badge { order: 0; }
+    .mv-scanlog--concise .mv-scanrow__body { order: 0; }
+    .mv-scanlog--concise .mv-scanrow__msg { -webkit-line-clamp: none; display: block; }
+}
+/* .mv-viewswitch sizes itself with `flex: 0 0 auto`, but that only governs
+   the MAIN axis. As a flex item of this column container, its CROSS axis
+   (width, since the column runs vertically) still defaulted to align-items:
+   stretch, forcing the Scan/Bulk Paste switch to the full column width with
+   a wall of empty space after "Bulk Paste". Every other .mv-viewswitch sits
+   in a row-direction parent where stretch only affects height, which nothing
+   noticed — this is the one place it silently widened. */
+.mv-console__middle > .mv-viewswitch { align-self: flex-start; }
+
+.mv-scan-input {
+    height: var(--mv-scan-input-h);
+    padding: 0 var(--mv-space-5);
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+    background: var(--mv-surface-container);
+    color: var(--mv-fg);
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-input-size);
+    letter-spacing: .1em;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-scan-input:focus {
+    outline: none;
+    border: 2px solid var(--mv-primary);
+    padding: 0 calc(var(--mv-space-5) - 1px);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+.mv-scan-input::placeholder { color: var(--mv-fg-3); letter-spacing: .1em; }
+/* Nothing is focused, so nothing can be assigned. The box still takes a scan —
+   a dead input answers a gun with silence, which reads as a broken scanner —
+   but it says, before Enter is pressed, that the scan will not land. */
+.mv-scan-input.is-blocked {
+    background: var(--mv-warn-bg);
+    border-color: var(--mv-warn);
+}
+.mv-scan-input.is-blocked::placeholder { color: var(--mv-warn); }
+
+.mv-scan-statusline {
+    display: flex; align-items: center; gap: var(--mv-space-2);
+    font-size: var(--mv-t-caption-size); color: var(--mv-fg-3);
+}
+
+/* Running scan log, in the space under the scan box.
+   The status line above it only ever shows the *last* outcome, and the full
+   Scan feed table sits further down the page — so an operator working the gun
+   had nowhere to glance to check the last few scans without scrolling away
+   from the input they have to keep focused. This is that glance: newest first
+   (so the thing just scanned is always the top line, with no auto-scrolling to
+   fight) and capped in height with its own scrollbar for the rest. */
+.mv-scanlog {
+    margin-top: var(--mv-space-3);
+    max-height: 200px; overflow-y: auto; overscroll-behavior: contain;
+    border: 1px solid var(--mv-line); border-radius: var(--mv-radius-md);
+    background: var(--mv-bg-2, #fafbfc);
+    font-size: var(--mv-t-caption-size);
+}
+.mv-scanlog__empty { padding: var(--mv-space-4); text-align: center; color: var(--mv-fg-3); }
+.mv-scanlog__row {
+    display: flex; align-items: baseline; gap: var(--mv-space-2);
+    padding: 5px var(--mv-space-3); border-bottom: 1px solid var(--mv-line);
+}
+.mv-scanlog__row:last-child { border-bottom: none; }
+.mv-scanlog__time { color: var(--mv-fg-3); font-variant-numeric: tabular-nums; flex: none; }
+.mv-scanlog__code {
+    font-family: var(--mv-font-mono, ui-monospace, monospace);
+    color: var(--mv-fg-1); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mv-scanlog__msg { color: var(--mv-fg-3); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-scanlog__tag {
+    flex: none; font-weight: 700; font-size: 10.5px; letter-spacing: .02em;
+    padding: 1px 7px; border-radius: 999px; text-transform: uppercase;
+}
+.mv-scanlog__tag--ok     { background: #dcfce7; color: #166534; }
+.mv-scanlog__tag--warn   { background: #fef3c7; color: #92400e; }
+.mv-scanlog__tag--danger { background: #fee2e2; color: #991b1b; }
+.mv-scanlog__tag--neutral{ background: #f1f5f9; color: #475569; }
+/* The console's one sound control. Renamed from .mv-sound-toggle when the
+   separate mute button and "Test sounds" button became a single control: it
+   opens the panel now, it does not toggle anything.
+
+   The background/border overrides are gone with the name. It carries .mv-btn
+   and is the header's own control, so it should look like Export beside it
+   rather than like a caption that happens to be clickable. */
+.mv-sound-btn { display: inline-flex; align-items: center; gap: var(--mv-space-1); }
+.mv-sound-btn.is-muted { color: var(--mv-warn); border-color: var(--mv-warn); }
+
+/* Scan-sound preview. One row per outcome, each with its own cue — the only
+   way to answer "does a wrong batch sound different from an expired item?"
+   without producing both outcomes on the floor. */
+.mv-soundmute {
+    display: block; margin-bottom: var(--mv-space-4);
+    padding-bottom: var(--mv-space-4); border-bottom: 1px solid var(--mv-border);
+}
+.mv-soundvol { margin-bottom: var(--mv-space-4); }
+.mv-soundvol__row { display: flex; align-items: center; gap: var(--mv-space-3); }
+.mv-soundvol__row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--mv-primary); }
+.mv-soundvol__row output { flex: 0 0 3.5em; text-align: right; }
+.mv-soundlist { display: flex; flex-direction: column; gap: var(--mv-space-2); }
+.mv-soundrow {
+    display: flex; align-items: center; gap: var(--mv-space-3);
+    padding: var(--mv-space-2) var(--mv-space-3);
+    border: 1px solid var(--mv-border); border-radius: var(--mv-radius-2);
+    background: var(--mv-bg-2);
+}
+.mv-soundrow__body { flex: 1; min-width: 0; }
+.mv-soundrow .mv-reason { flex: 0 0 auto; }
+.mv-poll-spinner { width: 14px; height: 14px; color: var(--mv-fg-3); opacity: 0; transition: opacity 120ms; }
+.mv-poll-spinner.is-active { opacity: 1; animation: mv-spin 700ms linear infinite; }
+@keyframes mv-spin { to { transform: rotate(360deg); } }
+
+/* Scan log rows */
+/* Scan-feed status filter — toggle group on the left, free-text search filling
+   the rest. Wraps to two rows on narrow consoles rather than squashing the
+   search box below a usable width. */
+.mv-scanfilter {
+    display: flex; align-items: center; gap: var(--mv-space-3);
+    margin-bottom: var(--mv-space-3);
+    flex-wrap: wrap;
+}
+.mv-scanfilter__search { flex: 1 1 220px; min-width: 0; }
+.mv-scanfilter__n {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--mv-surface-container-hi);
+    color: var(--mv-fg-3);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+.mv-viewswitch button[aria-pressed="true"] .mv-scanfilter__n {
+    background: var(--mv-primary);
+    color: #fff; /* no on-primary token exists; white is correct on --mv-primary. */
+}
+
+.mv-scanlog { display: flex; flex-direction: column; gap: var(--mv-space-2); }
+.mv-scanrow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mv-space-3);
+    min-height: 56px;
+    padding: var(--mv-space-3) var(--mv-space-4);
+    box-sizing: border-box;
+    border: 1px solid var(--mv-border);
+    border-left-width: 4px;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    transition: background 400ms var(--mv-ease-enter), border-color 400ms var(--mv-ease-enter);
+}
+.mv-scanrow--ok      { border-left-color: var(--mv-ok);     background: var(--mv-ok-bg); }
+.mv-scanrow--warn    { border-left-color: var(--mv-warn);   background: var(--mv-warn-bg); }
+.mv-scanrow--danger  { border-left-color: var(--mv-danger); background: var(--mv-danger-bg); }
+.mv-scanrow--neutral { border-left-color: var(--mv-outline); background: var(--mv-surface-container); }
+.mv-scanrow--blocked { border-left-color: var(--mv-info);   background: var(--mv-info-bg); }
+/* 400ms tint sweep on accept, handled by the same transition entering. */
+.mv-scanrow--enter { background: var(--mv-surface-container-hi); }
+.mv-scanrow--danger.mv-scanrow--enter { animation: mv-danger-pulse 200ms var(--mv-ease-state); }
+@keyframes mv-danger-pulse { 0% { box-shadow: 0 0 0 2px var(--mv-danger); } 100% { box-shadow: none; } }
+
+.mv-scanrow__time { flex: 0 0 auto; width: 72px; color: var(--mv-fg-3); font-size: var(--mv-t-caption-size); padding-top: 2px; }
+.mv-scanrow__badge { flex: 0 0 auto; }
+.mv-scanrow__body { flex: 1; min-width: 0; }
+.mv-scanrow__code { font-size: var(--mv-t-mono-size); color: var(--mv-fg); word-break: break-all; }
+.mv-scanrow__msg { margin-top: 2px; font-size: var(--mv-t-caption-size); color: var(--mv-fg-2); }
+.mv-scanrow--danger .mv-scanrow__code { text-decoration: line-through; text-decoration-color: var(--mv-danger); }
+.mv-scanrow__edit { flex: 0 0 auto; opacity: 0; transition: opacity 120ms; }
+.mv-scanrow:hover .mv-scanrow__edit { opacity: 1; }
+
+/* One row standing in for many "not required on this delivery" bulk-paste
+   results (see prependGroupedMismatchRow in scanner.js) — a count and a
+   disclosure instead of one full-weight row per code. */
+.mv-scanrow--group .mv-scanrow__code { font-family: inherit; font-weight: 600; }
+.mv-scanrow__grouplist {
+    list-style: none;
+    margin: var(--mv-space-2) 0 0;
+    padding: var(--mv-space-2) 0 0 0;
+    border-top: 1px dashed var(--mv-border);
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.mv-scanrow__grouplist li {
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-3);
+    word-break: break-all;
+}
+
+/* Delivery panel -------------------------------------------------------------*/
+.mv-console__right {
+    display: flex; flex-direction: column; gap: var(--mv-space-3);
+    min-width: 0; min-height: 0;
+}
+/* The card half of it: the same frame and the same tighter padding as the
+   Recent scans panel it sits beside, so the two read as one row of two panels
+   rather than a card next to some loose content. Keeps .mv-card's own
+   `overflow: hidden` — the list inside scrolls in its own box, which is a
+   nested scroller and keeps its sticky table head either way. */
+.mv-workpanel {
+    box-sizing: border-box;
+    padding: var(--mv-space-3) var(--mv-space-4);
+}
+/* The list is the only part that grows, so it takes the leftover height and
+   scrolls inside itself — the filter bar, the scope banner and the totals
+   footer stay put around it. Addressed by the data attribute rather than by
+   class: the renderers swap this element's className between the card grid,
+   the table wrapper and the empty state on every repaint, and only the
+   attribute survives all three. */
+.mv-console__right > [data-mv="deliveries"] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+/* ── One scroller, not two ───────────────────────────────────────────────────
+   In the Table and Lines views the renderers turn THIS element into the paged
+   table wrap (renderTableView / renderLinesView in scanner.js), and that wrap
+   carries a vertical scroller of its own in .mv-table-scroll, capped at
+   min(64vh, 760px). On any normal monitor that cap is taller than the panel it
+   now sits in — so the panel scrolled a box that scrolled, two vertical
+   scrollbars side by side, and the rows ended up in whichever of the two boxes
+   was smaller.
+
+   The height goes to the table. The panel clips, .mv-table-scroll takes the
+   leftover and is the only thing that scrolls — its sticky header keeps
+   working because it is the scrollport, and the pager stays pinned beneath it.
+   Card and kanban views have no inner scroller and keep the panel's own. */
+.mv-console__right > [data-mv="deliveries"].mv-table-wrap--paged { overflow: hidden; }
+.mv-console__right > [data-mv="deliveries"].mv-table-wrap--paged > .mv-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* The 64vh cap is for a table on a page that scrolls. Here the band's own
+       height is the bound, and a second cap on top of it is what created the
+       nesting in the first place. */
+    max-height: none;
+}
+
+@media (max-width: 1100px) {
+    /* Stacked: the page scrolls, so a scroller inside a scroller here would
+       just make the list harder to read. */
+    .mv-console__right > [data-mv="deliveries"] { overflow: visible; }
+    /* Stacked, there is no band height to hand down, and the panel around the
+       table is not scrolling — so the table keeps the cap it was designed with
+       and is the one scroller on its own. Its overflow is left alone either
+       way: Lines has nine columns and this is where they least fit, so the
+       horizontal scroll matters more here, not less. */
+    .mv-console__right > [data-mv="deliveries"].mv-table-wrap--paged > .mv-table-scroll {
+        flex: 0 0 auto;
+        max-height: min(64vh, 760px);
+    }
+}
+
+/* Card view — as many per row as fit at a readable width.
+   Container-driven rather than viewport-driven: the panel is a column now, not
+   the full page, so "1500px wide viewport" no longer says anything useful
+   about how much room these cards have. The old media queries would have put
+   four cards into a 700px column at 175px each. auto-fill asks the question
+   the cards actually care about — how many 240px cards fit in THIS box — and
+   answers it at every width without a breakpoint. */
+.mv-delivery-list {
+    display: grid;
+    /* 210px puts three across in this column where 240 put two. */
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: var(--mv-space-3);
+    /* Rows keep their own height; the spare space stays at the bottom.
+       Without this the cards stretch, and badly: this grid is also the panel's
+       scroller (flex: 1 1 auto), so it has a DEFINITE height, and a grid's
+       default align-content of `stretch` blows its auto-sized rows up to fill
+       it. Three deliveries in a 560px panel became one row 560px tall, with
+       each card's centred content marooned in the middle of it. The kanban
+       body has always carried this; the card grid did not, and only started
+       distorting when the panel gained a height of its own. */
+    align-content: start;
+}
+
+.mv-delivery-card {
+    --mv-delivery-accent: var(--mv-accent-blue);
+    --mv-delivery-bg: #fff;
+    --mv-delivery-border: var(--mv-border);
+    display: flex; align-items: center; gap: var(--mv-space-3);
+    width: 100%;
+    padding: var(--mv-space-4) var(--mv-space-5);
+    box-sizing: border-box;
+    border: 1px solid var(--mv-delivery-border);
+    border-left: 4px solid var(--mv-delivery-accent);
+    border-radius: var(--mv-radius-md);
+    background: linear-gradient(90deg, var(--mv-delivery-bg), #fff 52%);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                background var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-delivery-list > .mv-delivery-card:nth-child(6n+1) { --mv-delivery-accent: var(--mv-accent-blue);   --mv-delivery-bg: var(--mv-accent-blue-bg);   --mv-delivery-border: var(--mv-accent-blue-border); }
+.mv-delivery-list > .mv-delivery-card:nth-child(6n+2) { --mv-delivery-accent: var(--mv-accent-teal);   --mv-delivery-bg: var(--mv-accent-teal-bg);   --mv-delivery-border: var(--mv-accent-teal-border); }
+.mv-delivery-list > .mv-delivery-card:nth-child(6n+3) { --mv-delivery-accent: var(--mv-accent-amber);  --mv-delivery-bg: var(--mv-accent-amber-bg);  --mv-delivery-border: var(--mv-accent-amber-border); }
+.mv-delivery-list > .mv-delivery-card:nth-child(6n+4) { --mv-delivery-accent: var(--mv-accent-violet); --mv-delivery-bg: var(--mv-accent-violet-bg); --mv-delivery-border: var(--mv-accent-violet-border); }
+.mv-delivery-list > .mv-delivery-card:nth-child(6n+5) { --mv-delivery-accent: var(--mv-accent-cyan);   --mv-delivery-bg: var(--mv-accent-cyan-bg);   --mv-delivery-border: var(--mv-accent-cyan-border); }
+.mv-delivery-list > .mv-delivery-card:nth-child(6n)   { --mv-delivery-accent: var(--mv-accent-rose);   --mv-delivery-bg: var(--mv-accent-rose-bg);   --mv-delivery-border: var(--mv-accent-rose-border); }
+.mv-delivery-card:hover { border-color: var(--mv-border-strong); }
+.mv-delivery-card.is-focused {
+    border: 2px solid var(--mv-primary);
+    border-left: 4px solid var(--mv-primary);
+    background: linear-gradient(90deg, var(--mv-primary-tint), #fff 58%);
+    padding: calc(var(--mv-space-4) - 1px) calc(var(--mv-space-5) - 1px);
+}
+.mv-delivery-card__body { flex: 1; min-width: 0; }
+.mv-delivery-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--mv-space-2); }
+.mv-delivery-card__customer { margin-top: 2px; font-size: var(--mv-t-body-size); color: var(--mv-fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-delivery-card__qty { margin-top: 2px; }
+/* width/height are NOT optional here. An inline <svg> that carries a viewBox
+   but no width/height and no CSS size has no intrinsic pixel size, so as a
+   flex item it stretches to fill the line — which inflated every delivery card
+   to ~200px tall with a giant arrow. Always size module SVGs explicitly. */
+.mv-delivery-card__chevron { flex: 0 0 auto; width: 16px; height: 16px; color: var(--mv-fg-3); }
+
+.mv-console-footer { font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); text-align: right; }
+
+
+/* ── Delivery view modes: card / table / kanban ──────────────────────────────
+   All three need real width — a table or kanban board in a 360px rail is
+   unreadable — which is why the panel takes the widest of the three columns
+   and drops back to spanning the full width below 1400px rather than being
+   squeezed. Each view's own overflow box handles what is still too wide for
+   the column (see .mv-table-scroll). */
+
+.mv-deliveries__bar {
+    display: flex; flex-direction: row; align-items: center;
+    gap: var(--mv-space-2); flex-wrap: wrap;
+}
+.mv-deliveries__bar .mv-search { flex: 1 1 180px; }
+
+/* Segmented control */
+.mv-viewswitch {
+    display: inline-flex; flex-direction: row; align-items: center;
+    flex: 0 0 auto;
+    padding: 2px;
+    background: var(--mv-surface-container-hi);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+}
+.mv-viewswitch button {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px;
+    border: none; background: none;
+    border-radius: calc(var(--mv-radius-md) - 3px);
+    color: var(--mv-fg-3);
+    font: inherit; font-size: var(--mv-t-caption-size); font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: background var(--mv-dur-state) var(--mv-ease-state),
+                color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-viewswitch button svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.mv-viewswitch button:hover { color: var(--mv-fg); }
+.mv-viewswitch button[aria-pressed="true"] {
+    background: var(--mv-surface-container);
+    color: var(--mv-primary);
+    box-shadow: var(--mv-shadow-1);
+}
+/* Kanban view — grouped by progress state.
+   Stacked full-width lanes rather than three side-by-side columns: with 40
+   deliveries in "Not started" and none elsewhere, side-by-side spent two
+   thirds of the width on empty columns while cramming the busy one into a
+   narrow ribbon. Full-width lanes give every card the same 4-up grid as card
+   view and let a lane collapse to a single line when it's empty. */
+.mv-kanban {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mv-space-4);
+}
+.mv-kanban__col {
+    background: var(--mv-surface-container-low);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+    padding: var(--mv-space-3);
+    min-width: 0;
+}
+.mv-kanban__head {
+    display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-2);
+    padding-bottom: var(--mv-space-2);
+    margin-bottom: var(--mv-space-3);
+    border-bottom: 2px solid var(--mv-kanban-accent, var(--mv-border-strong));
+}
+.mv-kanban__title {
+    font-size: var(--mv-t-header-size); font-weight: 600;
+    letter-spacing: .05em; text-transform: uppercase;
+    color: var(--mv-fg-2);
+}
+.mv-kanban__col--pending  { --mv-kanban-accent: var(--mv-outline); }
+.mv-kanban__col--progress { --mv-kanban-accent: var(--mv-warn); }
+.mv-kanban__col--complete { --mv-kanban-accent: var(--mv-ok); }
+/* The same rhythm as card view, so switching views does not reflow the cards
+   into a different shape — which meant matching viewport breakpoints when card
+   view had them and means matching its auto-fill now that it does not. The
+   claim was left behind when the card grid went container-driven: at that
+   point the two views genuinely did lay out differently at the same width. */
+.mv-kanban__body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: var(--mv-space-2);
+    align-content: start;
+}
+@media (max-width: 700px)  { .mv-kanban__body { grid-template-columns: 1fr; } }
+/* Spans every column of the card grid above, so it reads as one message
+   rather than sitting in the first cell. */
+.mv-kanban__empty { grid-column: 1 / -1; font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); padding: var(--mv-space-2); }
+
+.mv-kancard {
+    display: flex; flex-direction: column; gap: 6px;
+    width: 100%; padding: var(--mv-space-3);
+    box-sizing: border-box;
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-left: 3px solid var(--mv-kanban-accent, var(--mv-border-strong));
+    border-radius: var(--mv-radius-sm);
+    text-align: left; font: inherit; color: inherit; cursor: pointer;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-kancard:hover { border-color: var(--mv-border-strong); box-shadow: var(--mv-shadow-1); }
+.mv-kancard.is-focused { border-color: var(--mv-primary); background: var(--mv-primary-tint); }
+.mv-kancard__top { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--mv-space-2); }
+.mv-kancard__cust { font-size: var(--mv-t-caption-size); color: var(--mv-fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-kancard__foot { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--mv-space-2); font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); }
+
+
+/* ── Finish Delivery modal specifics ─────────────────────────────────────── */
+.mv-boxchip-editor { display: flex; flex-wrap: wrap; gap: var(--mv-space-2); }
+.mv-boxchip {
+    display: flex; align-items: center; gap: var(--mv-space-2);
+    padding: var(--mv-space-2) var(--mv-space-3);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+}
+.mv-boxchip label { font-size: var(--mv-t-caption-size); font-weight: 600; color: var(--mv-fg-2); }
+.mv-boxchip input {
+    width: 48px; height: 28px; padding: 0 var(--mv-space-2);
+    border: 1px solid var(--mv-border); border-radius: var(--mv-radius-sm);
+    font-family: var(--mv-font-mono); text-align: center;
+}
+
+
+/* ── Launcher: 6 workflow tiles + recent + live ─────────────────────────── */
+.mv-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--mv-space-4);
+}
+.mv-tile {
+    --mv-tile-accent: var(--mv-accent-blue);
+    --mv-tile-bg: var(--mv-accent-blue-bg);
+    --mv-tile-border: var(--mv-accent-blue-border);
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-areas:
+        "icon title"
+        "icon desc"
+        ". go";
+    column-gap: var(--mv-space-4);
+    row-gap: var(--mv-space-1);
+    align-items: start;
+    padding: 22px;
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-lg);
+    background: var(--mv-surface-container);
+    box-shadow: var(--mv-shadow-1);
+    text-decoration: none;
+    color: var(--mv-tile-accent);
+    position: relative;
+    overflow: hidden;
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                transform var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-tiles > .mv-tile:nth-child(6n+1) { --mv-tile-accent: var(--mv-accent-blue);   --mv-tile-bg: var(--mv-accent-blue-bg);   --mv-tile-border: var(--mv-accent-blue-border); }
+.mv-tiles > .mv-tile:nth-child(6n+2) { --mv-tile-accent: var(--mv-accent-teal);   --mv-tile-bg: var(--mv-accent-teal-bg);   --mv-tile-border: var(--mv-accent-teal-border); }
+.mv-tiles > .mv-tile:nth-child(6n+3) { --mv-tile-accent: var(--mv-accent-amber);  --mv-tile-bg: var(--mv-accent-amber-bg);  --mv-tile-border: var(--mv-accent-amber-border); }
+.mv-tiles > .mv-tile:nth-child(6n+4) { --mv-tile-accent: var(--mv-accent-violet); --mv-tile-bg: var(--mv-accent-violet-bg); --mv-tile-border: var(--mv-accent-violet-border); }
+.mv-tiles > .mv-tile:nth-child(6n+5) { --mv-tile-accent: var(--mv-accent-cyan);   --mv-tile-bg: var(--mv-accent-cyan-bg);   --mv-tile-border: var(--mv-accent-cyan-border); }
+.mv-tiles > .mv-tile:nth-child(6n)   { --mv-tile-accent: var(--mv-accent-rose);   --mv-tile-bg: var(--mv-accent-rose-bg);   --mv-tile-border: var(--mv-accent-rose-border); }
+.mv-tile::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-tile:hover {
+    border-color: var(--mv-border-strong);
+    transform: translateY(-3px);
+    box-shadow: 0 4px 16px rgba(11,31,58,.10);
+    color: var(--mv-tile-accent);
+}
+.mv-tile:hover::after {
+    opacity: 1;
+}
+.mv-tile__icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    grid-area: icon;
+    width: 48px; height: 48px;
+    border-radius: var(--mv-radius-md);
+    /* Solid, saturated fill with a white glyph rather than a light tint with
+       a coloured glyph — the same flat icon-badge language as Material
+       Rework's dashboard tiles, reusing the same accent tokens (a rotating
+       .mv-tile still needs a per-instance colour, just expressed as a fill
+       now instead of a border+tint). */
+    background: var(--mv-tile-accent);
+    color: #fff;
+    box-shadow: 0 6px 14px -6px var(--mv-tile-accent);
+    transition: transform var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-tile:hover .mv-tile__icon { transform: scale(1.08); }
+.mv-tile__icon svg {
+    width: 22px;
+    height: 22px;
+    color: currentColor;
+    stroke-width: 2;
+}
+.mv-tile__title {
+    grid-area: title;
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--mv-fg);
+}
+.mv-tile__desc {
+    grid-area: desc;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--mv-fg-2);
+}
+.mv-tile__go {
+    grid-area: go;
+    margin-top: var(--mv-space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-1);
+    color: var(--mv-tile-accent);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+}
+
+
+/* ── Consolidator confidence bars, reports cards, monitoring cards share
+   the .mv-kpi / .mv-card / .mv-progress primitives — no screen-specific CSS
+   needed beyond what components.css already provides. */
+
+
+/* ── Master Data console ──────────────────────────────────────────────────────
+   ONE panel, not three stacked cards: the title row and the master picker are
+   rows of `.mv-mx`, and the screen's own content card is welded onto the bottom
+   of it by the adjacent-sibling rule further down. Separate cards left the eye
+   crossing three borders and two gaps before reaching the table.
+
+   The join is done in CSS rather than by wrapping the content, because this
+   chrome is an {% include %} and a template cannot open a div that the including
+   page closes.
+
+   Nothing here is sticky: <main> in base.html carries overflow-x:hidden and so
+   scrolls on both axes, which makes `position:sticky; top:0` measure against the
+   wrong box — the same trap documented in _base.html. */
+.mv-mx {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--mv-space-4);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    /* radius-lg, not -md: it has to match .mv-card exactly or the weld below
+       steps in by 6px where the two halves meet. */
+    border-radius: var(--mv-radius-lg);
+    box-shadow: var(--mv-shadow-1);
+}
+
+/* Welded to the content card that follows: no gap, no doubled border, corners
+   squared where they meet. :has() leaves the bottom rounded on the landing page,
+   where a KPI row follows instead of a card. */
+.mv-mx:has(+ .mv-card) {
+    margin-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    /* One shadow for the combined panel — two would draw a shaded band across
+       the seam. The card below casts it for both halves. */
+    box-shadow: none;
+}
+.mv-mx + .mv-card {
+    margin-top: 0;
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+/* The halves are one surface, so the card must not restyle its own border on
+   hover: that lit up the seam and gave away the join. */
+.mv-mx + .mv-card:hover {
+    border-color: var(--mv-border);
+    box-shadow: var(--mv-shadow-1);
+}
+
+.mv-mx-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--mv-space-4);
+    padding: var(--mv-space-4) var(--mv-space-5);
+}
+.mv-mx-hero__id { display: flex; align-items: center; gap: var(--mv-space-3); min-width: 0; }
+.mv-mx-hero__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-accent-violet-bg);
+    color: var(--mv-accent-violet);
+}
+.mv-mx-hero__title { margin: 0; font-size: var(--mv-t-h2-size); line-height: var(--mv-t-h2-lh); font-weight: 700; color: var(--mv-fg); }
+.mv-mx-hero__path { margin: 0; font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); color: var(--mv-fg-3); }
+.mv-mx-hero__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--mv-space-2); }
+
+/* Master nav — the second row of the panel, so it carries only a divider, no
+   card chrome of its own.
+
+   ONE wrapping row, deliberately. The previous version grouped the chips into
+   five labelled rows, which showed everything but ate most of the console's
+   height; before that it was a twelve-tab strip on a single line that
+   overflowed and needed a scrollbar. `flex-wrap` is what makes this one work:
+   it stays one line where there is room and folds to two where there is not,
+   and there is no `overflow-x` anywhere here on purpose. */
+.mv-mx-nav {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--mv-space-1);
+    padding: var(--mv-space-3) var(--mv-space-5);
+    border-top: 1px solid var(--mv-border);
+}
+/* Grouping without a heading row: a hairline between groups reads as a break
+   at a glance and costs no vertical space, which is the whole point here. */
+.mv-mx-nav__sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px var(--mv-space-2);
+    background: var(--mv-border);
+}
+.mv-mx-nav__tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: var(--mv-radius-sm);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+    color: var(--mv-fg-2);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.mv-mx-nav__tab:hover { background: var(--mv-surface-container-hi); color: var(--mv-fg); }
+.mv-mx-nav__tab.is-active {
+    background: var(--mv-accent-violet-bg);
+    border-color: var(--mv-accent-violet-border);
+    color: var(--mv-accent-violet);
+}
+/* Hierarchy is the whole-tree view rather than one more table, so it reads as
+   the head of its group instead of a peer. */
+.mv-mx-nav__tab--head {
+    background: var(--mv-surface-container-hi);
+    border-color: var(--mv-border);
+}
+.mv-mx-nav__tab--head.is-active {
+    background: var(--mv-accent-violet-bg);
+    border-color: var(--mv-accent-violet-border);
+}
+
+.mv-mx-picker {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--mv-space-3);
+    padding: var(--mv-space-3) var(--mv-space-5);
+    border-top: 1px solid var(--mv-border);
+}
+
+/* ── Organisation level strip (C6) ────────────────────────────────────────
+   The four nesting levels, on every one of them, so a flat table can say where
+   it sits. Drawn only for the four tables that actually nest — the view leaves
+   `org_chain` empty for Billing Type and Sales Type, which have no parent. */
+.mv-levels {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--mv-space-1);
+    margin-bottom: var(--mv-space-4);
+    padding: var(--mv-space-2) var(--mv-space-3);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-md);
+}
+.mv-levels__step {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--mv-radius-sm);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+    color: var(--mv-fg-2);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.mv-levels__step:hover { background: var(--mv-surface-container-hi); color: var(--mv-fg); }
+.mv-levels__step.is-current {
+    background: var(--mv-accent-violet-bg);
+    color: var(--mv-accent-violet);
+}
+/* The step number is what makes the strip read as an ordered descent rather
+   than four peer links. */
+.mv-levels__n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--mv-surface-container-hi);
+    color: var(--mv-fg-3);
+    font-size: 10px; font-weight: 700;
+}
+.mv-levels__step.is-current .mv-levels__n {
+    background: var(--mv-accent-violet); color: var(--mv-surface);
+}
+.mv-levels__sep { display: inline-flex; color: var(--mv-fg-4, var(--mv-fg-3)); }
+.mv-levels__spacer { flex: 1 1 auto; }
+/* margin-left:auto pins the template download to the right edge of the row. */
+.mv-mx-picker__actions { display: flex; align-items: center; gap: var(--mv-space-2); margin-left: auto; }
+/* The disabled stand-in shown before a master is picked: a <span>, not a
+   <button>, so it is inert without relying on the disabled attribute. */
+.mv-mx-picker__actions [aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+@media (max-width: 900px) {
+    .mv-mx-picker__actions { width: 100%; margin-left: 0; }
+}
+
+/* Content card. The head wraps as one unit: identity left, actions right, and
+   on a narrow viewport the actions drop to their own line rather than squeezing
+   the title to a single character per line. */
+.mv-mx-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--mv-space-3);
+    padding: var(--mv-space-4) var(--mv-space-5);
+    border-bottom: 1px solid var(--mv-border);
+}
+.mv-mx-card__id { display: flex; align-items: center; gap: var(--mv-space-2); min-width: 0; }
+.mv-mx-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-primary-tint);
+    color: var(--mv-primary);
+}
+.mv-mx-card__title { margin: 0; font-size: var(--mv-t-h2-size); line-height: var(--mv-t-h2-lh); font-weight: 700; color: var(--mv-fg); }
+.mv-mx-card__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--mv-space-2); }
+/* The Clear button is a real POST form, so it needs to stop being a block that
+   forces a line break inside the action row. */
+.mv-mx-card__clear { display: inline-flex; margin: 0; }
+.mv-mx-count {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 var(--mv-space-2);
+    border-radius: var(--mv-radius-full);
+    background: var(--mv-surface-container-hi);
+    color: var(--mv-fg-2);
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-caption-size);
+    line-height: 1;
+    font-weight: 600;
+}
+
+@media (max-width: 900px) {
+    .mv-mx-hero, .mv-mx-card__head { align-items: flex-start; }
+    .mv-mx-hero__actions, .mv-mx-card__actions { width: 100%; }
+}
+
+
+/* ── Reports → User Activity ─────────────────────────────────────────────────
+   Admin-only analytics (reports_users.html, reports_user_detail.html). Charts
+   are Highcharts, vendored at static/lib/highcharts/ and already used by the
+   billing / material-rework dashboards — so these screens only need layout,
+   not drawing primitives. Anything numeric that is NOT a chart is a plain
+   table: a progress bar next to a real chart just looks like a broken chart. */
+
+/* Chart cards. auto-fit so two sit side by side on a desktop and stack on a
+   tablet without a media query per breakpoint. */
+.mv-chartgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: var(--mv-space-4);
+    margin-top: var(--mv-space-4);
+}
+/* A chart that needs the full width (the daily trend) opts out of the grid. */
+.mv-chartgrid--full { grid-template-columns: 1fr; }
+
+/* Highcharts writes its own inline height onto the container, so this is a
+   reservation rather than a constraint — it stops the card collapsing to zero
+   and reflowing the page once the script runs. */
+.mv-chart { width: 100%; min-height: 260px; }
+.mv-chart--tall { min-height: 380px; }
+
+/* Initials avatar. */
+.mv-avatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+    width: 32px; height: 32px;
+    border-radius: var(--mv-radius-full);
+    background: var(--mv-primary-tint);
+    color: var(--mv-primary);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.mv-avatar--lg { width: 56px; height: 56px; font-size: 1.125rem; }
+/* An account with no activity reads as muted rather than absent — "has access,
+   has not used it" is a finding, not an empty row. */
+.mv-avatar--idle { background: var(--mv-surface-container-hi); color: var(--mv-fg-3); }
+
+/* Legend dots, for the few places a table row is colour-coded to a chart. */
+.mv-legend { display: flex; flex-wrap: wrap; gap: var(--mv-space-3); }
+.mv-legend__item {
+    display: inline-flex; align-items: center; gap: var(--mv-space-2);
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-2);
+}
+.mv-legend__dot { width: 10px; height: 10px; border-radius: var(--mv-radius-full); flex: 0 0 auto; }
+.mv-legend__dot--upload  { background: #8B5CF6; }
+.mv-legend__dot--session { background: #0076C8; }
+.mv-legend__dot--scan    { background: #00A891; }
+.mv-legend__dot--close   { background: #15803D; }
+.mv-legend__dot--admin   { background: #F59E0B; }
+
+/* Peer-standing panel on the individual view. The rank is the headline, so it
+   is set at display size rather than being another row in a table. */
+.mv-rank { display: flex; align-items: baseline; gap: var(--mv-space-2); }
+.mv-rank__n {
+    font-family: var(--mv-font-mono);
+    font-size: 2.25rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--mv-primary);
+}
+.mv-rank__of { font-size: var(--mv-t-body-size); color: var(--mv-fg-3); }
+.mv-delta { font-weight: 700; font-family: var(--mv-font-mono); }
+.mv-delta--up   { color: var(--mv-ok); }
+.mv-delta--down { color: var(--mv-warn); }
+
+/* Event feed — the merged, newest-first stream on a user's detail page. */
+.mv-feed { display: flex; flex-direction: column; }
+.mv-feed__row {
+    display: grid;
+    grid-template-columns: auto 84px minmax(0, 1fr) auto;
+    gap: var(--mv-space-3);
+    align-items: center;
+    padding: var(--mv-space-2) 0;
+    border-bottom: 1px solid var(--mv-border);
+}
+.mv-feed__row:last-child { border-bottom: none; }
+.mv-feed__icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container-hi);
+    color: var(--mv-fg-2);
+}
+.mv-feed__icon svg { width: 14px; height: 14px; }
+.mv-feed__time {
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-3);
+}
+.mv-feed__what { min-width: 0; overflow-wrap: anywhere; }
+.mv-feed__label { font-size: var(--mv-t-caption-size); color: var(--mv-fg-3); white-space: nowrap; }
+
+/* Feed pager. The capped feed rendered whole was 250 rows under the charts —
+   several screens of page with no way to reach the end of it. The range
+   ("Showing 1-25 of 250") sits opposite the page links so the reader can see
+   where they are without counting rows. */
+.mv-feed__pager {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: var(--mv-space-2);
+    padding: var(--mv-space-3) 0 var(--mv-space-1);
+    border-top: 1px solid var(--mv-border);
+    margin-top: var(--mv-space-1);
+}
+
+/* Label/value pairs for the identity strip. */
+.mv-statgrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--mv-space-4);
+}
+.mv-statgrid__k {
+    font-size: var(--mv-t-header-size);
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--mv-fg-3);
+}
+.mv-statgrid__v { margin-top: 2px; font-size: var(--mv-t-body-size); font-weight: 600; }
+
+/* The user picker sits in the page-header action row beside the window select. */
+.mv-userpick { min-width: 240px; }
+
+@media (max-width: 900px) {
+    .mv-feed__row { grid-template-columns: auto minmax(0, 1fr); }
+    .mv-feed__time, .mv-feed__label { grid-column: 2; }
+    .mv-userpick { min-width: 0; width: 100%; }
+}
+
+/* ── Chart cards (Reports) ───────────────────────────────────────────────
+   Charts are the vendored Highcharts build; see static/merilv/js/mv_charts.js
+   for why this module does not use the CDN chart.js the grocery dashboard
+   loads. These classes only own the frame — Highcharts draws inside them. */
+.mv-chart-card { display: flex; flex-direction: column; }
+.mv-chart-card .mv-card__head { margin-bottom: var(--mv-2); }
+.mv-chart-note {
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-2);
+    white-space: nowrap;
+}
+/* An explicit height, because a Highcharts container with an auto height
+   collapses to zero and the chart never becomes visible. */
+.mv-chart { width: 100%; min-height: 240px; }
+.mv-chart--tall { min-height: 300px; }
+
+.mv-chart-grid { margin-top: var(--mv-4); }
+
+/* Empty state drawn by mv_charts.js when a series has nothing in it, so a
+   quiet window reads as "nothing happened" rather than a blank rectangle. */
+.mv-chart-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; min-height: 200px; padding: var(--mv-4);
+    text-align: center;
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-2);
+}
+
+/* Donut centre total, injected as useHTML by mv_charts.donut(). */
+.mv-donut-centre { text-align: center; line-height: 1.15; }
+.mv-donut-centre b { display: block; font-size: 22px; font-weight: 700; color: var(--mv-fg); }
+.mv-donut-centre span {
+    display: block; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--mv-fg-2);
+}
+
+/* Selectable material codes beside the chart — Highcharts axis labels are SVG
+   text, which is awkward to select and paste into SAP. */
+.mv-codelist { display: flex; flex-direction: column; }
+.mv-codelist__row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-3); padding: 5px 0;
+    border-bottom: 1px solid var(--mv-border);
+    font-size: var(--mv-t-caption-size);
+}
+.mv-codelist__row:last-child { border-bottom: none; }
+
+
+/* ── Outbound scanner: last-scan result banner ───────────────────────────────
+   Sized to be read across a packing bench, not at a desk. A toast lives in the
+   corner of the screen and a log row is one line among many; neither answers
+   "did that go through?" from arm's length, which is what an operator is
+   asking of this screen every couple of seconds.
+
+   Colour never carries the meaning alone — the state word (SCANNED /
+   DUPLICATE / REJECTED) is part of the banner, and each outcome also has its
+   own sound. */
+.mv-scanresult {
+    display: flex; align-items: center; gap: var(--mv-space-4);
+    margin-top: var(--mv-space-3);
+    padding: var(--mv-space-3) var(--mv-space-4);
+    border: 1px solid var(--mv-border);
+    border-left-width: 6px;
+    border-radius: var(--mv-radius-md);
+    background: var(--mv-surface-container);
+}
+.mv-scanresult--ok     { border-color: var(--mv-ok-border);     border-left-color: var(--mv-ok);     background: var(--mv-ok-bg); }
+.mv-scanresult--warn   { border-color: var(--mv-warn-border);   border-left-color: var(--mv-warn);   background: var(--mv-warn-bg); }
+.mv-scanresult--danger { border-color: var(--mv-danger-border); border-left-color: var(--mv-danger); background: var(--mv-danger-bg); }
+/* "No delivery focused" is a step not taken, not a verdict on the item — its
+   own colour, because amber is the duplicate colour and red is the rejection
+   one, and this is neither. */
+.mv-scanresult--blocked { border-color: var(--mv-info-border); border-left-color: var(--mv-info); background: var(--mv-info-bg); }
+.mv-scanresult__state {
+    flex: 0 0 auto;
+    font-size: 1.25rem; font-weight: 800; letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.mv-scanresult--ok     .mv-scanresult__state { color: var(--mv-ok); }
+.mv-scanresult--warn   .mv-scanresult__state { color: var(--mv-warn); }
+.mv-scanresult--danger .mv-scanresult__state { color: var(--mv-danger); }
+.mv-scanresult--blocked .mv-scanresult__state { color: var(--mv-info); }
+.mv-scanresult__body { flex: 1; min-width: 0; }
+.mv-scanresult__headline { font-weight: 600; color: var(--mv-fg); }
+.mv-scanresult__detail { margin-top: 2px; font-size: var(--mv-t-caption-size); color: var(--mv-fg-2); }
+.mv-scanresult__serial {
+    flex: 0 0 auto;
+    padding: var(--mv-space-1) var(--mv-space-3);
+    border: 1px solid var(--mv-border); border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    font-size: 1.05rem; font-weight: 700; letter-spacing: .02em;
+    overflow-wrap: anywhere;
+}
+/* Re-flash on a repeat of the same outcome, which is otherwise
+   indistinguishable from nothing having happened at all. */
+.mv-scanresult.is-flash { animation: mv-result-flash 420ms var(--mv-ease-enter); }
+@keyframes mv-result-flash { from { transform: scale(.985); opacity: .55; } to { transform: none; opacity: 1; } }
+
+/* The scan log now prints a date as well as a time — a session outlives the
+   shift it started in, and "14:22:06" cannot say which day it packed on. */
+.mv-scanrow__time { width: 108px; }
+.mv-scanrow__serial { margin-top: 3px; font-size: var(--mv-t-caption-size); color: var(--mv-ok); }
+.mv-scanrow--warn .mv-scanrow__serial,
+.mv-scanrow--danger .mv-scanrow__serial { color: var(--mv-fg-2); }
+.mv-scanrow__actions { flex: 0 0 auto; display: flex; gap: 2px; }
+.mv-scanfilter__more { flex: 0 0 auto; color: var(--mv-fg-3); }
+
+/* Per-delivery controls on a card: open just this delivery's lines, export
+   just this delivery's serial sheet. The card itself is a div[role=button] —
+   a real <button> cannot legally contain these. */
+.mv-delivery-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--mv-space-2);
+    margin-top: var(--mv-space-2);
+    max-width: 100%;
+}
+.mv-delivery-card__actions .mv-btn {
+    min-width: 0;
+    padding: 2px var(--mv-space-2);
+    font-size: var(--mv-t-caption-size);
+}
+.mv-delivery-card__actions .mv-btn--icon {
+    width: 32px;
+    padding: 0;
+}
+.mv-delivery-card[role="button"]:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 2px; }
+.mv-cell-actions { white-space: nowrap; }
+.mv-cell-actions .mv-delivery-card__actions { margin-top: 0; }
+/* Material description: readable, but never at the cost of the numeric columns
+   an operator reconciles against. */
+.mv-cell-desc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mv-fg-2); }
+
+/* Banner above an isolated line list, so "only three rows" and "the table is
+   broken" cannot look the same. */
+.mv-lines-scope { display: flex; align-items: center; gap: var(--mv-space-3); margin-bottom: var(--mv-space-3); }
+
+/* Correct or remove one assigned serial from the serials list. */
+.mv-serial__act {
+    flex: 0 0 auto; margin-left: auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; padding: 0;
+    border: 1px solid transparent; border-radius: var(--mv-radius-sm);
+    background: transparent; color: var(--mv-fg-3); cursor: pointer;
+}
+.mv-serial__act + .mv-serial__act { margin-left: 0; }
+.mv-serial__act:hover { border-color: var(--mv-border); color: var(--mv-fg); background: var(--mv-surface-container); }
+.mv-serial__act--danger:hover { color: var(--mv-danger); border-color: var(--mv-danger-border); }
+.mv-serial__act:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 1px; }
+
+/* ── Finish Delivery: a denser form ──────────────────────────────────────────
+   The modal asked for eleven values down a single column and did not fit a
+   warehouse laptop, so the picker scrolled past half the form to reach the
+   submit button — on the screen they use most. Nothing is removed or hidden
+   behind a disclosure: the rows are tightened, the field gap halved and the
+   box chips shrunk to what a two-digit count needs. */
+.mv-modal--compact {
+    width: min(680px, 94vw);
+    /* Redefined for everything inside, so the inputs, the box chips and the
+       footer buttons all come down together rather than one at a time. */
+    --mv-control-h: 34px;
+}
+/* Reported from the floor: on a laptop the form fills the screen and the
+   operator scrolls inside it to reach Save.
+   
+   Roughly 140px comes off here, which is the difference between scrolling and
+   not on a 768px panel — and it comes off the CHROME, not the content. The
+   padding, the gaps between fields and the head/foot bars were sized for a
+   desktop dialog; nothing is hidden, nothing moves behind a disclosure, and
+   every field stays exactly where it was. Widening by 40px is part of the
+   same saving: the paired rows stop wrapping, and a row that does not wrap is
+   one row tall instead of two. */
+.mv-modal--compact .mv-modal__head {
+    min-height: 44px;
+    padding: var(--mv-space-3) var(--mv-space-4);
+}
+.mv-modal--compact .mv-modal__body {
+    padding: var(--mv-space-4);
+    gap: var(--mv-space-2);
+}
+.mv-modal--compact .mv-modal__foot {
+    min-height: 52px;
+    padding: var(--mv-space-2) var(--mv-space-4);
+}
+.mv-modal--compact .mv-t-h2 { font-size: 1rem; }
+/* The alerts inside it are notices, not cards. */
+.mv-modal--compact .mv-alert { padding: var(--mv-space-2) var(--mv-space-3); }
+.mv-form--compact .mv-field + .mv-field { margin-top: var(--mv-space-2); }
+.mv-form--compact .mv-field-row { gap: var(--mv-space-2); }
+.mv-form--compact .mv-label { margin-bottom: 2px; }
+.mv-form--compact .mv-hint { margin-top: 2px; font-size: 0.7rem; line-height: 1rem; }
+/* A radio card in this form is a chip, not a tile. */
+.mv-form--compact .mv-radio-card { padding: var(--mv-space-1) var(--mv-space-2); }
+.mv-boxchip-editor--tight { gap: var(--mv-space-1); }
+.mv-boxchip-editor--tight .mv-boxchip { padding: 2px var(--mv-space-2); gap: var(--mv-space-1); }
+.mv-boxchip-editor--tight .mv-boxchip input { width: 3.25rem; }
+
+/* ── Focus scope: what the console is narrowed to ─────────────────────────────
+   A focused delivery is a picking lock — nothing else can be scanned while it
+   is set — so the delivery list, the line table and the scan log all show that
+   delivery alone. These are the two places that say so, because a list of one
+   that does not explain itself reads as a session that lost its deliveries. */
+.mv-focus-prompt { align-items: flex-start; }
+/* The scope bar sits above the list rather than inside it: .mv-delivery-list is
+   a four-column grid whose cards take their accent colour from :nth-child, and
+   a banner dropped in as the first child would both take a card's cell and
+   rotate every colour after it. */
+.mv-lines-scope[data-mv="scope-bar"] { margin-bottom: 0; }
+.mv-lines-scope__body { flex: 1 1 auto; min-width: 0; }
+/* The log's own scope chip, beside the status filter it applies over. */
+.mv-scanfilter__scope {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; gap: var(--mv-space-2);
+}
+.mv-scanfilter__scope .mv-t-caption { color: var(--mv-fg-3); }
+
+/* ── Scan error popup ─────────────────────────────────────────────────────────
+   Small, centred, above everything. One node in the page, rewritten per error
+   — see the comment on the element itself for why that matters more than how
+   it looks.
+
+   No backdrop and no focus trap, on purpose. A picker holding a gun has no
+   free hand for a mouse, and a popup that took the keyboard would stop the
+   next scan dead; this floats over the page and the next scan replaces it. */
+.mv-errorpop {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mv-space-5);
+    /* The layer is inert — only the card inside it takes clicks, so the page
+       underneath stays usable while the popup is up. */
+    pointer-events: none;
+}
+.mv-errorpop__card {
+    pointer-events: auto;
+    width: min(420px, 100%);
+    max-height: min(60vh, 520px);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: var(--mv-space-4);
+    border: 1px solid var(--mv-danger-border);
+    border-top: 4px solid var(--mv-danger);
+    border-radius: var(--mv-radius-md);
+    background: var(--mv-surface);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, .28);
+}
+.mv-errorpop.is-in .mv-errorpop__card { animation: mv-errorpop-in 160ms var(--mv-ease-enter); }
+@keyframes mv-errorpop-in {
+    from { opacity: 0; transform: translateY(-8px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mv-errorpop.is-in .mv-errorpop__card { animation: none; }
+}
+.mv-errorpop__head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--mv-space-3);
+}
+.mv-errorpop__title {
+    font-size: 1.125rem; font-weight: 700; line-height: 1.3;
+    color: var(--mv-danger);
+}
+.mv-errorpop__close {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0;
+    border: none; border-radius: var(--mv-radius-sm);
+    background: transparent; color: var(--mv-fg-3); cursor: pointer;
+}
+.mv-errorpop__close:hover { background: var(--mv-surface-container); color: var(--mv-fg); }
+.mv-errorpop__msg { margin-top: var(--mv-space-2); color: var(--mv-fg); }
+/* The serial the error is about. Bigger and darker than the message under it:
+   with a carton in hand this is the line the picker is actually looking for,
+   and the prose above it is the explanation they read second. */
+.mv-errorpop__serial {
+    margin-top: var(--mv-space-2);
+    padding: var(--mv-space-1) var(--mv-space-2);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    font-size: 1rem; font-weight: 700;
+    color: var(--mv-fg);
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+/* The scrollable half: one group per error type, codes underneath. A paste's
+   worth of rejections lives here rather than in a popup each. */
+.mv-errorpop__detail {
+    margin-top: var(--mv-space-3);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--mv-line);
+    border-radius: var(--mv-radius-sm);
+    background: var(--mv-surface-container);
+    padding: var(--mv-space-2);
+}
+.mv-errorpop__group + .mv-errorpop__group { margin-top: var(--mv-space-3); }
+.mv-errorpop__grouphead {
+    position: sticky; top: calc(var(--mv-space-2) * -1);
+    padding: 2px 0;
+    background: var(--mv-surface-container);
+    font-size: var(--mv-t-caption-size); font-weight: 700;
+    color: var(--mv-danger);
+}
+.mv-errorpop__item {
+    font-size: var(--mv-t-caption-size);
+    color: var(--mv-fg-2);
+    /* A barcode is long and has no spaces, so it must be allowed to break or
+       it stretches the popup past its own width. */
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    padding: 1px 0;
+}
+/* A paste's per-code serial, on its own line under the code it belongs to and
+   stronger than it: the barcode is what was pasted, the serial is what the
+   operator has to go and find on the bench. */
+.mv-errorpop__itemserial {
+    display: block;
+    color: var(--mv-fg);
+    font-weight: 600;
+}
+.mv-errorpop__foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--mv-space-3);
+    margin-top: var(--mv-space-3);
+}
+.mv-errorpop__foot .mv-t-caption { color: var(--mv-fg-3); }
+
+/* A field that records what happened rather than asking for it — the Finish
+   form once its delivery is closed. Greyed and unmistakably not a box to type
+   in, but still legible: the values in it are the answer to "what went on the
+   docket", which is why the form is being looked at at all. */
+.mv-input.is-locked,
+.mv-select.is-locked,
+.mv-boxchip input.is-locked {
+    background: var(--mv-surface-container-hi);
+    color: var(--mv-fg-2);
+    border-style: dashed;
+    cursor: default;
+}
+.mv-input.is-locked:focus,
+.mv-select.is-locked:focus {
+    border-width: 1px;
+    border-color: var(--mv-border);
+    box-shadow: none;
+    padding: 0 var(--mv-space-5);
+}
+/* The radio group and the proceed-anyway checkbox go with them. */
+.mv-radio-card input:disabled,
+.mv-check input:disabled { cursor: default; }
+.mv-radio-card:has(input:disabled),
+.mv-check:has(input:disabled) { opacity: .65; }
+
+/* ── The batch cell, which is the row's one editable field ────────────────────
+   A button that does not look like a button until it is reached for: the Lines
+   table is dense and forty outlined controls down one column would read as the
+   column being the point, when it is the quantities beside it that are. */
+.mv-batchbtn {
+    display: inline-block;
+    max-width: 100%;
+    padding: 1px var(--mv-space-1);
+    margin: -1px calc(var(--mv-space-1) * -1);
+    border: 1px solid transparent;
+    border-radius: var(--mv-radius-sm);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.mv-batchbtn:hover {
+    border-color: var(--mv-border);
+    background: var(--mv-surface-container);
+}
+.mv-batchbtn:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 1px; }
+/* Scanned onto, so the override is locked server-side. Dotted underline rather
+   than a disabled button: there is nothing to press, and the title says why. */
+.mv-batch-locked { border-bottom: 1px dotted var(--mv-fg-3); cursor: help; }
+/* What the dump said before the substitution. */
+.mv-batch-was { display: block; color: var(--mv-warn); }
+
+/* ── A finished delivery, and the shortfall that stopped one ──────────────────
+   Finishing keeps the operator on this screen now, so the card is the only
+   thing that says the delivery they just closed is closed — and a closed
+   delivery refuses further scans, which is better seen before scanning into it
+   than after. Dimmed rather than hidden: it is still part of the session, and
+   its serials and export are still reachable from it. */
+.mv-delivery-card.is-finished,
+.mv-kancard.is-finished { opacity: .72; }
+.mv-delivery-card.is-finished:hover,
+.mv-kancard.is-finished:hover { opacity: 1; }
+
+/* The short lines the server refused, listed in the Finish modal rather than
+   on a page of its own — so the decision it asks for is taken where it arose
+   instead of being answered by navigating back to the console. */
+.mv-finish-short { align-items: flex-start; }
+.mv-finish-short__list {
+    margin-top: var(--mv-space-2);
+    max-height: 180px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.mv-finish-short__row {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    gap: var(--mv-space-2);
+    padding: 2px 0;
+    font-size: var(--mv-t-caption-size);
+}
+.mv-finish-short__row + .mv-finish-short__row { border-top: 1px dashed var(--mv-border); }
+
+/* ── The invoice control, when there is no invoice yet ────────────────────────
+   Dimmed rather than disabled. A real `disabled` on a link is not a thing the
+   browser honours, and a control that swallows the click without answering
+   reads as broken — this one is pressable and says which step is outstanding.
+   aria-disabled carries the state for a screen reader either way. */
+.mv-btn--invoice.is-off {
+    opacity: .55;
+    border-style: dashed;
+}
+.mv-btn--invoice.is-off:hover { opacity: .8; }
+
+/* Row actions on Delivery History: Fill/Edit, View, and an admin's Delete, in
+   one line rather than stacked — the column is narrow and three buttons down a
+   50-row table would treble its height. */
+.mv-row-actions {
+    display: flex; align-items: center; gap: var(--mv-space-1);
+    flex-wrap: wrap;
+}
+.mv-row-actions .mv-row-delete { display: inline-flex; margin: 0; }
+
+/* ── Getting more rows into one look ─────────────────────────────────────────
+   The delivery panel's own chrome was costing it most of the height the work
+   band gives it: a filter bar that wrapped to two rows, cards padded like a
+   landing page, and table rows at a comfortable 40px. Every one of those is
+   paid for out of the list, which is the only part anyone is reading. */
+
+/* The view switcher, icons only. Four labelled buttons plus a search box and
+   three status buttons did not fit one row of this column, and a wrapped bar
+   is a row of the table. The names live in title/aria-label. */
+.mv-viewswitch--icons button span { display: none; }
+.mv-viewswitch--icons button { padding: 0 8px; gap: 0; }
+
+/* The bar fits one row now because its widest control shrank, not because it
+   is forbidden to wrap: nowrap would overflow the column on a narrow monitor
+   rather than falling back to two rows, and an unreachable filter is worse
+   than a shorter list. The search takes the slack. */
+.mv-deliveries__bar .mv-search { flex: 1 1 120px; min-width: 0; }
+
+/* Cards: tighter. The ring and the two lines of text are the card — the
+   padding around them was not. The column width that puts three across lives
+   with the rest of the grid further up, not here: two rules setting
+   grid-template-columns on the same selector is how one of them ends up being
+   read as the truth and the other quietly edited. */
+.mv-delivery-card { padding: var(--mv-space-3) var(--mv-space-4); gap: var(--mv-space-2); }
+
+/* Table and Lines rows inside this panel only. 6px top and bottom rather than
+   8 is about four more rows on a laptop, and these are one line of mono digits
+   — they were not using the room. Scoped so the dense tables on every other
+   screen keep the spacing they were designed with. */
+.mv-console__right .mv-table--dense td,
+.mv-console__right .mv-table--dense th {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+/* The gaps between the panel's own parts. Four of them at 12px is most of a
+   table row, and these are stacked bars that do not need separating that
+   firmly from the list they describe. */
+.mv-console__right { gap: var(--mv-space-2); }
+
+/* The scope bar on one line. It is a standing note about what is showing, not
+   a card — stacked over three lines it cost more height than the rows it was
+   describing. */
+.mv-lines-scope[data-mv="scope-bar"] { padding: var(--mv-space-2) var(--mv-space-3); }
+.mv-lines-scope[data-mv="scope-bar"] .mv-lines-scope__body {
+    display: flex; align-items: baseline; gap: var(--mv-space-2); flex-wrap: wrap;
+}
+.mv-lines-scope[data-mv="scope-bar"] .mv-t-caption { margin: 0; }
+
+/* ── Sound options ───────────────────────────────────────────────────────────
+   Four alternatives per outcome, laid out as a wrap of small toggles under the
+   row's description. They are toggles rather than a <select> because the whole
+   point is to hear them: a select hides three of the four behind a click and
+   plays nothing until the menu closes. */
+.mv-soundpick {
+    display: flex; flex-wrap: wrap;
+    gap: var(--mv-space-1);
+    margin-top: var(--mv-space-2);
+}
+.mv-soundpick__opt {
+    padding: 3px var(--mv-space-2);
+    border: 1px solid var(--mv-border);
+    border-radius: 999px;
+    background: var(--mv-surface);
+    color: var(--mv-fg-2);
+    font: inherit; font-size: var(--mv-t-caption-size);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state),
+                color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-soundpick__opt:hover { border-color: var(--mv-border-strong); color: var(--mv-fg); }
+.mv-soundpick__opt[aria-pressed="true"] {
+    border-color: var(--mv-primary);
+    background: var(--mv-primary-tint);
+    color: var(--mv-primary);
+    font-weight: 600;
+}
+.mv-soundpick__opt:focus-visible { outline: 2px solid var(--mv-primary); outline-offset: 1px; }

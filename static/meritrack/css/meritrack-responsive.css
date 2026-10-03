@@ -1,0 +1,1185 @@
+/* ================================================================
+   MERITRACK RESPONSIVE LAYER
+   Loaded LAST (after meritrack-core.css and after each page's own
+   stylesheet) so it can correct page-level rules that break small
+   screens — e.g. unscoped `table { min-width: 480px }`.
+
+   Breakpoints
+     ≤1280  large laptop
+     ≤1024  tablet landscape
+     ≤900   tablet portrait
+     ≤768   phone landscape / small tablet  → bottom nav kicks in
+     ≤640   phone
+     ≤480   small phone
+     ≤380   very small phone (iPhone SE 1st gen, Galaxy Fold cover)
+     ≤330   absolute floor
+   ================================================================ */
+
+/* ================================================================
+   0. GLOBAL GUARDS — nothing may push the page sideways
+   ================================================================ */
+.mt-page, .mt-page *,
+.mt-scanner, .mt-scanner *,
+.guide-page, .guide-page *,
+.recon-page, .recon-page *,
+.fb-page, .fb-page *,
+.fi-page, .fi-page * {
+    box-sizing: border-box;
+}
+
+.mt-page, .mt-scanner, .guide-page, .recon-page {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+/* `clip` contains overflow without creating a scroll container, so
+   sticky table headers inside the page keep working. */
+@supports (overflow-x: clip) {
+    .mt-page, .mt-scanner, .guide-page, .recon-page { overflow-x: clip; }
+}
+
+/* Long, unbreakable strings (serials, GTINs, session keys, emails,
+   raw QR payloads) are the #1 source of mobile overflow. */
+.mt-page code, .mt-scanner code, .guide-page code,
+.mt-page pre, .mt-scanner pre,
+.scan-serial, .mt-banner-sn, .mt-pill span,
+#mtSessionIdDisplay, #sessionKeyDisplay {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.mt-page td, .mt-page th,
+.mt-page .info-item span, .mt-page .meta-card .value,
+.mt-page .mtd-card-hospital, .mt-page .mtd-card-grid span {
+    overflow-wrap: anywhere;
+}
+
+/* Media never overflows */
+.mt-page img, .mt-page svg, .mt-page canvas, .mt-page video,
+.mt-scanner img, .mt-scanner svg, .mt-scanner canvas, .mt-scanner video,
+.guide-page img, .guide-page svg {
+    max-width: 100%;
+    height: auto;
+}
+.mt-page iframe, .guide-page iframe { max-width: 100%; }
+
+/* Flex/grid children must be allowed to shrink */
+.mt-page .toolbar > *, .mt-page .mt-header > *,
+.mt-page .mtd-header-inner > *, .mt-page .hero-inner > *,
+.mt-page .filter-bar > *, .mt-page .search-bar > *,
+.mt-page .mt-grid-2 > *, .mt-page .mt-grid-3 > *,
+.mt-page .chart-grid > *, .mt-page .form-grid > *,
+.mt-page .stats-row > *, .mt-page .mt-stats > *,
+.mt-page .mtd-stats > *, .mt-page .recon-stats > * {
+    min-width: 0;
+}
+
+/* Cards must clip their own contents, never the page */
+.mt-card, .card, .chart-card, .mtd-session-card, .sp-tabs-outer {
+    max-width: 100%;
+}
+
+/* ================================================================
+   1. FLUID TYPE — scales smoothly instead of stepping at each bp
+   ================================================================ */
+.mtd-header-title h1,
+.mt-hero-header h1 {
+    font-size: clamp(1.02rem, 2.6vw + .5rem, 1.55rem);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+.mtd-header-title p,
+.mt-hero-header p {
+    font-size: clamp(.76rem, .5vw + .66rem, .9rem);
+    line-height: 1.45;
+}
+.section-title { font-size: clamp(.95rem, 1vw + .7rem, 1.1rem); }
+.mtd-stat-val, .stat-value, .sp-stat-val,
+.stats-row .stat-card .num, .tier-count, .ea-tier-val {
+    font-size: clamp(1.15rem, 3.4vw, 1.85rem);
+    line-height: 1.05;
+}
+.mtd-stat-lbl, .stat-label, .sp-stat-label,
+.stats-row .stat-card .lbl, .tier-label, .ea-tier-lbl {
+    font-size: clamp(.66rem, 1.5vw, .8rem);
+    line-height: 1.3;
+}
+
+/* ================================================================
+   2. TABLE SYSTEM
+   ------------------------------------------------------------------
+   Two modes, both driven by meritrack-ui.js:
+     a) .mt-tscroll  — every bare table gets wrapped in a scroll box
+                       so it scrolls INSIDE its card, never widening
+                       the page.
+     b) table.mt-stacked[data-stack] — rows become cards on phones,
+                       using data-label stamped from <thead>.
+   ================================================================ */
+
+.mt-tscroll {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mt-gray-300, var(--mt-gray-300)) transparent;
+    border-radius: var(--mt-radius-md, 10px);
+}
+.mt-tscroll::-webkit-scrollbar { height: 6px; }
+.mt-tscroll::-webkit-scrollbar-track { background: transparent; }
+.mt-tscroll::-webkit-scrollbar-thumb {
+    background: var(--mt-gray-300, var(--mt-gray-300));
+    border-radius: 3px;
+}
+/* Inside a scroll box the table sizes to its content, not to a
+   hard-coded min-width that would break out of the card. */
+.mt-tscroll > table { width: 100%; }
+
+/* Existing wrappers get the same guarantees */
+.table-responsive-wrap,
+.table-scroll-wrap,
+.hosp-tbl-wrap,
+.dept-section,
+.hosp-scan-body,
+#expiryDtTableWrap,
+.dataTables_wrapper,
+.dt-container {
+    max-width: 100%;
+}
+
+/* meritrack-core paints a right-edge fade on .table-responsive-wrap with no
+   default opacity, so the strip showed on every table whether or not it could
+   scroll. Hide it until meritrack-ui.js measures real overflow. */
+.table-responsive-wrap::after {
+    opacity: 0;
+    transition: opacity var(--mt-dur, 280ms) ease;
+}
+.table-responsive-wrap.can-scroll::after { opacity: 1; }
+.table-responsive-wrap.can-scroll.scroll-end::after { opacity: 0; }
+/* Same for the "← scroll for more →" hint */
+.table-responsive-wrap[data-hint]::before { display: none; }
+@media (max-width: 768px) {
+    .table-responsive-wrap[data-hint].can-scroll::before {
+        display: block;
+        content: attr(data-hint);
+        font-size: .7rem;
+        color: var(--mt-gray-500, var(--mt-gray-500));
+        text-align: right;
+        padding: 0 4px 4px;
+    }
+}
+/* A stacked table fits by definition — no scroller, no fade */
+.table-responsive-wrap:has(> table.mt-stacked),
+.hosp-tbl-wrap:has(> table.mt-stacked) { overflow-x: visible; }
+.table-responsive-wrap:has(> table.mt-stacked)::after,
+.table-responsive-wrap:has(> table.mt-stacked)::before { display: none; }
+
+/* --- Stacked card mode ----------------------------------------- */
+@media (max-width: 640px) {
+    table.mt-stacked {
+        display: block;
+        width: 100% !important;
+        min-width: 0 !important;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: auto !important;
+    }
+    table.mt-stacked > thead { display: none; }
+    table.mt-stacked > tbody { display: block; width: 100%; }
+
+    table.mt-stacked > tbody > tr {
+        display: block;
+        width: 100%;
+        background: var(--mt-surface, #fff);
+        border: 1px solid var(--mt-gray-200, var(--mt-gray-200));
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin: 0 0 10px;
+        box-shadow: 0 1px 3px rgba(33, 37, 41, .06);
+    }
+    table.mt-stacked > tbody > tr:last-child { margin-bottom: 0; }
+    table.mt-stacked > tbody > tr:hover { background: var(--mt-surface, #fff); }
+
+    table.mt-stacked > tbody > tr > td {
+        display: flex;
+        width: auto;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 5px 0;
+        border: none;
+        border-bottom: 1px dashed var(--mt-gray-100, var(--mt-gray-100));
+        text-align: right;
+        font-size: .82rem;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+    table.mt-stacked > tbody > tr > td:last-child { border-bottom: none; }
+
+    table.mt-stacked > tbody > tr > td::before {
+        content: attr(data-label);
+        flex: 0 0 40%;
+        text-align: left;
+        font-size: .67rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+        color: var(--mt-gray-500, var(--mt-gray-500));
+        white-space: normal;
+        line-height: 1.35;
+    }
+    /* Cells with no header (actions, row numbers) go full width */
+    table.mt-stacked > tbody > tr > td:not([data-label])::before,
+    table.mt-stacked > tbody > tr > td[data-label='']::before { display: none; }
+    table.mt-stacked > tbody > tr > td:not([data-label]),
+    table.mt-stacked > tbody > tr > td[data-label=''] {
+        display: block;
+        text-align: left;
+    }
+    /* Loading / empty rows */
+    table.mt-stacked > tbody > tr > td[colspan] {
+        display: block;
+        text-align: center;
+        border-bottom: none;
+    }
+    table.mt-stacked > tbody > tr > td[colspan]::before { display: none; }
+    table.mt-stacked > tbody > tr:has(> td[colspan]) {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        padding: 0;
+    }
+    /* Buttons inside a stacked row spread out and stay tappable */
+    table.mt-stacked > tbody > tr > td .btn-mt,
+    table.mt-stacked > tbody > tr > td .mtd-btn-ack,
+    table.mt-stacked > tbody > tr > td .link-btn,
+    table.mt-stacked > tbody > tr > td button,
+    table.mt-stacked > tbody > tr > td > a.hero-btn {
+        min-height: 38px;
+    }
+    table.mt-stacked > tbody > tr > td.mt-cell-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-start;
+        padding-top: 9px;
+    }
+    table.mt-stacked > tbody > tr > td.mt-cell-actions::before { display: none; }
+    /* A stacked table never needs its scroll wrapper */
+    .mt-tscroll:has(> table.mt-stacked) { overflow-x: visible; }
+
+    /* Pages that hid low-priority columns to survive a narrow table can
+       show everything again once each row is its own card. */
+    .hosp-tbl.mt-stacked > tbody > tr > td:nth-child(3),
+    .hosp-tbl.mt-stacked > tbody > tr > td:nth-child(4),
+    .history-tbl.mt-stacked > tbody > tr > td { display: flex; }
+    .hosp-tbl.mt-stacked > tbody > tr > td:not([data-label]),
+    .history-tbl.mt-stacked > tbody > tr > td:not([data-label]) { display: block; }
+}
+
+/* --- Neutralise page-level min-widths that overflow phones ------ */
+@media (max-width: 768px) {
+    /* meritrack-core sets `min-width: 560px` on the same element it
+       makes scrollable, which makes the element itself 560px wide.
+       Put the scrolling on the wrapper instead. */
+    .mt-page .card table,
+    .mt-page .mt-card table,
+    .mt-page section table,
+    .mt-page .card > table,
+    .mt-page .mt-card > div > table {
+        display: table;
+        overflow: visible;
+        min-width: 0;
+    }
+    /* inventory.css / dashboard.css set unscoped table min-widths */
+    .mt-page table,
+    .mt-page table.mt-table,
+    .mt-page .dept-section table,
+    .mt-page .hosp-tbl,
+    .mt-page .history-tbl,
+    .mt-page #sessionsTable,
+    .mt-page .table-responsive-wrap table,
+    .mt-page .table-responsive-wrap.wide table {
+        min-width: 0;
+    }
+    .mt-page .dept-section table,
+    .mt-page .history-tbl { display: table; overflow: visible; }
+
+    /* Inside a scroller a table sizes to its content but still fills the
+       card when its content is narrow. Selectors carry `.mt-page` so they
+       outrank the `min-width: 0` resets above. */
+    .mt-page .mt-tscroll > table,
+    .mt-page .table-responsive-wrap > table,
+    .mt-page .table-responsive-wrap.wide > table,
+    .mt-page .hosp-tbl-wrap > table,
+    .mt-scanner .mt-tscroll > table {
+        width: max-content;
+        min-width: 100%;
+    }
+    .mt-tscroll > table.mt-stacked,
+    .table-responsive-wrap > table.mt-stacked { width: 100%; }
+
+    .mt-page table th, .mt-page table td { font-size: .78rem; padding: 9px 10px; }
+    .mt-page .mtd-product-tbl th, .mt-page .mtd-product-tbl td { font-size: .78rem; padding: 8px 9px; }
+    /* inline font-size overrides from dashboard.html */
+    #tab-expiry table.dataTable td,
+    #tab-stock #stockTable td { font-size: .8rem !important; }
+}
+
+/* DataTables builds its own wrapper around the table, so give that
+   wrapper the horizontal scroll rather than trying to wrap it again. */
+@media (max-width: 900px) {
+    .mt-page .dataTables_wrapper,
+    .mt-page .dt-container .dt-layout-table,
+    .mt-page .dt-container .dt-layout-table .dt-layout-cell,
+    .mt-page #expiryDtTableWrap,
+    .mt-page #productsTable_wrapper,
+    .mt-page #sessionsTable_wrapper {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+    .mt-page .dataTables_wrapper > table,
+    .mt-page .dt-container table.dataTable {
+        min-width: 0;
+    }
+}
+
+/* DataTables controls stack instead of overflowing */
+@media (max-width: 768px) {
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        float: none !important;
+        text-align: left !important;
+        width: 100%;
+        margin: 6px 0 !important;
+    }
+    .dataTables_wrapper .dataTables_filter input { width: 100%; margin-left: 0 !important; }
+    .dataTables_wrapper .dataTables_paginate { display: flex; flex-wrap: wrap; gap: 4px; }
+    .dt-container .dt-layout-row:not(.dt-layout-table) { flex-direction: column; align-items: stretch !important; }
+    .dt-container .dt-search, .dt-container .dt-length { width: 100% !important; }
+    .dt-container input.dt-input { width: 100% !important; }
+    .dt-container .dt-paging { display: flex; flex-wrap: wrap; gap: 4px; }
+    .dt-container .dt-paging .dt-paging-button { min-height: 36px; }
+}
+
+/* ================================================================
+   3. MOBILE BOTTOM NAVIGATION
+   ------------------------------------------------------------------
+   `_nav.html` renders inside `.mtd-header`, which is `overflow: hidden`
+   and carries a background animation — so `position: sticky` could never
+   work there and the 80px of page padding core reserved for the bar was
+   dead space.
+
+   meritrack-ui.js relocates the nav to <body> below 768px and tags it
+   `.mt-nav-fixed`. At body level nothing can clip it or capture it as a
+   containing block, and it moves back into the header on wider screens.
+   ================================================================ */
+.mt-nav.mt-nav-fixed {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 150;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    align-items: stretch;
+    gap: 2px;
+    margin: 0;
+    padding: 5px 4px calc(5px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, .96);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    backdrop-filter: saturate(180%) blur(16px);
+    border: none;
+    border-top: 1px solid var(--mt-gray-200, var(--mt-gray-200));
+    border-radius: 0;
+    box-shadow: 0 -6px 20px rgba(33, 37, 41, .10);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+}
+.mt-nav.mt-nav-fixed::-webkit-scrollbar { display: none; }
+
+.mt-nav.mt-nav-fixed a {
+    flex: 1 0 auto;
+    min-width: 60px;
+    max-width: 96px;
+    min-height: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 5px 4px;
+    border-radius: 10px;
+    font-size: .58rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: var(--mt-gray-600, var(--mt-gray-600));
+    background: transparent;
+    box-shadow: none;
+    scroll-snap-align: center;
+    text-align: center;
+    line-height: 1.15;
+}
+.mt-nav.mt-nav-fixed a i { font-size: 1.12rem; }
+.mt-nav.mt-nav-fixed a span {
+    display: block;
+    font-size: 1em;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mt-nav.mt-nav-fixed a.active {
+    color: var(--mt-primary, var(--mt-primary));
+    background: var(--mt-primary-lighter, var(--mt-primary-lighter));
+    box-shadow: none;
+    font-weight: 700;
+}
+.mt-nav.mt-nav-fixed a.active i { color: var(--mt-primary, var(--mt-primary)); }
+/* the growing underline from the motion layer would be clipped here */
+.mt-nav.mt-nav-fixed a.active::after { display: none; }
+.mt-nav.mt-nav-fixed .mt-nav-brand { display: none; }
+
+@media (max-width: 768px) {
+    /* Reserve room for the bar only when it is actually mounted */
+    body.mt-nav-present .mt-page {
+        padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    /* No bar mounted → no reserved strip. meritrack-core reserved 80px
+       unconditionally, which showed up as dead space at the page foot. */
+    body:not(.mt-nav-present) .mt-page { padding-bottom: 22px !important; }
+    /* Header no longer has to leave a gap under the (now relocated) nav */
+    body.mt-nav-present .mtd-header { padding-bottom: 14px !important; }
+    /* If JS never ran the nav stays inline — make that legible too */
+    body:not(.mt-nav-present) .mtd-header .mt-nav a span { display: inline; }
+    .mt-nav-brand { display: none; }
+}
+/* Same dead-space fix on desktop, where the bar never exists */
+@media (min-width: 769px) {
+    .mt-page { padding-bottom: 28px; }
+}
+
+/* Floating helpers clear the bar */
+@media (max-width: 768px) {
+    body.mt-nav-present .mt-to-top,
+    body.mt-nav-present .mt-toast-host,
+    body.mt-nav-present .toast {
+        bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* ================================================================
+   4. HEADERS / HERO
+   ================================================================ */
+@media (max-width: 1024px) {
+    .mtd-header-inner { padding: 18px 20px 0; }
+    .mt-hero-header { padding: 24px 20px; }
+}
+
+@media (max-width: 768px) {
+    .mtd-header {
+        border-radius: 14px;
+        margin-bottom: 16px;
+    }
+    .mtd-header-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px 16px 0;
+    }
+    /* Back button on its own row, then the actions as an even grid —
+       otherwise Back competes for a grid track with the whole group. */
+    .mtd-header-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        width: 100%;
+        margin-left: 0;
+    }
+    .mtd-header-actions > .hero-actions,
+    .mt-hero-header .hero-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+        gap: 6px;
+        width: 100%;
+        margin-left: 0;
+    }
+    .mtd-header-actions .hero-btn,
+    .mt-hero-header .hero-btn,
+    .mtd-header-actions > .btn-mt {
+        justify-content: center;
+        width: 100%;
+        font-size: .78rem;
+        padding: 10px 8px;
+        min-height: 42px;
+        text-align: center;
+    }
+    /* the Back button is a chip, not a full-width bar */
+    .mtd-header-actions > .mt-back-btn {
+        width: auto;
+        align-self: flex-start;
+        padding: 9px 14px;
+        font-size: .78rem;
+        min-height: 40px;
+    }
+    .mt-hero-header {
+        padding: 18px 16px;
+        border-radius: 14px;
+        margin-bottom: 16px;
+    }
+    .mt-hero-header .hero-inner { flex-direction: column; align-items: stretch; gap: 12px; }
+    /* Orbs get smaller so they don't wash out the small header */
+    .mtd-header::before { width: 200px; height: 200px; top: -110px; right: -50px; }
+    .mtd-header::after  { width: 150px; height: 150px; bottom: -90px; }
+}
+
+@media (max-width: 480px) {
+    .mtd-header-inner { padding: 14px 13px 0; }
+    .mt-hero-header { padding: 15px 13px; }
+    .mt-hero-header .hero-actions,
+    .mtd-header-actions > .hero-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .mtd-header-actions .hero-btn,
+    .mt-hero-header .hero-btn { font-size: .74rem; padding: 9px 6px; min-height: 40px; }
+}
+
+@media (max-width: 380px) {
+    .mt-hero-header .hero-actions,
+    .mtd-header-actions > .hero-actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+    }
+    .mtd-header-actions .hero-btn,
+    .mt-hero-header .hero-btn { font-size: .7rem; padding: 9px 4px; }
+    .back-label { display: none; }
+}
+
+/* ================================================================
+   5. PAGE PADDING
+   ================================================================ */
+@media (max-width: 1280px) { .mt-page { padding: 20px 22px; } }
+@media (max-width: 1024px) { .mt-page { padding: 18px 18px; } }
+@media (max-width: 768px)  { .mt-page { padding: 14px 13px; } }
+@media (max-width: 480px)  { .mt-page { padding: 12px 11px; } }
+@media (max-width: 380px)  { .mt-page { padding: 10px 9px; } }
+
+/* ================================================================
+   6. STAT / METRIC GRIDS
+   ================================================================ */
+.mt-stats, .mtd-stats, .stats-row,
+.recon-stats, .sp-stats, .tier-summary,
+.ea-tier-row, .recon-detail-stats {
+    display: grid;
+    gap: clamp(7px, 1.4vw, 16px);
+}
+.mt-stats      { grid-template-columns: repeat(auto-fit, minmax(clamp(132px, 16vw, 170px), 1fr)); }
+.mtd-stats     { grid-template-columns: repeat(auto-fit, minmax(clamp(130px, 15vw, 158px), 1fr)); }
+.stats-row     { grid-template-columns: repeat(auto-fit, minmax(clamp(120px, 14vw, 150px), 1fr)); }
+.recon-stats   { grid-template-columns: repeat(auto-fit, minmax(clamp(130px, 16vw, 165px), 1fr)); }
+.sp-stats      { grid-template-columns: repeat(auto-fit, minmax(clamp(125px, 15vw, 155px), 1fr)); }
+.ea-tier-row   { grid-template-columns: repeat(auto-fit, minmax(clamp(112px, 13vw, 150px), 1fr)); }
+
+@media (max-width: 768px) {
+    .mt-stats, .mtd-stats, .stats-row, .recon-stats,
+    .sp-stats, .ea-tier-row, .tier-summary {
+        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important;
+    }
+    .mtd-stat-card, .stat-card, .sp-stat, .ea-tier, .tier-card { padding: 13px 11px; }
+    .stats-row .stat-card, .tier-card { text-align: center; }
+}
+@media (max-width: 480px) {
+    .mt-stats, .mtd-stats, .stats-row, .recon-stats,
+    .sp-stats, .ea-tier-row, .tier-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 7px !important;
+    }
+    .mtd-stat-card, .stat-card, .sp-stat, .ea-tier, .tier-card { padding: 11px 9px; }
+    .stat-card .stat-icon { width: 34px; height: 34px; margin-bottom: 8px; font-size: 1em; }
+}
+@media (max-width: 330px) {
+    .mt-stats, .mtd-stats, .stats-row, .recon-stats,
+    .sp-stats, .ea-tier-row, .tier-summary {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ================================================================
+   7. GENERIC GRIDS
+   ================================================================ */
+@media (max-width: 1024px) {
+    .mt-grid-3, .chart-grid.cols3, .form-grid.cols3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mt-grid-2, .chart-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+    .mt-grid-2, .mt-grid-3,
+    .chart-grid, .chart-grid.cols3 { grid-template-columns: minmax(0, 1fr) !important; }
+    .kpi-grid { grid-template-columns: minmax(0, 1fr); }
+    .mtd-sessions-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .sp-cards { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+}
+@media (max-width: 640px) {
+    .form-grid, .form-grid.cols3, .form-row,
+    .mtd-sessions-grid, .sp-cards, .detail-grid, .info-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .detail-meta { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .sp-card-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) {
+    .detail-meta { grid-template-columns: minmax(0, 1fr) !important; }
+    .sp-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ================================================================
+   8. HORIZONTAL SCROLLERS (tabs, filter pills)
+   ================================================================ */
+.mtd-tabs, .sp-tabs, .mt-pill-tabs, .dash-tabs, .tab-nav,
+.filter-tabs, .mtd-filter-btns, .ea-filter-pills,
+#expiryFilterBar, #myScansFilterBar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.mtd-tabs::-webkit-scrollbar, .sp-tabs::-webkit-scrollbar,
+.mt-pill-tabs::-webkit-scrollbar, .dash-tabs::-webkit-scrollbar,
+.tab-nav::-webkit-scrollbar, .filter-tabs::-webkit-scrollbar,
+.mtd-filter-btns::-webkit-scrollbar, .ea-filter-pills::-webkit-scrollbar,
+#expiryFilterBar::-webkit-scrollbar, #myScansFilterBar::-webkit-scrollbar { display: none; }
+
+@media (max-width: 768px) {
+    .mtd-tabs, .sp-tabs, .mt-pill-tabs, .dash-tabs, .tab-nav,
+    .filter-tabs, .mtd-filter-btns, .ea-filter-pills,
+    #expiryFilterBar, #myScansFilterBar {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        padding-bottom: 3px;
+        max-width: 100%;
+    }
+    .mtd-tab, .sp-tab-btn, .mt-pill-tab, .dash-tab, .tab-btn,
+    .filter-tab, .mtd-filter-btn, .ep-filter, .ms-filter {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        scroll-snap-align: start;
+        min-height: 42px;
+    }
+    .mtd-filter-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .mtd-filter-label { font-size: .78rem; }
+    /* The dashboard's Filters control (.mtd-sf-* / .mtd-filter-panel) used to
+       be stretched full-width here, back when the filter bar stacked into a
+       column. It is now one item in a single-row toolbar, and dashboard-views.css
+       owns its mobile treatment (icon-sized trigger + true bottom sheet), so
+       those overrides have been removed rather than fought with !important. */
+    .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .toolbar > .filter-tabs { width: 100%; }
+}
+
+@media (max-width: 480px) {
+    .mtd-tab, .sp-tab-btn, .dash-tab, .tab-btn { font-size: .74rem; padding: 9px 11px; gap: 4px; }
+    .mt-pill-tab { font-size: .76rem; padding: 9px 12px; }
+    .filter-tab, .mtd-filter-btn, .ep-filter, .ms-filter { font-size: .74rem; padding: 7px 12px; }
+}
+
+/* ================================================================
+   9. FORMS
+   ================================================================ */
+@media (max-width: 768px) {
+    .search-bar, .search-box, .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .search-bar > *, .search-box > *, .filter-bar > * {
+        width: 100%;
+        min-width: 0 !important;
+        flex: 1 1 auto;
+    }
+    .search-bar button, .filter-bar button { justify-content: center; }
+
+    /* 16px prevents the iOS auto-zoom on focus */
+    .mt-page input, .mt-page select, .mt-page textarea,
+    .mt-scanner input, .mt-scanner select, .mt-scanner textarea,
+    .guide-page input, .guide-page select, .guide-page textarea {
+        font-size: 16px !important;
+        max-width: 100%;
+    }
+    .mt-page input[type='checkbox'], .mt-page input[type='radio'],
+    .mt-scanner input[type='checkbox'], .mt-scanner input[type='radio'] {
+        min-height: 0;
+        width: 20px;
+        height: 20px;
+    }
+    .form-actions, .modal-footer-row { flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+    .form-actions .btn-mt, .modal-footer-row .btn-mt { width: 100%; justify-content: center; }
+    .modal-footer-row > div { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .modal-footer-row > div > .btn-mt { width: 100%; justify-content: center; }
+    .order-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+    }
+    .order-item select { grid-column: 1 / -1; width: 100%; }
+    .order-item input[type='number'] { width: 100%; }
+    .remove-item { width: 44px; height: 44px; }
+}
+
+/* Minimum touch targets everywhere on touch devices */
+@media (pointer: coarse) {
+    .mt-page a.btn-mt, .mt-page button, .mt-page .filter-tab,
+    .mt-page .mtd-filter-btn, .mt-page .ep-filter, .mt-page .ms-filter,
+    .mt-scanner button, .guide-page button {
+        min-height: 40px;
+    }
+    .mt-page .btn-mt.btn-sm, .mt-page .mtd-action-btn,
+    .mt-page .mtd-btn-ack, .mt-page .link-btn { min-height: 34px; }
+    .modal-close { width: 40px; height: 40px; }
+}
+
+/* ================================================================
+   10. MODALS / BOTTOM SHEETS
+   ================================================================ */
+@media (max-width: 768px) {
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+        overscroll-behavior: contain;
+    }
+    .modal-box {
+        width: 100%;
+        max-width: 100% !important;
+        max-height: 92vh;
+        max-height: 92dvh;
+        border-radius: 18px 18px 0 0;
+        padding: 18px 15px calc(18px + env(safe-area-inset-bottom, 0px));
+        animation-name: mtSheetIn;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+    }
+    /* grab handle */
+    .modal-box::before {
+        content: '';
+        display: block;
+        width: 42px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--mt-gray-300, var(--mt-gray-300));
+        margin: 0 auto 14px;
+    }
+    .modal-header { gap: 10px; align-items: flex-start; }
+    .modal-header h2 { font-size: 1rem; line-height: 1.3; }
+    .modal-overlay.mt-closing .modal-box { animation-name: mtSheetOut; }
+
+    /* The bottom bar outranks any modal in the paint order — modals sit in
+       .mt-page's stacking context, the bar sits on <body> — so it covered the
+       sheet's action row. meritrack-ui.js flags an open modal on <body>. */
+    body.mt-modal-open .mt-nav.mt-nav-fixed {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(100%);
+        transition: transform var(--mt-dur, 280ms) ease,
+                    opacity var(--mt-dur, 280ms) ease,
+                    visibility var(--mt-dur, 280ms) ease;
+    }
+
+    /* Keep the action row in view while the body of a long sheet scrolls,
+       so the buttons never require a scroll to the very bottom to reach. */
+    .modal-box > .modal-footer-row,
+    .modal-box > .form-actions {
+        position: sticky;
+        bottom: calc(-1 * (18px + env(safe-area-inset-bottom, 0px)));
+        background: var(--mt-surface, #fff);
+        padding: 12px 0 calc(4px + env(safe-area-inset-bottom, 0px));
+        margin-top: 8px;
+        border-top: 1px solid var(--mt-gray-200, #dee2e6);
+        z-index: 2;
+    }
+    .modal-box > .modal-footer-row .btn-mt,
+    .modal-box > .form-actions .btn-mt { min-height: 46px; }
+
+    /* Session-detail bottom sheet on the rep dashboard */
+    .session-modal-inner { max-height: 90vh; max-height: 90dvh; border-radius: 18px 18px 0 0; }
+    .session-row { flex-direction: column; align-items: stretch; gap: 10px; }
+    .session-row-right { flex-direction: row; align-items: center; flex-wrap: wrap; }
+}
+@keyframes mtSheetIn  { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+@keyframes mtSheetOut { to   { opacity: 0; transform: translateY(100%); } }
+
+@media (max-width: 480px) {
+    .modal-box { padding: 16px 13px calc(16px + env(safe-area-inset-bottom, 0px)); max-height: 95vh; max-height: 95dvh; }
+    .modal-header h2 { font-size: .95rem; }
+}
+
+/* Short viewports (phone in landscape) — sheets become centred cards
+   again, otherwise there is no room for the content. */
+@media (max-height: 480px) and (max-width: 900px) {
+    .modal-overlay { align-items: center; padding: 10px; }
+    .modal-box {
+        border-radius: 14px;
+        max-height: 94vh;
+        animation-name: mtModalIn;
+    }
+    .modal-box::before { display: none; }
+    .mt-nav { position: static !important; }
+    .mt-page.mt-has-nav { padding-bottom: 16px !important; }
+}
+
+/* ================================================================
+   11. PER-PAGE FIXES
+   ================================================================ */
+
+/* --- Dashboard -------------------------------------------------- */
+@media (max-width: 768px) {
+    .mtd-session-card { --mtd-pad: 13px; }
+    .mtd-pc .mtd-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+    .mtd-card-footer { gap: 8px; }
+    .mtd-card-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+    .mtd-card-actions .mtd-action-btn { flex: 1 1 calc(50% - 3px); min-height: 38px; }
+    .mtd-tab-content { padding-top: 4px; }
+    #stockSearch { width: 100% !important; min-width: 0 !important; }
+    #tab-stock > div:first-child,
+    #tab-expiry > div:first-child { flex-direction: column; align-items: stretch !important; }
+    #tab-stock > div:first-child > div,
+    #tab-expiry > div:first-child > button { width: 100%; }
+    #tab-stock .mtd-btn-export,
+    #tab-expiry .mtd-btn-export { width: 100%; justify-content: center; min-height: 42px; }
+}
+@media (max-width: 380px) {
+    .mtd-pc .mtd-card-grid { grid-template-columns: minmax(0, 1fr); }
+    .mtd-card-actions .mtd-action-btn { flex: 1 1 100%; }
+}
+
+/* --- Inventory tree -------------------------------------------- */
+@media (max-width: 768px) {
+    .hospital-header { padding: 12px 13px; gap: 8px; flex-wrap: wrap; }
+    .hospital-name { font-size: .88rem; }
+    .hospital-stats { flex-wrap: wrap; gap: 5px; }
+    .stat-chip { font-size: .7rem; padding: 3px 8px; }
+    .hospital-body { padding: 0 10px 12px; }
+    .dept-section { padding: 10px; overflow: visible; }
+    .dept-name { font-size: .82rem; }
+    #filterStats { font-size: .8rem; }
+}
+@media (max-width: 480px) {
+    .hospital-header { padding: 11px; }
+    .hospital-stats { width: 100%; }
+}
+
+/* --- Orders ----------------------------------------------------- */
+@media (max-width: 768px) {
+    /* orders.html already ships a card list for phones */
+    .orders-table-wrap { display: none !important; }
+    .order-cards { display: block !important; }
+    .order-card { padding: 13px; }
+    #tabList > div:first-child { flex-direction: column; align-items: stretch; }
+    #tabList > div:first-child > * { width: 100%; }
+    #tabList select { width: 100%; }
+}
+
+/* --- Session detail -------------------------------------------- */
+@media (max-width: 768px) {
+    #forceCompleteBanner > div,
+    #managerActionsBanner > div {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+    #managerActionsBanner .btn-mt,
+    #forceCompleteBanner .btn-mt { width: 100%; justify-content: center; }
+    #managerActionsBanner > div > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+    #managerActionsBanner > div > div:last-child .btn-mt { flex: 1 1 calc(50% - 3px); width: auto; }
+    #productRemarkModal > div { width: 100% !important; max-height: 88vh; }
+}
+
+/* --- Rep performance dashboard --------------------------------- */
+@media (max-width: 768px) {
+    .sp-inner { padding: 0; }
+    .sp-controls { flex-direction: column; align-items: stretch; gap: 10px; padding: 13px; }
+    .sp-controls > div { width: 100%; }
+    .sp-select { width: 100%; min-width: 0; }
+    .sp-month-nav { margin-left: 0 !important; justify-content: space-between; width: 100%; }
+    .month-nav-btn { width: 42px; height: 42px; }
+    .sp-controls .btn-header { width: 100%; justify-content: center; min-height: 42px; }
+    .sp-tab-content { padding: 14px 12px; }
+    .progress-card { padding: 14px; }
+    .hosp-tbl, .history-tbl, .ms-scan-tbl { min-width: 0; }
+    .ms-scan-tbl { table-layout: auto; }
+    .ms-scan-tbl thead th, .ms-scan-tbl tbody td { white-space: normal; overflow: visible; text-overflow: clip; }
+    #myScansFilterBar, #batchStatusList { max-width: 100%; }
+    #tab-my-scans > div:nth-child(2) { flex-direction: column; align-items: stretch; }
+    #tab-my-scans > div:nth-child(2) button { width: 100%; justify-content: center; }
+    .batch-tracker { padding: 12px 13px; }
+    .tracker-steps { overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .tracker-steps::-webkit-scrollbar { display: none; }
+    .tracker-line { width: 26px; }
+    .batch-tracker-header { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 480px) {
+    .sp-tab-content { padding: 12px 10px; }
+    .tracker-line { width: 18px; }
+    .tracker-label { font-size: .64rem; }
+}
+
+/* --- Transfers -------------------------------------------------- */
+@media (max-width: 768px) {
+    .action-bar { flex-direction: column; align-items: stretch; }
+    .action-bar > * { width: 100%; justify-content: center; }
+    .meta-card { padding: 12px; }
+}
+
+/* --- Analytics -------------------------------------------------- */
+@media (max-width: 768px) {
+    .chart-card { padding: 15px 13px; }
+    .chart-card h3 { font-size: .84rem; }
+    .bar-row { gap: 8px; }
+    .bar-label { width: 84px; font-size: .72rem; }
+    .bar-value { min-width: 34px; font-size: .74rem; }
+    .trend-wrap { height: 100px; gap: 4px; }
+}
+@media (max-width: 380px) {
+    .bar-row { flex-wrap: wrap; }
+    .bar-label { width: 100%; }
+    .bar-track { flex: 1 1 auto; }
+}
+
+/* --- Expiry alerts --------------------------------------------- */
+@media (max-width: 768px) {
+    .ea-filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .ea-search { width: 100%; }
+    .ea-count-bar { flex-wrap: wrap; gap: 6px; font-size: .8rem; }
+    .ea-tier { padding: 13px 10px; }
+}
+
+/* --- Reconciliation -------------------------------------------- */
+@media (max-width: 640px) {
+    .detail-flex { grid-template-columns: minmax(0, 1fr) !important; }
+    .accuracy-box { min-width: 0; }
+    .accuracy-value { font-size: 2.1rem; }
+    .recon-page { margin: 20px auto; padding: 0 13px 80px; }
+    .recon-card { padding: 20px 16px; }
+    .recon-form-row { flex-direction: column; gap: 12px; }
+    .recon-field { min-width: 0; width: 100%; }
+}
+
+/* --- Scanner ---------------------------------------------------- */
+.mt-scanner { max-width: 640px; }
+
+/* Three-pane scan console (>=1200px) ------------------------------
+   Scanner-gun users work at a fixed station on a wide monitor, where the
+   640px column above wastes most of the viewport. Step 2 becomes
+   list | current-scan | actions; Step 1 and Step 3 stay a narrow single
+   column, because a 1480px-wide setup form reads badly.
+   DOM order is scan -> list -> actions (phone-first); the explicit
+   grid-column values below pull the list back to the left on desktop.
+
+   The widening is gated on Step 2 actually being the active section. It used
+   to apply to `.mt-scanner` unconditionally, which stretched the gradient hero
+   and the white `.mt-body` card to 1480px on *every* step — so Setup and
+   Review showed a 640px ribbon of fields floating in a very wide empty card.
+   Browsers without `:has()` simply keep the 640px column throughout.
+   ---------------------------------------------------------------- */
+@media (min-width: 1200px) {
+    .mt-scanner:has(#mtStep2.active) { max-width: 1480px; }
+
+    .mt-scanner .mt-user-info,
+    .mt-scanner .mt-steps,
+    .mt-scanner #mtStep1,
+    .mt-scanner #mtStep3 {
+        max-width: 640px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Toolbar: session-level modes in a compact block above the panes */
+    .mt-console-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+        grid-template-areas:
+            "title  title"
+            "mode   skip"
+            "action action"
+            "shelf  shelf";
+        gap: 10px 14px;
+        align-items: center;
+        margin-bottom: 18px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--mt-gray-200);
+    }
+    .mt-console-toolbar .mt-console-title    { grid-area: title;  margin-bottom: 0; }
+    .mt-console-toolbar .mt-mode-toggle      { grid-area: mode;   margin-bottom: 0; }
+    .mt-console-toolbar .mt-skip-serial-btn  { grid-area: skip;   margin-bottom: 0; }
+    .mt-console-toolbar .mt-action-selector  { grid-area: action; margin-bottom: 0; }
+    .mt-console-toolbar #mtShelfGroup        { grid-area: shelf;  margin-bottom: 0; }
+
+    .mt-console {
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(300px, 360px);
+        gap: 16px;
+        align-items: start;
+    }
+    .mt-pane-list    { grid-column: 1; grid-row: 1; }
+    .mt-pane-scan    { grid-column: 2; grid-row: 1; }
+    .mt-pane-actions { grid-column: 3; grid-row: 1; }
+
+    /* At this width the panes become cards, per the console mockup */
+    .mt-console-pane {
+        background: var(--mt-surface);
+        border: 1px solid var(--mt-gray-200);
+        border-radius: var(--mt-radius-lg);
+        box-shadow: var(--mt-elevation-low);
+        overflow: hidden;
+    }
+    .mt-console-pane .mt-pane-head {
+        display: block;
+        padding: 12px 16px;
+        background: var(--mt-gray-50);
+        border-bottom: 1px solid var(--mt-gray-200);
+        font-size: var(--mt-text-th);
+        font-weight: var(--mt-weight-subhead);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--mt-gray-600);
+    }
+    .mt-console-pane .mt-pane-body { padding: 16px; }
+
+    /* The list and the actions column scroll on their own; the scan column
+       grows naturally so the camera frame is never clipped mid-scan. */
+    .mt-pane-list .mt-pane-body,
+    .mt-pane-actions .mt-pane-body {
+        max-height: calc(100vh - 240px);
+        overflow-y: auto;
+    }
+    /* The JS-rendered list bar spans the pane edge-to-edge */
+    .mt-pane-list .mt-pane-body { padding: 0; }
+    .mt-pane-list .mt-scan-list-header { border-radius: 0; }
+
+    /* Full-width children inside a 300-360px column */
+    .mt-pane-actions .mt-button-group { flex-direction: column; }
+    .mt-pane-actions .mt-button-group .mt-btn { width: 100%; }
+    .mt-pane-actions .mt-manual-grid { grid-template-columns: minmax(0, 1fr); }
+    .mt-pane-scan #mtAlertContainer:empty { margin-top: 0; }
+}
+@media (max-width: 768px) {
+    .mt-scanner { padding: 10px 10px 24px; }
+    .mt-body { padding: 15px 13px; border-radius: 14px; }
+    .mt-steps { gap: 6px; }
+    .mt-step { padding: 9px 5px; font-size: .72rem; }
+    .mt-step small { font-size: .92em; }
+    .mt-session-info { padding: 12px 13px; }
+    .mt-session-info-item { flex-wrap: wrap; font-size: .82rem; }
+    .mt-session-label { min-width: 68px; }
+    .mt-action-selector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .mt-action-btn { justify-content: center; text-align: center; padding: 10px 6px; font-size: .78rem; min-height: 42px; }
+    .mt-button-group { flex-direction: column; }
+    .mt-button-group .mt-btn { width: 100%; }
+    .mt-scan-controls { width: 100%; }
+    .mt-manual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mt-banner-row { flex-direction: column; align-items: stretch; gap: 8px; }
+    .mt-banner-clear { align-self: flex-start; min-height: 36px; }
+    .mt-product-item { flex-direction: column; align-items: stretch; gap: 8px; }
+    .mt-product-main { gap: 5px 8px; }
+    .mt-serial-modal { padding: 18px 15px calc(24px + env(safe-area-inset-bottom, 0px)); }
+    #mtScannerGunPanel details > div { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 380px) {
+    .mt-manual-grid,
+    .mt-action-selector { grid-template-columns: minmax(0, 1fr); }
+    .mt-step { font-size: .66rem; padding: 8px 3px; }
+    .mt-body { padding: 13px 11px; }
+}
+
+/* --- User guide ------------------------------------------------- */
+.guide-page { max-width: 1080px; margin: 0 auto; padding: clamp(14px, 3vw, 28px) clamp(11px, 3vw, 20px) 60px; }
+@media (max-width: 900px) {
+    .guide-page [style*='grid-template-columns'] { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (max-width: 768px) {
+    .guide-page h1 { font-size: clamp(1.15rem, 4vw, 1.6rem); }
+    .guide-page h2 { font-size: clamp(1rem, 3.4vw, 1.3rem); }
+    .guide-page h3 { font-size: clamp(.92rem, 3vw, 1.1rem); }
+    .guide-page p, .guide-page li { font-size: .87rem; line-height: 1.62; }
+    .guide-page table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    .guide-page pre { overflow-x: auto; max-width: 100%; }
+}
+
+/* --- Feedback portal / inbox ----------------------------------- */
+@media (max-width: 768px) {
+    .fb-wrap, .fi-wrap { padding-left: 12px !important; padding-right: 12px !important; }
+    .fb-grid, .fi-layout, .fb-form-row { grid-template-columns: minmax(0, 1fr) !important; }
+    .fb-hero, .fi-hero { padding: 18px 15px !important; }
+    .fb-card, .fi-card, .fi-ticket { padding: 14px !important; }
+    .fi-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .fb-actions, .fi-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+    .fb-actions > *, .fi-actions > * { width: 100%; justify-content: center; }
+}
+
+/* ================================================================
+   12. UTILITIES
+   ================================================================ */
+.mt-only-mobile  { display: none; }
+.mt-only-desktop { display: initial; }
+@media (max-width: 640px) {
+    .mt-only-mobile  { display: initial; }
+    .mt-only-desktop { display: none !important; }
+    .mt-hide-sm { display: none !important; }
+}
+@media (max-width: 480px) {
+    .mt-hide-xs { display: none !important; }
+}
+
+/* Sticky action footer inside long modals */
+.mt-sticky-actions {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(to top, var(--mt-surface, #fff) 65%, transparent);
+    padding-top: 12px;
+    margin-top: 4px;
+    z-index: 2;
+}
+
+/* ================================================================
+   13. PRINT
+   ================================================================ */
+@media print {
+    .mt-nav, .mt-to-top, .mt-toast-host, .mt-progress-top,
+    .mtd-header-actions, .hero-actions, .modal-overlay,
+    .mtd-filter-bar, .mtd-toolbar, .mtd-chipbar,
+    .mtd-tabs-outer, .sp-tabs { display: none !important; }
+    .mt-page { padding: 0 !important; }
+    .mtd-header, .mt-hero-header {
+        background: none !important;
+        color: #000 !important;
+        box-shadow: none !important;
+        animation: none !important;
+    }
+    .mtd-header-title h1, .mt-hero-header h1,
+    .mtd-header-title p, .mt-hero-header p { color: #000 !important; }
+    .mt-card, .card, .chart-card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
+    .mt-tscroll { overflow: visible !important; }
+    table.mt-stacked { display: table !important; }
+    table.mt-stacked > thead { display: table-header-group !important; }
+    table.mt-stacked > tbody > tr { display: table-row !important; border: none !important; }
+    table.mt-stacked > tbody > tr > td { display: table-cell !important; }
+    table.mt-stacked > tbody > tr > td::before { display: none !important; }
+    .mtd-tab-content { display: block !important; }
+}

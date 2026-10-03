@@ -1,0 +1,93 @@
+{% comment %}
+TIER 3.2 — Vendor detail drawer (fragment).
+
+Deliberately not extending base.html: it is fetched into an open drawer, so a
+full document here would nest an <html> inside the page. Tabs are plain
+buttons toggling [data-vl-panel]; the list page wires them after insert.
+{% endcomment %}
+<div class="vl-drawer__head">
+    <h2 class="vl-drawer__title">{{ vendor.vendor_name }}</h2>
+    {% if can_edit %}
+    <a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:vendor_edit' vendor.pk %}">Edit</a>
+    {% endif %}
+    <a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:vendor_detail' vendor.pk %}">Full page</a>
+    <button class="vl-btn vl-btn--ghost vl-btn--icon" data-vl-drawer-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+</div>
+
+<div class="vl-tabs" role="tablist">
+    <button class="vl-tab" role="tab" data-vl-tab="overview" aria-selected="true">Overview</button>
+    <button class="vl-tab" role="tab" data-vl-tab="capabilities" aria-selected="false">Capabilities</button>
+    <button class="vl-tab" role="tab" data-vl-tab="contracts" aria-selected="false">Contracts</button>
+    <button class="vl-tab" role="tab" data-vl-tab="performance" aria-selected="false">Performance</button>
+</div>
+
+<div class="vl-drawer__body">
+    <div data-vl-panel="overview">
+        <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:var(--vl-2) var(--vl-3);font-size:var(--vl-t-sm);">
+            <dt class="vl-meta">COUNTRY</dt><dd style="margin:0;">{{ vendor.country|default:"—" }}</dd>
+            <dt class="vl-meta">STATE</dt><dd style="margin:0;">{{ vendor.state|default:"—" }}</dd>
+            <dt class="vl-meta">CITY</dt><dd style="margin:0;">{{ vendor.city|default:"—" }}</dd>
+            <dt class="vl-meta">WAREHOUSE</dt><dd style="margin:0;">{{ vendor.warehouse_location|default:"—" }}</dd>
+            <dt class="vl-meta">CONTACT</dt><dd style="margin:0;">{{ vendor.contact_person|default:"—" }}</dd>
+            <dt class="vl-meta">EMAIL</dt><dd style="margin:0;">{{ vendor.email|default:"—" }}</dd>
+            <dt class="vl-meta">MOBILE</dt><dd style="margin:0;" class="vl-mono">{{ vendor.mobile|default:"—" }}</dd>
+            <dt class="vl-meta">WEBSITE</dt>
+            <dd style="margin:0;">{% if vendor.website %}<a href="{{ vendor.website }}" rel="noopener">{{ vendor.website }}</a>{% else %}—{% endif %}</dd>
+            <dt class="vl-meta">ADDED</dt><dd style="margin:0;" class="vl-mono">{{ vendor.created_at|date:"d M Y" }}</dd>
+        </dl>
+    </div>
+
+    <div data-vl-panel="capabilities" hidden>
+        <ul style="margin:0;padding:0;list-style:none;display:grid;gap:var(--vl-1);">
+            {% for cap in capabilities %}
+            <li style="display:flex;gap:var(--vl-2);font-size:var(--vl-t-sm);">
+                <span style="color:{% if cap.yes %}var(--vl-green){% else %}var(--vl-300){% endif %};font-weight:700;">{% if cap.yes %}&check;{% else %}&mdash;{% endif %}</span>
+                <span{% if not cap.yes %} style="color:var(--vl-ink-3);"{% endif %}>{{ cap.label }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div data-vl-panel="contracts" hidden>
+        {% if cards %}
+        <table class="vl-table">
+            <thead><tr><th>Currency</th><th>Validity</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for c in cards %}
+                <tr>
+                    <td class="vl-mono">{{ c.currency }}</td>
+                    <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ c.expiry_date|date:"d M Y"|default:"no dates" }}</td>
+                    <td>
+                        {% if c.expiry_state == "expired" %}<span class="vl-chip vl-chip--expired">Expired</span>
+                        {% elif c.expiry_state == "soon" %}<span class="vl-chip vl-chip--expiring-soon">{{ c.days_to_expiry }}d left</span>
+                        {% elif c.expiry_state == "ok" %}<span class="vl-chip vl-chip--approved">Active</span>
+                        {% else %}<span class="vl-chip vl-chip--pending">Not set</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="vl-empty">
+            <div class="vl-empty__title">No rate cards</div>
+            <div class="vl-empty__hint">This vendor has no commercial record yet.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div data-vl-panel="performance" hidden>
+        {% if kpi %}
+        <div class="vl-meta" style="margin-bottom:var(--vl-1);">LATEST KPI — {{ kpi.period|date:"F Y" }}</div>
+        <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:var(--vl-1) var(--vl-3);font-size:var(--vl-t-sm);">
+            <dt class="vl-meta">ON-TIME</dt><dd style="margin:0;" class="vl-mono">{{ kpi.on_time_delivery|default:"—" }}</dd>
+            <dt class="vl-meta">ACCURACY</dt><dd style="margin:0;" class="vl-mono">{{ kpi.inventory_accuracy|default:"—" }}</dd>
+            <dt class="vl-meta">DAMAGE</dt><dd style="margin:0;" class="vl-mono">{{ kpi.damage_rate|default:"—" }}</dd>
+        </dl>
+        {% else %}
+        <p class="vl-meta">No KPI readings recorded. Scores and weighted
+           performance live on the KPI Dashboard and the Vendor Scorecard.</p>
+        {% endif %}
+    </div>
+</div>

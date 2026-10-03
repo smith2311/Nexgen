@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Grocery Stock &amp; Cost Management{% endblock %}
+{% block page_title %}Grocery Stock Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="gs-wrap">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="gs-home-header">
+    <div class="gs-home-title">
+      <h1><i class="fas fa-basket-shopping"></i> Grocery Stock &amp; Cost Management</h1>
+      <p>Master data for items, suppliers and storage. Select a section to continue.</p>
+    </div>
+
+    <div class="gs-home-stats">
+      <div class="gs-hstat">
+        <div class="gs-hstat-val">{{ item_count }}</div>
+        <div class="gs-hstat-lbl">Items</div>
+      </div>
+      <div class="gs-hstat">
+        <div class="gs-hstat-val">{{ stock_lines }}</div>
+        <div class="gs-hstat-lbl">Stock Lines</div>
+      </div>
+      <div class="gs-hstat">
+        <div class="gs-hstat-val">{{ movement_count }}</div>
+        <div class="gs-hstat-lbl">Movements</div>
+      </div>
+      <div class="gs-hstat">
+        <div class="gs-hstat-val">{{ expiring_soon }}</div>
+        <div class="gs-hstat-lbl">Expiring ≤30d</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ INSIGHTS ═══ -->
+  {% if show_insights %}
+  <div class="gs-section-hdr">
+    <h2><i class="fas fa-gauge-high"></i> Insights</h2>
+    <span class="gs-section-note">Available now</span>
+  </div>
+
+  <div class="gs-grid">
+    <a href="{% url 'grocery_stock:dashboard' %}" class="gs-card gs-tone-blue">
+      <span class="gs-card-icon"><i class="fas fa-gauge-high"></i></span>
+      <span class="gs-card-body">
+        <h3>Dashboard</h3>
+        <p>Inventory value, monthly purchase and consumption trends, expiry exposure.</p>
+      </span>
+    </a>
+    <a href="{% url 'grocery_stock:reports' %}" class="gs-card gs-tone-teal">
+      <span class="gs-card-icon"><i class="fas fa-chart-column"></i></span>
+      <span class="gs-card-body">
+        <h3>Reports</h3>
+        <p>Valuation, cost variance, batch and expiry, consumption and purchase register.</p>
+      </span>
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- ═══ OPERATIONS ═══ -->
+  {% if show_operations %}
+  <div class="gs-section-hdr">
+    <h2><i class="fas fa-arrow-right-arrow-left"></i> Stock Operations</h2>
+    <span class="gs-section-note">Available now</span>
+  </div>
+
+  <div class="gs-grid">
+    {% for card in operation_cards %}
+    <a href="{% url card.url card.arg %}" class="gs-card {{ card.tone }}">
+      <span class="gs-card-icon"><i class="{{ card.icon }}"></i></span>
+      <span class="gs-card-body">
+        <h3>{{ card.title }}</h3>
+        <p>{{ card.subtitle }}</p>
+      </span>
+      <span class="gs-card-meta">
+        <span class="gs-count">{{ card.count }}</span>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ═══ MASTER CARDS ═══ -->
+  {% if show_masters %}
+  <div class="gs-section-hdr">
+    <h2><i class="fas fa-database"></i> Master Data</h2>
+    <span class="gs-section-note">Available now</span>
+  </div>
+
+  <div class="gs-grid">
+    {% for card in cards %}
+    <a href="{% url 'grocery_stock:master' card.slug %}" class="gs-card {{ card.tone }}">
+      <span class="gs-card-icon"><i class="{{ card.icon }}"></i></span>
+      <span class="gs-card-body">
+        <h3>{{ card.title }}</h3>
+        <p>{{ card.subtitle }}</p>
+      </span>
+      <span class="gs-card-meta">
+        <span class="gs-count">{{ card.count }}</span>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

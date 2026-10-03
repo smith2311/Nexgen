@@ -1,0 +1,56 @@
+/* Reconciliation Scanner — uses meritrack-core.css design system */
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.88em; font-weight: 600; color: var(--mt-gray-700); margin-bottom: 6px; }
+.form-group select, .form-group input { width: 100%; padding: 10px 14px; border: 1px solid var(--mt-gray-300); border-radius: 8px; font-size: 0.9em; }
+.form-group select:focus, .form-group input:focus { outline: none; border-color: var(--mt-primary); box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 0.9em; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-mt-primary { background: var(--mt-primary); color: #fff; }
+.btn-mt-primary:hover { background: var(--mt-primary-dark); }
+.btn-mt-success { background: var(--mt-success); color: #fff; }
+.btn-mt-success:hover { background: var(--mt-success-dark); }
+.btn-mt-danger { background: var(--mt-danger); color: #fff; }
+.btn-mt-danger:hover { background: var(--mt-danger); }
+.btn-mt-lg { padding: 14px 28px; font-size: 1em; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-700); }
+
+/* Scanner Area */
+.scanner-area { text-align: center; padding: 40px; border: 3px dashed var(--mt-gray-300); border-radius: 16px; margin-bottom: 20px; transition: all 0.3s; }
+.scanner-area.active { border-color: var(--mt-primary); background: rgba(0,86,179,0.03); }
+.scanner-input { font-size: 1.3em; padding: 16px; text-align: center; border: 2px solid var(--mt-primary); border-radius: 12px; width: 100%; max-width: 500px; }
+.scanner-input:focus { outline: none; box-shadow: 0 0 0 4px rgba(0,86,179,0.15); }
+
+/* Progress */
+.progress-bar { height: 8px; background: var(--mt-gray-200); border-radius: 4px; overflow: hidden; margin: 12px 0; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; background: linear-gradient(90deg, var(--mt-primary), var(--mt-secondary)); }
+.progress-text { display: flex; justify-content: space-between; font-size: 0.82em; color: var(--mt-gray-600); }
+
+/* Recent Scans */
+.scan-feed { max-height: 400px; overflow-y: auto; }
+.scan-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--mt-gray-100); transition: background 0.2s; }
+.scan-item:hover { background: var(--mt-gray-50); }
+.scan-status { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.scan-status.matched { background: var(--mt-success); }
+.scan-status.extra { background: var(--mt-warning); }
+.scan-status.error { background: var(--mt-danger); }
+.scan-info { flex: 1; }
+.scan-info .product { font-weight: 600; color: var(--mt-gray-800); font-size: 0.9em; }
+.scan-info .detail { font-size: 0.78em; color: var(--mt-gray-600); }
+.scan-time { font-size: 0.75em; color: var(--mt-gray-400); }
+
+/* Steps */
+.step-indicator { display: flex; gap: 8px; margin-bottom: 24px; }
+.step { flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 0.82em; font-weight: 600; }
+.step.active { background: var(--mt-primary); color: #fff; }
+.step.done { background: var(--mt-success); color: #fff; }
+.step.pending { background: var(--mt-gray-100); color: var(--mt-gray-400); }
+
+#setupStep { display: block; }
+#scanStep { display: none; }
+#summaryStep { display: none; }

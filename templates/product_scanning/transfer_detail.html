@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Transfer {{ transfer.transfer_id }} | Meril SA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/transfer_detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="detail-container">
+    <div class="page-header">
+        <h1>🔄 Transfer Details</h1>
+        <a href="{% url 'product_scanning:transfer_dashboard' %}" class="back-link">← Back to Transfers</a>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <!-- Route Card -->
+    <div class="route-card">
+        <div class="hospital-box">
+            <div class="hospital-label">FROM</div>
+            <div class="hospital-name" id="fromHospital">Loading...</div>
+        </div>
+        <div class="route-arrow">→</div>
+        <div class="hospital-box">
+            <div class="hospital-label">TO</div>
+            <div class="hospital-name" id="toHospital">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Transfer Info -->
+    <div class="info-card">
+        <div class="card-header">
+            <span>📋 Transfer Information</span>
+            <span class="status-badge" id="statusBadge">Loading</span>
+        </div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Transfer ID</div>
+                    <div class="info-value" id="transferId">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Session Key</div>
+                    <div class="info-value" id="sessionKey">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Initiated By</div>
+                    <div class="info-value" id="initiatedBy">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Started At</div>
+                    <div class="info-value" id="startedAt">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Completed At</div>
+                    <div class="info-value" id="completedAt">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Products</div>
+                    <div class="info-value" id="totalProducts">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products -->
+    <div class="info-card">
+        <div class="card-header">
+            <span>📦 Transferred Products</span>
+            <button onclick="exportProducts()" style="background:#f97316;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">📥 Export CSV</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div style="overflow-x:auto;">
+                <table class="products-table" id="transferProductsTable">
+                    <thead>
+                        <tr>
+                            <th>Serial #</th>
+                            <th>Product Name</th>
+                            <th>GTIN</th>
+                            <th>Batch</th>
+                            <th>Expiry</th>
+                            <th>Scanned At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsBody">
+                        <tr><td colspan="6" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachments -->
+    <div class="info-card">
+        <div class="card-header">
+            <span>📎 Attachments</span>
+        </div>
+        <div class="card-body">
+            <div id="attachmentsList"></div>
+            <div class="upload-section" id="uploadSection">
+                <p style="margin-bottom:12px;color:#6b7280;">Upload confirmation documents</p>
+                <label class="upload-btn">
+                    📤 Choose File
+                    <input type="file" id="fileInput" onchange="uploadFile()" accept="image/*,.pdf,.doc,.docx">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-buttons" id="actionButtons" style="display:none;">
+        <button class="btn-confirm" onclick="confirmTransfer()">✅ Confirm & Close</button>
+        <button class="btn-terminate" onclick="terminateTransfer()">🚫 Terminate</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"sessionKey":"{{ session_key }}"}</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/transfer_detail.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,19 @@
+
+/* Legacy styles - color overrides REMOVED to let modern-ui.css dark theme take effect */
+
+/* Keep legacy fade-in animation */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+    

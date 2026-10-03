@@ -1,0 +1,819 @@
+/* ============================================================================
+   MeriTrack dashboard — toolbar, filter sheet and the Cards / Table / Kanban
+   views. Mobile-first: every rule here is written for the phone layout, with
+   min-width queries adding back the roomier desktop treatment.
+
+   Deliberately additive. The dashboard's existing colour language (coloured
+   status/type badges, left-rail stat cards, hover lifts) is reused rather than
+   replaced — this file introduces no new palette.
+   ========================================================================= */
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────
+   One row on every screen size. The session-type buttons used to live out
+   here and were what made the bar wrap and sprawl on phones; they now sit
+   inside the filter sheet, leaving just the view switcher and one button.
+   ---------------------------------------------------------------------- */
+.mtd-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    min-width: 0;
+}
+
+/* ── View switcher ─────────────────────────────────────────────────────── */
+.mtd-viewtoggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: var(--mt-gray-100);
+    border-radius: 10px;
+    min-width: 0;
+}
+.mtd-vt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    /* 38px keeps the control compact on a phone while staying thumb-sized */
+    min-height: 38px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--mt-gray-600);
+    font-family: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .16s, color .16s, box-shadow .16s;
+}
+.mtd-vt-btn:hover { color: var(--mt-primary); }
+.mtd-vt-btn.active {
+    background: #fff;
+    color: var(--mt-primary-deep);
+    box-shadow: 0 1px 3px rgba(33, 37, 41, .14);
+}
+.mtd-vt-ico { font-size: 1rem; line-height: 1; }
+
+/* ── Filters trigger ───────────────────────────────────────────────────── */
+.mtd-sf-wrap {
+    margin-left: auto;
+    position: relative;
+    flex-shrink: 0;
+}
+.mtd-sf-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1.5px solid var(--mt-gray-300);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--mt-gray-700);
+    font-family: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .18s, color .18s, background .18s;
+}
+.mtd-sf-trigger:hover,
+.mtd-sf-trigger.active {
+    border-color: var(--mt-primary);
+    color: var(--mt-primary);
+    background: var(--mt-primary-lighter);
+}
+.mtd-sf-ico { font-size: 1rem; line-height: 1; }
+.mtd-sf-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 99px;
+    background: var(--mt-primary);
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 800;
+}
+.mtd-sf-trigger.active .mtd-sf-badge { background: var(--mt-primary-deep); }
+
+/* ── Filter surface ──────────────────────────────────────────────────────
+   Bottom sheet by default (phone), popover from 641px up. Sheet-first
+   because a 260px popover anchored right overflows a narrow viewport.
+   ---------------------------------------------------------------------- */
+.mtd-fp-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(33, 37, 41, .45);
+    z-index: 900;
+    animation: mtd-fade-in .18s ease;
+}
+.mtd-fp-backdrop[hidden] { display: none; }
+
+.mtd-filter-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: none;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 34px rgba(33, 37, 41, .26);
+    z-index: 901;
+    overflow: hidden;
+    animation: mtd-sheet-up .22s cubic-bezier(.22, .8, .3, 1);
+    /* clear the iOS home indicator */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.mtd-filter-panel[hidden] { display: none; }
+
+@keyframes mtd-fade-in  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes mtd-sheet-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes mtd-pop-in   { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: translateY(0) } }
+
+.mtd-fp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--mt-gray-100);
+    flex-shrink: 0;
+}
+/* Grab handle — reads as a sheet on touch, pointless on the desktop popover */
+.mtd-fp-head::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--mt-gray-200);
+}
+.mtd-fp-title {
+    font-size: .95rem;
+    font-weight: 800;
+    color: var(--mt-gray-900);
+}
+.mtd-fp-clear {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--mt-primary);
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.mtd-fp-clear:hover { text-decoration: underline; }
+
+.mtd-fp-body {
+    padding: 14px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.mtd-fp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.mtd-fp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.mtd-fp-label {
+    font-size: .7rem;
+    font-weight: 800;
+    color: var(--mt-gray-400);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+.mtd-fp-field select,
+.mtd-fp-field input[type="date"] {
+    width: 100%;
+    min-height: 42px;              /* comfortable touch target */
+    padding: 0 10px;
+    border: 1.5px solid var(--mt-gray-300);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--mt-gray-800);
+    font-family: inherit;
+    font-size: .88rem;
+    box-sizing: border-box;
+}
+.mtd-fp-field select:focus,
+.mtd-fp-field input[type="date"]:focus {
+    outline: none;
+    border-color: var(--mt-primary);
+    box-shadow: 0 0 0 3px var(--mt-primary-glow);
+}
+
+/* Session-type chips — the old top-level filter row, relocated */
+.mtd-fp-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.mtd-chip {
+    min-height: 36px;
+    padding: 0 13px;
+    border: 1.5px solid var(--mt-gray-200);
+    border-radius: 20px;
+    background: var(--mt-gray-50);
+    color: var(--mt-gray-600);
+    font-family: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .18s;
+}
+.mtd-chip:hover { border-color: var(--mt-primary); color: var(--mt-primary); }
+.mtd-chip.active {
+    background: var(--mt-primary-deep);
+    border-color: var(--mt-primary-deep);
+    color: #fff;
+}
+
+.mtd-fp-foot {
+    padding: 12px 18px 16px;
+    border-top: 1px solid var(--mt-gray-100);
+    flex-shrink: 0;
+}
+.mtd-fp-done {
+    width: 100%;
+    min-height: 46px;
+    background: var(--mt-primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background .15s;
+}
+.mtd-fp-done:hover { background: var(--mt-primary-dark); }
+
+/* ── Active-filter chip bar ──────────────────────────────────────────────
+   Keeps what's applied visible once the sheet closes — otherwise a filtered
+   list looks like missing data.
+   ---------------------------------------------------------------------- */
+.mtd-chipbar {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.mtd-chipbar[hidden] { display: none; }
+.mtd-chipbar::-webkit-scrollbar { display: none; }
+.mtd-achip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-height: 30px;
+    padding: 0 6px 0 11px;
+    border-radius: 20px;
+    background: var(--mt-primary-lighter);
+    color: var(--mt-primary-dark);
+    font-size: .76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.mtd-achip button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .08);
+    color: inherit;
+    font-family: inherit;
+    font-size: .8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.mtd-achip button:hover { background: rgba(0, 0, 0, .18); }
+.mtd-achip-clear {
+    flex-shrink: 0;
+    min-height: 30px;
+    border-radius: 20px;
+    font-size: .76rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background: transparent;
+    color: var(--mt-gray-600);
+    border: 1.5px dashed var(--mt-gray-300);
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0 12px;
+}
+.mtd-achip-clear:hover { border-color: var(--mt-danger); color: var(--mt-danger); }
+
+/* ── Table view ──────────────────────────────────────────────────────────
+   The <table> carries data-stack, so meritrack-ui cards the rows up at
+   ≤640px. Only the desktop-side presentation needs styling here.
+   ---------------------------------------------------------------------- */
+.mtd-sessions-tablewrap { display: block; }
+/* separate, not collapse: collapsed borders don't travel with a sticky <th>. */
+.mtd-session-tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
+.mtd-session-tbl th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--mt-primary-lighter);
+    padding: 11px 14px;
+    text-align: left;
+    font-size: .72rem;
+    font-weight: 800;
+    color: var(--mt-primary-deep);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--mt-info-border);
+}
+.mtd-session-tbl td {
+    padding: 11px 14px;
+    font-size: .86rem;
+    color: var(--mt-gray-800);
+    border-bottom: 1px solid var(--mt-gray-100);
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+}
+.mtd-session-tbl tbody tr { transition: background .15s; }
+.mtd-session-tbl tbody tr:last-child td { border-bottom: none; }
+/* Zebra above the stacking breakpoint only — below it the rows become cards. */
+@media (min-width: 641px) {
+    .mtd-session-tbl tbody tr:nth-child(even) { background: rgba(0, 86, 179, .028); }
+}
+.mtd-session-tbl tbody tr:hover { background: rgba(0, 86, 179, .07); }
+.mtd-tbl-hosp { font-weight: 700; color: var(--mt-gray-900); }
+.mtd-tbl-sub { display: block; font-size: .76rem; font-weight: 500; color: var(--mt-gray-600); }
+.mtd-tbl-actions { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+/* ── Kanban view ─────────────────────────────────────────────────────────
+   Horizontal scroll-snap on a phone (one column at a time), an even grid
+   from 900px up.
+   ---------------------------------------------------------------------- */
+.mtd-kanban {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 84%;      /* peek of the next column hints at scroll */
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
+}
+.mtd-kan-col {
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--mt-gray-50);
+    border: 1px solid var(--mt-gray-200);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.mtd-kan-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    background: #fff;
+    border-bottom: 1px solid var(--mt-gray-200);
+}
+/* Status dot — renderKanban sets the colour inline, per column */
+.mtd-kan-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--mt-gray-300);
+}
+.mtd-kan-title {
+    font-size: .82rem;
+    font-weight: 800;
+    color: var(--mt-gray-800);
+    letter-spacing: .01em;
+}
+.mtd-kan-count {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 99px;
+    background: var(--mt-gray-100);
+    color: var(--mt-gray-600);
+    font-size: .74rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.mtd-kan-body {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 10px;
+    overflow-y: auto;
+    max-height: 62vh;
+}
+.mtd-kan-empty {
+    padding: 26px 10px;
+    text-align: center;
+    color: var(--mt-gray-400);
+    font-size: .82rem;
+}
+.mtd-kan-card {
+    display: block;
+    background: #fff;
+    border: 1px solid var(--mt-gray-200);
+    /* Left rail carries the status colour — the same device the stat cards
+       and session cards use, so the board reads as part of the dashboard. */
+    border-left: 3px solid var(--mt-gray-300);
+    border-radius: 10px;
+    padding: 11px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+    transition: transform .16s, box-shadow .16s;
+}
+.mtd-kan-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+}
+.mtd-kan-card.kan-active { border-left-color: var(--mt-warning); }
+.mtd-kan-card.kan-await  { border-left-color: var(--mt-info); }
+.mtd-kan-card.kan-closed { border-left-color: var(--mt-success-dark); }
+
+.mtd-kan-hosp {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--mt-gray-900);
+    line-height: 1.3;
+    margin-top: 7px;
+}
+.mtd-kan-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    margin-top: 7px;
+    font-size: .74rem;
+    color: var(--mt-gray-600);
+}
+.mtd-kan-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dashed var(--mt-gray-200);
+}
+.mtd-kan-link {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--mt-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.mtd-kan-link:hover { text-decoration: underline; }
+.mtd-kan-card .mtd-card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+    .mtd-filter-panel,
+    .mtd-fp-backdrop { animation: none; }
+    .mtd-kan-card:hover { transform: none; }
+}
+
+/* ── Mobile polish ───────────────────────────────────────────────────────
+   Refinements to the existing dashboard furniture, not a restyle: the colour
+   language (coloured left rails, status/type badges, hover lifts) is left
+   exactly as it is. What changes is density, tap-target size and scrolling.
+   ---------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    /* Tab strip: swipeable, no visible scrollbar, and pinned to the top of the
+       viewport so switching tabs doesn't mean scrolling back up a long list.
+       top:0 is right here — MeriTrack's mobile nav is a bottom bar, so nothing
+       occupies the top edge. The negative margins bleed the sticky background
+       over .mt-page's horizontal padding (13px at this breakpoint, 11px below
+       480px) so rows don't show through at the edges while scrolling. */
+    .mtd-tabs-outer {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: var(--mt-bg, #f1f3f5);
+        margin-left: -13px;
+        margin-right: -13px;
+        padding-left: 13px;
+        padding-right: 13px;
+    }
+    .mtd-tabs {
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .mtd-tabs::-webkit-scrollbar { display: none; }
+    .mtd-tab { scroll-snap-align: start; min-height: 44px; }
+
+    /* Stat cards: tighter, but the numeral keeps its weight so the card still
+       reads at a glance. */
+    .mtd-stat-card { padding: 13px 12px; border-radius: 12px; }
+    .mtd-stat-val  { font-size: 1.45rem; letter-spacing: -.02em; }
+    .mtd-stat-lbl  { font-size: .74rem; line-height: 1.3; }
+
+    /* Manager actions: real tap targets, two per row rather than one tall
+       column of full-width buttons. */
+    .mtd-card-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+    }
+    .mtd-action-btn {
+        min-height: 40px;
+        width: auto;
+        padding: 0 10px;
+        font-size: .8rem;
+    }
+    /* A lone action shouldn't sit at half width */
+    .mtd-card-actions .mtd-action-btn:only-child { grid-column: 1 / -1; }
+
+    .mtd-card-footer { gap: 10px; }
+    .mtd-card-link   { min-height: 32px; display: inline-flex; align-items: center; }
+}
+
+@media (max-width: 480px) {
+    /* .mt-page drops to 11px padding here — keep the bleed in step */
+    .mtd-tabs-outer {
+        margin-left: -11px;
+        margin-right: -11px;
+        padding-left: 11px;
+        padding-right: 11px;
+    }
+    /* Override dashboard.css's one-per-row stack — the grid above is tidier */
+    .mtd-card-actions { flex-direction: unset; }
+    .mtd-action-btn   { width: auto; }
+}
+
+/* ── Phones ──────────────────────────────────────────────────────────── */
+@media (max-width: 560px) {
+    /* Icon-only view switcher and Filters button. Labels are what pushed the
+       bar past the viewport; the icons plus the badge carry the meaning. */
+    .mtd-vt-txt { display: none; }
+    .mtd-vt-btn { padding: 0 14px; }
+    .mtd-sf-txt { display: none; }
+    .mtd-sf-trigger { padding: 0 12px; }
+    .mtd-toolbar { gap: 6px; }
+}
+
+@media (max-width: 380px) {
+    .mtd-vt-btn { padding: 0 11px; }
+    .mtd-kanban { grid-auto-columns: 90%; }
+}
+
+/* ── Tablet and up: popover instead of sheet ─────────────────────────── */
+@media (min-width: 641px) {
+    .mtd-fp-backdrop { display: none !important; }
+
+    .mtd-filter-panel {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        left: auto;
+        bottom: auto;
+        width: 320px;
+        max-height: min(70vh, 560px);
+        border: 1.5px solid var(--mt-gray-200);
+        border-radius: 14px;
+        box-shadow: 0 14px 38px rgba(33, 37, 41, .18);
+        z-index: 600;
+        animation: mtd-pop-in .16s ease;
+        padding-bottom: 0;
+    }
+    .mtd-fp-head { position: relative; padding-top: 14px; }
+    .mtd-fp-head::before { display: none; }   /* no grab handle on a popover */
+}
+
+@media (min-width: 900px) {
+    .mtd-kanban {
+        grid-auto-flow: unset;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow-x: visible;
+        scroll-snap-type: none;
+    }
+    .mtd-kan-body { max-height: 66vh; }
+}
+
+/* ============================================================================
+   Product views — Expiry Alert and All Scans
+   ----------------------------------------------------------------------------
+   The switcher used to be session-only. Both product tabs now get Cards, and
+   Expiry additionally gets a Kanban columned by its expiry tiers (the same axis
+   the tier pills filter on, which is why those pills hide in that view).
+
+   Additive, as above: the cards borrow the session card's grid, key/value
+   block and left-rail device, and the tier colours are the ones epBadge()
+   already paints. No new palette.
+   ========================================================================= */
+
+/* Hosts are swapped with the hidden attribute; these selectors set an explicit
+   display, so they need the attribute spelled out to lose to it. */
+.mtd-viewhost[hidden],
+.mtd-vt-btn[hidden],
+#expiryFilterBar[hidden] { display: none !important; }
+
+.mtd-prod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+    gap: 12px;
+}
+
+.mtd-pc {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--mt-gray-200);
+    /* Left rail carries the expiry tier — same device as the session cards
+       and the kanban, so a red edge means the same thing everywhere. */
+    border-left: 3px solid var(--mt-gray-300);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .07);
+    transition: box-shadow .2s;
+}
+.mtd-pc:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, .11); }
+
+.mtd-pc-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--mt-gray-900);
+    line-height: 1.3;
+}
+.mtd-pc-sn { margin-top: -2px; }
+.mtd-pc-code {
+    font-size: .78rem;
+    background: rgba(0, 0, 0, .04);
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+.mtd-pc-nosn { font-size: .78rem; color: var(--mt-gray-400); }
+.mtd-pc-days { font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.mtd-pc-session {
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--mt-primary);
+    background: var(--mt-gray-100);
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+.mtd-pc-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+    padding-top: 9px;
+    border-top: 1px dashed var(--mt-gray-200);
+}
+.mtd-pc-footkey { font-size: .74rem; color: var(--mt-gray-400); }
+.mtd-pc-acked   { font-size: .78rem; font-weight: 700; color: var(--mt-success-dark); }
+.mtd-pc-noack   { font-size: .78rem; color: var(--mt-gray-400); }
+.mtd-pc-loading {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 10px;
+    color: var(--mt-gray-400);
+    font-size: .85rem;
+}
+
+/* Tier rails — shared by the product cards and the expiry kanban cards. */
+.pc-exp-expired  { border-left-color: var(--mt-danger); }
+.pc-exp-1w       { border-left-color: var(--mt-danger-dark); }
+.pc-exp-1m       { border-left-color: var(--mt-orange-dark); }
+.pc-exp-3m       { border-left-color: var(--mt-warning-dark); }
+.pc-exp-6m       { border-left-color: var(--mt-success-dark); }
+.pc-exp-upcoming { border-left-color: var(--mt-gray-300); }
+
+/* Six tiers won't fit the even 3-up grid the session board switches to, so the
+   expiry board keeps its horizontal scroll and just widens the columns. */
+@media (min-width: 900px) {
+    #expiryKanban {
+        grid-auto-flow: column;
+        grid-template-columns: none;
+        grid-auto-columns: minmax(232px, 1fr);
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+    }
+}
+
+@media (max-width: 640px) {
+    .mtd-prod-grid { grid-template-columns: 1fr; gap: 10px; }
+    .mtd-pc { padding: 12px; border-radius: 12px; }
+}
+
+/* ============================================================================
+   Stats strip — collapsible on phones
+   ----------------------------------------------------------------------------
+   Seven tiles at 2-up is four rows, ~275px, before a single session is visible.
+   They now fold into a one-line summary shortly after loading. Desktop is
+   untouched: the toggle only exists below 640px.
+
+   Note on layering: meritrack-responsive.css loads *after* this file and owns
+   `.mtd-stats`'s grid-template-columns (with !important). Nothing here touches
+   that — only max-height / opacity / margin, which no later sheet declares.
+   ========================================================================= */
+.mtd-ss { display: none; }
+
+@media (max-width: 640px) {
+    .mtd-ss {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 36px;
+        margin: 0 0 8px;
+        padding: 7px 12px;
+        border: 1px solid var(--mt-gray-200);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+        color: var(--mt-gray-600);
+        font-family: inherit;
+        font-size: .78rem;
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+    }
+    .mtd-ss-open,
+    .mtd-ss-shut { flex: 1; min-width: 0; }
+    .mtd-ss-shut { display: none; }
+    .mtd-ss-dot  { color: var(--mt-gray-300); margin: 0 1px; }
+    .mtd-ss-warn { color: var(--mt-danger); font-weight: 800; }
+    .mtd-ss-chev {
+        flex-shrink: 0;
+        font-size: 1rem;
+        line-height: 1;
+        /* Points up while the tiles are open, down once they're folded. */
+        transform: rotate(180deg);
+        transition: transform .25s ease;
+    }
+
+    .mtd-statwrap .mtd-stats {
+        /* A concrete ceiling is what makes the fold animate at all. Tallest real
+           case is 1-up × 7 tiles below 330px, ~485px. */
+        max-height: 620px;
+        transition: max-height .3s ease, opacity .22s ease, margin-bottom .3s ease;
+    }
+    .mtd-statwrap.is-collapsed .mtd-stats {
+        max-height: 0;
+        margin-bottom: 0;
+        opacity: 0;
+        overflow: hidden;
+        visibility: hidden;
+    }
+    .mtd-statwrap.is-collapsed .mtd-ss-open { display: none; }
+    .mtd-statwrap.is-collapsed .mtd-ss-shut { display: block; }
+    .mtd-statwrap.is-collapsed .mtd-ss-chev { transform: rotate(0deg); }
+    .mtd-statwrap.is-collapsed .mtd-ss      { color: var(--mt-gray-800); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mtd-statwrap .mtd-stats,
+    .mtd-ss-chev { transition: none; }
+}

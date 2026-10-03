@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NexGen Automation | Register</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/helvetica-neue-fonts.css' %}">
+    <style>
+        *{ box-sizing:border-box; margin:0; padding:0; }
+        html,body{ height:100%; }
+        body{
+            font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background:linear-gradient(rgba(0,45,110,.52),rgba(0,60,130,.52)),
+                        url("{% static 'img/Meril_park.jpg' %}") center/cover no-repeat fixed;
+            display:flex; align-items:center; justify-content:center; min-height:100vh;
+        }
+        .card{
+            background:#fff; border-radius:16px; padding:40px 44px;
+            width:100%; max-width:480px;
+            box-shadow:0 25px 60px rgba(0,0,0,.18);
+        }
+        .brand{ display:flex; align-items:center; gap:12px; margin-bottom:28px; }
+        .brand img{ height:40px; }
+        .brand-text h1{ font-size:1.25rem; font-weight:800; color:#06152b; margin:0; }
+        .brand-text p{ font-size:.78rem; color:#6b7280; margin:0; }
+
+        h2{ font-size:1.1rem; font-weight:700; color:#06152b; margin-bottom:6px; }
+        .subtitle{ font-size:.84rem; color:#6b7280; margin-bottom:24px; }
+
+        .error-box{
+            background:#fef2f2; border:1px solid #fecaca; border-radius:8px;
+            padding:10px 14px; margin-bottom:18px; font-size:.84rem; color:#b91c1c;
+            display:flex; align-items:flex-start; gap:8px;
+        }
+
+        .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .field{ margin-bottom:14px; }
+        .field label{ display:block; font-size:.78rem; font-weight:600; color:#374151; margin-bottom:5px; }
+        .field input{
+            width:100%; padding:9px 12px;
+            border:1px solid #d1d5db; border-radius:8px;
+            font-size:.88rem; outline:none; color:#06152b;
+        }
+        .field input:focus{ border-color:#0076c8; box-shadow:0 0 0 3px rgba(0,118,200,.12); }
+        .field .hint{ font-size:.72rem; color:#9ca3af; margin-top:3px; }
+
+        .btn-register{
+            width:100%; padding:11px;
+            background:#0076c8; color:#fff; border:none; border-radius:8px;
+            font-size:.92rem; font-weight:700; cursor:pointer; margin-top:6px;
+            transition:background .15s;
+        }
+        .btn-register:hover{ background:#005fa3; }
+
+        .divider{ display:flex; align-items:center; gap:10px; margin:20px 0; }
+        .divider span{ font-size:.75rem; color:#9ca3af; white-space:nowrap; }
+        .divider::before,.divider::after{ content:''; flex:1; height:1px; background:#e5e7eb; }
+
+        .login-link{
+            display:block; text-align:center; font-size:.84rem; color:#6b7280;
+        }
+        .login-link a{ color:#0076c8; font-weight:600; text-decoration:none; }
+        .login-link a:hover{ text-decoration:underline; }
+
+        .domain-note{
+            background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
+            padding:9px 13px; margin-bottom:20px; font-size:.78rem; color:#1e40af;
+            display:flex; align-items:center; gap:8px;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="brand">
+        <img src="{% static 'img/meril_logo.png' %}" alt="Meril" onerror="this.style.display='none'">
+        <div class="brand-text">
+            <h1>NexGen Automation</h1>
+            <p>Internal Platform</p>
+        </div>
+    </div>
+
+    <h2>Create your account</h2>
+    <p class="subtitle">Register with your Meril email to access the platform.</p>
+
+    <div class="domain-note">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Only <strong>@merillife.com</strong>, <strong>@meril.com</strong>, <strong>@meril.in</strong> and <strong>@merillife.in</strong> addresses are accepted.
+    </div>
+
+    {% if error %}
+    <div class="error-box">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" autocomplete="off">
+        {% csrf_token %}
+
+        <div class="field-row">
+            <div class="field">
+                <label for="first_name">First Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="first_name" name="first_name"
+                       value="{{ form_data.first_name|default:'' }}" placeholder="John" required>
+            </div>
+            <div class="field">
+                <label for="last_name">Last Name <span style="color:#ef4444">*</span></label>
+                <input type="text" id="last_name" name="last_name"
+                       value="{{ form_data.last_name|default:'' }}" placeholder="Doe" required>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="email">Work Email <span style="color:#ef4444">*</span></label>
+            <input type="email" id="email" name="email"
+                   value="{{ form_data.email|default:'' }}"
+                   placeholder="you@merillife.com" required>
+        </div>
+
+        <div class="field">
+            <label for="password">Password <span style="color:#ef4444">*</span></label>
+            <input type="password" id="password" name="password"
+                   placeholder="Min. 8 characters" required minlength="8">
+        </div>
+
+        <div class="field">
+            <label for="password2">Confirm Password <span style="color:#ef4444">*</span></label>
+            <input type="password" id="password2" name="password2"
+                   placeholder="Re-enter your password" required>
+        </div>
+
+        <button type="submit" class="btn-register">Create Account</button>
+    </form>
+
+    <div class="divider"><span>already have an account?</span></div>
+    <p class="login-link"><a href="{% url 'login' %}">Sign in instead</a></p>
+</div>
+{% include "_matomo.html" %}
+</body>
+</html>

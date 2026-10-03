@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if country %}Edit Country{% else %}Add Country{% endif %} — Visa Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-globe"></i>
+            {% if country %}Edit — {{ country.name }}{% else %}Add Country{% endif %}
+          </h1>
+          <p>{% if country %}Update country and embassy details{% else %}Add a new destination country{% endif %}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-exclamation-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" action="">
+      {% csrf_token %}
+
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-info-circle"></i> Country Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Country Name <span class="req">*</span></label>
+              <input class="form-input" type="text" name="name" required
+                value="{{ country.name|default:'' }}" placeholder="e.g. China">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">ISO Code (3-letter) <span class="req">*</span></label>
+              <input class="form-input vm-mono" type="text" name="code" required maxlength="3"
+                value="{{ country.code|default:'' }}" placeholder="e.g. CHN"
+                style="text-transform:uppercase">
+              <span class="form-hint">Uppercase 3-letter ISO country code</span>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Default Entry Type</label>
+              <select class="form-select" name="default_entry_type">
+                <option value="multiple" {% if not country or country.default_entry_type == 'multiple' %}selected{% endif %}>Multiple Entry</option>
+                <option value="single"   {% if country and country.default_entry_type == 'single' %}selected{% endif %}>Single Entry</option>
+                <option value="both"     {% if country and country.default_entry_type == 'both' %}selected{% endif %}>Both</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Active</label>
+              <label class="vm-radio-opt" style="width:fit-content">
+                <input type="checkbox" name="is_active"
+                  {% if not country or country.is_active %}checked{% endif %}>
+                Country is active (available for new applications)
+              </label>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-building"></i> Embassy / Consulate Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field" style="grid-column:1/-1">
+              <label class="form-label">Addressee Line 1</label>
+              <input class="form-input" type="text" name="addressee_line1"
+                value="{{ country.addressee_line1|default:'The Visa Officer,' }}"
+                placeholder="The Visa Officer,">
+              <span class="form-hint">First line of address block in the invitation letter</span>
+            </div>
+
+            <div class="form-field" style="grid-column:1/-1">
+              <label class="form-label">Addressee Line 2</label>
+              <input class="form-input" type="text" name="addressee_line2"
+                value="{{ country.addressee_line2|default:'' }}"
+                placeholder="e.g. Embassy of People's Republic of China">
+              <span class="form-hint">Second line — embassy or consulate name</span>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Embassy City</label>
+              <input class="form-input" type="text" name="embassy_city"
+                value="{{ country.embassy_city|default:'' }}"
+                placeholder="e.g. New Delhi">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="vm-form-actions vm-no-print">
+        <button type="submit" class="btn btn-navy">
+          <i class="fas fa-save"></i> {% if country %}Update Country{% else %}Save Country{% endif %}
+        </button>
+        <a href="{% url 'visa:country_list' %}" class="btn btn-ghost" style="margin-left:auto">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+<script>
+document.querySelector('[name="code"]').addEventListener('input', function () {
+  this.value = this.value.toUpperCase();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,493 @@
+/* ═══════════════════════════════════════════════════════
+   pr_tracker/pr.css — Module-specific styles only
+   Page shell   → components/master_page/master_page.css (.lm-page, .lm-header, .lm-inner, .lp-back)
+   CSS vars     → components/data_table/data_table.css   (:root vars, font, *, box-sizing)
+   This file: stat tiles, pills, progress, forms, upload, detail, log, home cards
+═══════════════════════════════════════════════════════ */
+
+/* ── Stat strip (inside .lm-inner or header) ─────────────── */
+.prt-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.prt-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  position: relative;
+  overflow: hidden;
+}
+.prt-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+}
+.prt-stat.s-total::before   { background: var(--navy);   }
+.prt-stat.s-open::before    { background: var(--blue);   }
+.prt-stat.s-prog::before    { background: var(--amber);  }
+.prt-stat.s-po::before      { background: var(--purple); }
+.prt-stat.s-grn::before     { background: var(--accent); }
+.prt-stat.s-closed::before  { background: var(--green);  }
+.prt-stat.s-overdue::before { background: var(--red);    }
+
+.prt-stat-val { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+.prt-stat.s-total   .prt-stat-val { color: var(--navy);   }
+.prt-stat.s-open    .prt-stat-val { color: var(--blue);   }
+.prt-stat.s-prog    .prt-stat-val { color: var(--amber);  }
+.prt-stat.s-po      .prt-stat-val { color: var(--purple); }
+.prt-stat.s-grn     .prt-stat-val { color: var(--accent); }
+.prt-stat.s-closed  .prt-stat-val { color: var(--green);  }
+.prt-stat.s-overdue .prt-stat-val { color: var(--red);    }
+.prt-stat-lbl {
+  font-size: 10.5px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* ── Filter bar ────────────────────────────────────────────── */
+.prt-filter-bar {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;
+}
+.prt-filter-bar select,
+.prt-filter-bar input[type=text] {
+  font-family: var(--font); font-size: 13px;
+  padding: 7px 11px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text-primary);
+  outline: none; transition: border-color .15s; min-width: 150px;
+}
+.prt-filter-bar select:focus,
+.prt-filter-bar input:focus { border-color: var(--blue); background: #fff; }
+.prt-filter-bar label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.prt-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  padding: 8px 15px; border-radius: 8px; border: none;
+  cursor: pointer; text-decoration: none;
+  transition: var(--transition); white-space: nowrap;
+}
+.prt-btn:hover { text-decoration: none; }
+.prt-btn-navy  { background: var(--navy);   color: #fff; } .prt-btn-navy:hover  { background: #0f2d52; }
+.prt-btn-blue  { background: var(--blue);   color: #fff; } .prt-btn-blue:hover  { background: #0060a8; }
+.prt-btn-teal  { background: var(--accent); color: #fff; } .prt-btn-teal:hover  { background: #009e8a; }
+.prt-btn-green { background: var(--green);  color: #fff; } .prt-btn-green:hover { background: #0da070; }
+.prt-btn-ghost {
+  background: transparent; color: var(--navy);
+  border: 1px solid var(--border-md);
+}
+.prt-btn-ghost:hover { background: var(--bg); }
+.prt-btn-sm { font-size: 12px; padding: 5px 11px; }
+
+/* ── Table wrapper ──────────────────────────────────────────── */
+.prt-tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.prt-tbl      { width: 100%; border-collapse: collapse; }
+.prt-tbl thead tr { background: var(--bg); }
+.prt-tbl th   { padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+.prt-tbl td   { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.prt-tbl tbody tr:last-child td { border-bottom: none; }
+.prt-tbl tbody tr:hover td      { background: #f8fafd; }
+
+/* ── Status pills ───────────────────────────────────────────── */
+.prt-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px; white-space: nowrap;
+}
+.prt-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+.pill-open        { background: var(--blue-lt);   color: var(--blue);   } .pill-open::before        { background: var(--blue);   }
+.pill-in_progress { background: var(--amber-lt);  color: #b45309;       } .pill-in_progress::before { background: var(--amber);  }
+.pill-po_raised   { background: var(--purple-lt); color: var(--purple); } .pill-po_raised::before   { background: var(--purple); }
+.pill-grn_created { background: var(--accent-lt); color: #007a6a;       } .pill-grn_created::before { background: var(--accent); }
+.pill-closed      { background: #f1f5f9;          color: var(--text-muted);} .pill-closed::before    { background: #94a3b8;       }
+.pill-overdue     { background: var(--red-lt);    color: var(--red);    } .pill-overdue::before     { background: var(--red);    }
+
+/* ── Fill progress bar ──────────────────────────────────────── */
+.prt-progress      { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; width: 80px; display: inline-block; vertical-align: middle; }
+.prt-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s; }
+
+/* ── Inline alert (Django messages) ────────────────────────── */
+.prt-alert {
+  padding: 11px 15px; border-radius: var(--radius-md); font-size: 13px;
+  margin-bottom: 14px; display: flex; gap: 8px; align-items: flex-start;
+}
+.prt-alert.success { background: var(--green-lt); color: #065f46; border: 1px solid #86efac; }
+.prt-alert.error   { background: var(--red-lt);   color: #991b1b; border: 1px solid #fca5a5; }
+.prt-alert.warning { background: var(--amber-lt); color: #92400e; border: 1px solid #fcd34d; }
+
+/* ── Form sections ──────────────────────────────────────────── */
+.prt-form-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 14px; overflow: hidden; }
+.prt-form-section-hdr {
+  padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; gap: 8px;
+}
+.prt-form-section-hdr h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin: 0; }
+.prt-form-section-hdr .section-icon { color: var(--blue); }
+.prt-form-body   { padding: 18px 16px; }
+.prt-form-grid   { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 13px 16px; }
+.prt-form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.prt-field       { display: flex; flex-direction: column; gap: 5px; }
+.prt-field.full  { grid-column: 1 / -1; }
+.prt-label       { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.prt-label .req  { color: var(--red); margin-left: 2px; }
+.prt-input, .prt-select, .prt-textarea {
+  font-family: var(--font); font-size: 13.5px; padding: 8px 11px;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: #fff; color: var(--text-primary);
+  outline: none; transition: border-color .15s;
+}
+.prt-input:focus, .prt-select:focus, .prt-textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0,118,200,.07);
+}
+.prt-textarea    { resize: vertical; min-height: 76px; }
+.prt-hint        { font-size: 11.5px; color: var(--text-muted); }
+.prt-form-actions { display: flex; gap: 10px; padding: 0 16px 16px; }
+
+/* ── Upload zone ────────────────────────────────────────────── */
+.prt-upload-zone {
+  border: 2px dashed var(--border-md); border-radius: var(--radius-md);
+  padding: 30px 24px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: var(--bg);
+}
+.prt-upload-zone:hover, .prt-upload-zone.drag-over { border-color: var(--blue); background: var(--blue-lt); }
+.prt-upload-zone .upload-icon { font-size: 2rem; color: var(--blue); margin-bottom: 10px; }
+.prt-upload-zone p   { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 5px; }
+.prt-upload-zone span{ font-size: 12px; color: var(--text-muted); }
+
+/* ── Supporting documents (Assign screen) ───────────────────────
+   A shallower version of the Excel drop zone: this one sits inside a form
+   next to the PR fields rather than owning its own tab, so it should not
+   take the same amount of vertical space. */
+.prt-doc-zone {
+  border: 2px dashed var(--border-md); border-radius: var(--radius-md);
+  padding: 18px 16px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: var(--bg);
+}
+.prt-doc-zone:hover, .prt-doc-zone.is-over { border-color: var(--blue); background: var(--blue-lt); }
+.prt-doc-zone .upload-icon { font-size: 1.4rem; color: var(--blue); margin-bottom: 6px; }
+.prt-doc-zone p    { font-size: 13px; color: var(--text-secondary); margin: 0 0 3px; }
+.prt-doc-zone span { font-size: 11.5px; color: var(--text-muted); }
+
+.prt-doc-list { list-style: none; margin: 9px 0 0; padding: 0; }
+.prt-doc-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; margin-bottom: 4px;
+  font-size: 12.5px; color: var(--text-secondary);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prt-doc-list li i    { color: var(--text-muted); font-size: 11px; }
+.prt-doc-list li span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.prt-doc-list li em   { font-style: normal; font-size: 11px; color: var(--text-muted); }
+
+/* Over the attach limit. Amber, not red: nothing is wrong — the emails carry
+   links instead of attachments, and the line says so. */
+.prt-doc-list li.over {
+  color: var(--amber, #b45309);
+  background: var(--amber-lt, #fef3c7);
+  border-color: var(--amber, #f59e0b);
+}
+.prt-doc-list li.over i { color: inherit; }
+
+/* Each selected file: thumbnail, name, size, and the cross that takes it
+   back out. The generic `li span` rule above stretches to fill the row, so
+   the thumbnail has to opt out of that and the name has to opt in. */
+.prt-doc-list li .prt-doc-thumb {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prt-doc-list li .prt-doc-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.prt-doc-list li .prt-doc-thumb i { font-size: 13px; color: var(--text-muted); }
+.prt-doc-list li .prt-doc-name    { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+.prt-doc-remove {
+  flex: 0 0 auto;
+  width: 24px; height: 24px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer;
+  transition: var(--transition);
+}
+.prt-doc-remove i { font-size: 12px; color: inherit; }
+.prt-doc-remove:hover,
+.prt-doc-remove:focus-visible {
+  color: var(--red, #dc2626);
+  background: var(--red-lt, #fee2e2);
+  border-color: var(--red, #dc2626);
+  outline: none;
+}
+
+/* A file the server will refuse — flagged here rather than after the upload. */
+.prt-doc-list li.is-bad {
+  color: var(--red, #dc2626);
+  background: var(--red-lt, #fee2e2);
+  border-color: var(--red, #dc2626);
+}
+.prt-doc-list li.is-bad em,
+.prt-doc-list li.is-bad .prt-doc-thumb i { color: inherit; }
+
+/* The two actions on a file waiting to be uploaded: preview, then remove.
+   `.prt-doc-act` is shared with the PR screens; these lines only stop the
+   generic `.prt-doc-list li i` rule above from greying the icons out and
+   keep both buttons the same size as each other. */
+.prt-doc-list li .prt-doc-act { flex: 0 0 auto; width: 24px; height: 24px; }
+.prt-doc-list li .prt-doc-act i { color: inherit; font-size: 12px; }
+.prt-doc-list li .prt-doc-act[disabled] { pointer-events: none; }
+
+/* ── PR documents on the detail page ────────────────────────── */
+/* One row per file: type icon, name, size, then preview and download. */
+.prt-doc-files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.prt-doc-files li {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px 7px 11px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prt-doc-files .prt-doc-icon   { flex: 0 0 auto; color: var(--blue); font-size: 13px; }
+.prt-doc-files .prt-doc-name   {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.prt-doc-files small { flex: 0 0 auto; font-size: 11.5px; color: var(--text-muted); }
+
+.prt-doc-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; }
+.prt-doc-act {
+  width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); font-size: 12.5px;
+  text-decoration: none; cursor: pointer;
+  transition: var(--transition);
+}
+.prt-doc-act:hover, .prt-doc-act:focus-visible {
+  color: var(--blue); background: var(--blue-lt);
+  border-color: var(--blue); outline: none;
+}
+/* A type no browser can draw. Shown, not hidden, so the row explains itself. */
+.prt-doc-act.is-off { color: var(--border-md); cursor: not-allowed; }
+.prt-doc-act.is-off:hover { color: var(--border-md); background: transparent; border-color: transparent; }
+
+/* ── Document viewer ────────────────────────────────────────── */
+/* Hidden is the DEFAULT here, and shown is the exception — deliberately that
+   way round. Written the other way (display:flex, with a separate rule to
+   hide it) the overlay is only hidden while a second rule survives: the
+   `hidden` attribute is display:none in the browser's own stylesheet, and
+   ANY author `display` outranks it. That is exactly how this shipped broken —
+   an empty viewer sat over every PR from the moment the page loaded. With the
+   polarity below, losing a rule leaves the viewer shut rather than stuck open. */
+.prt-viewer {
+  position: fixed; inset: 0; z-index: 1200;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(11, 31, 58, .55);
+}
+.prt-viewer:not([hidden]) { display: flex; }
+.prt-viewer-box {
+  display: flex; flex-direction: column;
+  width: min(980px, 100%); height: min(88vh, 100%);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .3);
+}
+.prt-viewer-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 13px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.prt-viewer-bar > i { color: var(--blue); }
+.prt-viewer-bar > span {
+  flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.prt-viewer-get {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  font-size: 12px; font-weight: 600; color: var(--blue);
+  text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prt-viewer-get:hover { background: var(--blue-lt); border-color: var(--blue); }
+.prt-viewer-x {
+  flex: 0 0 auto;
+  width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer;
+}
+.prt-viewer-x:hover, .prt-viewer-x:focus-visible {
+  color: var(--red, #dc2626); background: var(--red-lt, #fee2e2); outline: none;
+}
+.prt-viewer-body {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #f1f5f9;
+}
+.prt-viewer-body iframe { width: 100%; height: 100%; border: 0; }
+.prt-viewer-body img    { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* ── Notification failures on the detail page ───────────────── */
+.prt-notify-fail {
+  margin-bottom: 14px; padding: 11px 14px;
+  background: var(--red-lt, #fee2e2);
+  border: 1px solid var(--red, #dc2626);
+  border-radius: var(--radius-md);
+  color: #7f1d1d;
+}
+.prt-notify-fail-hdr {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+  margin-bottom: 5px;
+}
+.prt-notify-fail ul { margin: 0; padding-left: 20px; }
+.prt-notify-fail li { font-size: 13px; line-height: 1.55; }
+.prt-notify-fail em { font-style: normal; color: #b91c1c; font-size: 11.5px; }
+
+@media (max-width: 640px) {
+  .prt-viewer { padding: 0; }
+  .prt-viewer-box { height: 100%; border-radius: 0; }
+}
+
+/* ── Detail grid ────────────────────────────────────────────── */
+.prt-detail-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.prt-detail-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.prt-detail-block.full { grid-column: 1 / -1; }
+.prt-detail-hdr {
+  padding: 10px 15px; background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  display: flex; align-items: center; gap: 7px;
+}
+.prt-detail-body  { padding: 4px 0; }
+.prt-detail-row   { display: grid; grid-template-columns: 155px 1fr; padding: 8px 15px; border-bottom: 1px solid var(--border); gap: 10px; }
+.prt-detail-row:last-child { border-bottom: none; }
+.prt-detail-key   { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; padding-top: 1px; }
+.prt-detail-val   { font-size: 13px; color: var(--text-primary); word-break: break-word; }
+.prt-detail-val.mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* ── Activity log ───────────────────────────────────────────── */
+.prt-log      { list-style: none; padding: 10px 15px; display: flex; flex-direction: column; gap: 10px; }
+.prt-log-item { display: flex; gap: 10px; align-items: flex-start; }
+.prt-log-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex-shrink: 0; margin-top: 4px; }
+.prt-log-body { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+.prt-log-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Empty state ────────────────────────────────────────────── */
+.prt-empty { text-align: center; padding: 44px 24px; color: var(--text-muted); }
+.prt-empty i { font-size: 2.2rem; margin-bottom: 10px; opacity: .3; display: block; }
+.prt-empty p { font-size: 13.5px; margin: 0; }
+
+/* ── Tab content panels (switched by switchPrTab()) ─────────── */
+.lm-tab-content          { display: none; }
+.lm-tab-content.active   { display: block; }
+
+/* ── Mono utility ───────────────────────────────────────────── */
+.prt-mono { font-family: var(--font-mono); font-size: 12.5px; }
+
+/* ── Closure Ageing Report ──────────────────────────────────── */
+.prt-ageing-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden; margin-top: 28px;
+  box-shadow: 0 1px 3px rgba(11,31,58,.06);
+}
+.prt-ageing-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; padding: 15px 20px;
+  background: linear-gradient(120deg, var(--navy), var(--navy-light));
+}
+.prt-ageing-hdr h2 {
+  margin: 0; font-size: 15px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 9px; letter-spacing: .01em;
+}
+.prt-ageing-hdr h2 i { color: var(--accent); }
+.prt-ageing-total {
+  font-size: 12px; font-weight: 700; color: #fff;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2);
+  padding: 5px 13px; border-radius: 20px; white-space: nowrap;
+}
+.prt-ageing-filters {
+  display: flex; gap: 10px; align-items: center;
+  padding: 12px 20px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.prt-ageing-filters label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.prt-ageing-filters input[type=date] {
+  font-family: var(--font); font-size: 13px; padding: 7px 11px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-primary); outline: none;
+}
+.prt-ageing-filters input[type=date]:focus { border-color: var(--blue); }
+
+.prt-tbl-ageing { width: 100%; border-collapse: collapse; }
+.prt-tbl-ageing th {
+  padding: 9px 14px; font-size: 10.5px; font-weight: 700; color: var(--navy);
+  text-transform: uppercase; letter-spacing: .06em; text-align: center;
+  background: var(--blue-lt); border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.prt-tbl-ageing thead tr:first-child th { border-bottom: 1px solid rgba(11,31,58,.14); }
+.prt-tbl-ageing th.prt-ageing-name-hdr { text-align: left; }
+.prt-tbl-ageing td {
+  padding: 9px 14px; font-size: 13px; text-align: center;
+  border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.prt-tbl-ageing tbody tr:last-child td { border-bottom: none; }
+.prt-tbl-ageing tbody tr:nth-child(even) td { background: rgba(11,31,58,.015); }
+.prt-tbl-ageing tbody tr:hover td { background: var(--blue-lt); }
+.prt-tbl-ageing td.prt-ageing-name {
+  text-align: left; font-weight: 700; color: var(--navy);
+  position: sticky; left: 0; background: var(--surface);
+}
+.prt-tbl-ageing tbody tr:nth-child(even) td.prt-ageing-name { background: #fbfcfe; }
+.prt-tbl-ageing tbody tr:hover td.prt-ageing-name { background: var(--blue-lt); }
+.prt-ageing-badge {
+  display: inline-block; min-width: 26px; padding: 2px 8px;
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 700;
+  color: var(--blue); background: var(--blue-lt); border-radius: 20px;
+}
+.prt-ageing-zero { color: var(--border-md); font-size: 12px; }
+.prt-ageing-name-total {
+  display: inline-block; min-width: 30px; padding: 3px 10px;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 800;
+  color: #065f46; background: var(--accent-lt); border-radius: 20px;
+}
+.prt-tbl-ageing tr.prt-ageing-total-row td {
+  background: var(--navy); color: #fff; font-weight: 800;
+  border-top: 2px solid var(--navy-light);
+}
+.prt-tbl-ageing tr.prt-ageing-total-row td.prt-ageing-name { background: var(--navy); color: #fff; }
+.prt-tbl-ageing tr.prt-ageing-pct-row td {
+  background: var(--accent-lt); color: #065f46; font-size: 11.5px;
+  font-weight: 700; font-style: italic;
+}
+.prt-tbl-ageing tr.prt-ageing-pct-row td.prt-ageing-name { background: var(--accent-lt); color: #065f46; font-style: normal; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .prt-detail-grid   { grid-template-columns: 1fr; }
+  .prt-stats         { grid-template-columns: repeat(3, 1fr); }
+  .prt-form-grid.cols-2 { grid-template-columns: 1fr; }
+  .prt-detail-row    { grid-template-columns: 1fr; }
+  .prt-detail-key    { font-size: 10px; }
+}

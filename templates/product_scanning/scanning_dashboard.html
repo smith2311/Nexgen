@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Meril - Audit Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/scanning_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-main">
+    <div class="header">
+        <div class="header-inner">
+            <div class="header-title-group">
+                <h1>Audit Dashboard</h1>
+                <p>Track consignment stock audits across hospital locations</p>
+            </div>
+            <div class="header-actions">
+                {% if can_use_scanner %}
+                <a href="/product_scanning/" class="link-btn link-btn-primary">
+                    🚀 New Audit
+                </a>
+                {% endif %}
+                <a href="{% url 'product_scanning:salesperson_dashboard' %}" class="link-btn link-btn-ghost">
+                    📊 SP Performance
+                </a>
+                <a href="{% url 'product_scanning:hospital_master' %}" class="link-btn link-btn-ghost">
+                    🏥 Hospitals
+                </a>
+                <a href="{% url 'product_scanning:gtin_material_master' %}" class="link-btn link-btn-ghost">
+                    🏷️ GTIN
+                </a>
+                <a href="{% url 'product_scanning:user_guide' %}" class="link-btn link-btn-ghost">
+                    📖 Guide
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Filter bar: type toggle + filter button -->
+    <div class="filter-bar">
+        <span class="filter-label">Type:</span>
+        <div class="filter-toggle">
+            <button class="filter-btn active" onclick="setTypeFilter('all')">All</button>
+            <button class="filter-btn" onclick="setTypeFilter('normal')">Normal</button>
+            <button class="filter-btn filter-h2h" onclick="setTypeFilter('transfer')">H2H</button>
+        </div>
+
+        <!-- Amazon-style Filter dropdown -->
+        <div class="sf-dropdown" id="sfDropdown">
+            <button class="sf-trigger" id="sfTrigger" onclick="toggleFilterPanel(event)">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style="flex-shrink:0;"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6 10a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zM9 15a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+                Filter
+                <span class="sf-badge" id="sfBadge" style="display:none;">0</span>
+            </button>
+
+            <div class="sf-panel" id="sfPanel" style="display:none;">
+                <div class="sf-panel-head">
+                    <span class="sf-panel-title">Filter Sessions</span>
+                    <button class="sf-panel-clear" onclick="clearSessionFilters()">Clear all</button>
+                </div>
+                <div class="sf-panel-body">
+                    <div class="sf-field">
+                        <label class="sf-label">Year</label>
+                        <select id="filterYear" class="sf-ctl" onchange="applySessionFilter()">
+                            <option value="">Any year</option>
+                        </select>
+                    </div>
+                    <div class="sf-field">
+                        <label class="sf-label">Month</label>
+                        <select id="filterMonth" class="sf-ctl" onchange="applySessionFilter()">
+                            <option value="">Any month</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="sf-field">
+                        <label class="sf-label">Specific Date</label>
+                        <input type="date" id="filterDate" class="sf-ctl" onchange="applySessionFilter()">
+                    </div>
+                    <div class="sf-field">
+                        <label class="sf-label">Salesperson</label>
+                        <select id="filterSalesperson" class="sf-ctl" onchange="applySessionFilter()">
+                            <option value="">Any salesperson</option>
+                        </select>
+                    </div>
+                    <div class="sf-field">
+                        <label class="sf-label">Hospital</label>
+                        <select id="filterHospital" class="sf-ctl" onchange="applySessionFilter()">
+                            <option value="">Any hospital</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="sf-panel-foot">
+                    <button class="sf-done-btn" onclick="closeFilterPanel()">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-outer">
+        <div class="tabs" id="tabsNav">
+            <button class="tab-btn active" onclick="switchTab(event, 'active-sessions')"><span class="tab-icon">🔄</span><span class="tab-label">Ongoing</span></button>
+            <button class="tab-btn" onclick="switchTab(event, 'completed')"><span class="tab-icon">⏳</span><span class="tab-label">Awaiting</span></button>
+            <button class="tab-btn" onclick="switchTab(event, 'closed')"><span class="tab-icon">✅</span><span class="tab-label">Completed</span></button>
+            <button class="tab-btn" onclick="switchTab(event, 'expired')"><span class="tab-icon">⚠️</span><span class="tab-label">Expired</span></button>
+            <button class="tab-btn" onclick="switchTab(event, 'all-products')"><span class="tab-icon">📦</span><span class="tab-label">All Stock</span></button>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-left-color: #f59e0b;">
+            <div class="stat-value" id="activeSessions" style="color:#f59e0b;">0</div>
+            <div class="stat-label">Ongoing Audits</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #ef4444;">
+            <div class="stat-value" id="pendingCloseCount" style="color:#ef4444;">0</div>
+            <div class="stat-label">Awaiting Confirmation</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="closedCount">0</div>
+            <div class="stat-label">Completed Audits</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalProducts">0</div>
+            <div class="stat-label">Total Units</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalHospitals">0</div>
+            <div class="stat-label">Hospitals</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #dc2626;">
+            <div class="stat-value" id="expiredCount" style="color:#dc2626;">0</div>
+            <div class="stat-label">Expiry Alerts</div>
+        </div>
+    </div>
+
+    <!-- Active Sessions Tab -->
+    <div id="active-sessions" class="tab-content active">
+        <div id="activeSessionsList" class="sessions-grid">
+            <div class="loading-spinner" style="grid-column:1/-1;">
+                <div class="spinner"></div>
+                <p>Loading active sessions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Close Tab (formerly Completed) -->
+    <div id="completed" class="tab-content">
+        <div id="completedList" class="sessions-grid">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading sessions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Closed Sessions Tab -->
+    <div id="closed" class="tab-content">
+        <div id="closedList" class="sessions-grid">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading closed sessions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expired Products Tab -->
+    <div id="expired" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+            <h3 style="margin:0; color:#dc2626; font-size:1.1em;">⚠️ Expired &amp; Near-Expiry Products</h3>
+            {% if not can_view_only %}<button class="btn-export" onclick="openExportModal('expired')" style="flex:none;padding:10px 18px;border-radius:10px;">Export CSV</button>{% endif %}
+        </div>
+        <!-- Expiry level filter pills -->
+        <div id="expiredFilterBar" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;">
+          <button class="ep-filter active" data-level="all"     onclick="setExpiredFilter(this,'all')">All</button>
+          <button class="ep-filter" data-level="expired"        onclick="setExpiredFilter(this,'expired')">Expired</button>
+          <button class="ep-filter" data-level="1w"             onclick="setExpiredFilter(this,'1w')">≤ 1 Week</button>
+          <button class="ep-filter" data-level="1m"             onclick="setExpiredFilter(this,'1m')">≤ 1 Month</button>
+          <button class="ep-filter" data-level="3m"             onclick="setExpiredFilter(this,'3m')">≤ 3 Months</button>
+          <button class="ep-filter" data-level="6m"             onclick="setExpiredFilter(this,'6m')">≤ 6 Months</button>
+        </div>
+        <div class="table-responsive-wrap">
+        <table class="products-table" id="expiredProductsTable" style="min-width:900px;">
+            <thead>
+                <tr>
+                    <th>Serial No.</th>
+                    <th>Product</th>
+                    <th>GTIN</th>
+                    <th>Lot/Batch</th>
+                    <th>Hospital</th>
+                    <th>Expiry</th>
+                    <th>Days</th>
+                    <th>Session</th>
+                    <th>Scanned By</th>
+                    <th>Scanned</th>
+                    <th style="width:70px;text-align:center;">Ack</th>
+                </tr>
+            </thead>
+            <tbody id="expiredProductsBody">
+                <tr>
+                    <td colspan="11" style="text-align:center; padding:40px; color:#888;">
+                        <div class="spinner" style="margin-bottom:15px;"></div>
+                        Loading products...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- All Products Tab -->
+    <div id="all-products" class="tab-content">
+        <div id="allStockScalabilityWarning" style="display:none;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:.84rem;margin-bottom:12px;"></div>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+            {% if not can_view_only %}<button class="btn-export" onclick="openExportModal('all')" style="flex:none;padding:10px 18px;border-radius:10px;">Export All CSV</button>{% endif %}
+        </div>
+        <div class="table-responsive-wrap">
+        <table class="products-table" id="allProductsTable" style="min-width:800px;">
+            <thead>
+                <tr>
+                    <th>Serial No.</th>
+                    <th>GTIN</th>
+                    <th>Lot/Batch</th>
+                    <th>Product</th>
+                    <th>Material Code</th>
+                    <th>Session</th>
+                    <th>Hospital</th>
+                    <th>Expiry</th>
+                    <th>Prod. Date</th>
+                    <th>Scanned</th>
+                </tr>
+            </thead>
+            <tbody id="allProductsBody">
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 40px; color: #888;">
+                        <div class="spinner" style="margin-bottom: 15px;"></div>
+                        Loading products...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- Export Tab — hidden, SAP reconciliation not needed now -->
+    <!--
+    <div id="export" class="tab-content">
+        <div style="background: #ffffff; border-radius: 8px; padding: 30px; text-align: center;">
+            <div style="font-size: 3em; margin-bottom: 15px;">📥</div>
+            <h2 style="margin-bottom: 10px; color: #1f2937;">Export to SAP</h2>
+            <p style="color: #888; margin-bottom: 25px;">Download all scanned data as CSV for SAP reconciliation</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                <select id="exportFilter" style="padding: 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;">
+                    <option value="all">All Sessions</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            <button class="btn-export" onclick="exportData()" style="width: 200px; margin: 0 auto;">📥 Download CSV</button>
+        </div>
+    </div>
+    -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"canUseDashboard":{{ can_use_dashboard|yesno:"true,false" }},"canUseScanner":{{ can_use_scanner|yesno:"true,false" }},"canViewOnly":{{ can_view_only|yesno:"true,false" }}}</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/scanning_dashboard.js' %}"></script>
+
+<!-- Export Date Range Modal -->
+<div id="exportDateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:420px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <h2 style="margin:0 0 6px;font-size:1.15rem;color:#1e293b;">📅 Select Date Range</h2>
+    <p style="margin:0 0 20px;color:#64748b;font-size:0.875rem;">Maximum range: <strong>62 days</strong> (2 months). Only products scanned within this period will be exported.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label style="display:block;font-size:.8rem;font-weight:600;color:#475569;margin-bottom:4px;">From</label>
+        <input type="date" id="exportDateFrom" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem;">
+      </div>
+      <div>
+        <label style="display:block;font-size:.8rem;font-weight:600;color:#475569;margin-bottom:4px;">To</label>
+        <input type="date" id="exportDateTo" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.9rem;">
+      </div>
+    </div>
+    <div id="exportDateError" style="display:none;color:#dc2626;font-size:.82rem;margin-bottom:12px;padding:8px 12px;background:#fee2e2;border-radius:6px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="closeExportModal()" style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;">Cancel</button>
+      <button id="exportDateConfirmBtn" onclick="confirmExport()" style="padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;cursor:pointer;font-weight:700;">⬇ Export CSV</button>
+    </div>
+    <p style="margin:12px 0 0;font-size:.75rem;color:#94a3b8;text-align:center;">
+      Quick: 
+      <a href="#" onclick="setExportPreset(7);return false;" style="color:#0076c8;">Last 7d</a> &nbsp;|&nbsp;
+      <a href="#" onclick="setExportPreset(30);return false;" style="color:#0076c8;">Last 30d</a> &nbsp;|&nbsp;
+      <a href="#" onclick="setExportPreset(62);return false;" style="color:#0076c8;">Last 62d</a>
+    </p>
+  </div>
+</div>
+
+{% endblock %}

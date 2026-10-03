@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+KPI Dashboard — Phase 4. 8 metrics per vendor per month, entered by the Global
+SCM team. Fleet-wide averages by default; ?vendor= narrows to one vendor's
+full trend + monthly history, in the vlx-* design system.
+{% endcomment %}
+
+{% block title %}KPI Dashboard — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.kpi-chart-card { padding: 20px; margin-bottom: 20px; }
+.kpi-chart-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.kpi-chart-head h3 { margin:0; font-size:.95rem; font-weight:700; color:#0f1f3a; }
+#kpiTrendCanvas { max-height: 320px; }
+.kpi-table td.num, .kpi-table th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.kpi-muted { color:#94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">KPI Dashboard</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">KPI Dashboard</h1>
+                {% if focus_vendor %}<span class="vlx-count-badge">{{ focus_vendor.vendor_name }}</span>{% endif %}
+            </div>
+            <p class="vlx-subtitle">Monthly performance across Inventory Accuracy, On-Time Delivery, Damage Rate and 5 other metrics — entered by the Global SCM team.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:index' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Back</a>
+            <a href="{% url 'vendorlink:kpi_export' %}{% if focus_vendor %}?vendor={{ focus_vendor.pk }}{% endif %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-file-excel"></i> Export</a>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:kpi_record_create' %}{% if focus_vendor %}?vendor={{ focus_vendor.pk }}{% endif %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-plus"></i> Add KPI Record</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-kpis" style="margin-bottom:18px;">
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__value">{{ total_records }}</div>
+            <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-database"></i> KPI Records</div>
+        </div>
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__value">{{ vendors_tracked }}</div>
+            <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-truck-field"></i> Vendors Tracked</div>
+        </div>
+    </div>
+
+    <form method="get" class="vlx-toolbar" style="margin-bottom:18px;">
+        <div class="vlx-toolbar__filters">
+            <select name="vendor" class="vlx-select" onchange="this.form.submit()">
+                <option value="">All vendors (fleet average)</option>
+                {% for v in all_vendors %}
+                <option value="{{ v.pk }}" {% if focus_vendor.pk == v.pk %}selected{% endif %}>{{ v.vendor_name }}</option>
+                {% endfor %}
+            </select>
+            {% if focus_vendor %}
+            <a href="{% url 'vendorlink:kpi_dashboard' %}" class="vlx-btn vlx-btn--ghost vlx-btn--sm">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="vlx-card kpi-chart-card">
+        <div class="kpi-chart-head">
+            <h3><i class="fas fa-chart-line" style="color:var(--vlx-secondary);"></i> 12-Month Trend</h3>
+            <select id="kpiMetricSelect" class="vlx-select vlx-select--sm">
+                {% for name, label, unit in metric_fields %}
+                <option value="{{ name }}">{{ label }}{% if unit == "%" %} (%){% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <canvas id="kpiTrendCanvas"></canvas>
+    </div>
+
+    <div class="vlx-card vlx-card--flush">
+        {% if latest_rows %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table kpi-table" style="min-width:1200px;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Period</th>
+                    {% for name, label, unit in metric_fields %}<th class="num">{{ label }}</th>{% endfor %}
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in latest_rows %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ row.vendor.vendor_name|first|upper }}</span>
+                            <a href="{% url 'vendorlink:kpi_dashboard' %}?vendor={{ row.vendor.pk }}" class="vlx-cell__title vlx-link">{{ row.vendor.vendor_name }}</a>
+                        </div>
+                    </td>
+                    {% if row.record %}
+                    <td>{{ row.record.period|date:"M Y" }}</td>
+                    {% for label, value, unit in row.record.metrics_for_display %}
+                    <td class="num">
+                        {% if value == None %}<span class="kpi-muted">—</span>
+                        {% elif unit == "%" %}{{ value }}%
+                        {% elif unit == "count" %}{{ value }}
+                        {% else %}{{ value }} {{ unit }}{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            {% if can_edit %}
+                            <a href="{% url 'vendorlink:kpi_record_edit' row.record.pk %}" class="vlx-iconbtn" title="Edit"><i class="fas fa-pen"></i></a>
+                            {% endif %}
+                            {% if is_vm_admin %}
+                            <form method="post" action="{% url 'vendorlink:kpi_record_delete' row.record.pk %}" style="display:inline;" data-confirm="Delete this KPI record? This cannot be undone."
+                                  data-confirm-action="Delete record"
+                                  data-confirm-tone="danger">
+                                {% csrf_token %}
+                                <button type="submit" class="vlx-iconbtn vlx-iconbtn--danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% else %}
+                    <td colspan="{{ metric_fields|length|add:1 }}" class="kpi-muted">No KPI records yet</td>
+                    <td class="right">
+                        {% if can_edit %}
+                        <a href="{% url 'vendorlink:kpi_record_create' %}?vendor={{ row.vendor.pk }}" class="vlx-iconbtn" title="Add record"><i class="fas fa-plus"></i></a>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-chart-line"></i></div>
+            <h3>No KPI records yet</h3>
+            <p>Add this vendor's first monthly reading to start tracking performance.</p>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:kpi_record_create' %}{% if focus_vendor %}?vendor={{ focus_vendor.pk }}{% endif %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-plus"></i> Add KPI Record</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const KPI_LABELS = {{ month_labels_json|safe }};
+const KPI_SERIES = {{ series_json|safe }};
+const KPI_META = {{ metric_meta_json|safe }};
+
+let kpiChart;
+function renderKpiChart(metric) {
+    const ctx = document.getElementById('kpiTrendCanvas').getContext('2d');
+    const meta = KPI_META[metric];
+    if (kpiChart) kpiChart.destroy();
+    kpiChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: KPI_LABELS,
+            datasets: [{
+                label: meta.label,
+                data: KPI_SERIES[metric],
+                borderColor: '#0061a6',
+                backgroundColor: 'rgba(0,97,166,.12)',
+                spanGaps: true,
+                tension: 0.3,
+                fill: true,
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } },
+        },
+    });
+}
+document.getElementById('kpiMetricSelect').addEventListener('change', function () { renderKpiChart(this.value); });
+renderKpiChart(document.getElementById('kpiMetricSelect').value);
+</script>
+{% endblock %}

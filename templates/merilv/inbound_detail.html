@@ -1,0 +1,464 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Inbound Scanner console. Modelled on zva05_detail.html rather than
+branch_transfer_plan.html: the scan endpoint returns a full `state` payload, so
+this reconciles totals and the plant cards in place instead of reloading the page
+after every accepted scan.
+
+The three KPIs are Dispatched / Received / Short — "Short" is the number the
+whole screen exists to surface, since it is stock that left the sending plant and
+never arrived.
+{% endcomment %}
+
+{% block mv_title %}{{ receipt }} — Inbound Scanner{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:inbound' %}">Inbound Scanner</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ receipt }}</span>
+{% endblock %}
+{% block mv_heading %}{{ receipt }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ plan }} · {{ entity.name }} — booking in against dispatched quantity{% if receipt.vehicle_no %} · vehicle {{ receipt.vehicle_no }}{% endif %}</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:inbound_export' receipt.pk %}" class="mv-btn">{% icon "download" %} Export</a>
+{% if not receipt.is_finished and can_operate %}
+<button type="button" class="mv-btn mv-btn--primary" data-mv-open-modal="mvRecvFinishModal">{% icon "check" %} Close receipt</button>
+{% endif %}
+{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="inbound" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-console" style="grid-template-columns:minmax(0,1fr) 360px;">
+    <div class="mv-console__middle">
+        <div class="mv-kpis" style="margin-bottom:var(--mv-4);">
+            {% comment %}
+            The brief's four cards: Expected / Received / Short / Damaged.
+            "Expected" and "dispatched" are the same number under two names —
+            expected quantity IS picked_qty, because a line planned for 5 that
+            shipped 3 leaves the receiver expecting 3. The card carries the
+            brief's label; the code keeps its own word.
+            {% endcomment %}
+            <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "truck" %}</span><span class="mv-kpi__label">Expected</span><span class="mv-kpi__value" data-mv="kpi-dispatched">{{ payload.totals.expected|floatformat:0 }}</span></div>
+            <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "inbox" %}</span><span class="mv-kpi__label">Received</span><span class="mv-kpi__value" data-mv="kpi-received">{{ payload.totals.received|floatformat:0 }}</span></div>
+            <div class="mv-kpi{% if payload.totals.pending %} mv-kpi--warn{% endif %}"><span class="mv-kpi__icon">{% icon "alert" %}</span><span class="mv-kpi__label">Short (in transit)</span><span class="mv-kpi__value" data-mv="kpi-pending">{{ payload.totals.pending|floatformat:0 }}</span></div>
+            {% comment %}
+            Danger, not warning: Short may yet turn up, but a damaged unit is a
+            confirmed loss of saleable stock. It is NOT subtracted from
+            Received — the unit did arrive; it arrived broken.
+            {% endcomment %}
+            <div class="mv-kpi{% if payload.totals.damaged %} mv-kpi--danger{% endif %}"><span class="mv-kpi__icon">{% icon "x-circle" %}</span><span class="mv-kpi__label">Damaged</span><span class="mv-kpi__value" data-mv="kpi-damaged">{{ payload.totals.damaged|floatformat:0 }}</span></div>
+        </div>
+
+        {% if receipt.is_finished %}
+        <div class="mv-alert mv-alert--ok" style="margin-bottom:var(--mv-4);">{% icon "check-circle" %}<div>This receipt is closed. It is read-only.</div></div>
+        {% elif can_operate %}
+        {% comment %}
+        Scan / Bulk Paste tabs — Row 5 parity with the Outbound console. A
+        truck unloads as a batch, so a receiver handed the packing list
+        should be able to paste every barcode on it at once.
+        {% endcomment %}
+        <div class="mv-viewswitch" role="group" aria-label="Scan input mode" style="margin-bottom:var(--mv-3);">
+            <button type="button" id="mvRecvTabScan" aria-pressed="true">{% icon "scan" %}<span>Scan</span></button>
+            <button type="button" id="mvRecvTabBulk" aria-pressed="false">{% icon "layers" %}<span>Bulk Paste</span></button>
+        </div>
+
+        <div id="mvRecvScanPanel">
+        <input type="text" class="mv-scan-input" id="mvRecvInput" autocomplete="off" autofocus
+               placeholder="SCAN ARRIVING BARCODE" aria-label="Scan arriving barcode">
+        <div class="mv-scan-statusline" style="margin-top:var(--mv-2);margin-bottom:var(--mv-4);">
+            <span id="mvRecvStatus">Ready to scan. Keyboard input is focused.</span>
+            <button type="button" class="mv-link-btn" id="mvRecvUndo" style="margin-left:auto;">{% icon "undo" 14 %} Undo last</button>
+        </div>
+        </div>
+
+        <div id="mvRecvBulkPanel" hidden>
+            <textarea class="mv-input" id="mvRecvBulkInput" rows="6" style="width:100%;font-family:var(--mv-font-mono,monospace);"
+                      placeholder="Paste every barcode on the packing list — one per line, or separated by commas/tabs."></textarea>
+            <div class="mv-row" style="justify-content:space-between;margin-top:var(--mv-2);margin-bottom:var(--mv-4);">
+                <span class="mv-t-caption" id="mvRecvBulkStatus">Codes 5 characters or shorter are ignored.</span>
+                {% comment %}
+                Row 3.5's control, on this console for the same reason: a
+                receiver working through a crushed pallet flips once rather
+                than per unit, and whatever is set becomes the default for
+                every scan after it.
+                {% endcomment %}
+                <button type="button" class="mv-btn mv-btn--primary mv-btn--sm" id="mvRecvBulkSubmit">{% icon "check" 14 %} Process pasted codes</button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% comment %}
+        Status filter over the scan feed — same contract and same shared
+        implementation (datatable.js wireScanFilter) as the Outbound and ZVA05
+        consoles. "Received" counts only codes still booked in; an undone scan
+        drops out of it. See merilv/scanfeed.py.
+        {% endcomment %}
+        <div class="mv-scanfilter" data-mv-scanfilter-bar="mvRecvLog">
+            <div class="mv-viewswitch" role="group" aria-label="Filter scans by status">
+                <button type="button" data-mv-scanfilter="all" aria-pressed="true">
+                    {% icon "layers" %}<span>All <span class="mv-scanfilter__n" data-mv-count="all">{{ counts.all }}</span></span>
+                </button>
+                <button type="button" data-mv-scanfilter="accepted" aria-pressed="false">
+                    {% icon "check-circle" %}<span>Received <span class="mv-scanfilter__n" data-mv-count="accepted">{{ counts.accepted }}</span></span>
+                </button>
+                <button type="button" data-mv-scanfilter="rejected" aria-pressed="false">
+                    {% icon "x-circle" %}<span>Rejected <span class="mv-scanfilter__n" data-mv-count="rejected">{{ counts.rejected }}</span></span>
+                </button>
+            </div>
+            <input type="search" class="mv-input mv-scanfilter__search" data-mv-scanfilter-search
+                   placeholder="Find a code, material or reason…" aria-label="Search scans"
+                   autocomplete="off" data-mv-no-nav>
+        </div>
+
+        <div class="mv-scanlog" id="mvRecvLog">
+            {% for s in feed %}
+            <div class="mv-scanrow mv-scanrow--{{ s.family }}"
+                 data-status="{% if s.accepted %}accepted{% else %}rejected{% endif %}"
+                 data-code="{{ s.raw_scan }}">
+                <div class="mv-scanrow__time mv-mono">{{ s.created_at|date:"H:i:s" }}</div>
+                <div class="mv-scanrow__badge">{% reason_badge s.reason_code %}</div>
+                <div class="mv-scanrow__body">
+                    <div class="mv-scanrow__code mv-mono">{{ s.raw_scan }}</div>
+                    <div class="mv-scanrow__msg">{{ s.message }}{% if s.target %} → {{ s.target }}{% endif %}</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="mv-empty" data-mv-empty="seed">{% icon "scan" 48 %}<div class="mv-empty__title">Nothing received yet</div></div>
+            {% endfor %}
+        </div>
+        <div class="mv-empty" data-mv-scanfilter-nomatch hidden>
+            {% icon "search-x" 48 %}<div class="mv-empty__title">No scans match this filter</div>
+        </div>
+
+        <div class="mv-card mv-card--flush" style="margin-top:var(--mv-5);">
+            <div class="mv-card__head"><h2 class="mv-card__title">{% icon "list" %} Plan lines</h2></div>
+            <div class="mv-table-wrap">
+            <table class="mv-table mv-table--dense mv-table--zebra">
+                <thead>
+                    <tr>
+                        <th>SKU</th><th>Receiver plant</th>
+                        <th class="mv-num">Planned</th><th class="mv-num">Dispatched</th>
+                        <th class="mv-num">Received</th>
+                        {% comment %}Per line, so a receiver can see WHICH lines arrived damaged rather than only a session total.{% endcomment %}
+                        <th class="mv-num">Damaged</th>
+                        <th class="mv-num">Short</th>
+                        <th>Received serials</th>
+                    </tr>
+                </thead>
+                <tbody id="mvRecvLines">
+                    {% for l in payload.lines %}
+                    <tr{% if not l.dispatched %} class="mv-fg-3"{% endif %}>
+                        <td class="mv-mono mv-t-strong">{{ l.material }}</td>
+                        <td class="mv-mono">{{ l.node|default:"—" }}</td>
+                        <td class="mv-num">{{ l.planned|floatformat:0 }}</td>
+                        <td class="mv-num">{{ l.dispatched|floatformat:0 }}</td>
+                        <td class="mv-num">{{ l.received|floatformat:0 }}</td>
+                        <td class="mv-num{% if l.damaged %} mv-fg-danger{% endif %}">{{ l.damaged|default:"—" }}</td>
+                        <td class="mv-num{% if l.pending %} mv-fg-warn{% endif %}">{{ l.pending|floatformat:0 }}</td>
+                        <td>
+                            {% for s in l.serials|slice:":5" %}<span class="mv-badge mv-badge--neutral mv-mono" style="margin:1px 2px;">{{ s }}</span>{% endfor %}
+                            {% if l.serials|length > 5 %}<span class="mv-t-caption">+{{ l.serials|length|add:"-5" }} more</span>{% endif %}
+                            {% if not l.serials %}<span class="mv-t-caption">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mv-console__right">
+        <div class="mv-t-caption mv-t-strong" style="text-transform:uppercase;letter-spacing:.04em;">Receiving plants</div>
+        <div class="mv-delivery-list" id="mvRecvGroups">
+            {% for g in payload.groups %}
+            <button type="button" class="mv-delivery-card{% if g.focus_key == payload.focus_key %} is-focused{% endif %}{% if g.complete %} is-complete{% endif %}"
+                    data-focus-key="{{ g.focus_key }}" onclick="mvRecvFocus('{{ g.focus_key|escapejs }}')">
+                <div class="mv-ring{% if g.complete %} is-complete{% endif %}">
+                    <svg viewBox="0 0 48 48"><circle class="mv-ring__track" cx="24" cy="24" r="20" fill="none" stroke-width="4"/>
+                    <circle class="mv-ring__bar" cx="24" cy="24" r="20" fill="none" stroke-width="4" stroke-linecap="round"
+                        stroke-dasharray="125.6" stroke-dashoffset="{{ g.percent|default:0 }}"></circle></svg>
+                    <div class="mv-ring__text">{{ g.percent|floatformat:0 }}%</div>
+                </div>
+                <div class="mv-delivery-card__body">
+                    <div class="mv-delivery-card__head"><span class="mv-mono mv-t-strong">{{ g.node }}</span>
+                        <span class="mv-badge {% if g.complete %}mv-badge--ok{% elif g.focus_key == payload.focus_key %}mv-badge--primary{% else %}mv-badge--neutral{% endif %}">
+                            {% if g.complete %}COMPLETE{% elif g.focus_key == payload.focus_key %}FOCUSED{% else %}PENDING{% endif %}</span></div>
+                    <div class="mv-delivery-card__qty mv-t-caption">{{ g.received|floatformat:0 }} / {{ g.dispatched|floatformat:0 }} received</div>
+                </div>
+                <svg class="mv-delivery-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            {% empty %}
+            <div class="mv-empty">{% icon "package" 48 %}<div class="mv-empty__title">No dispatched lines</div></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if not receipt.is_finished and can_operate %}
+<div class="mv-modal-scrim" id="mvRecvFinishModal">
+    <div class="mv-modal" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'merilv:inbound_finish' receipt.pk %}">
+            {% csrf_token %}
+            <div class="mv-modal__head"><h2 class="mv-t-h2">Close this receipt?</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button></div>
+            <div class="mv-modal__body">
+                <p class="mv-t-body" style="margin:0 0 var(--mv-4);">
+                    {% if payload.totals.pending %}
+                    <strong>{{ payload.totals.pending|floatformat:0 }} unit(s)</strong> were dispatched but never received. Closing now records them as short in transit.
+                    {% else %}
+                    Everything dispatched has been received.
+                    {% endif %}
+                </p>
+                <label class="mv-label" for="mvRecvRemarks">Remarks</label>
+                <textarea class="mv-input" id="mvRecvRemarks" name="remarks" rows="3"
+                          placeholder="Damage, seal condition, anything worth recording">{{ receipt.remarks }}</textarea>
+            </div>
+            <div class="mv-modal__foot"><button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Close receipt</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    var input = document.getElementById('mvRecvInput');
+    var status = document.getElementById('mvRecvStatus');
+    var log = document.getElementById('mvRecvLog');
+    var posting = false;
+
+    function post(url, fd) {
+        // window.mvUI comes from a deferred script, so it is read at call time,
+        // not captured at parse time — this inline block runs first.
+        var headers = window.mvUI ? window.mvUI.csrfHeaders() : {};
+        return fetch(url, { method: 'POST', headers: headers, body: fd || new FormData() })
+            .then(function (r) { return r.json(); });
+    }
+    function applyFilter() {
+        if (window.mvUI && window.mvUI.applyScanFilters) { window.mvUI.applyScanFilters(); }
+    }
+    function num(v) { return Math.round(v || 0); }
+
+    function renderState(p) {
+        document.querySelector('[data-mv="kpi-dispatched"]').textContent = num(p.totals.dispatched);
+        document.querySelector('[data-mv="kpi-received"]').textContent = num(p.totals.received);
+        document.querySelector('[data-mv="kpi-pending"]').textContent = num(p.totals.pending);
+
+        var groups = document.getElementById('mvRecvGroups');
+        if (groups) {
+            groups.innerHTML = '';
+            (p.groups || []).forEach(function (g) {
+                var focused = g.focus_key === p.focus_key;
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'mv-delivery-card' + (focused ? ' is-focused' : '') + (g.complete ? ' is-complete' : '');
+                btn.addEventListener('click', function () { mvRecvFocus(g.focus_key); });
+                var c = 2 * Math.PI * 20;
+                var off = c - (Math.max(0, Math.min(100, g.percent)) / 100) * c;
+                var pill = g.complete ? 'ok' : (focused ? 'primary' : 'neutral');
+                var pillText = g.complete ? 'COMPLETE' : (focused ? 'FOCUSED' : 'PENDING');
+                btn.innerHTML =
+                    '<div class="mv-ring' + (g.complete ? ' is-complete' : '') + '"><svg viewBox="0 0 48 48">' +
+                    '<circle class="mv-ring__track" cx="24" cy="24" r="20" fill="none" stroke-width="4"/>' +
+                    '<circle class="mv-ring__bar" cx="24" cy="24" r="20" fill="none" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + off + '"/>' +
+                    '</svg><div class="mv-ring__text">' + num(g.percent) + '%</div></div>' +
+                    '<div class="mv-delivery-card__body"><div class="mv-delivery-card__head"><span class="mv-mono mv-t-strong"></span>' +
+                    '<span class="mv-badge mv-badge--' + pill + '">' + pillText + '</span></div>' +
+                    '<div class="mv-delivery-card__qty mv-t-caption"></div></div>' +
+                    '<svg class="mv-delivery-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+                btn.querySelector('.mv-mono').textContent = g.node;
+                btn.querySelector('.mv-delivery-card__qty').textContent =
+                    num(g.received) + ' / ' + num(g.dispatched) + ' received';
+                groups.appendChild(btn);
+            });
+        }
+
+        var body = document.getElementById('mvRecvLines');
+        if (body) {
+            body.innerHTML = '';
+            (p.lines || []).forEach(function (l) {
+                var tr = document.createElement('tr');
+                if (!l.dispatched) { tr.className = 'mv-fg-3'; }
+                function cell(v, cls) {
+                    var td = document.createElement('td');
+                    if (cls) { td.className = cls; }
+                    td.textContent = v;
+                    return td;
+                }
+                tr.appendChild(cell(l.material, 'mv-mono mv-t-strong'));
+                tr.appendChild(cell(l.node || '—', 'mv-mono'));
+                tr.appendChild(cell(num(l.planned), 'mv-num'));
+                tr.appendChild(cell(num(l.dispatched), 'mv-num'));
+                tr.appendChild(cell(num(l.received), 'mv-num'));
+                tr.appendChild(cell(num(l.pending), 'mv-num' + (l.pending ? ' mv-fg-warn' : '')));
+                var serialsTd = document.createElement('td');
+                var serials = l.serials || [];
+                serials.slice(0, 5).forEach(function (s) {
+                    var chip = document.createElement('span');
+                    chip.className = 'mv-badge mv-badge--neutral mv-mono';
+                    chip.style.margin = '1px 2px';
+                    chip.textContent = s;
+                    serialsTd.appendChild(chip);
+                });
+                if (serials.length > 5) {
+                    var more = document.createElement('span');
+                    more.className = 'mv-t-caption';
+                    more.textContent = '+' + (serials.length - 5) + ' more';
+                    serialsTd.appendChild(more);
+                } else if (!serials.length) {
+                    serialsTd.innerHTML = '<span class="mv-t-caption">—</span>';
+                }
+                tr.appendChild(serialsTd);
+                body.appendChild(tr);
+            });
+        }
+    }
+
+    window.mvRecvFocus = function (key) {
+        var fd = new FormData(); fd.append('focus_key', key);
+        post('{% url "merilv:inbound_focus" receipt.pk %}', fd).then(function (d) {
+            if (d.state) { renderState(d.state); }
+        });
+    };
+
+    function addRow(opts) {
+        var row = document.createElement('div');
+        row.className = 'mv-scanrow mv-scanrow--' + opts.family;
+        row.dataset.status = opts.accepted ? 'accepted' : 'rejected';
+        row.dataset.code = opts.raw || '';
+        row.innerHTML = '<div class="mv-scanrow__time mv-mono"></div>' +
+            '<div class="mv-scanrow__badge"><span class="mv-reason mv-reason--' + opts.family + '"></span></div>' +
+            '<div class="mv-scanrow__body"><div class="mv-scanrow__code mv-mono"></div><div class="mv-scanrow__msg"></div></div>';
+        row.querySelector('.mv-scanrow__time').textContent = new Date().toLocaleTimeString([], { hour12: false });
+        row.querySelector('.mv-reason').textContent = opts.reason;
+        row.querySelector('.mv-scanrow__code').textContent = opts.raw || '';
+        row.querySelector('.mv-scanrow__msg').textContent = opts.message || '';
+        var seed = log.querySelector('[data-mv-empty="seed"]'); if (seed) { seed.remove(); }
+        log.insertBefore(row, log.firstChild);
+        applyFilter();
+    }
+
+    /* ── Scan / Bulk Paste tabs ──────────────────────────────────────────── */
+    var tabScan = document.getElementById('mvRecvTabScan');
+    var tabBulk = document.getElementById('mvRecvTabBulk');
+    var scanPanel = document.getElementById('mvRecvScanPanel');
+    var bulkPanel = document.getElementById('mvRecvBulkPanel');
+    var bulkInput = document.getElementById('mvRecvBulkInput');
+    var bulkStatus = document.getElementById('mvRecvBulkStatus');
+    var bulkSubmit = document.getElementById('mvRecvBulkSubmit');
+
+    function refocusInput() {
+        if (input && document.activeElement !== input && !document.querySelector('.mv-modal-scrim.is-open')) {
+            input.focus();
+        }
+    }
+    function showBulkPanel(show) {
+        if (!scanPanel || !bulkPanel) { return; }
+        scanPanel.hidden = show;
+        bulkPanel.hidden = !show;
+        if (tabScan) { tabScan.setAttribute('aria-pressed', String(!show)); }
+        if (tabBulk) { tabBulk.setAttribute('aria-pressed', String(show)); }
+        if (show && bulkInput) { bulkInput.focus(); } else { refocusInput(); }
+    }
+    if (tabScan) { tabScan.addEventListener('click', function () { showBulkPanel(false); }); }
+    if (tabBulk) { tabBulk.addEventListener('click', function () { showBulkPanel(true); }); }
+
+    if (bulkSubmit) {
+        bulkSubmit.addEventListener('click', function () {
+            if (!bulkInput || posting) { return; }
+            var text = bulkInput.value;
+            if (!text || !text.trim()) { return; }
+            posting = true;
+            bulkSubmit.disabled = true;
+            if (bulkStatus) { bulkStatus.textContent = 'Processing…'; }
+            var fd = new FormData(); fd.append('raw_text', text);
+            post('{% url "merilv:inbound_bulk_scan" receipt.pk %}', fd).then(function (d) {
+                if (d.accepted_count === undefined) {
+                    if (window.mvUI) { window.mvUI.toast('danger', 'Bulk paste failed', d.message || 'Could not process the pasted codes.'); }
+                    if (bulkStatus) { bulkStatus.textContent = d.message || 'Failed.'; }
+                    return;
+                }
+                (d.results || []).forEach(function (r) {
+                    var family = r.accepted ? 'ok' : (r.reason_code === 'DUPLICATE_SERIAL' ? 'warn' : 'danger');
+                    addRow({
+                        family: family, reason: (r.reason_code || (r.accepted ? 'OK' : 'REJECTED')).replace(/_/g, ' '),
+                        accepted: r.accepted, raw: r.raw_scan, message: r.message
+                    });
+                });
+                if (d.state) { renderState(d.state); }
+                var summary = d.accepted_count + ' accepted, ' + d.rejected_count + ' rejected.';
+                if (bulkStatus) { bulkStatus.textContent = summary; }
+                if (window.mvUI) { window.mvUI.toast(d.accepted_count > 0 ? 'ok' : 'warn', 'Bulk paste complete', summary); }
+                bulkInput.value = '';
+            }).catch(function () {
+                if (window.mvUI) { window.mvUI.toast('danger', 'Bulk paste failed', 'Check your connection and try again.'); }
+                if (bulkStatus) { bulkStatus.textContent = 'Network error.'; }
+            }).finally(function () {
+                posting = false;
+                bulkSubmit.disabled = false;
+            });
+        });
+    }
+
+    var undoBtn = document.getElementById('mvRecvUndo');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', function () {
+            post('{% url "merilv:inbound_undo" receipt.pk %}').then(function (d) {
+                if (!d.ok) { status.textContent = d.message; return; }
+                // Mirrors the server, which appends an UNDONE audit entry rather
+                // than deleting the original accept.
+                addRow({
+                    family: 'warn', reason: 'UNDONE', accepted: false,
+                    raw: d.raw_scan || d.removed || '',
+                    message: 'Receipt reversed — returned to in-transit.'
+                });
+                if (d.state) { renderState(d.state); }
+                status.textContent = 'Undone: ' + d.removed;
+            });
+        });
+    }
+
+    if (input) {
+        function refocus() {
+            if (document.activeElement !== input && !document.querySelector('.mv-modal-scrim.is-open')) {
+                input.focus();
+            }
+        }
+        document.addEventListener('keydown', function (e) {
+            if (e.target === input || document.querySelector('.mv-modal-scrim.is-open')) { return; }
+            if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { return; }
+            if (e.key.length === 1 || e.key === 'Backspace') { refocus(); }
+        });
+        refocus();
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' || posting) { return; }
+            var raw = input.value.trim();
+            if (!raw) { return; }
+            posting = true;
+            status.textContent = 'Submitting…';
+            var fd = new FormData(); fd.append('raw_scan', raw);
+            post('{% url "merilv:inbound_scan" receipt.pk %}', fd).then(function (d) {
+                var family = d.accepted ? 'ok' : (d.status === 'warning' || d.status === 'duplicate' ? 'warn' : 'danger');
+                addRow({
+                    family: family,
+                    reason: (d.reason_code || (d.accepted ? 'OK' : 'REJECTED')).replace(/_/g, ' '),
+                    accepted: !!d.accepted,
+                    raw: raw,
+                    message: d.message
+                });
+                status.textContent = d.message || (d.accepted ? 'Received.' : 'Rejected.');
+                if (d.state) { renderState(d.state); }
+            }).catch(function () {
+                status.textContent = 'Network error — the scan may not have been recorded.';
+            }).finally(function () {
+                posting = false; input.value = ''; setTimeout(refocus, 50);
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

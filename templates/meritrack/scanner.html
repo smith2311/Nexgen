@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MeriTrack Scanner{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-core.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/scanner.css' %}">
+<style>
+/* Session type is a single dropdown — same control as the hospital pickers
+   above it, so the four modes no longer need a row of chips. The picked mode
+   still colours the control: primary for the stock modes, orange for H2H. */
+#mtSessionTypeSelect {
+    font-weight: 600;
+    border-color: var(--mt-primary);
+    background: var(--mt-primary-lighter);
+    color: var(--mt-primary);
+    transition: border-color .15s, background .15s, color .15s;
+}
+/* Nothing picked yet — `required` + the empty placeholder makes this :invalid,
+   so the control stays neutral instead of implying a type is already chosen. */
+#mtSessionTypeSelect:invalid {
+    font-weight: 500;
+    border-color: var(--mt-gray-200);
+    background: #fff;
+    color: var(--mt-gray-600);
+}
+#mtSessionTypeSelect.transfer {
+    border-color: var(--mt-orange);
+    background: var(--mt-orange-light);
+    color: var(--mt-orange-dark);
+}
+#mtSessionTypeSelect option { background: #fff; color: var(--mt-gray-800); }
+
+/* Step 1's Start button sat at the bottom of a stack that grows the moment a
+   hospital is picked (info panel, session ID box, note), pushing it off a phone
+   screen with nothing to hint it was there. Pin it while Step 1 is up. */
+@media (max-width: 768px) {
+    .mt-scanner #mtStep1.active #mtStartBtn {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        width: auto !important;   /* beats the inline width:100% */
+        z-index: 60;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+    }
+    /* Room so the note underneath is never trapped behind the pinned button. */
+    .mt-scanner #mtStep1.active { padding-bottom: 68px; }
+}
+
+/* Hero action buttons form an even grid instead of a ragged wrap */
+.mt-scanner .mt-hero-header .hero-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+.mt-scanner .mt-hero-header .hero-btn { justify-content: center; text-align: center; }
+</style>
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-motion.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-responsive.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="mt-scanner">
+    <div class="mt-hero-header">
+        <div class="hero-inner">
+            <div>
+                <h1><i class="fas fa-qrcode"></i> MeriTrack Scanner</h1>
+                <p>Smart consignment management — scan, verify, manage</p>
+            </div>
+            <div class="hero-actions">
+                {% if can_view_dashboard %}
+                <a href="{% url 'meritrack:dashboard' %}" class="hero-btn hero-btn-solid">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                {% endif %}
+                <a href="{% url 'meritrack:salesperson_dashboard' %}" class="hero-btn hero-btn-solid">
+                    <i class="fas fa-user-tie"></i> My Performance
+                </a>
+                <a href="{% url 'meritrack:user_guide' %}" class="hero-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.4);">
+                    📖 Guide
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-body">
+        <!-- User Info -->
+        <div class="mt-user-info">
+            <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+            <span style="color:var(--mt-gray-600);font-size:0.9em;">{{ user.email }}</span>
+        </div>
+
+        <!-- Step Indicators -->
+        <div class="mt-steps">
+            <div class="mt-step active"><div>Step 1</div><small>Setup</small></div>
+            <div class="mt-step"><div>Step 2</div><small>Scan</small></div>
+            <div class="mt-step"><div>Step 3</div><small>Review</small></div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- STEP 1: Setup                                                   -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div id="mtStep1" class="mt-section active">
+            <h2 id="mtSetupHeading" style="margin-bottom:18px;color:var(--mt-gray-800);font-size:1.2em;">Start Session</h2>
+
+            <div class="mt-form-group">
+                <label for="mtHospitalSelect">Hospital *</label>
+                <select id="mtHospitalSelect" required onchange="mtUpdateHospitalInfo(); mtUpdateRoutePreview();">
+                    <option value="">— Select Hospital —</option>
+                    {% for h in hospitals %}
+                    <option value="{{ h.id }}"
+                        data-name="{{ h.name }}"
+                        data-sap-code="{{ h.sap_code|default:'' }}"
+                        data-city="{{ h.city|default:'' }}">
+                        {{ h.name }}{% if h.sap_code %} ({{ h.sap_code }}){% endif %}{% if h.city %} — {{ h.city }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Hospital Info -->
+            <div id="mtHospitalInfo" style="display:none;background:var(--mt-gray-50);border:1px solid var(--mt-gray-200);padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:0.85em;">
+                <div style="margin:4px 0;"><strong style="color:var(--mt-gray-600);">Hospital:</strong> <span id="mtInfoName"></span></div>
+                <div style="margin:4px 0;"><strong style="color:var(--mt-gray-600);">SAP Code:</strong> <span id="mtInfoSap"></span></div>
+                <div style="margin:4px 0;"><strong style="color:var(--mt-gray-600);">City:</strong> <span id="mtInfoCity"></span></div>
+            </div>
+
+            <div class="mt-form-group">
+                <label for="mtSessionTypeSelect">Session Type *</label>
+                <select id="mtSessionTypeSelect" name="mtSessionType" required onchange="mtToggleSessionType()">
+                    <option value="">&mdash; Select Session Type &mdash;</option>
+                    <option value="audit">Stock Audit</option>
+                    <option value="replenish">Replenishment</option>
+                    <option value="removal">Expired Removal</option>
+                    <option value="transfer">🔄 H2H Transfer</option>
+                </select>
+            </div>
+
+            <!-- Destination Hospital (H2H Transfer only) -->
+            <div id="mtToHospitalGroup" class="mt-form-group" style="display:none;">
+                <label for="mtToHospitalSelect">Destination Hospital *</label>
+                <select id="mtToHospitalSelect" onchange="mtUpdateRoutePreview()">
+                    <option value="">— Select Destination Hospital —</option>
+                    {% for h in hospitals %}
+                    <option value="{{ h.id }}" data-name="{{ h.name }}">{{ h.name }}{% if h.sap_code %} ({{ h.sap_code }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <div id="mtRoutePreview" style="display:none;margin-top:10px;background:linear-gradient(135deg,var(--mt-orange),var(--mt-orange-dark));color:#fff;padding:12px;border-radius:10px;text-align:center;">
+                    <div style="font-size:.78em;opacity:.9;">Transfer Route</div>
+                    <div style="font-weight:700;font-size:1.02em;margin-top:4px;"><span id="mtRouteFrom">—</span> → <span id="mtRouteTo">—</span></div>
+                </div>
+            </div>
+
+            <!-- Auto-generated Session ID -->
+            <div id="mtSessionIdBox" style="background:var(--mt-success-light);border:1px solid var(--mt-success-border);padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:0.85em;">
+                <strong style="color:var(--mt-success-dark);">Session ID:</strong>
+                <div id="mtSessionIdDisplay" style="font-family:ui-monospace,monospace;background:#fff;padding:8px 10px;border-radius:6px;word-break:break-all;color:var(--mt-primary);font-weight:600;margin-top:6px;">—</div>
+            </div>
+
+            <div class="mt-info-box" id="mtSetupNote">
+                <strong>Note:</strong> Session ID is built from the date, your initials &amp; the hospital
+                code. The time portion is stamped when you press Start.
+            </div>
+
+            <button id="mtStartBtn" class="mt-btn mt-btn-primary" style="width:100%;" onclick="mtStartScanning()">
+                Start
+            </button>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- STEP 2: Scan                                                    -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div id="mtStep2" class="mt-section">
+            <!-- Session Info -->
+            <div class="mt-session-info" id="mtSessionInfoBar" style="display:none;">
+                <div class="mt-session-info-item"><span class="mt-session-label">Session:</span><span class="mt-session-value" id="mtDisplaySession"></span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Hospital:</span><span class="mt-session-value" id="mtDisplayHospital"></span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Type:</span><span class="mt-session-value" id="mtDisplayType"></span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Scanned:</span><span class="mt-session-value" id="mtProductCount">0</span></div>
+            </div>
+
+            {% comment %}
+            Console toolbar — session-level modes live above the panes, so they
+            stay reachable before the first scan on every viewport.
+            {% endcomment %}
+            <div class="mt-console-toolbar">
+            <h2 class="mt-console-title">Scan Product QR / Barcode</h2>
+
+            <!-- Input Mode Toggle -->
+            <div class="mt-mode-toggle">
+                <button id="mtModeBtnCamera" onclick="mtSwitchInputMode('camera')"
+                    style="background:var(--mt-primary);color:white;box-shadow:0 2px 8px rgba(0,86,179,0.3);flex:1;padding:9px 12px;border:none;border-radius:8px;font-size:0.85em;font-weight:700;cursor:pointer;transition:all 0.2s;">
+                    📷 Camera
+                </button>
+                <button id="mtModeBtnScanner" onclick="mtSwitchInputMode('scanner')"
+                    style="background:transparent;color:var(--mt-gray-600);box-shadow:none;flex:1;padding:9px 12px;border:none;border-radius:8px;font-size:0.85em;font-weight:700;cursor:pointer;transition:all 0.2s;">
+                    🔫 Scanner Gun
+                </button>
+            </div>
+
+            <!-- Skip Serial Toggle -->
+            <button id="mtSkipSerialBtn" class="mt-skip-serial-btn" onclick="mtToggleSkipSerial()">
+                <span style="font-size:1.3em;">🏷️</span>
+                <span style="flex:1;">
+                    <span id="mtSkipSerialLabel" style="display:block;font-weight:700;font-size:0.88em;color:var(--mt-gray-800);">Products Without Serial Numbers</span>
+                    <span id="mtSkipSerialSublabel" style="display:block;font-size:0.75em;color:var(--mt-gray-600);margin-top:2px;">Tap to enable for products without serial numbers</span>
+                </span>
+                <span id="mtSkipSerialPill" style="background:var(--mt-gray-200);color:var(--mt-gray-600);padding:3px 10px;border-radius:20px;font-size:0.75em;font-weight:700;flex-shrink:0;">OFF</span>
+            </button>
+
+            <!-- Action Selector -->
+            <div class="mt-action-selector">
+                <button class="mt-action-btn active" data-action="verify" onclick="mtSetAction(this)">✓ Verify</button>
+                <button class="mt-action-btn" data-action="add" onclick="mtSetAction(this)">+ Add to Shelf</button>
+                <button class="mt-action-btn" data-action="remove_expired" onclick="mtSetAction(this)">✕ Remove Expired</button>
+                <button class="mt-action-btn" data-action="use" onclick="mtSetAction(this)">♥ Used on Patient</button>
+            </div>
+
+            <!-- Shelf location (shown for "add" action) -->
+            <div class="mt-form-group" id="mtShelfGroup" style="display:none;">
+                <label for="mtShelfLocation">Shelf Location (optional)</label>
+                <input type="text" id="mtShelfLocation" placeholder="e.g. Shelf A3, Bin 12">
+            </div>
+            </div><!-- /.mt-console-toolbar -->
+
+            {% comment %}
+            Three-pane console — DOM order is scan → list → actions so the
+            single-column phone layout keeps the scan target first. At >=1200px
+            the grid pulls the list into column 1, matching the warehouse-console
+            mockup.
+            {% endcomment %}
+            <div class="mt-console">
+
+            <section class="mt-console-pane mt-pane-scan" aria-labelledby="mtPaneScanHead">
+                <header class="mt-pane-head" id="mtPaneScanHead">Current Scan</header>
+                <div class="mt-pane-body">
+
+            <!-- Scanner Gun Panel (hidden by default) -->
+            <div id="mtScannerGunPanel" style="display:none;margin-bottom:14px;">
+                <div style="background:linear-gradient(135deg,var(--mt-gray-800),var(--mt-gray-900));border-radius:12px;padding:16px;border:1px solid var(--mt-gray-800);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:var(--mt-success);display:inline-block;animation:mtSgPulse 1.8s ease-in-out infinite;"></span>
+                        <span style="color:var(--mt-gray-400);font-size:0.8em;font-weight:600;">Scanner Gun Ready — focus here and scan</span>
+                    </div>
+                    <textarea id="mtScannerGunInput"
+                        oninput="mtHandleScannerGunInput()"
+                        placeholder="Aim scanner gun here and pull trigger..."
+                        style="width:100%;min-height:56px;background:rgba(255,255,255,0.05);color:var(--mt-gray-200);border:1.5px solid var(--mt-gray-800);border-radius:8px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:0.9em;resize:none;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='var(--mt-info)'" onblur="this.style.borderColor='var(--mt-gray-800)'"></textarea>
+                    <div id="mtSgQueueStatus" style="display:none;color:var(--mt-warning);font-size:0.78em;font-weight:600;margin-top:6px;"></div>
+                    <!-- Live preview -->
+                    <div id="mtScannerGunPreview" style="display:none;margin-top:12px;"></div>
+                </div>
+                <!-- Scanner Gun Manual Fallback -->
+                <details style="margin-top:10px;">
+                    <summary style="cursor:pointer;color:var(--mt-gray-600);font-size:0.82em;font-weight:600;padding:8px 0;">
+                        ➕ Enter manually (scanner gun fallback)
+                    </summary>
+                    <div class="mt-manual-grid mt-sg-grid" data-mf-group="scanner-gun" style="padding:10px 0;margin-top:6px;">
+                        <input type="text"   data-mf="serial"  id="mt_sg_serial"  aria-label="Serial Number"  placeholder="Serial Number" style="grid-column:1/-1;">
+                        <input type="text"   data-mf="gtin"    id="mt_sg_gtin"    aria-label="GTIN Code"      placeholder="GTIN Code">
+                        <input type="text"   data-mf="matcode" id="mt_sg_matcode" aria-label="Material Code"  placeholder="Material Code">
+                        <input type="text"   data-mf="name"    id="mt_sg_name"    aria-label="Product Name"   placeholder="Product Name" style="grid-column:1/-1;">
+                        <input type="text"   data-mf="batch"   id="mt_sg_batch"   aria-label="Batch or Lot Number" placeholder="Batch / Lot No.">
+                        <input type="date"   data-mf="expiry"  id="mt_sg_expiry"  aria-label="Expiry Date">
+                        <input type="number" data-mf="qty"     id="mt_sg_qty"     aria-label="Quantity"       placeholder="Quantity" min="1">
+                    </div>
+                    <button class="mt-btn mt-btn-success" onclick="mtSubmitManualFields(this)" style="width:100%;margin-top:4px;">Submit Entry</button>
+                </details>
+            </div>
+
+            <!-- 2-scan: Pending Serial Banner -->
+            <div id="mtPendingBanner" class="mt-pending-banner">
+                <div class="mt-banner-row">
+                    <div>
+                        <div class="mt-banner-title">Serial Number Captured</div>
+                        <div class="mt-banner-sub">SN: <span class="mt-banner-sn" id="mtPendingSN"></span></div>
+                        <div class="mt-banner-sub" style="color:var(--mt-warning-text);">Now scan the product details barcode</div>
+                    </div>
+                    <button class="mt-banner-clear" onclick="mtClearPendingSerial()">Clear</button>
+                </div>
+            </div>
+
+            <!-- 2-scan: Awaiting SN Banner (reverse) -->
+            <div id="mtAwaitingBanner" class="mt-awaiting-banner">
+                <div class="mt-banner-row">
+                    <div style="flex:1;">
+                        <div class="mt-banner-title">Scan Serial Number Now</div>
+                        <div class="mt-banner-sub" id="mtAwaitingDetails"></div>
+                        <div class="mt-banner-sub" style="color:var(--mt-primary);">Point camera at the serial number barcode</div>
+                        <div style="margin-top:8px;">
+                            <a href="#" onclick="mtToggleAwaitingSNManualInput(); return false;"
+                                style="font-size:0.8em;color:var(--mt-primary);text-decoration:underline;">Or type serial number manually</a>
+                        </div>
+                        <div id="mtAwaitingSNManualArea" style="display:none;margin-top:8px;">
+                            <input type="text" id="mtAwaitingSNManualInput" placeholder="Type serial number…" autocomplete="off"
+                                onkeydown="if(event.key==='Enter') mtSubmitAwaitingSNManual()"
+                                style="width:100%;padding:8px 10px;border:2px solid var(--mt-info);border-radius:8px;font-size:0.88em;outline:none;box-sizing:border-box;">
+                            <button onclick="mtSubmitAwaitingSNManual()" style="margin-top:6px;width:100%;background:var(--mt-primary);color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85em;">Submit Serial</button>
+                        </div>
+                    </div>
+                    <button class="mt-banner-clear" onclick="mtClearAwaitingSN()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Camera Scanner (wrapped for mode toggle) -->
+            <div id="mtCameraScanSection">
+            <div class="mt-scan-instruction">
+                Hold camera steady — supports QR, GS1 DataMatrix, EAN-13, Code128
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;">
+                <div class="mt-scanner-container">
+                    <div id="qr-reader"></div>
+                </div>
+                <div class="mt-scan-controls">
+                    <button id="mtPauseBtn" class="mt-btn" style="flex:1;background:var(--mt-orange);color:#fff;" onclick="mtToggleScanning()">⏸ Pause</button>
+                    <button class="mt-btn mt-btn-primary" style="flex:2;" onclick="mtFinishScanning()">Finish Scanning</button>
+                </div>
+            </div>
+            </div><!-- /#mtCameraScanSection -->
+
+            <!-- Alerts -->
+            <div id="mtAlertContainer" style="margin-top:14px;"></div>
+
+            <!-- Error Tray -->
+            <div id="mtErrorTraySection" style="display:none;margin-top:10px;"></div>
+
+                </div><!-- /.mt-pane-body -->
+            </section><!-- /.mt-pane-scan -->
+
+            <section class="mt-console-pane mt-pane-list" aria-labelledby="mtPaneListHead">
+                <header class="mt-pane-head" id="mtPaneListHead">Scanned Items</header>
+                <div class="mt-pane-body">
+                    <div id="mtProductsList"></div>
+                </div>
+            </section><!-- /.mt-pane-list -->
+
+            <section class="mt-console-pane mt-pane-actions" aria-labelledby="mtPaneActionsHead">
+                <header class="mt-pane-head" id="mtPaneActionsHead">Manual Entry &amp; Actions</header>
+                <div class="mt-pane-body">
+                <!-- Manual Entry Panel -->
+                <details class="mt-manual-panel">
+                    <summary>
+                        <span>Manual Entry / Paste Raw QR</span>
+                        <span style="font-size:0.75em;font-weight:400;color:var(--mt-warning-text);">tap to expand</span>
+                    </summary>
+                    <div class="mt-manual-body">
+                        <p style="font-size:0.85em;color:var(--mt-gray-600);margin:0 0 10px;">Paste raw GS1 / QR data or fill individual fields:</p>
+                        <div class="mt-form-group" style="margin-bottom:10px;">
+                            <textarea id="mtManualQRInput"
+                                oninput="mtHandleCameraManualInput()"
+                                placeholder="Paste raw GS1 / QR string here"
+                                style="width:100%;padding:10px 12px;border:2px solid var(--mt-gray-200);border-radius:8px;font-family:ui-monospace,monospace;font-size:0.85em;min-height:50px;resize:vertical;box-sizing:border-box;"></textarea>
+                            <!-- Live preview -->
+                            <div id="mtCameraManualPreview" style="display:none;background:var(--mt-gray-50);border:1px solid var(--mt-gray-200);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:0.82em;"></div>
+                            <button id="mtCameraManualSubmitBtn" onclick="mtSubmitCameraManualQR()" style="display:none;margin-top:6px;width:100%;background:linear-gradient(135deg,var(--mt-primary),var(--mt-primary-dark));color:#fff;border:none;padding:11px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">
+                                ✓ Submit this Scan
+                            </button>
+                            <button class="mt-btn mt-btn-secondary" onclick="mtProcessManualQR()" style="margin-top:6px;width:100%;">
+                                Parse &amp; Submit (legacy)
+                            </button>
+                        </div>
+                        <div style="text-align:center;color:var(--mt-gray-300);margin:8px 0;font-size:0.8em;">OR fill individual fields</div>
+                        <div class="mt-manual-grid" data-mf-group="camera">
+                            <input type="text"   data-mf="serial"  id="mt_f_serial"  aria-label="Serial Number"  placeholder="Serial Number">
+                            <input type="text"   data-mf="gtin"    id="mt_f_gtin"    aria-label="GTIN Code"      placeholder="GTIN Code">
+                            <input type="text"   data-mf="matcode" id="mt_f_matcode" aria-label="Material Code"  placeholder="Material Code">
+                            <input type="text"   data-mf="name"    id="mt_f_name"    aria-label="Product Name"   placeholder="Product Name">
+                            <input type="text"   data-mf="batch"   id="mt_f_batch"   aria-label="Batch or Lot Number" placeholder="Batch / Lot No.">
+                            <input type="date"   data-mf="expiry"  id="mt_f_expiry"  aria-label="Expiry Date">
+                            <input type="number" data-mf="qty"     id="mt_f_qty"     aria-label="Quantity"       placeholder="Quantity" min="1">
+                        </div>
+                        <button class="mt-btn mt-btn-success" onclick="mtSubmitManualFields(this)" style="width:100%;margin-top:12px;">
+                            Submit Entry
+                        </button>
+                    </div>
+                </details>
+
+                    <div class="mt-button-group">
+                        <button class="mt-btn mt-btn-secondary" onclick="mtGoBackToSetup()">Back</button>
+                        <button class="mt-btn mt-btn-success" onclick="mtFinishScanning()">Complete Session</button>
+                    </div>
+                </div>
+            </section><!-- /.mt-pane-actions -->
+
+            </div><!-- /.mt-console -->
+        </div><!-- /#mtStep2 -->
+        <!-- STEP 3: Review & Submit                                         -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div id="mtStep3" class="mt-section">
+            <h2 style="margin-bottom:18px;color:var(--mt-gray-800);font-size:1.15em;">Session Summary</h2>
+
+            <div class="mt-session-info">
+                <div class="mt-session-info-item"><span class="mt-session-label">Scanned By:</span><span class="mt-session-value">{{ user.get_full_name|default:user.username }}</span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Session:</span><span class="mt-session-value" id="mtReviewSession"></span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Hospital:</span><span class="mt-session-value" id="mtReviewHospital"></span></div>
+                <div class="mt-session-info-item"><span class="mt-session-label">Products:</span><span class="mt-session-value" id="mtReviewCount"></span></div>
+            </div>
+
+            <div id="mtReviewProductsList" style="max-height:400px;overflow-y:auto;"></div>
+
+            <!-- Session Remarks Section -->
+            <div style="margin-top:18px;background:var(--mt-purple-light);border:1px solid var(--mt-purple-border);border-radius:10px;padding:14px;">
+                <div style="font-size:0.9em;font-weight:700;color:var(--mt-purple);margin-bottom:10px;"><i class="fas fa-comments"></i> Session Remarks</div>
+                <div id="mtStep3RemarksList" style="margin-bottom:10px;max-height:200px;overflow-y:auto;"></div>
+                <textarea id="mtStep3RemarkText" placeholder="Add a remark about this session (optional)…"
+                    style="width:100%;padding:10px 12px;border:1.5px solid var(--mt-purple-border);border-radius:6px;font-size:0.88em;resize:vertical;min-height:60px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;"
+                    onfocus="this.style.borderColor='var(--mt-purple)'" onblur="this.style.borderColor='var(--mt-purple-border)'"></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <button type="button" onclick="window.mtAddStep3Remark()"
+                        style="background:var(--mt-purple);color:#fff;border:none;padding:8px 18px;border-radius:6px;font-weight:700;font-size:0.85em;cursor:pointer;">
+                        <i class="fas fa-paper-plane"></i> Add Remark
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-button-group" style="margin-top:20px;">
+                <button class="mt-btn mt-btn-secondary" onclick="mtGoBackToScanning()">Back to Scanning</button>
+                <button class="mt-btn mt-btn-success" style="flex:2;" onclick="mtSubmitSession()">Complete &amp; Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="mtLoadingOverlay" class="mt-loading"><div class="mt-spinner"></div></div>
+
+<!-- Serial Number Dialog Modal -->
+<div id="mtSerialModal" class="mt-serial-overlay">
+    <div class="mt-serial-modal">
+        <h3>Serial Number Not Detected</h3>
+        <p style="color:var(--mt-gray-600);font-size:0.9em;margin:4px 0 0;">The scanned barcode didn't contain a serial number (GS1 AI 21).</p>
+        <div class="mt-sm-found" id="mtSmFoundData"></div>
+        <div class="mt-sm-btns">
+            <button class="mt-sm-btn-yes" onclick="mtSmChooseYes()">Scan SN Barcode</button>
+            <button class="mt-sm-btn-no" onclick="mtSmChooseNo()">No Serial Number</button>
+            <button class="mt-sm-btn-cancel" onclick="mtSmCancel()">Cancel</button>
+        </div>
+        <div style="text-align:center;margin-top:10px;">
+            <a href="#" onclick="mtSmShowManualInput(); return false;" style="font-size:0.82em;color:var(--mt-gray-600);text-decoration:underline;">Or type serial number manually</a>
+        </div>
+        <div class="mt-sm-serial-input" id="mtSmSerialInputArea">
+            <input type="text" id="mtSmSerialInput" placeholder="Type serial number..." autocomplete="off" autocorrect="off"
+                   onkeydown="if(event.key==='Enter') mtSmSubmitWithSerial()">
+            <button onclick="mtSmSubmitWithSerial()">Submit with Serial</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="mt-page-config" type="application/json">{"salespersonName":"{{ user.get_full_name|default:user.username }}"}</script>
+<script src="{% static 'js/html5-qrcode.min.js' %}"></script>
+<script src="{% static 'js/zxing-library.min.js' %}"></script>
+<script src="{% static 'js/meritrack_scanner.js' %}"></script>
+<script src="{% static 'meritrack/js/meritrack-ui.js' %}" defer></script>
+{% endblock %}

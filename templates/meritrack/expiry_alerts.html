@@ -1,0 +1,102 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Expiry Alerts — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/expiry_alerts.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-heartbeat"></i> Expiry Alerts</h1>
+<p>Scanned products on shelf approaching or past expiry</p>
+{% endblock %}
+
+{% block hero_back %}{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <button class="hero-btn hero-btn-solid" onclick="exportExpiryCSV()"><i class="fas fa-download"></i> Export CSV</button>
+</div>
+{% endblock %}
+
+{% block page_content %}
+
+    <!-- Tier summary cards -->
+    <div class="ea-tier-row" id="tierSummary">
+        <div class="ea-tier expired" onclick="setTierFilter(this,'expired')">
+            <div class="ea-tier-val" id="cntExpired">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-skull-crossbones"></i> Expired</div>
+        </div>
+        <div class="ea-tier week" onclick="setTierFilter(this,'1w')">
+            <div class="ea-tier-val" id="cnt1w">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-fire"></i> ≤ 1 Week</div>
+        </div>
+        <div class="ea-tier month" onclick="setTierFilter(this,'1m')">
+            <div class="ea-tier-val" id="cnt1m">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-exclamation-triangle"></i> ≤ 1 Month</div>
+        </div>
+        <div class="ea-tier months3" onclick="setTierFilter(this,'3m')">
+            <div class="ea-tier-val" id="cnt3m">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-clock"></i> ≤ 3 Months</div>
+        </div>
+        <div class="ea-tier months6" onclick="setTierFilter(this,'6m')">
+            <div class="ea-tier-val" id="cnt6m">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-calendar-alt"></i> ≤ 6 Months</div>
+        </div>
+        <div class="ea-tier ok" onclick="setTierFilter(this,'all')">
+            <div class="ea-tier-val" id="cntAll">—</div>
+            <div class="ea-tier-lbl"><i class="fas fa-list"></i> All Alerts</div>
+        </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="ea-filter-bar">
+        <div class="ea-filter-pills" id="filterPills">
+            <button class="ep-filter active" data-level="all"      onclick="setExpiryFilter(this,'all')">All</button>
+            <button class="ep-filter"        data-level="expired"   onclick="setExpiryFilter(this,'expired')">Expired</button>
+            <button class="ep-filter"        data-level="1w"        onclick="setExpiryFilter(this,'1w')">≤ 1 Week</button>
+            <button class="ep-filter"        data-level="1m"        onclick="setExpiryFilter(this,'1m')">≤ 1 Month</button>
+            <button class="ep-filter"        data-level="3m"        onclick="setExpiryFilter(this,'3m')">≤ 3 Months</button>
+            <button class="ep-filter"        data-level="6m"        onclick="setExpiryFilter(this,'6m')">≤ 6 Months</button>
+            <button class="ep-filter"        data-level="upcoming"  onclick="setExpiryFilter(this,'upcoming')">📅 Upcoming (&gt;6m)</button>
+        </div>
+        <input class="ea-search" type="text" id="expirySearch" placeholder="🔍 Search serial, product, hospital…" oninput="renderExpiryTable()">
+    </div>
+
+    <!-- Alert count -->
+    <div class="ea-count-bar">
+        <span id="eaCountLabel">Loading…</span>
+        <span id="eaAckPct" style="display:none;" class="ea-ack-pct"></span>
+    </div>
+
+    <!-- Table -->
+    <div class="ea-table-wrap table-responsive-wrap" data-hint="← scroll for more →">
+        <table class="ea-table" id="expiryAlertsTable" style="min-width:960px;" data-stack>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Serial No.</th>
+                    <th>Product</th>
+                    <th>GTIN</th>
+                    <th>Lot / Batch</th>
+                    <th>Hospital</th>
+                    <th>Department</th>
+                    <th>Expiry Date</th>
+                    <th>Days</th>
+                    <th>Placed By</th>
+                    <th style="width:70px;text-align:center;">Ack</th>
+                </tr>
+            </thead>
+            <tbody id="alertsBody">
+                {% include 'meritrack/_sk_rows.html' with cols=11 rows="12345678" %}
+            </tbody>
+        </table>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>const CSRF = '{{ csrf_token }}';</script>
+<script src="{% static 'meritrack/js/expiry_alerts.js' %}"></script>
+{% endblock %}

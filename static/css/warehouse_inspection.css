@@ -1,0 +1,750 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   WAREHOUSE INSPECTION MODULE - MODERN UI STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --wi-primary: #667eea;
+    --wi-primary-dark: #764ba2;
+    --wi-success: #10b981;
+    --wi-danger: #ef4444;
+    --wi-warning: #f59e0b;
+    --wi-info: #3b82f6;
+    --wi-light: #f9fafb;
+    --wi-gray: #6b7280;
+    --wi-border: #e5e7eb;
+    --wi-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    --wi-shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TYPOGRAPHY & COMMON ELEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.wi-page-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 1rem;
+    letter-spacing: -0.5px;
+}
+
+.wi-page-subtitle {
+    font-size: 1.1rem;
+    color: var(--wi-gray);
+    margin-bottom: 2rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GRADIENT BACKGROUNDS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-gradient-primary {
+    background: linear-gradient(135deg, var(--wi-primary) 0%, var(--wi-primary-dark) 100%);
+}
+
+.wi-gradient-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.wi-gradient-danger {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+}
+
+.wi-gradient-warning {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CARDS & BOXES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--wi-shadow);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.wi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--wi-shadow-lg);
+}
+
+.wi-card-header {
+    border-bottom: 2px solid var(--wi-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.wi-card-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BUTTONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.wi-btn-primary {
+    background: var(--wi-gradient-primary);
+    color: white;
+}
+
+.wi-btn-primary:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+    color: white;
+}
+
+.wi-btn-secondary {
+    background: white;
+    color: var(--wi-primary);
+    border: 2px solid var(--wi-primary);
+}
+
+.wi-btn-secondary:hover {
+    background: #f0f4ff;
+}
+
+.wi-btn-success {
+    background: var(--wi-success);
+    color: white;
+}
+
+.wi-btn-danger {
+    background: var(--wi-danger);
+    color: white;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STATUS BADGES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.wi-badge-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.wi-badge-danger {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+
+.wi-badge-warning {
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.wi-badge-info {
+    background: #dbeafe;
+    color: #0c4a6e;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PROGRESS BARS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-progress-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--wi-shadow);
+}
+
+.wi-progress-bar {
+    width: 100%;
+    height: 12px;
+    background: var(--wi-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 0.8rem;
+}
+
+.wi-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--wi-primary) 0%, var(--wi-primary-dark) 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FORMS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.wi-form-label {
+    display: block;
+    margin-bottom: 0.6rem;
+    color: #1f2937;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.wi-form-input,
+.wi-form-select,
+.wi-form-textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid var(--wi-border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+.wi-form-input:focus,
+.wi-form-select:focus,
+.wi-form-textarea:focus {
+    outline: none;
+    border-color: var(--wi-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GRID LAYOUTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+}
+
+.wi-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.wi-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STAT BOXES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-stat-box {
+    border-radius: 12px;
+    padding: 1.8rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.wi-stat-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.wi-stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.wi-stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TABLES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.wi-table thead {
+    background: #f9fafb;
+    border-bottom: 2px solid var(--wi-border);
+}
+
+.wi-table th {
+    padding: 1.2rem;
+    text-align: left;
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.wi-table tbody tr {
+    border-bottom: 1px solid var(--wi-border);
+    transition: background 0.2s ease;
+}
+
+.wi-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.wi-table td {
+    padding: 1.2rem;
+    color: #374151;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EMPTY STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wi-empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.wi-empty-icon {
+    font-size: 3rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+
+.wi-empty-state h3 {
+    color: #1f2937;
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+}
+
+.wi-empty-state p {
+    color: var(--wi-gray);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RESPONSIVE DESIGN
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .wi-page-title {
+        font-size: 1.8rem;
+    }
+
+    .wi-grid-2,
+    .wi-grid-3,
+    .wi-grid-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .wi-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .wi-stat-value {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .wi-card {
+        padding: 1rem;
+    }
+
+    .wi-table {
+        font-size: 0.85rem;
+    }
+
+    .wi-table th,
+    .wi-table td {
+        padding: 0.8rem;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ANIMATIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes wi-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes wi-slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.wi-animate-fade {
+    animation: wi-fadeIn 0.3s ease-out;
+}
+
+.wi-animate-slide {
+    animation: wi-slideIn 0.3s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MANAGE CONDITIONS UI ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.conditions-table tbody tr.even-row {
+    background: #fafbfc;
+}
+
+.conditions-table tbody tr.odd-row {
+    background: white;
+}
+
+.conditions-table tbody tr.even-row:hover,
+.conditions-table tbody tr.odd-row:hover {
+    background: #f0f4f8 !important;
+}
+
+/* Loading spinner enhancement */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Better spacing for compact layouts */
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .search-filter {
+        width: 100%;
+    }
+    
+    .conditions-table th,
+    .conditions-table td {
+        padding: 12px 8px;
+        font-size: 0.85em;
+    }
+    
+    .dialog {
+        width: 98% !important;
+        max-width: none !important;
+        max-height: 95vh !important;
+    }
+}
+
+/* Form input improvements */
+.form-group input:invalid {
+    border-color: #ef4444;
+}
+
+.form-group input:valid:not(:placeholder-shown) {
+    border-color: #10b981;
+}
+
+/* Enhance checkpoint display */
+.checkpoint-details {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Tooltip styling */
+[title] {
+    cursor: help;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — COMPREHENSIVE MOBILE SUPPORT
+   Breakpoints: 1024 | 992 | 768 | 600 | 480 | 375
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared baseline ── */
+.wi-table-wrap,
+.wi-table-container,
+.wi-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS zoom on input focus */
+.wi-input,
+.wi-select,
+.wi-textarea,
+.wi-form-control,
+input[class*="wi-"],
+select[class*="wi-"],
+textarea[class*="wi-"] {
+    font-size: max(16px, 0.9rem);
+}
+
+/* Touch targets */
+.wi-btn,
+.wi-btn-sm,
+.wi-btn-icon {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* ── 992px – tablet landscape ── */
+@media (max-width: 992px) {
+    .wi-grid-2 { grid-template-columns: 1fr 1fr; }
+    .wi-grid-3 { grid-template-columns: 1fr 1fr; }
+    .wi-grid-4 { grid-template-columns: 1fr 1fr; }
+
+    .wi-stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    .wi-filter-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        align-items: flex-end;
+    }
+    .wi-filter-bar .wi-btn { width: 100%; justify-content: center; }
+
+    .wi-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .wi-header-actions { width: 100%; flex-wrap: wrap; gap: 8px; }
+    .wi-header-actions .wi-btn { flex: 1; min-width: 120px; justify-content: center; }
+}
+
+/* ── 768px – tablet portrait ── */
+@media (max-width: 768px) {
+    /* Page */
+    .wi-container,
+    .wi-page { padding: 12px 14px; }
+
+    /* Page title */
+    .wi-page-title { font-size: 1.3rem; }
+    .wi-page-subtitle { font-size: .83rem; }
+
+    /* Grids → single column */
+    .wi-grid-2,
+    .wi-grid-3,
+    .wi-grid-4 { grid-template-columns: 1fr; }
+
+    /* Stats */
+    .wi-stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .wi-stat-card { padding: 14px 16px; }
+    .wi-stat-value { font-size: 1.8rem; }
+    .wi-stat-label { font-size: .75rem; }
+
+    /* Buttons */
+    .wi-btn { min-height: 44px; padding: 10px 16px; font-size: .87rem; }
+    .wi-btn-sm { min-height: 36px; padding: 6px 12px; font-size: .8rem; }
+
+    /* Tables */
+    .wi-table { font-size: .82rem; }
+    .wi-table th,
+    .wi-table td { padding: 9px 10px; }
+
+    /* Conditions table */
+    .conditions-table { font-size: .8rem; }
+    .conditions-table th,
+    .conditions-table td { padding: 8px 10px; }
+
+    /* Cards */
+    .wi-card { padding: 14px 16px; }
+    .wi-card-title { font-size: 1rem; }
+
+    /* Filter bar */
+    .wi-filter-bar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .wi-filter-bar > *,
+    .wi-filter-bar select,
+    .wi-filter-bar input { width: 100%; }
+    .wi-filter-bar .wi-btn { width: 100%; justify-content: center; }
+
+    /* Form groups */
+    .wi-form-group { margin-bottom: 14px; }
+    .wi-form-label { font-size: .82rem; }
+
+    /* Modal / Slide panel */
+    .wi-modal { max-width: calc(100vw - 24px); border-radius: 12px; }
+    .wi-modal-overlay { padding: 12px; }
+    .wi-slide-panel { max-width: 100% !important; width: 100% !important; border-radius: 16px 16px 0 0; }
+    .wi-slide-overlay { }
+
+    /* Section heading */
+    .wi-section-title { font-size: .9rem; }
+
+    /* Checkpoints */
+    .wi-checkpoint-item { padding: 10px 12px; gap: 8px; }
+    .wi-checkpoint-name { font-size: .85rem; }
+
+    /* Submission form */
+    .wi-submission-meta { flex-direction: column; gap: 8px; font-size: .82rem; }
+
+    /* Tab navigation */
+    .wi-tabs { flex-wrap: wrap; gap: 4px; }
+    .wi-tab  { padding: 8px 14px; font-size: .8rem; }
+
+    /* Back link */
+    .wi-back-link { font-size: .8rem; }
+
+    /* Alert/banner */
+    .wi-alert { padding: 10px 14px; font-size: .83rem; }
+
+    /* Badges */
+    .wi-badge { font-size: .68rem; padding: 2px 7px; }
+
+    /* Pagination */
+    .wi-pagination { flex-wrap: wrap; gap: 4px; }
+    .wi-pagination-btn { min-height: 36px; min-width: 36px; font-size: .82rem; }
+}
+
+/* ── 600px – medium mobile ── */
+@media (max-width: 600px) {
+    .wi-container,
+    .wi-page { padding: 10px 12px; }
+
+    /* Stats row → 2 columns */
+    .wi-stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .wi-stat-card  { padding: 12px; }
+    .wi-stat-value { font-size: 1.6rem; }
+
+    /* Page header */
+    .wi-page-header { gap: 10px; }
+    .wi-header-actions { flex-direction: column; }
+    .wi-header-actions .wi-btn { width: 100%; justify-content: center; }
+
+    /* Checkpoints grid */
+    .wi-checkpoints-grid { grid-template-columns: 1fr; }
+
+    /* Inspection response cards */
+    .wi-response-card { padding: 12px; }
+    .wi-response-options { flex-wrap: wrap; gap: 6px; }
+    .wi-response-btn { flex: 1; min-width: 80px; justify-content: center; }
+
+    /* Building selector */
+    .wi-building-selector { flex-direction: column; gap: 8px; }
+    .wi-building-tab { width: 100%; justify-content: center; text-align: center; }
+
+    /* Floor assignments */
+    .wi-floor-list { grid-template-columns: 1fr; }
+
+    /* Conditions table – hide less critical columns */
+    .conditions-table th:nth-child(3),
+    .conditions-table td:nth-child(3) { display: none; }
+
+    /* Modal */
+    .wi-modal { max-width: calc(100vw - 16px); }
+}
+
+/* ── 480px – small mobile ── */
+@media (max-width: 480px) {
+    .wi-container,
+    .wi-page { padding: 8px 10px; }
+
+    /* Title */
+    .wi-page-title { font-size: 1.1rem; }
+
+    /* Stats → single column */
+    .wi-stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .wi-stat-value { font-size: 1.4rem; }
+
+    /* Card */
+    .wi-card { padding: 12px; }
+
+    /* Table */
+    .wi-table th,
+    .wi-table td { padding: 7px 8px; font-size: .78rem; }
+
+    /* Buttons */
+    .wi-btn { padding: 10px 14px; font-size: .82rem; }
+
+    /* Bottom sheet modals */
+    .wi-modal-overlay { align-items: flex-end; padding: 0; }
+    .wi-modal { max-width: 100%; width: 100%; border-radius: 16px 16px 0 0; margin: 0; }
+
+    .wi-slide-overlay { }
+    .wi-slide-panel { border-radius: 16px 16px 0 0; max-height: 85vh; overflow-y: auto; }
+
+    /* Checkpoint response */
+    .wi-checkpoint-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .wi-checkpoint-actions { width: 100%; display: flex; gap: 8px; }
+    .wi-response-btn { flex: 1; }
+
+    /* Notes textarea */
+    .wi-textarea { font-size: 16px; }
+
+    /* Inspection header */
+    .wi-inspection-header { flex-direction: column; gap: 10px; }
+    .wi-inspection-meta   { font-size: .8rem; }
+
+    /* Summary card */
+    .wi-summary-grid { grid-template-columns: 1fr; }
+
+    /* Floor list */
+    .wi-floor-item { padding: 10px 12px; }
+}
+
+/* ── 375px – iPhone SE / smallest phones ── */
+@media (max-width: 375px) {
+    .wi-page-title { font-size: 1rem; }
+    .wi-stat-value { font-size: 1.25rem; }
+    .wi-stat-label { font-size: .7rem; }
+    .wi-card       { padding: 10px; }
+    .wi-btn        { font-size: .8rem; padding: 9px 12px; }
+    .wi-table th,
+    .wi-table td   { padding: 6px 7px; font-size: .74rem; }
+    .wi-badge      { font-size: .64rem; }
+}
+
+/* ── Landscape phone ── */
+@media (max-height: 480px) and (orientation: landscape) {
+    .wi-modal   { max-height: 90vh; overflow-y: auto; }
+    .wi-slide-panel { max-height: 90vh; overflow-y: auto; }
+    .wi-stats-row { grid-template-columns: repeat(4, 1fr); }
+}

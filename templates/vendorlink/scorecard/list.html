@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Vendor Scorecard — Phase 4. Cost 20% / Serviceability 40% / WMS-Reports 20% /
+TAT 20%, each out of 10, rolling up to a Final Score. Top-10 ranking widget
+per the plan's wireframe note.
+{% endcomment %}
+
+{% block title %}Vendor Scorecard — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.sc-final { display:inline-flex; align-items:baseline; gap:3px; font-weight:800; font-size:1rem; color:#0f1f3a; }
+.sc-final small { font-size:.7rem; font-weight:600; color:#94a3b8; }
+.sc-rank { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#eff4ff; color:#0061a6; font-weight:800; font-size:.78rem; }
+.sc-rank--1 { background:#fef3c7; color:#92400e; }
+.sc-rank--2 { background:#f1f5f9; color:#334155; }
+.sc-rank--3 { background:#fee2e2; color:#991b1b; }
+.sc-top10 { display:flex; flex-direction:column; gap:8px; }
+.sc-top10__row { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px; background:#f8fafc; }
+.sc-top10__name { flex:1; font-weight:600; font-size:.85rem; color:#0f1f3a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">Vendor Scorecard</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">Vendor Scorecard</h1>
+                <span class="vlx-count-badge">{{ scored_count }} of {{ total_vendors }} scored</span>
+            </div>
+            <p class="vlx-subtitle">Weighted evaluation — Cost 20%, Serviceability 40%, WMS/Reports 20%, TAT 20% — each scored out of 10 by Global SCM.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:index' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:scorecard_create' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-star"></i> Score a Vendor</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if top10 %}
+    <div class="vlx-card" style="padding:20px; margin-bottom:20px;">
+        <div style="font-size:.95rem; font-weight:700; color:#0f1f3a; margin-bottom:12px;"><i class="fas fa-ranking-star" style="color:#f59e0b;"></i> Top {{ top10|length }} Vendors</div>
+        <div class="sc-top10">
+            {% for row in top10 %}
+            <div class="sc-top10__row">
+                <span class="sc-rank {% if forloop.counter == 1 %}sc-rank--1{% elif forloop.counter == 2 %}sc-rank--2{% elif forloop.counter == 3 %}sc-rank--3{% endif %}">{{ forloop.counter }}</span>
+                <a href="{% url 'vendorlink:scorecard_vendor_history' row.vendor.pk %}" class="sc-top10__name vlx-link">{{ row.vendor.vendor_name }}</a>
+                <span class="sc-final">{{ row.card.final_score }}<small>/10</small></span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="get" class="vlx-toolbar" style="margin-bottom:18px;">
+        <div class="vlx-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ query }}" placeholder="Search by vendor or country…">
+        </div>
+        <div class="vlx-toolbar__filters">
+            <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-filter"></i> Search</button>
+            {% if query %}<a href="{% url 'vendorlink:scorecard_list' %}" class="vlx-btn vlx-btn--ghost vlx-btn--sm">Clear</a>{% endif %}
+        </div>
+    </form>
+
+    <div class="vlx-card vlx-card--flush">
+        {% if rows %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table" style="min-width:900px;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    {% for key, label, weight in attributes %}<th class="num">{{ label }} ({{ weight }}%)</th>{% endfor %}
+                    <th class="num">Final Score</th>
+                    <th>Last Scored</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ row.vendor.vendor_name|first|upper }}</span>
+                            <div class="vlx-stack0">
+                                <span class="vlx-cell__title">{{ row.vendor.vendor_name }}</span>
+                                <span class="vlx-cell__sub"><i class="fas fa-location-dot"></i> {{ row.vendor.country }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="num">{{ row.card.cost_score }}</td>
+                    <td class="num">{{ row.card.serviceability_score }}</td>
+                    <td class="num">{{ row.card.wms_reports_score }}</td>
+                    <td class="num">{{ row.card.tat_score }}</td>
+                    <td class="num"><span class="sc-final">{{ row.card.final_score }}<small>/10</small></span></td>
+                    <td>{{ row.card.scored_at|date:"d M Y" }}</td>
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            <a href="{% url 'vendorlink:scorecard_vendor_history' row.vendor.pk %}" class="vlx-iconbtn" title="History"><i class="fas fa-clock-rotate-left"></i></a>
+                            {% if can_edit %}
+                            <a href="{% url 'vendorlink:scorecard_create' %}?vendor={{ row.vendor.pk }}" class="vlx-iconbtn" title="Re-score"><i class="fas fa-star"></i></a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-ranking-star"></i></div>
+            <h3>No vendors scored yet</h3>
+            <p>{% if query %}No scored vendors match your search.{% else %}Score your first vendor to start building the ranking.{% endif %}</p>
+            {% if can_edit and not query %}
+            <a href="{% url 'vendorlink:scorecard_create' %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-star"></i> Score a Vendor</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}

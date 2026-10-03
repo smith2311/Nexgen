@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 3.3 — Commercial Database.
+
+Wireframe
+    breadcrumb / title / [Export]
+    ┌ strip: expiring · expired · total value per currency ─────────┐
+    ┌ toolbar: search · status · currency · source ─────────────────┐
+    ┌ table: vendor · source · currency · cost lines · validity ────┐
+
+Reuses commercial.filtered_cards, so this screen and the original cannot
+disagree about which rows match a filter — and it inherits the rate-card /
+RFI-bid merge that lives there.
+
+Contract value is totalled per currency and never across, the same rule the
+Tier 2 dashboard follows.
+
+States: empty first-time, empty filtered, permission (export is viewer-safe).
+{% endcomment %}
+
+{% block title %}Commercial Database — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">Commercial Database</span>
+            </nav>
+            <h1 class="vl-title">Commercial Database</h1>
+            <p class="vl-subtitle">Negotiated rate cards and the bids quoted against your RFIs.</p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn" href="{% url 'vendorlink:commercial_export' %}?q={{ query|urlencode }}&amp;status={{ status|urlencode }}&amp;currency={{ currency|urlencode }}&amp;source={{ source|urlencode }}">Export</a>
+            {% if can_edit %}
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:commercial_create' %}">Add rate card</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vl-kpis" style="margin-bottom:var(--vl-4);">
+        <a class="vl-kpi" href="?status=expiring" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Expiring soon</div>
+            <div class="vl-kpi__value">{{ expiring }}</div>
+            <div class="vl-kpi__delta">within {{ warning_days }} days</div>
+        </a>
+        <a class="vl-kpi" href="?status=expired" style="text-decoration:none;color:inherit;">
+            <div class="vl-kpi__label">Expired</div>
+            <div class="vl-kpi__value">{{ expired }}</div>
+        </a>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Entries</div>
+            <div class="vl-kpi__value">{{ total }}</div>
+        </div>
+        {% for cur, value in value_by_currency %}
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Total value · {{ cur }}</div>
+            <div class="vl-kpi__value">{{ value|floatformat:0 }}</div>
+            {% comment %}One tile per currency rather than one combined
+            figure — adding INR to EUR would produce a number that is not
+            money in any currency.{% endcomment %}
+            <div class="vl-kpi__delta">not summed across currencies</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="get" class="vl-filterbar">
+        <span class="vl-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="vl-input" type="text" name="q" value="{{ query }}" placeholder="Vendor, country, RFI subject…">
+        </span>
+        <select class="vl-select" name="status">
+            <option value="">Any status</option>
+            <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+            <option value="expiring" {% if status == "expiring" %}selected{% endif %}>Expiring soon</option>
+            <option value="expired" {% if status == "expired" %}selected{% endif %}>Expired</option>
+            <option value="unset" {% if status == "unset" %}selected{% endif %}>No validity set</option>
+        </select>
+        <select class="vl-select" name="currency">
+            <option value="">Any currency</option>
+            {% for c in currencies %}<option value="{{ c }}" {% if c == currency %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+        <select class="vl-select" name="source">
+            <option value="">Cards and bids</option>
+            <option value="cards" {% if source == "cards" %}selected{% endif %}>Rate cards</option>
+            <option value="bids" {% if source == "bids" %}selected{% endif %}>RFI bids</option>
+        </select>
+        <button class="vl-btn vl-btn--primary">Filter</button>
+        {% if filtered %}<a class="vl-btn vl-btn--ghost" href="{% url 'vendorlink:t3_commercial' %}">Clear</a>{% endif %}
+        <span class="vl-meta" style="margin-left:auto;">{{ result_count }} of {{ total }}</span>
+    </form>
+
+    {% if rows %}
+    <div class="vl-tablewrap">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Vendor</th><th>Source</th><th>Cur.</th>
+                    <th class="num">Storage</th><th class="num">Inbound</th><th class="num">Outbound</th>
+                    <th class="num">Pick</th><th class="num">Packing</th>
+                    <th>Validity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>
+                        <a href="{{ r.detail_url }}" style="font-weight:600;color:var(--vl-ink);text-decoration:none;">{{ r.vendor_name }}</a>
+                        <div class="vl-meta">{{ r.country|default:"—" }}</div>
+                    </td>
+                    <td>
+                        {% if r.is_card %}<span class="vl-chip vl-chip--submitted">Rate card</span>
+                        {% else %}<span class="vl-chip vl-chip--shortlisted">RFI bid</span>
+                        <div class="vl-meta">{{ r.source_detail|truncatechars:30 }}</div>{% endif %}
+                    </td>
+                    <td class="vl-mono">{{ r.currency }}</td>
+                    <td class="num">{{ r.obj.storage_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ r.obj.inbound_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ r.obj.outbound_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ r.obj.pick_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ r.obj.packing_cost|default_if_none:"—" }}</td>
+                    <td>
+                        {% if r.expiry_state == "expired" %}<span class="vl-chip vl-chip--expired">Expired</span>
+                        {% elif r.expiry_state == "soon" %}<span class="vl-chip vl-chip--expiring-soon">{{ r.days_to_expiry }}d left</span>
+                        {% elif r.expiry_state == "ok" %}<span class="vl-chip vl-chip--approved">{{ r.expiry_date|date:"d M y" }}</span>
+                        {% else %}<span class="vl-chip vl-chip--pending">{% if r.is_bid %}No validity{% else %}Not set{% endif %}</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif filtered %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">Nothing matches those filters</div>
+        <div class="vl-empty__hint">{{ total }} entr{{ total|pluralize:"y,ies" }} in the database overall.</div>
+        <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:t3_commercial' %}">Clear filters</a></div>
+    </div></div>
+    {% else %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No commercial data yet</div>
+        <div class="vl-empty__hint">Add a rate card, or raise an RFI and let vendors quote — both land here.</div>
+        {% if can_edit %}
+        <div class="vl-empty__cta"><a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:commercial_create' %}">Add rate card</a></div>
+        {% endif %}
+    </div></div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

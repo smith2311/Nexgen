@@ -1,0 +1,738 @@
+{% comment %}
+Bid Analytics' KPI strip, filter form and main two-panel section (RFI
+comparisons + price-premium heatmap) — extracted byte-for-byte from
+bid_analytics.html so both that page and the Commercial Database's
+'Bid Analytics' tab render the identical markup from one source.
+
+Needs: data, grouped_data, continent, country, month, year, all_countries,
+continent_choices, continent_country_map, years,
+months, total_bids_count, active_requests_count, vendor_count,
+evaluated_count, heat, is_vm_admin, ba_clear_url (where 'Clear filters'
+should point — the two callers have different base URLs).
+{% endcomment %}
+<div class="vlx-ba-kpis">
+    <div class="vlx-ba-kpi">
+        <span>Requests</span>
+        <strong>{{ data|length }}</strong>
+        <small><i class="fas fa-file-contract"></i> in this view</small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Bids</span>
+        <strong>{{ total_bids_count }}</strong>
+        <small class="good"><i class="fas fa-gavel"></i> quotes sent</small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Open RFIs</span>
+        <strong>{{ active_requests_count }}</strong>
+        <small><i class="fas fa-door-open"></i> still open</small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Vendors</span>
+        <strong>{{ vendor_count }}</strong>
+        <small><i class="fas fa-building"></i> took part</small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>AI checks</span>
+        <strong>{{ evaluated_count }}</strong>
+        <small class="good"><i class="fas fa-robot"></i> done</small>
+    </div>
+</div>
+
+<!-- filter bar -->
+<form method="get" class="vlx-cd-filters">
+    <div class="vlx-cd-fgroup" style="flex:1 1 220px;">
+        <label for="cd-q">Search</label>
+        <input type="text" id="cd-q" name="q" class="vlx-select" value="{{ q }}"
+               placeholder="Subject or reference number, e.g. RFI-2026-000012">
+    </div>
+    <div class="vlx-cd-fgroup">
+        <label for="cd-continent">Continent</label>
+        <select id="cd-continent" name="continent" class="vlx-select" data-vl-continent="country">
+            {% for code, name in continent_choices %}
+            <option value="{{ code }}" {% if code == continent %}selected{% endif %}>{% if code %}{{ name }}{% else %}All continents{% endif %}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="vlx-cd-fgroup">
+        <label for="cd-country">Country</label>
+        <select id="cd-country" name="country" class="vlx-select" data-vl-country="1">
+            <option value="">All countries</option>
+            {% for c in all_countries %}
+            <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="vlx-cd-fgroup">
+        <label for="cd-month">Month</label>
+        <select id="cd-month" name="month" class="vlx-select">
+            <option value="">All months</option>
+            {% for num, name in months %}
+            <option value="{{ num }}" {% if month == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="vlx-cd-fgroup">
+        <label for="cd-year">Year</label>
+        <select id="cd-year" name="year" class="vlx-select">
+            <option value="">All years</option>
+            {% for y in years %}
+            <option value="{{ y }}" {% if year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-filter"></i> Apply</button>
+    {% if continent or country or month or year or q %}
+    <a href="{{ ba_clear_url }}" class="vlx-btn vlx-btn--outline vlx-btn--sm"><i class="fas fa-xmark"></i> Clear</a>
+    {% endif %}
+</form>
+
+<div class="vlx-report-builder">
+    <div>
+        <div class="vlx-report-builder__title">Report builder</div>
+        <div class="vlx-report-builder__hint">Tick RFIs for a bulk report, or use a created-date range.</div>
+    </div>
+    <label>
+        <span>From</span>
+        <input type="date" id="vlxReportFrom">
+    </label>
+    <label>
+        <span>To</span>
+        <input type="date" id="vlxReportTo">
+    </label>
+    <button type="button" class="vlx-btn vlx-btn--accent vlx-btn--sm" id="vlxBuildReport">
+        <i class="fas fa-wand-magic-sparkles"></i> Generate Report
+    </button>
+</div>
+
+<div class="vlx-ba-main">
+    <section class="vlx-ba-panel vlx-ba-panel--requests">
+        <div class="vlx-ba-panel-head">
+            <div>
+                <h2>Open requests</h2>
+                <p>Recent requests and the bids on them.</p>
+            </div>
+        </div>
+
+<!-- requests, grouped by date -->
+{% if grouped_data %}
+{% for group in grouped_data %}
+<div class="vlx-date-group">
+    <button type="button" class="vlx-date-grouphead" onclick="cdToggleDateGroup({{ forloop.counter }})">
+        <i class="fas fa-chevron-down vlx-date-chevron {% if group.expanded %}open{% endif %}" id="cdchev-{{ forloop.counter }}"></i>
+        <span class="vlx-date-label {% if group.is_today %}vlx-date-today{% endif %}">
+            {% if group.is_today %}
+                <i class="fas fa-circle-dot" style="font-size:8px;vertical-align:middle;margin-right:4px;color:var(--vlx-secondary);"></i>Today &mdash; {{ group.date|date:"d M Y" }}
+            {% else %}
+                {{ group.date|date:"l, d M Y" }}
+            {% endif %}
+        </span>
+        <span class="vlx-date-badge"><i class="fas fa-file-contract"></i> {{ group.count }} request{{ group.count|pluralize }}</span>
+    </button>
+
+    <div class="vlx-date-groupbody {% if not group.expanded %}collapsed{% endif %}" id="cdgroup-{{ forloop.counter }}">
+    {% for item in group.items %}{% with vr=item.request eval=item.evaluation award=item.award %}
+
+    <div class="vlx-cd-card" id="cdcard-{{ vr.pk }}">
+
+        <!-- card header (click to expand/collapse this request's bids) -->
+        <div class="vlx-cd-card-head" role="button" tabindex="0"
+             aria-expanded="false" aria-controls="cdbody-{{ vr.pk }}"
+             onclick="cdToggleCard({{ vr.pk }})"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cdToggleCard({{ vr.pk }});}">
+            <label class="vlx-report-pick" onclick="event.stopPropagation();" title="Include this RFI in the bulk report">
+                <input type="checkbox" value="{{ vr.pk }}" aria-label="Select {{ vr.subject }} for bulk report">
+            </label>
+            <i class="fas fa-chevron-down vlx-cd-card-chevron"></i>
+            <div style="flex:1;min-width:0;">
+                <div class="vlx-cd-req-name">
+                    <i class="fas fa-file-contract" style="opacity:.75;"></i>{{ vr.subject }}
+                    {% if vr.reference_id %}<button type="button" class="vlx-refcopy" data-ref="{{ vr.reference_id }}" title="Copy {{ vr.reference_id }}" style="margin-left:6px;"><span class="vlx-mono" style="font-size:11px;font-weight:400;">{{ vr.reference_id }}</span><i class="fas fa-copy" aria-hidden="true"></i><span class="sr-only">Copy reference number</span></button>{% endif %}
+                </div>
+                <div class="vlx-cd-req-meta">
+                    <span class="vlx-cd-meta-item"><i class="fas fa-earth-asia"></i>{{ vr.country }}</span>
+                    <span class="vlx-cd-meta-item"><i class="fas fa-clock"></i>{{ vr.created_at|date:"H:i" }}</span>
+                    <span class="vlx-cd-meta-item"><i class="fas fa-gavel"></i>{{ item.total_bids }} bid{{ item.total_bids|pluralize }}</span>
+                    <span class="vlx-cd-meta-item">
+                        {% if vr.bid_window_status == "open" %}<span class="vlx-pill vlx-pill--yes"><i class="fas fa-door-open"></i> Bid Open</span>
+                        {% elif vr.bid_window_status == "closed" %}<span class="vlx-pill vlx-pill--danger"><i class="fas fa-lock"></i> Closed</span>
+                        {% else %}<span class="vlx-pill vlx-pill--warning"><i class="fas fa-clock"></i> Not Started</span>{% endif %}
+                    </span>
+                    {% if not vr.nominations_open %}
+                    <span class="vlx-cd-meta-item">
+                        <span class="vlx-pill vlx-pill--danger" title="Closed by {{ vr.nomination_closed_by.get_full_name|default:vr.nomination_closed_by.username }} on {{ vr.nomination_closed_at|date:'d M Y' }}">
+                            <i class="fas fa-lock"></i> Nominations Closed
+                        </span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="vlx-cd-head-btns" onclick="event.stopPropagation()">
+                <a href="{% url 'vendorlink:request_detail' vr.pk %}" class="vlx-cd-btn-view"><i class="fas fa-eye"></i> View</a>
+                {% comment %}This RFI's own graphical report: cheapest against awarded,
+                cost-line composition, and the award trail. Server-computed --
+                see vendorlink/reports.py.{% endcomment %}
+                <a href="{% url 'vendorlink:report_request' vr.pk %}?ai=1" class="vlx-cd-btn-view" data-ai-loader="Generating the AI report…"><i class="fas fa-chart-simple"></i> Report</a>
+                {% comment %}The side-by-side comparison, and from there each bid's own
+                page with the full award trail. bid_detail had no route from the main
+                path at all before this.{% endcomment %}
+                <a href="{% url 'vendorlink:bid_heatmap' vr.pk %}" class="vlx-cd-btn-view"><i class="fas fa-table-cells"></i> Compare</a>
+                {% if item.can_manage_award %}
+                {% comment %}
+                Nominations, not the bid window: this is the request-level "we are
+                done considering new vendors" switch (vendorlink/awards.py
+                close_nominations/reopen_nominations), independent of whether the
+                bid submission window is still open. `next` returns to this same
+                filtered view.
+
+                Gated on THIS request's own can_manage_award, not the page-wide
+                is_vm_admin: the person who raised this particular RFI may close
+                its nominations even without admin group membership. See
+                rbac.can_manage_award.
+                {% endcomment %}
+                {% if vr.nominations_open %}
+                <form method="post" action="{% url 'vendorlink:close_nominations' vr.pk %}" style="display:inline;margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="vlx-cd-btn-view"
+                            data-confirm="Close nominations for {{ vr.subject }}? No new vendor can be awarded until this is reopened."
+                            data-confirm-action="Close nominations">
+                        <i class="fas fa-lock"></i> Close Nominations
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'vendorlink:reopen_nominations' vr.pk %}" style="display:inline;margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="vlx-cd-btn-view"
+                            title="Closed by {{ vr.nomination_closed_by.get_full_name|default:vr.nomination_closed_by.username }} on {{ vr.nomination_closed_at|date:'d M Y' }}">
+                        <i class="fas fa-lock-open"></i> Reopen Nominations
+                    </button>
+                </form>
+                {% endif %}
+                {% endif %}
+                {% if is_vm_admin %}
+                {% comment %}
+                The busy state is applied on the form's submit event, NOT in the
+                button's own onclick. Submitting a form is the button's
+                activation behaviour, which runs *after* click handlers — so
+                setting this.disabled=true in onclick left a disabled submitter
+                and the browser then skipped the submission entirely. The click
+                appeared to work (spinner and all) and no POST was ever sent.
+                {% endcomment %}
+                <form method="post" action="{% url 'vendorlink:request_evaluate' vr.pk %}"
+                      class="vlx-eval-form" style="display:inline;margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="vlx-cd-btn-ai">
+                        <i class="fas fa-robot"></i>
+                        {% if eval and eval.status == "processing" %}Evaluating…{% else %}AI Evaluate{% endif %}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="vlx-cd-card-body collapsed" id="cdbody-{{ vr.pk }}">
+        <!-- vendor rows -->
+        {% for vg in item.vendor_groups %}
+        {% with vgn=forloop.counter %}
+        <div class="vlx-cd-vendor-row" id="vr{{ vr.pk }}-{{ vgn }}">
+            <button type="button" class="vlx-cd-vrow-btn"
+                    aria-expanded="false" aria-controls="vr{{ vr.pk }}-{{ vgn }}-detail"
+                    onclick="cdToggle('vr{{ vr.pk }}-{{ vgn }}')">
+
+                <div class="vlx-rank-medal {% if vgn == 1 %}r1{% elif vgn == 2 %}r2{% elif vgn == 3 %}r3{% endif %}">
+                    {{ vgn }}
+                </div>
+
+                <div style="flex:1;min-width:0;text-align:left;">
+                    <div class="vlx-cd-vname">
+                    {{ vg.vendor_name }}
+                    {% comment %}Award state on the collapsed row, so "who did we go
+                    with?" is answerable without expanding four vendors. Flagged
+                    server-side in _bid_analytics_row -- the template cannot work out
+                    vendor identity on its own.{% endcomment %}
+                    {% if vg.is_awarded %}
+                        <span class="vlx-pill vlx-pill--yes"><i class="fas fa-award"></i> Awarded</span>
+                    {% endif %}
+                </div>
+                    <div class="vlx-cd-vsub">
+                        {% if vg.score %}
+                            {% if vg.score.is_blacklisted %}
+                                <span class="vlx-pill vlx-pill--blacklist"><i class="fas fa-ban"></i> Blacklisted</span>
+                            {% else %}
+                                <span class="vlx-stars">
+                                    {% for i in "12345" %}
+                                    <span class="{% if forloop.counter > vg.score.overall_rating %}off{% endif %}">★</span>
+                                    {% endfor %}
+                                </span>
+                                <span class="vlx-cd-score-txt">{{ vg.score.overall_rating }}/5</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="vlx-cd-score-txt" style="font-style:italic;">No score yet</span>
+                        {% endif %}
+                        <span class="vlx-pill vlx-pill--info">{{ vg.bid_count }} bid{{ vg.bid_count|pluralize }}</span>
+                    </div>
+                </div>
+
+                <div class="vlx-cd-cost">
+                    <div class="vlx-cd-cost-amt" id="costamt-vr{{ vr.pk }}-{{ vgn }}"><span class="vlx-cd-cost-cur">{{ vg.best.currency }}</span> {{ vg.best.total_cost|floatformat:2 }}</div>
+                    <div class="vlx-cd-cost-lbl" id="costlbl-vr{{ vr.pk }}-{{ vgn }}">{% if vg.best.is_selected %}Chosen revision{% else %}Lowest revision (auto){% endif %}</div>
+                </div>
+                <i class="fas fa-chevron-right vlx-cd-chev"></i>
+            </button>
+
+            <div class="vlx-cd-detail" id="vr{{ vr.pk }}-{{ vgn }}-detail">
+                <div class="vlx-cd-tbl-wrap">
+                <table class="vlx-cd-tbl">
+                    <thead><tr>
+                        {% if is_vm_admin %}<th class="sel"></th>{% endif %}
+                        <th>Bid #</th><th>Storage</th><th>Inbound</th><th>Outbound</th>
+                        <th>Pick</th><th>Packing</th><th>Last Mile</th><th>Manpower</th>
+                        <th>Total</th><th>Cur.</th><th>Date</th>
+                        {% comment %}
+                        Shown whenever ANYTHING in this cell could be actionable for
+                        this viewer -- is_vm_admin (every row), or this one row's own
+                        can_manage_award (a non-admin viewing their own request among
+                        others they cannot touch). A column that only ever shows text
+                        for a raiser scrolling their own RFI would be a worse miss
+                        than an admin's occasional empty cell on somebody else's.
+                        {% endcomment %}
+                        {% if is_vm_admin or item.can_manage_award %}<th style="white-space:nowrap;">Award</th>{% endif %}
+                    </tr></thead>
+                    <tbody>
+                    {% for bid in vg.bids %}
+                    <tr {% if bid.is_selected %}class="best"{% endif %}>
+                        {% if is_vm_admin %}
+                        <td class="sel">
+                            <input type="radio" name="bidsel-vr{{ vr.pk }}" value="{{ bid.pk }}"
+                                   {% if bid.is_selected %}checked{% endif %}
+                                   data-target="vr{{ vr.pk }}-{{ vgn }}" data-total="{{ bid.total_cost|floatformat:2 }}" data-currency="{{ bid.currency }}"
+                                   onchange="cdSelectBid(this)" title="Use this revision for comparing {{ vg.vendor_name }}">
+                        </td>
+                        {% endif %}
+                        <td><strong>Revision {{ bid.bid_number }}</strong>{% if bid.is_selected %}<span class="vlx-best-chip">Chosen</span>{% endif %}</td>
+                        <td>{{ bid.storage_cost|default:"—" }}</td>
+                        <td>{{ bid.inbound_cost|default:"—" }}</td>
+                        <td>{{ bid.outbound_cost|default:"—" }}</td>
+                        <td>{{ bid.pick_cost|default:"—" }}</td>
+                        <td>{{ bid.packing_cost|default:"—" }}</td>
+                        <td>{{ bid.last_mile_charges|default:"—" }}</td>
+                        <td>{{ bid.manpower_charges|default:"—" }}</td>
+                        <td class="tot">{{ bid.total_cost|floatformat:2 }}</td>
+                        <td><span class="vlx-cur-tag">{{ bid.currency }}</span></td>
+                        <td style="color:var(--vlx-ink-300);font-size:11px;white-space:nowrap;">{{ bid.submitted_at|date:"d M Y" }}</td>
+                        {% if is_vm_admin or item.can_manage_award %}
+                        {% comment %}
+                        Awarding is a separate act from the Select radio in the first
+                        column. That radio writes VendorBid.is_selected, which is
+                        scoped per vendor -- several vendors on one RFI can each carry
+                        a selected bid -- so hanging an outward-facing mail off it
+                        would notify everyone whose radio was clicked during a
+                        comparison. See vendorlink/awards.py.
+
+                        `next` brings the buyer back to this screen instead of
+                        dropping them on the bid detail page mid-comparison; it is
+                        validated against this host in awards._back_to.
+
+                        The buttons themselves are gated on item.can_manage_award,
+                        one notch tighter than the cell itself: an admin viewing a
+                        request they did not raise still SEES this column (the th
+                        above is is_vm_admin-or-can_manage_award), but the specific
+                        buttons below are can_manage_award, which is already true
+                        for every admin -- so this only ever narrows anything for a
+                        raiser who is not one, on somebody else's row. There is no
+                        such row today (rbac.can_manage_award admits admins
+                        unconditionally), but the check costs nothing and keeps the
+                        two screens' rules identical rather than bid_detail.html
+                        being the one place a raiser's reach is actually enforced.
+                        {% endcomment %}
+                        <td class="vlx-cd-awardcell">
+                            {% if award and award.bid_id == bid.pk %}
+                                <span class="vlx-pill vlx-pill--yes"><i class="fas fa-check"></i> Awarded</span>
+                                {% if item.can_manage_award %}
+                                    <form method="post" action="{% url 'vendorlink:award_withdraw' award.pk %}" style="display:inline;margin:0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="vlx-cd-btn-award vlx-cd-btn-award--danger"
+                                                data-confirm="Withdraw the award from {{ award.vendor_name }}? They will be emailed a short notice."
+                                                data-confirm-action="Withdraw award" data-confirm-tone="danger">
+                                            Withdraw
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'vendorlink:award_create' bid.pk %}" style="display:inline;margin:0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="vlx-cd-btn-award vlx-cd-btn-award--secondary"
+                                                title="Send the notice mail to {{ award.vendor_name }} again">
+                                            Re-send
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            {% elif award %}
+                                {% comment %}
+                                Spoken for by someone else -- shown alongside the
+                                Award button below rather than instead of it. There
+                                is no more DECLINED state to fall through on: the
+                                requester can always replace the current award, and
+                                the displaced vendor is told through the regret
+                                letter fired from the same award_create call.
+                                {% endcomment %}
+                                <span style="color:var(--vlx-ink-300);font-size:11px;">currently: {{ award.vendor_name|truncatechars:18 }}</span>
+                                {% if item.can_manage_award %}
+                                    {% if not vr.nominations_open %}
+                                        <span style="color:var(--vlx-ink-300);font-size:11px;" title="Nominations closed">
+                                            <i class="fas fa-lock"></i> closed
+                                        </span>
+                                    {% else %}
+                                        <form method="post" action="{% url 'vendorlink:award_create' bid.pk %}" style="display:inline;margin:0;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="vlx-cd-btn-award"
+                                                    data-confirm="Award this RFI to {{ vg.vendor_name }} (bid #{{ bid.bid_number }}) instead of {{ award.vendor_name }}? Both will be emailed -- {{ vg.vendor_name }} the award notice, {{ award.vendor_name }} a regret letter."
+                                                    data-confirm-action="Award &amp; notify">
+                                                <i class="fas fa-award"></i> Award instead
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            {% elif not item.can_manage_award %}
+                                {% comment %}Nothing awarded, and this viewer cannot
+                                award it -- an admin looking at a request that is not
+                                theirs. Nothing to show; the column stays for the
+                                requests in this same table they CAN act on.{% endcomment %}
+                            {% elif not vr.nominations_open %}
+                                {% comment %}
+                                No new nomination once nominations are closed -- see
+                                the same check in awards.award_create. Independent of
+                                the bid submission window: that governs whether a
+                                vendor can still send in a quote, this governs whether
+                                staff can still act on the quotes already in hand.
+                                Shown as plain text rather than a disabled button, so
+                                it reads as a fact about the request rather than a
+                                control waiting to be unlocked.
+                                {% endcomment %}
+                                <span style="color:var(--vlx-ink-300);font-size:11px;" title="Nominations closed {{ vr.nomination_closed_at|date:'d M Y' }}">
+                                    <i class="fas fa-lock"></i> Nominations closed
+                                </span>
+                            {% else %}
+                                <form method="post" action="{% url 'vendorlink:award_create' bid.pk %}" style="display:inline;margin:0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="vlx-cd-btn-award"
+                                            data-confirm="Award this RFI to {{ vg.vendor_name }} (bid #{{ bid.bid_number }})? They will be emailed a notice."
+                                            data-confirm-action="Award &amp; notify">
+                                        <i class="fas fa-award"></i> Award &amp; notify
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% if vg.score and vg.score.notes %}
+                <div class="vlx-cd-notes"><strong><i class="fas fa-note-sticky"></i> Notes:</strong> {{ vg.score.notes }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+
+        <!-- AI evaluation panel -->
+        {% if eval %}
+        <div class="vlx-cd-eval" id="eval-{{ vr.pk }}">
+            <div class="vlx-cd-eval-head">
+                <div class="vlx-cd-eval-title">
+                    <i class="fas fa-robot"></i> AI Bid Evaluator
+                    {% if eval.status == "processing" or eval.status == "pending" %}
+                        <span class="vlx-spin vlx-spin-w"></span>
+                    {% elif eval.status == "completed" %}
+                        <i class="fas fa-circle-check" style="color:#4ade80;"></i>
+                    {% elif eval.status == "failed" %}
+                        <i class="fas fa-triangle-exclamation" style="color:#f87171;"></i>
+                    {% endif %}
+                </div>
+                {% comment %}
+                Completion time as well as trigger time. With only "Triggered"
+                on show there was nothing to tell a result that had just been
+                produced from one sitting there since last month - the reason a
+                finished evaluation could still read as "nothing happened".
+                {% endcomment %}
+                <div class="vlx-cd-eval-meta">
+                    Triggered {{ eval.triggered_at|date:"d M Y, H:i" }}{% if eval.triggered_by %} · {{ eval.triggered_by.get_full_name|default:eval.triggered_by.username }}{% endif %}{% if eval.status == "completed" and eval.completed_at %} · finished {{ eval.completed_at|date:"d M Y, H:i" }}{% endif %}
+                </div>
+            </div>
+            <div class="vlx-cd-eval-body">
+                {% if eval.status == "processing" or eval.status == "pending" %}
+                    {% comment %}
+                    The robot loader rather than the 13px spinner: this call
+                    runs for several seconds and the panel is the only place
+                    that says so.
+                    {% endcomment %}
+                    {% include "vendorlink/_ai_loader.html" with variant="inline" message="Evaluation in progress…" %}
+                    <script>
+                    (function(){
+                        var iv=setInterval(function(){
+                            fetch("{% url 'vendorlink:api_evaluation_status' vr.pk %}")
+                            .then(function(r){return r.json();})
+                            .then(function(d){if(d.status==="completed"||d.status==="failed"){clearInterval(iv);location.reload();}})
+                            .catch(function(){clearInterval(iv);});
+                        },4000);
+                    })();
+                    </script>
+                {% elif eval.status == "completed" %}
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                        <span class="vlx-ev-completed"><i class="fas fa-circle-check"></i> Complete</span>
+                        {% if eval.recommended_vendor_name %}
+                        <span style="font-size:13px;color:var(--vlx-on-surface);">
+                            Recommended: <strong>{{ eval.recommended_vendor_name }}</strong>
+                            <span class="vlx-ev-rec">✓ AI Pick</span>
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if eval.reasoning %}<div class="vlx-ev-reasoning"><strong>Reasoning:</strong> {{ eval.reasoning }}</div>{% endif %}
+
+                    {% if eval.required_services %}
+                    <div class="vlx-ev-reqsvc">
+                        <span class="vlx-ev-reqsvc-lbl"><i class="fas fa-list-check"></i> Services this request requires:</span>
+                        {% for svc in eval.required_services %}<span class="vlx-ev-svc-chip">{{ svc }}</span>{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if eval.decision_points %}
+                    <div class="vlx-ev-points">
+                        <div class="vlx-ev-points-head">
+                            <i class="fas fa-circle-check"></i>
+                            Why {{ eval.recommended_vendor_name|default:"this vendor" }} for this request
+                        </div>
+                        <ul class="vlx-ev-points-list">
+                            {% for pt in eval.decision_points %}<li>{{ pt }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if eval.ranked_vendors %}
+                    <div style="font-size:12px;font-weight:700;color:var(--vlx-primary-container);margin:8px 0 5px;"><i class="fas fa-ranking-star"></i> Vendor Ranking</div>
+                    <ul class="vlx-ev-ranks">
+                    {% for rv in eval.ranked_vendors %}
+                    <li class="vlx-ev-rank-item {% if forloop.first %}top{% endif %}">
+                        <div class="vlx-ev-rnum">{{ forloop.counter }}</div>
+                        <div style="flex:1;">
+                            <div class="vlx-ev-rname">
+                                {{ rv.name }}
+                                {% if forloop.first %}<span class="vlx-ev-rec">✓ Recommended</span>{% endif %}
+                                {% if rv.eligible %}
+                                    <span class="vlx-ev-elig ok"><i class="fas fa-check"></i> Eligible</span>
+                                {% else %}
+                                    <span class="vlx-ev-elig bad"><i class="fas fa-ban"></i> Not eligible</span>
+                                {% endif %}
+                            </div>
+                            {% comment %}
+                            floatformat:"-2" — the model returns a JSON number,
+                            so a whole amount arrived as "34200.0". The negative
+                            precision keeps up to two decimals when they carry
+                            meaning (240.96) and drops them when they do not.
+                            {% endcomment %}
+                            {% if rv.total_bid %}<div class="vlx-ev-rcost">Best bid: {{ rv.currency|default:"" }} {{ rv.total_bid|floatformat:"-2" }}</div>{% endif %}
+                            {% if rv.reasoning %}<div class="vlx-ev-rwhy">{{ rv.reasoning }}</div>{% endif %}
+                            {% if rv.points %}
+                            <ul class="vlx-ev-rpoints">
+                                {% for pt in rv.points %}<li>{{ pt }}</li>{% endfor %}
+                            </ul>
+                            {% endif %}
+                            {% if rv.missing_services %}
+                            <div class="vlx-ev-missing">
+                                <i class="fas fa-triangle-exclamation"></i> Missing:
+                                {% for m in rv.missing_services %}<span class="vlx-ev-miss-chip">{{ m }}</span>{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                    </ul>
+                    {% endif %}
+                {% elif eval.status == "failed" %}
+                    <p class="vlx-ev-failed"><i class="fas fa-triangle-exclamation"></i> Evaluation failed{% if eval.error_message %}: {{ eval.error_message }}{% endif %}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        </div>
+    </div>
+    {% endwith %}{% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="vlx-empty" style="background:var(--vlx-surface);border:1px solid var(--vlx-divider);border-radius:var(--vlx-r-lg);">
+    <div class="vlx-empty__icon"><i class="fas fa-gavel"></i></div>
+    <h3>No bids found</h3>
+    <p>{% if country or month or year %}No bids match these filters.{% else %}Bids appear here once vendors respond to a request.{% endif %}</p>
+    {% if country or month or year %}
+    <a href="{{ ba_clear_url }}" class="vlx-btn vlx-btn--primary" style="margin-top:12px;">
+        <i class="fas fa-xmark"></i> Clear filters
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+    </section>
+
+    {% if heat.has_data %}
+    <aside class="vlx-ba-panel vlx-ba-panel--heat">
+        <div class="vlx-ba-panel-head">
+            <div>
+                <h2>How much more than the cheapest</h2>
+                <p>Each cell shows how much more a vendor cost than the lowest quote.</p>
+            </div>
+        </div>
+
+        {% comment %}
+        Headline figures, computed in quoteheatmap so the template does no
+        arithmetic. The median covers losing bids only -- with the winners'
+        zeros in it, it stops answering "when you are not cheapest, by how much
+        do you normally miss?".
+        {% endcomment %}
+        <div class="vlx-qh-metrics">
+            <div class="vlx-qh-metric">
+                <span class="vlx-qh-metric__label">Vendors</span>
+                <strong class="vlx-qh-metric__value">{{ heat.vendor_count }}</strong>
+                <span class="vlx-qh-metric__hint">Across {{ heat.country_count }} countr{{ heat.country_count|pluralize:"y,ies" }}</span>
+            </div>
+            <div class="vlx-qh-metric">
+                <span class="vlx-qh-metric__label">RFIs compared</span>
+                <strong class="vlx-qh-metric__value">{{ heat.column_count }}</strong>
+                <span class="vlx-qh-metric__hint">{{ heat.currencies|join:" · " }}</span>
+            </div>
+            <div class="vlx-qh-metric">
+                <span class="vlx-qh-metric__label">Winners</span>
+                <strong class="vlx-qh-metric__value">{{ heat.winner_count }}</strong>
+                <span class="vlx-qh-metric__hint">One per RFI column</span>
+            </div>
+            <div class="vlx-qh-metric">
+                <span class="vlx-qh-metric__label">Typical extra cost</span>
+                <strong class="vlx-qh-metric__value">{% if heat.median_premium is None %}&mdash;{% else %}{{ heat.median_premium }}%{% endif %}</strong>
+                <span class="vlx-qh-metric__hint">Across non-winning bids</span>
+            </div>
+        </div>
+
+        <div class="vlx-qh-tools">
+            {% comment %}
+            The scale legend is the condition attached to shipping a heat ramp:
+            the colour only means something next to its key. Winner is listed
+            separately because it is a status, not the lightest ramp step.
+            {% endcomment %}
+            <div class="vlx-qh-legend">
+                <span class="vlx-qh-key"><span class="vlx-qh-swatch" style="background:#DCFCE7;border:1px solid #15803D;"></span>Winner</span>
+                {% for step in heat.steps %}
+                <span class="vlx-qh-key"><span class="vlx-qh-swatch" style="background:{{ step.bg }};"></span>{{ step.label }}</span>
+                {% endfor %}
+                <span class="vlx-qh-key"><span class="vlx-qh-swatch none"></span>No bid</span>
+            </div>
+            <div class="vlx-qh-tools__right">
+                <label class="vlx-qh-sortwrap">
+                    <span class="sr-only">Sort vendors</span>
+                    <select class="vlx-select vlx-qh-sort" id="vlxHeatSort" aria-label="Sort vendors">
+                        <option value="original">Sort: most bids</option>
+                        <option value="avg-asc">Avg premium &uarr; best first</option>
+                        <option value="avg-desc">Avg premium &darr; worst first</option>
+                        <option value="wins">Most wins first</option>
+                        <option value="name">Vendor name A&ndash;Z</option>
+                    </select>
+                </label>
+                <label class="vlx-qh-sizewrap">
+                    <span>Size</span>
+                    <input type="range" id="vlxHeatSize" min="28" max="58" value="34">
+                </label>
+                <button type="button" class="vlx-btn vlx-btn--outline vlx-btn--sm" id="vlxHeatDownload">
+                    <i class="fas fa-image"></i> Image
+                </button>
+                {% comment %}
+                The same matrix as data. The image is for pasting into a deck;
+                this is for pivoting and re-plotting. request.GET is carried
+                through so the workbook covers exactly the filtered set on
+                screen rather than everything.
+                {% endcomment %}
+                <a class="vlx-btn vlx-btn--outline vlx-btn--sm"
+                   href="{% url 'vendorlink:quote_heatmap_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
+            </div>
+        </div>
+
+        <div class="vlx-qh-wrap" id="vlxHeatBox">
+            {% comment %}
+            Past six RFIs, horizontal subjects push the table wider than the
+            screen and the matrix stops being scannable in one look -- that is
+            where the rotated headers earn their vertical cost. Below it, they
+            just make four short labels unreadable. See .vlx-qh-col.
+            {% endcomment %}
+            <table class="vlx-qh{% if heat.column_count > 6 %} vlx-qh--rotated{% endif %}" id="vlxQuoteHeatmap">
+                <caption class="sr-only">
+                    Vendor price premium by RFI. Each cell is the percentage above the cheapest bid for that RFI in that currency.
+                </caption>
+                <thead>
+                    <tr>
+                        <th scope="col" class="vlx-qh-vendor">Vendor</th>
+                        {% for col in heat.columns %}
+                        <th scope="col" class="vlx-qh-col"
+                            title="{{ col.subject }}{% if col.country %} — {{ col.country }}{% endif %} · {{ col.bidders }} bidders · cheapest {{ col.currency }} {{ col.cheapest|floatformat:0 }}">
+                            <span>
+                                <span class="vlx-qh-cur">{{ col.currency }}</span>
+                                <span class="vlx-qh-subject">{{ col.subject|truncatechars:34 }}</span>
+                            </span>
+                        </th>
+                        {% endfor %}
+                        <th scope="col" class="vlx-qh-sum vlx-qh-sum--first">Bids</th>
+                        <th scope="col" class="vlx-qh-sum">Wins</th>
+                        <th scope="col" class="vlx-qh-sum">Avg %</th>
+                    </tr>
+                </thead>
+                <tbody id="vlxHeatBody">
+                    {% for row in heat.rows %}
+                    {% comment %}
+                    The data-* values are what the sort control reorders on --
+                    it re-stacks these rows rather than refetching, so sorting
+                    cannot change the numbers, only their order.
+                    {% endcomment %}
+                    <tr data-order="{{ forloop.counter0 }}"
+                        data-vendor="{{ row.vendor|lower }}"
+                        data-avg="{{ row.avg_premium|default_if_none:"9999" }}"
+                        data-wins="{{ row.wins }}"
+                        data-bids="{{ row.bids }}">
+                        <th scope="row" class="vlx-qh-vendor" title="{{ row.vendor }}">{{ row.vendor }}</th>
+                        {% for cell in row.cells %}
+                        {% if cell.has_bid %}
+                        <td class="vlx-qh-cell{% if cell.is_best %} best{% endif %}"
+                            style="background:{{ cell.bg }};color:{{ cell.ink }};"
+                            title="{{ row.vendor }} — {{ cell.subject }}&#10;{{ cell.currency }} {{ cell.total|floatformat:0 }}&#10;{% if cell.is_best %}Winner — cheapest bid{% else %}{{ cell.premium_label }} over cheapest ({{ cell.band }}){% endif %}">{{ cell.premium|floatformat:1 }}%</td>
+                        {% else %}
+                        <td class="vlx-qh-cell none"
+                            title="{{ row.vendor }} did not bid on this RFI">&mdash;</td>
+                        {% endif %}
+                        {% endfor %}
+                        <td class="vlx-qh-sum vlx-qh-sum--first">{{ row.bids }}</td>
+                        <td class="vlx-qh-sum{% if row.wins %} vlx-qh-sum--win{% endif %}">{{ row.wins }}</td>
+                        <td class="vlx-qh-sum vlx-qh-avg"
+                            {% if row.avg_bg %}style="background:{{ row.avg_bg }};color:{{ row.avg_ink }};"{% endif %}>{% if row.avg_premium is None %}&mdash;{% else %}{{ row.avg_premium }}%{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="vlx-qh-notes">
+            <h3>How to read this</h3>
+            <ul>
+                <li>0% means the cheapest quote.</li>
+                <li>Higher % means this vendor cost more than the lowest quote.</li>
+                <li>Blank means the vendor did not bid.</li>
+                <li>Only same-currency bids are compared.</li>
+            </ul>
+        </div>
+    </aside>
+    {% endif %}
+</div>

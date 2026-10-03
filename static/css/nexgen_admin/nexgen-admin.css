@@ -1,0 +1,1928 @@
+/* ==========================================================================
+   NexGen Admin — Meril control room theme for django.contrib.admin
+   --------------------------------------------------------------------------
+   Loaded after Django's own base.css, so it re-points Django's CSS custom
+   properties first and then layers bespoke chrome on top.
+
+   Wayfinding idea: every installed app owns one hue (--nx-h). That hue drives
+   the app card spine on the dashboard, the sidebar marker, and the header
+   wash once you are inside the app. The "spectrum seam" under the header
+   shows all hues on the dashboard and collapses to one inside an app.
+   ========================================================================== */
+
+/* ==========================================================================
+   1. TOKENS
+   ========================================================================== */
+
+html[data-theme="light"],
+:root {
+    /* Meril brand */
+    --nx-ink:        #0a1628;
+    --nx-ink-2:      #122340;
+    --nx-ink-3:      #1c3255;
+    --nx-blue:       #0076c8;
+    --nx-cyan:       #00b5e2;
+    --nx-canvas:     #eef4fa;
+    --nx-paper:      #ffffff;
+
+    /* Active app hue — overridden per app in section 2 */
+    --nx-h:          205;
+    --nx-s:          82%;
+    --nx-accent:     hsl(var(--nx-h) var(--nx-s) 42%);
+    --nx-accent-lift: hsl(var(--nx-h) var(--nx-s) 52%);
+    --nx-accent-soft: hsl(var(--nx-h) var(--nx-s) 96%);
+    --nx-accent-line: hsl(var(--nx-h) 60% 86%);
+
+    /* Surfaces */
+    --nx-surface:    #ffffff;
+    --nx-surface-2:  #f6f9fd;
+    --nx-line:       #dde7f2;
+    --nx-line-soft:  #eaf1f8;
+
+    /* Text */
+    --nx-fg:         #0f2033;
+    --nx-fg-2:       #46617e;
+    --nx-fg-3:       #7d94ac;
+
+    /* Status */
+    --nx-ok:         #12a45c;
+    --nx-warn:       #d1810a;
+    --nx-err:        #d83a52;
+    --nx-info:       #0076c8;
+
+    /* Elevation */
+    --nx-sh-1: 0 1px 2px rgba(10, 22, 40, .06);
+    --nx-sh-2: 0 2px 8px rgba(10, 22, 40, .07), 0 1px 2px rgba(10, 22, 40, .05);
+    --nx-sh-3: 0 12px 28px -8px rgba(10, 22, 40, .18), 0 3px 8px rgba(10, 22, 40, .06);
+    --nx-sh-hue: 0 14px 32px -10px hsl(var(--nx-h) 70% 45% / .38);
+
+    /* Geometry & motion */
+    --nx-r-sm: 6px;
+    --nx-r:    10px;
+    --nx-r-lg: 16px;
+    --nx-ease: cubic-bezier(.22, 1, .36, 1);
+    --nx-fast: 140ms var(--nx-ease);
+    --nx-mid:  260ms var(--nx-ease);
+    --nx-slow: 480ms var(--nx-ease);
+
+    /* Type */
+    --nx-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --nx-body:    'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --nx-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+    /* --- Re-point Django's own variables ---------------------------------- */
+    --primary: var(--nx-blue);
+    --secondary: var(--nx-ink-2);
+    --accent: var(--nx-cyan);
+    --primary-fg: #fff;
+
+    --body-fg: var(--nx-fg);
+    --body-bg: var(--nx-canvas);
+    --body-quiet-color: var(--nx-fg-3);
+    --body-medium-color: var(--nx-fg-2);
+    --body-loud-color: #061220;
+
+    --header-color: rgba(255, 255, 255, .72);
+    --header-branding-color: #fff;
+    --header-bg: var(--nx-ink);
+    --header-link-color: #fff;
+
+    --breadcrumbs-fg: var(--nx-fg-2);
+    --breadcrumbs-link-fg: var(--nx-blue);
+    --breadcrumbs-bg: transparent;
+
+    --link-fg: var(--nx-blue);
+    --link-hover-color: #01518b;
+    --link-selected-fg: var(--nx-accent);
+
+    --hairline-color: var(--nx-line-soft);
+    --border-color: var(--nx-line);
+
+    --error-fg: var(--nx-err);
+
+    --message-success-bg: #e7f8ef;
+    --message-warning-bg: #fdf4e3;
+    --message-error-bg: #fdecef;
+
+    --darkened-bg: var(--nx-surface-2);
+    --selected-bg: hsl(var(--nx-h) 70% 96%);
+    --selected-row: hsl(var(--nx-h) 90% 95%);
+
+    --button-fg: #fff;
+    --button-bg: var(--nx-ink-2);
+    --button-hover-bg: var(--nx-ink);
+    --default-button-bg: var(--nx-blue);
+    --default-button-hover-bg: #01609f;
+    --close-button-bg: #64789180;
+    --close-button-hover-bg: var(--nx-fg-2);
+    --delete-button-bg: var(--nx-err);
+    --delete-button-hover-bg: #b62c42;
+
+    --object-tools-fg: #fff;
+    --object-tools-bg: var(--nx-ink-2);
+    --object-tools-hover-bg: var(--nx-ink);
+
+    --font-family-primary: var(--nx-body);
+    --font-family-monospace: var(--nx-mono);
+
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    --nx-canvas:     #070d18;
+    --nx-paper:      #0e1927;
+
+    --nx-surface:    #0e1927;
+    --nx-surface-2:  #131f31;
+    --nx-line:       #22354e;
+    --nx-line-soft:  #1a2941;
+
+    --nx-fg:         #e4edf7;
+    --nx-fg-2:       #9db1c9;
+    --nx-fg-3:       #6c8199;
+
+    --nx-accent:      hsl(var(--nx-h) 78% 62%);
+    --nx-accent-lift: hsl(var(--nx-h) 88% 70%);
+    --nx-accent-soft: hsl(var(--nx-h) 60% 15%);
+    --nx-accent-line: hsl(var(--nx-h) 50% 28%);
+
+    --nx-sh-1: 0 1px 2px rgba(0, 0, 0, .5);
+    --nx-sh-2: 0 2px 10px rgba(0, 0, 0, .45);
+    --nx-sh-3: 0 14px 32px -10px rgba(0, 0, 0, .7);
+    --nx-sh-hue: 0 14px 34px -10px hsl(var(--nx-h) 80% 40% / .5);
+
+    --body-fg: var(--nx-fg);
+    --body-bg: var(--nx-canvas);
+    --body-quiet-color: var(--nx-fg-3);
+    --body-medium-color: var(--nx-fg-2);
+    --body-loud-color: #ffffff;
+
+    --header-bg: #060c16;
+
+    --breadcrumbs-fg: var(--nx-fg-2);
+    --breadcrumbs-link-fg: var(--nx-accent-lift);
+
+    --link-fg: hsl(200 90% 68%);
+    --link-hover-color: hsl(190 95% 76%);
+
+    --hairline-color: var(--nx-line-soft);
+    --border-color: var(--nx-line);
+
+    --message-success-bg: #0d2b1e;
+    --message-warning-bg: #2e2310;
+    --message-error-bg: #2d1219;
+
+    --darkened-bg: var(--nx-surface-2);
+    --selected-bg: hsl(var(--nx-h) 45% 18%);
+    --selected-row: hsl(var(--nx-h) 55% 20%);
+
+    --button-bg: #1c2f49;
+    --button-hover-bg: #26405f;
+    --default-button-bg: var(--nx-blue);
+    --default-button-hover-bg: #1a8ad8;
+    --object-tools-bg: #1c2f49;
+    --object-tools-hover-bg: #26405f;
+
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] {
+        --nx-canvas: #070d18;
+        --nx-paper: #0e1927;
+        --nx-surface: #0e1927;
+        --nx-surface-2: #131f31;
+        --nx-line: #22354e;
+        --nx-line-soft: #1a2941;
+        --nx-fg: #e4edf7;
+        --nx-fg-2: #9db1c9;
+        --nx-fg-3: #6c8199;
+        --nx-accent: hsl(var(--nx-h) 78% 62%);
+        --nx-accent-lift: hsl(var(--nx-h) 88% 70%);
+        --nx-accent-soft: hsl(var(--nx-h) 60% 15%);
+        --nx-accent-line: hsl(var(--nx-h) 50% 28%);
+        --nx-sh-1: 0 1px 2px rgba(0, 0, 0, .5);
+        --nx-sh-2: 0 2px 10px rgba(0, 0, 0, .45);
+        --nx-sh-3: 0 14px 32px -10px rgba(0, 0, 0, .7);
+        --nx-sh-hue: 0 14px 34px -10px hsl(var(--nx-h) 80% 40% / .5);
+        --body-fg: var(--nx-fg);
+        --body-bg: var(--nx-canvas);
+        --body-quiet-color: var(--nx-fg-3);
+        --body-medium-color: var(--nx-fg-2);
+        --body-loud-color: #ffffff;
+        --header-bg: #060c16;
+        --breadcrumbs-fg: var(--nx-fg-2);
+        --breadcrumbs-link-fg: var(--nx-accent-lift);
+        --link-fg: hsl(200 90% 68%);
+        --link-hover-color: hsl(190 95% 76%);
+        --hairline-color: var(--nx-line-soft);
+        --border-color: var(--nx-line);
+        --message-success-bg: #0d2b1e;
+        --message-warning-bg: #2e2310;
+        --message-error-bg: #2d1219;
+        --darkened-bg: var(--nx-surface-2);
+        --selected-bg: hsl(var(--nx-h) 45% 18%);
+        --selected-row: hsl(var(--nx-h) 55% 20%);
+        --button-bg: #1c2f49;
+        --button-hover-bg: #26405f;
+        --default-button-hover-bg: #1a8ad8;
+        --object-tools-bg: #1c2f49;
+        --object-tools-hover-bg: #26405f;
+    }
+}
+
+/* ==========================================================================
+   2. APP HUE MAP
+   One hue per installed app. The class lands on the dashboard card, the
+   sidebar module, and <body> inside the app — so one map serves all three.
+   ========================================================================== */
+
+.app-main                     { --nx-h: 205; }  /* Meril blue  */
+.app-product_scanning         { --nx-h: 190; }  /* cyan        */
+.app-meritrack                { --nx-h: 148; }  /* green       */
+.app-billing_dashboard        { --nx-h: 160; }  /* emerald     */
+.app-ui                       { --nx-h:  92; }  /* lime        */
+.app-material_rework          { --nx-h:  46; }  /* gold        */
+.app-shipment_notifications   { --nx-h:  32; }  /* amber       */
+.app-logistics_performance    { --nx-h:  14; }  /* coral       */
+.app-vat_reconciliation       { --nx-h: 340; }  /* rose        */
+.app-ai_sales_agent_dashboard { --nx-h: 292; }  /* magenta     */
+.app-social_django            { --nx-h: 272; }  /* violet      */
+.app-authtoken                { --nx-h: 252; }  /* indigo      */
+.app-auth                     { --nx-h: 232; }  /* deep indigo */
+.app-warehouse_inspection     { --nx-h: 218; }  /* blue        */
+.app-rs2t                     { --nx-h: 200; }  /* sky         */
+
+/* ==========================================================================
+   3. PAGE FRAME
+   ========================================================================== */
+
+body {
+    font-family: var(--nx-body);
+    font-size: .875rem;
+    line-height: 1.55;
+    background: var(--nx-canvas);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* Soft depth wash behind the whole app. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(60rem 32rem at 8% -6%,  hsl(var(--nx-h) 84% 52% / .10), transparent 62%),
+        radial-gradient(52rem 30rem at 98% 2%,  rgba(0, 181, 226, .10),         transparent 60%);
+    transition: background var(--nx-slow);
+}
+
+h1, h2, h3, h4, .nx-display {
+    font-family: var(--nx-display);
+    letter-spacing: -.018em;
+    color: var(--nx-fg);
+}
+
+#content h1 {
+    font-size: 1.5rem;
+    font-weight: 650;
+    margin: 0 0 1.25rem;
+    padding-bottom: .75rem;
+    position: relative;
+}
+
+#content h1::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 3rem;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--nx-accent), transparent);
+    animation: nx-rule-in var(--nx-slow) both;
+}
+
+/* ==========================================================================
+   4. HEADER + SPECTRUM SEAM
+   ========================================================================== */
+
+#header {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    /* #container is a column flex box. `overflow: hidden` above drops this
+       item's automatic min-height floor, so without an explicit no-shrink the
+       header collapses to a sliver on any page taller than the viewport. */
+    flex: 0 0 auto;
+    padding: .95rem 2rem;
+    background: linear-gradient(115deg, var(--nx-ink) 0%, var(--nx-ink-2) 58%, var(--nx-ink-3) 100%);
+    color: #fff;
+    border-bottom: none;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+/* Ambient aurora, tinted by the active app hue. */
+#header::before {
+    content: "";
+    position: absolute;
+    inset: -60%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(28rem 16rem at 18% 40%, hsl(var(--nx-h) 90% 55% / .40), transparent 60%),
+        radial-gradient(24rem 14rem at 62% 90%, rgba(0, 181, 226, .32),         transparent 62%),
+        radial-gradient(20rem 13rem at 88% 12%, hsl(calc(var(--nx-h) + 40) 85% 58% / .26), transparent 60%);
+    filter: blur(6px);
+    animation: nx-aurora 34s ease-in-out infinite alternate;
+    transition: background var(--nx-slow);
+}
+
+/* The seam: whole spectrum on the dashboard, one hue inside an app. */
+#header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        hsl(var(--nx-h) 85% 52%) 0%,
+        hsl(var(--nx-h) 85% 52%) 60%,
+        hsl(calc(var(--nx-h) + 30) 85% 58%) 100%);
+    transform-origin: left;
+    animation: nx-seam-draw var(--nx-slow) var(--nx-ease) both;
+}
+
+body.dashboard:not(.nx-app-index) #header::after,
+body.login #header::after {
+    background: linear-gradient(90deg,
+        hsl(205 85% 52%), hsl(190 85% 50%), hsl(176 75% 44%), hsl(148 70% 42%),
+        hsl( 92 65% 45%), hsl( 46 90% 52%), hsl( 32 92% 54%), hsl( 14 85% 57%),
+        hsl(340 78% 58%), hsl(292 70% 60%), hsl(252 78% 64%), hsl(218 85% 56%));
+}
+
+#branding {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+}
+
+/* Brand mark: two overlapping arcs in Meril blue/cyan. */
+.nx-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--nx-blue), var(--nx-cyan));
+    box-shadow: 0 4px 14px rgba(0, 145, 210, .45), inset 0 1px 0 rgba(255, 255, 255, .35);
+    animation: nx-mark-in var(--nx-slow) var(--nx-ease) both;
+}
+
+.nx-mark svg { width: 1.15rem; height: 1.15rem; display: block; }
+
+#site-name,
+#branding h1 {
+    margin: 0;
+    font-family: var(--nx-display);
+    font-size: 1.0625rem;
+    font-weight: 650;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+}
+
+#site-name a:link,
+#site-name a:visited {
+    color: #fff;
+    text-decoration: none;
+}
+
+#site-name a:hover { color: #fff; text-decoration: none; }
+
+.nx-brand-sub {
+    display: block;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .5);
+    margin-top: 1px;
+}
+
+/* --- user tools ----------------------------------------------------------- */
+
+#user-tools {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, .68);
+    padding: 0;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+#user-tools strong { color: #fff; font-weight: 600; }
+
+#user-tools a,
+#user-tools #logout-form button {
+    display: inline-flex;
+    align-items: center;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(255, 255, 255, .06);
+    color: rgba(255, 255, 255, .88);
+    font: inherit;
+    line-height: 1.5;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--nx-fast), border-color var(--nx-fast), transform var(--nx-fast), color var(--nx-fast);
+}
+
+#user-tools a:hover,
+#user-tools #logout-form button:hover {
+    background: rgba(255, 255, 255, .16);
+    border-color: rgba(255, 255, 255, .3);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+#user-tools a:focus { text-decoration: none; }
+#user-tools #logout-form { display: inline; margin: 0; padding: 0; }
+
+/* The " / " separators Django hard-codes between links. */
+#user-tools { white-space: nowrap; }
+
+.theme-toggle {
+    border-radius: 999px;
+    padding: .3rem;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(255, 255, 255, .06);
+    transition: background var(--nx-fast), transform var(--nx-fast);
+}
+
+.theme-toggle:hover { background: rgba(255, 255, 255, .18); transform: rotate(-18deg); }
+
+/* --- signed-in user chip --------------------------------------------------- */
+
+.nx-user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .2rem .7rem .2rem .2rem;
+    margin-right: .25rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: rgba(255, 255, 255, .05);
+}
+
+.nx-user-initials {
+    display: grid;
+    place-items: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--nx-blue), var(--nx-cyan));
+    color: #fff;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+}
+
+.nx-user-name {
+    color: #fff;
+    font-weight: 600;
+    font-size: .8125rem;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   5. BREADCRUMBS
+   ========================================================================== */
+
+div.breadcrumbs {
+    background: transparent;
+    color: var(--nx-fg-3);
+    padding: .85rem 2rem .1rem;
+    font-family: var(--nx-mono);
+    font-size: .6875rem;
+    font-weight: 500;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    border: none;
+}
+
+div.breadcrumbs a {
+    color: var(--nx-fg-2);
+    border-bottom: 1px solid transparent;
+    transition: color var(--nx-fast), border-color var(--nx-fast);
+}
+
+div.breadcrumbs a:hover,
+div.breadcrumbs a:focus {
+    color: var(--nx-accent);
+    border-bottom-color: var(--nx-accent);
+    text-decoration: none;
+}
+
+/* ==========================================================================
+   6. SIDEBAR
+   ========================================================================== */
+
+#nav-sidebar {
+    background: var(--nx-surface);
+    border-right: 1px solid var(--nx-line);
+    padding-top: .5rem;
+}
+
+#nav-sidebar .module th,
+#nav-sidebar .module td,
+#nav-sidebar .module caption { background: transparent; }
+
+#nav-sidebar #nav-filter {
+    width: calc(100% - 1.5rem);
+    margin: .75rem;
+    padding: .5rem .75rem;
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-sm);
+    background: var(--nx-surface-2);
+    color: var(--nx-fg);
+    font: 500 .8125rem/1.4 var(--nx-body);
+    transition: border-color var(--nx-fast), box-shadow var(--nx-fast), background var(--nx-fast);
+}
+
+#nav-sidebar #nav-filter:focus {
+    outline: none;
+    background: var(--nx-surface);
+    border-color: var(--nx-blue);
+    box-shadow: 0 0 0 3px rgba(0, 118, 200, .16);
+}
+
+#nav-sidebar #nav-filter.no-results {
+    border-color: var(--nx-err);
+    box-shadow: 0 0 0 3px rgba(216, 58, 82, .14);
+    background: var(--message-error-bg);
+}
+
+#nav-sidebar .module caption,
+#nav-sidebar table caption a.section {
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    background: transparent;
+    padding: .9rem .75rem .3rem 1.55rem;
+    position: relative;
+}
+
+/* Hue dot marking each app in the sidebar. */
+#nav-sidebar .module caption::before {
+    content: "";
+    position: absolute;
+    left: .8rem;
+    top: 50%;
+    margin-top: -1px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--nx-h) 80% 50%);
+    box-shadow: 0 0 0 3px hsl(var(--nx-h) 80% 50% / .18);
+}
+
+/* Django colours the current app's caption with --header-color, which is a
+   near-white meant for the dark header bar — invisible on the light sidebar.
+   Its selector is (1,3,0), so the :link/:visited pair here is needed to win. */
+#nav-sidebar .current-app caption a.section,
+#nav-sidebar .current-app caption a.section:link,
+#nav-sidebar .current-app caption a.section:visited {
+    color: var(--nx-fg);
+    font-weight: 700;
+}
+
+#nav-sidebar th a,
+#nav-sidebar td a {
+    display: block;
+    position: relative;
+    padding: .38rem .75rem .38rem 1.55rem;
+    border-radius: var(--nx-r-sm);
+    color: var(--nx-fg-2);
+    font-size: .8125rem;
+    font-weight: 500;
+    transition: background var(--nx-fast), color var(--nx-fast), padding-left var(--nx-fast);
+}
+
+#nav-sidebar th a:hover,
+#nav-sidebar td a:hover {
+    background: var(--nx-accent-soft);
+    color: var(--nx-accent);
+    padding-left: 1.8rem;
+    text-decoration: none;
+}
+
+#nav-sidebar .current-model th a,
+#nav-sidebar th a[aria-current="page"] {
+    background: var(--nx-accent-soft);
+    color: var(--nx-accent);
+    font-weight: 600;
+}
+
+/* Active marker slides in from the left. */
+#nav-sidebar .current-model th a::before,
+#nav-sidebar th a[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: .55rem;
+    top: 20%;
+    bottom: 20%;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--nx-accent);
+    animation: nx-marker-in var(--nx-mid) var(--nx-ease) both;
+}
+
+#toggle-nav-sidebar {
+    background: var(--nx-surface);
+    border-right: 1px solid var(--nx-line);
+    color: var(--nx-fg-3);
+    transition: background var(--nx-fast), color var(--nx-fast);
+}
+
+#toggle-nav-sidebar:hover { background: var(--nx-accent-soft); color: var(--nx-accent); }
+
+/* ==========================================================================
+   7. CONTENT SHELL + MODULES
+   ========================================================================== */
+
+.main > .content { padding: 0 0 4rem; }
+
+#content { padding: 1.25rem 2rem 2rem; }
+
+.module {
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r);
+    box-shadow: var(--nx-sh-1);
+    overflow: hidden;
+}
+
+.module > h2,
+.module caption,
+.inline-group h2 {
+    background: var(--nx-surface-2);
+    color: var(--nx-fg);
+    font-family: var(--nx-display);
+    font-size: .75rem;
+    font-weight: 650;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .7rem 1rem;
+    border-bottom: 1px solid var(--nx-line);
+}
+
+/* ==========================================================================
+   8. DASHBOARD — app grid (bespoke, see templates/admin/nexgen_app_grid.html)
+   ========================================================================== */
+
+.nx-dash-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.nx-eyebrow {
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    margin: 0 0 .3rem;
+}
+
+.nx-dash-title {
+    font-family: var(--nx-display);
+    font-size: 1.75rem;
+    font-weight: 650;
+    letter-spacing: -.028em;
+    margin: 0;
+    color: var(--nx-fg);
+}
+
+.nx-dash-title em {
+    font-style: normal;
+    background: linear-gradient(100deg, var(--nx-blue), var(--nx-cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.nx-dash-sub {
+    margin: .35rem 0 0;
+    color: var(--nx-fg-2);
+    font-size: .875rem;
+    max-width: 46ch;
+}
+
+/* Dashboard shell.
+
+   Django lays the dashboard out with floats (`.colMS` + `#content-main`
+   float:left + `#content-related` float:right with a negative margin), which
+   leaves the card grid a shrink-to-fit width instead of the space actually
+   available. Swapping to a real two-column grid gives the cards the full
+   remaining width; `minmax(0, 1fr)` stops the grid track from blowing out on
+   long model names. */
+body.dashboard #content.colMS {
+    /* Django pins `.dashboard #content` to a literal `width: 600px`, which is
+       what starves the grid — releasing it is the whole point of this rule. */
+    width: auto;
+    max-width: none;
+    margin-right: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+body.dashboard #content-main {
+    float: none;
+    width: auto;
+    min-width: 0;
+}
+
+body.dashboard #content-related {
+    float: none;
+    width: auto;
+    margin: 0;
+}
+
+/* The app index has no recent-actions rail, so it gets the full width. */
+body.dashboard.nx-app-index #content.colMS { grid-template-columns: minmax(0, 1fr); }
+
+/* Filter field over the grid. */
+.nx-grid-filter {
+    position: relative;
+    flex: 0 1 20rem;
+}
+
+/* Beats the generic `input[type="search"]` rule in the forms section, which
+   would otherwise win on source order and drop the icon's gutter. */
+.nx-grid-filter input[type="search"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: .6rem .85rem .6rem 2.1rem;
+    border: 1px solid var(--nx-line);
+    border-radius: 999px;
+    background: var(--nx-surface);
+    color: var(--nx-fg);
+    font: 500 .8125rem/1.4 var(--nx-body);
+    box-shadow: var(--nx-sh-1);
+    transition: border-color var(--nx-fast), box-shadow var(--nx-fast);
+}
+
+.nx-grid-filter input[type="search"]::placeholder { color: var(--nx-fg-3); font-weight: 400; }
+
+.nx-grid-filter input[type="search"]:focus {
+    outline: none;
+    border-color: var(--nx-blue);
+    box-shadow: 0 0 0 4px rgba(0, 118, 200, .14);
+}
+
+.nx-grid-filter svg {
+    position: absolute;
+    left: .8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: .875rem;
+    height: .875rem;
+    color: var(--nx-fg-3);
+    pointer-events: none;
+}
+
+/* Multi-column rather than grid: model counts run from 1 to 14, so a grid's
+   row height would be set by the tallest card and leave dead space under the
+   short ones. Column flow packs them tight and still reflows on its own —
+   `columns: 19rem` lets the browser pick the count for the width available. */
+.nx-grid {
+    columns: 19rem;
+    column-gap: 1rem;
+}
+
+.nx-grid > .nx-card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+}
+
+/* --- app card ------------------------------------------------------------- */
+
+.nx-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-lg);
+    padding: 1.1rem 1.15rem 1.15rem 1.5rem;
+    box-shadow: var(--nx-sh-2);
+    overflow: hidden;
+    transition:
+        transform var(--nx-mid),
+        box-shadow var(--nx-mid),
+        border-color var(--nx-mid);
+    animation: nx-card-in var(--nx-slow) var(--nx-ease) both;
+    animation-delay: calc(var(--nx-i, 0) * 45ms);
+}
+
+/* The hue spine — this card's app identity. */
+.nx-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg,
+        hsl(var(--nx-h) 88% 56%),
+        hsl(calc(var(--nx-h) + 22) 82% 48%));
+    transform-origin: top;
+    transform: scaleY(0);
+    animation: nx-spine-draw 560ms var(--nx-ease) both;
+    animation-delay: calc(var(--nx-i, 0) * 45ms + 120ms);
+    transition: width var(--nx-mid);
+}
+
+/* Hue bloom behind the card on hover. */
+.nx-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(22rem 12rem at 0% 0%, hsl(var(--nx-h) 88% 55% / .12), transparent 70%);
+    transition: opacity var(--nx-mid);
+}
+
+.nx-card:hover,
+.nx-card:focus-within {
+    transform: translateY(-3px);
+    border-color: hsl(var(--nx-h) 65% 78%);
+    box-shadow: var(--nx-sh-hue);
+}
+
+.nx-card:hover::before,
+.nx-card:focus-within::before { width: 6px; }
+.nx-card:hover::after,
+.nx-card:focus-within::after { opacity: 1; }
+
+html[data-theme="dark"] .nx-card:hover { border-color: hsl(var(--nx-h) 45% 38%); }
+
+.nx-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .85rem;
+}
+
+.nx-card-label {
+    font-family: var(--nx-mono);
+    font-size: .5625rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: hsl(var(--nx-h) 55% 42%);
+    margin: 0 0 .15rem;
+}
+
+html[data-theme="dark"] .nx-card-label { color: hsl(var(--nx-h) 65% 66%); }
+
+.nx-card-name {
+    font-family: var(--nx-display);
+    font-size: 1.0625rem;
+    font-weight: 650;
+    letter-spacing: -.02em;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.nx-card-name a {
+    color: var(--nx-fg);
+    transition: color var(--nx-fast);
+}
+
+.nx-card-name a:hover { color: hsl(var(--nx-h) 70% 42%); text-decoration: none; }
+html[data-theme="dark"] .nx-card-name a:hover { color: hsl(var(--nx-h) 80% 70%); }
+
+.nx-card-count {
+    flex: 0 0 auto;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 500;
+    color: var(--nx-fg-3);
+    padding: .12rem .45rem;
+    border: 1px solid var(--nx-line);
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.nx-models { list-style: none; margin: 0; padding: 0; }
+
+.nx-model {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    border-top: 1px solid var(--nx-line-soft);
+}
+
+.nx-model:first-child { border-top: none; }
+
+a.nx-model-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+    padding: .42rem .5rem .42rem 0;
+    color: var(--nx-fg-2);
+    font-size: .8125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: var(--nx-r-sm);
+    transition: color var(--nx-fast), padding-left var(--nx-fast), background var(--nx-fast);
+}
+
+a.nx-model-link:hover {
+    color: hsl(var(--nx-h) 70% 40%);
+    background: hsl(var(--nx-h) 80% 96%);
+    padding-left: .5rem;
+    text-decoration: none;
+}
+
+html[data-theme="dark"] a.nx-model-link:hover {
+    color: hsl(var(--nx-h) 85% 72%);
+    background: hsl(var(--nx-h) 50% 16%);
+}
+
+.nx-model-plain {
+    flex: 1 1 auto;
+    padding: .42rem 0;
+    color: var(--nx-fg-3);
+    font-size: .8125rem;
+}
+
+/* Row actions reveal on hover, stay visible for keyboard users. */
+.nx-model-actions {
+    display: flex;
+    gap: .3rem;
+    flex: 0 0 auto;
+    opacity: 0;
+    transform: translateX(4px);
+    transition: opacity var(--nx-fast), transform var(--nx-fast);
+}
+
+.nx-model:hover .nx-model-actions,
+.nx-model:focus-within .nx-model-actions { opacity: 1; transform: none; }
+
+a.nx-act {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--nx-r-sm);
+    border: 1px solid var(--nx-line);
+    background: var(--nx-surface-2);
+    color: var(--nx-fg-2);
+    transition: background var(--nx-fast), color var(--nx-fast), border-color var(--nx-fast), transform var(--nx-fast);
+}
+
+a.nx-act svg { width: .75rem; height: .75rem; }
+
+a.nx-act:hover {
+    background: hsl(var(--nx-h) 80% 50%);
+    border-color: hsl(var(--nx-h) 80% 50%);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+/* --- app index -------------------------------------------------------------
+   One app, one card: its head would just restate the page's own h1, and a
+   14-model app stacked in a single 19rem column runs absurdly tall. Drop the
+   duplicate head and let the model list itself flow into columns instead. */
+
+body.nx-app-index .nx-grid { columns: 1; }
+body.nx-app-index .nx-card-head { display: none; }
+body.nx-app-index .nx-card { padding-top: .6rem; }
+
+body.nx-app-index .nx-models {
+    columns: 17rem;
+    column-gap: 2rem;
+}
+
+body.nx-app-index .nx-model {
+    break-inside: avoid;
+    border-top: none;
+    border-bottom: 1px solid var(--nx-line-soft);
+}
+
+/* Empty state when the filter matches nothing. */
+.nx-grid-empty {
+    column-span: all;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--nx-fg-3);
+    font-size: .875rem;
+    border: 1px dashed var(--nx-line);
+    border-radius: var(--nx-r-lg);
+}
+
+.nx-card[hidden] { display: none; }
+
+/* --- recent actions rail -------------------------------------------------- */
+
+#content-related {
+    background: transparent;
+    width: 20rem;
+    margin-right: 0;
+}
+
+#content-related .module {
+    background: var(--nx-surface);
+    border-radius: var(--nx-r-lg);
+    box-shadow: var(--nx-sh-2);
+    animation: nx-card-in var(--nx-slow) var(--nx-ease) both;
+    animation-delay: 180ms;
+}
+
+#recent-actions-module h2 {
+    font-family: var(--nx-display);
+    font-size: .75rem;
+    letter-spacing: .08em;
+}
+
+#recent-actions-module h3 {
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    padding: .75rem 1rem .25rem;
+    margin: 0;
+}
+
+#recent-actions-module p { padding: 0 1rem 1rem; color: var(--nx-fg-3); }
+
+.actionlist { padding: 0 1rem 1rem; margin: 0; }
+
+.actionlist li {
+    list-style: none;
+    padding: .5rem 0 .5rem 1.4rem;
+    border-bottom: 1px solid var(--nx-line-soft);
+    font-size: .8125rem;
+    background-position: 0 .72rem;
+    background-size: .8rem;
+    animation: nx-row-in 400ms var(--nx-ease) both;
+    animation-delay: calc(var(--nx-i, 0) * 35ms + 220ms);
+}
+
+.actionlist li:last-child { border-bottom: none; }
+.actionlist .mini.quiet { color: var(--nx-fg-3); font-family: var(--nx-mono); font-size: .625rem; }
+
+/* ==========================================================================
+   9. CHANGELIST
+   ========================================================================== */
+
+#changelist {
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-lg);
+    box-shadow: var(--nx-sh-2);
+    overflow: hidden;
+    animation: nx-card-in 420ms var(--nx-ease) both;
+}
+
+#changelist #toolbar {
+    background: var(--nx-surface-2);
+    border: none;
+    border-bottom: 1px solid var(--nx-line);
+    padding: .75rem 1rem;
+}
+
+#changelist #toolbar form#changelist-search { display: flex; align-items: center; gap: .5rem; }
+
+#changelist-search input[type="text"] {
+    padding: .5rem .8rem;
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-sm);
+    background: var(--nx-surface);
+    color: var(--nx-fg);
+    font: 500 .8125rem/1.4 var(--nx-body);
+    min-width: 16rem;
+    transition: border-color var(--nx-fast), box-shadow var(--nx-fast);
+}
+
+#changelist-search input[type="text"]:focus {
+    outline: none;
+    border-color: var(--nx-blue);
+    box-shadow: 0 0 0 3px rgba(0, 118, 200, .15);
+}
+
+/* Django styles this one at (1,1,1) via `#toolbar form input[type=submit]`,
+   so the generic button rule can't reach it. */
+#changelist #toolbar form input[type="submit"] {
+    border: none;
+    border-radius: var(--nx-r-sm);
+    padding: .5rem .95rem;
+    margin: 0;
+    background: var(--button-bg);
+    color: var(--button-fg);
+    font: 600 .8125rem/1.4 var(--nx-body);
+    box-shadow: none;
+    cursor: pointer;
+    transition: background var(--nx-fast), transform var(--nx-fast);
+}
+
+#changelist #toolbar form input[type="submit"]:hover {
+    background: var(--button-hover-bg);
+    transform: translateY(-1px);
+}
+
+#changelist .results { border: none; overflow-x: auto; }
+
+#changelist table { border: none; border-collapse: separate; border-spacing: 0; }
+
+#changelist table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--nx-surface-2);
+    border-bottom: 1px solid var(--nx-line);
+    border-top: none;
+    padding: 0;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    white-space: nowrap;
+}
+
+#changelist table thead th.sorted { color: var(--nx-accent); background: var(--nx-accent-soft); }
+
+/* Only the label anchor fills the cell. A sorted column also carries a
+   .sortoptions block of small anchors — letting those inherit the block
+   padding stacks them and doubles the header height. */
+#changelist table thead th .text a,
+#changelist table thead th .text span {
+    display: block;
+    padding: .65rem .85rem;
+    color: inherit;
+    transition: color var(--nx-fast);
+}
+
+#changelist table thead th .text a:hover { color: var(--nx-accent); text-decoration: none; }
+
+#changelist table thead th .sortoptions {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    float: right;
+    padding: .6rem .7rem 0 0;
+    margin: 0;
+}
+
+#changelist table thead th .sortoptions a {
+    display: inline-block;
+    width: .9rem;
+    height: .9rem;
+    padding: 0;
+    opacity: .55;
+    transition: opacity var(--nx-fast);
+}
+
+#changelist table thead th .sortoptions a:hover { opacity: 1; }
+
+#changelist table thead th.action-checkbox-column,
+#changelist table thead th:not(:has(a)) { padding: .65rem .85rem; }
+
+#changelist tbody tr {
+    transition: background var(--nx-fast), box-shadow var(--nx-fast);
+    animation: nx-row-in 340ms var(--nx-ease) both;
+    animation-delay: calc(var(--nx-i, 0) * 18ms);
+}
+
+#changelist tbody tr > th,
+#changelist tbody tr > td {
+    padding: .6rem .85rem;
+    border-bottom: 1px solid var(--nx-line-soft);
+    vertical-align: middle;
+    font-size: .8125rem;
+}
+
+#changelist tbody tr.row1,
+#changelist tbody tr.row2 { background: var(--nx-surface); }
+
+#changelist tbody tr:hover > th,
+#changelist tbody tr:hover > td { background: hsl(var(--nx-h) 80% 97%); }
+html[data-theme="dark"] #changelist tbody tr:hover > th,
+html[data-theme="dark"] #changelist tbody tr:hover > td { background: hsl(var(--nx-h) 40% 15%); }
+
+#changelist tbody tr.selected > th,
+#changelist tbody tr.selected > td { background: var(--selected-row); }
+
+#changelist tbody th a { font-weight: 600; color: var(--nx-fg); }
+#changelist tbody th a:hover { color: var(--nx-accent); text-decoration: none; }
+
+/* Numbers and dates read as data. */
+#changelist td.field-id,
+#changelist td.field-pk,
+#changelist td[class*="field-"] time,
+#changelist .nowrap { font-family: var(--nx-mono); font-size: .75rem; }
+
+/* Boolean icons get a pill treatment. */
+#changelist td img[alt="True"],
+#changelist td img[alt="False"] { vertical-align: middle; }
+
+/* --- filters -------------------------------------------------------------- */
+
+#changelist-filter {
+    background: var(--nx-surface);
+    border-left: 1px solid var(--nx-line);
+    width: 15rem;
+}
+
+#changelist-filter h2 {
+    background: var(--nx-surface-2);
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    padding: .7rem 1rem;
+    border-bottom: 1px solid var(--nx-line);
+}
+
+#changelist-filter h3 {
+    font-family: var(--nx-display);
+    font-size: .75rem;
+    font-weight: 650;
+    color: var(--nx-fg);
+    padding: .85rem 1rem .3rem;
+    margin: 0;
+}
+
+#changelist-filter ul { padding: 0 .6rem .6rem; margin: 0; border-bottom: 1px solid var(--nx-line-soft); }
+#changelist-filter li { list-style: none; }
+
+#changelist-filter li a {
+    display: block;
+    padding: .3rem .55rem;
+    border-radius: var(--nx-r-sm);
+    color: var(--nx-fg-2);
+    font-size: .8125rem;
+    transition: background var(--nx-fast), color var(--nx-fast), padding-left var(--nx-fast);
+}
+
+#changelist-filter li a:hover { background: var(--nx-accent-soft); color: var(--nx-accent); padding-left: .8rem; text-decoration: none; }
+
+#changelist-filter li.selected { border-left: none; padding-left: 0; margin-left: 0; }
+
+#changelist-filter li.selected a {
+    background: var(--nx-accent-soft);
+    color: var(--nx-accent);
+    font-weight: 600;
+}
+
+/* --- actions bar ---------------------------------------------------------- */
+
+#changelist .actions {
+    background: var(--nx-accent-soft);
+    border-bottom: 1px solid var(--nx-line);
+    padding: .6rem 1rem;
+    color: var(--nx-fg-2);
+    font-size: .8125rem;
+}
+
+#changelist .actions.selected { background: var(--selected-row); }
+#changelist .actions .question, #changelist .actions .all, #changelist .actions .clear { color: var(--nx-fg-2); }
+
+/* --- paginator ------------------------------------------------------------ */
+
+.paginator {
+    background: var(--nx-surface-2);
+    border-top: 1px solid var(--nx-line);
+    padding: .7rem 1rem;
+    font-family: var(--nx-mono);
+    font-size: .75rem;
+    color: var(--nx-fg-3);
+}
+
+.paginator a:link, .paginator a:visited {
+    background: var(--nx-surface);
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-sm);
+    color: var(--nx-fg-2);
+    padding: .2rem .55rem;
+    transition: background var(--nx-fast), color var(--nx-fast), border-color var(--nx-fast), transform var(--nx-fast);
+}
+
+.paginator a:hover {
+    background: var(--nx-accent);
+    border-color: var(--nx-accent);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.paginator .this-page {
+    background: var(--nx-accent);
+    color: #fff;
+    border-radius: var(--nx-r-sm);
+    padding: .2rem .55rem;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   10. FORMS
+   ========================================================================== */
+
+.form-row {
+    padding: .85rem 1rem;
+    border-bottom: 1px solid var(--nx-line-soft);
+}
+
+.form-row:last-child { border-bottom: none; }
+
+fieldset.module {
+    margin-bottom: 1.25rem;
+    animation: nx-card-in 420ms var(--nx-ease) both;
+    animation-delay: calc(var(--nx-i, 0) * 60ms);
+}
+
+form .aligned label {
+    color: var(--nx-fg-2);
+    font-weight: 600;
+    font-size: .75rem;
+    letter-spacing: .01em;
+}
+
+.help, .form-row div.help, div.help {
+    color: var(--nx-fg-3);
+    font-size: .75rem;
+    line-height: 1.5;
+}
+
+input[type="text"], input[type="password"], input[type="email"], input[type="url"],
+input[type="number"], input[type="tel"], input[type="search"], input[type="date"],
+input[type="time"], input[type="datetime-local"], textarea, select, .vTextField {
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r-sm);
+    padding: .5rem .7rem;
+    background: var(--nx-surface);
+    color: var(--nx-fg);
+    font: 400 .8125rem/1.5 var(--nx-body);
+    transition: border-color var(--nx-fast), box-shadow var(--nx-fast), background var(--nx-fast);
+}
+
+textarea { font-family: var(--nx-body); }
+
+input:focus, textarea:focus, select:focus, .vTextField:focus {
+    outline: none;
+    border-color: var(--nx-blue);
+    box-shadow: 0 0 0 4px rgba(0, 118, 200, .14);
+    background: var(--nx-surface);
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] select:focus { box-shadow: 0 0 0 4px rgba(0, 145, 210, .28); }
+
+/* Monospace for the fields that hold identifiers. */
+input.vUUIDField, input[name="username"], .vForeignKeyRawIdAdminField,
+input[type="password"] { font-family: var(--nx-mono); letter-spacing: .01em; }
+
+.submit-row {
+    background: var(--nx-surface-2);
+    border: 1px solid var(--nx-line);
+    border-radius: var(--nx-r);
+    padding: .85rem 1rem;
+    margin: 1.25rem 0 0;
+    box-shadow: var(--nx-sh-1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+}
+
+.submit-row input, .submit-row a { margin: 0; }
+.submit-row a.deletelink { border-radius: var(--nx-r-sm); }
+
+/* Sticky save bar keeps the primary action reachable on long forms. */
+body.change-form .submit-row {
+    position: sticky;
+    bottom: 1rem;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+    background: color-mix(in srgb, var(--nx-surface-2) 88%, transparent);
+    box-shadow: var(--nx-sh-3);
+}
+
+/* ==========================================================================
+   11. BUTTONS
+   ========================================================================== */
+
+.button, input[type="submit"], input[type="button"], .submit-row input, a.button {
+    position: relative;
+    overflow: hidden;
+    border: none;
+    border-radius: var(--nx-r-sm);
+    padding: .5rem .95rem;
+    font: 600 .8125rem/1.4 var(--nx-body);
+    letter-spacing: .005em;
+    color: var(--button-fg);
+    background: var(--button-bg);
+    cursor: pointer;
+    transition: background var(--nx-fast), transform var(--nx-fast), box-shadow var(--nx-fast);
+}
+
+.button:hover, input[type="submit"]:hover, input[type="button"]:hover, a.button:hover {
+    background: var(--button-hover-bg);
+    transform: translateY(-1px);
+    box-shadow: var(--nx-sh-2);
+    text-decoration: none;
+}
+
+.button:active, input[type="submit"]:active, a.button:active { transform: translateY(0) scale(.985); }
+
+.button.default, input[type="submit"].default, .submit-row input.default {
+    background: linear-gradient(120deg, var(--nx-blue), var(--nx-cyan));
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 130, 205, .32);
+    /* Django uppercases only this one button, so "SAVE" sat next to
+       "Save and add another". One casing across the row. */
+    text-transform: none;
+    letter-spacing: .005em;
+}
+
+.button.default:hover, input[type="submit"].default:hover, .submit-row input.default:hover {
+    background: linear-gradient(120deg, #0169b3, #00a3cc);
+    box-shadow: 0 6px 18px rgba(0, 130, 205, .42);
+}
+
+/* Sheen sweep across the primary action. */
+.button.default::after, input[type="submit"].default::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .32), transparent);
+    transform: skewX(-18deg);
+    transition: left var(--nx-slow);
+}
+
+.button.default:hover::after, input[type="submit"].default:hover::after { left: 130%; }
+
+a.deletelink, .deletelink-box a, .submit-row a.deletelink {
+    background: var(--delete-button-bg);
+    color: #fff;
+    padding: .5rem .95rem;
+    border-radius: var(--nx-r-sm);
+    font-weight: 600;
+}
+
+a.deletelink:hover { background: var(--delete-button-hover-bg); text-decoration: none; }
+
+/* --- object tools --------------------------------------------------------- */
+
+.object-tools { margin-bottom: .85rem; }
+
+.object-tools a:link, .object-tools a:visited {
+    background: var(--object-tools-bg);
+    border-radius: 999px;
+    padding: .42rem .9rem;
+    font-family: var(--nx-body);
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    text-transform: none;
+    box-shadow: var(--nx-sh-1);
+    transition: background var(--nx-fast), transform var(--nx-fast), box-shadow var(--nx-fast);
+}
+
+.object-tools a:hover {
+    background: linear-gradient(120deg, var(--nx-blue), var(--nx-cyan));
+    transform: translateY(-1px);
+    box-shadow: var(--nx-sh-2);
+}
+
+.object-tools a.addlink { background: linear-gradient(120deg, var(--nx-blue), var(--nx-cyan)); }
+.object-tools a.addlink:hover { background: linear-gradient(120deg, #0169b3, #00a3cc); }
+
+/* ==========================================================================
+   12. MESSAGES + ERRORS
+   ========================================================================== */
+
+.messagelist { padding: 0 2rem; margin: 1rem 0 0; }
+
+.messagelist li {
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    border-radius: var(--nx-r);
+    border: 1px solid transparent;
+    padding: .7rem 1rem;
+    margin-bottom: .5rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    background-image: none;
+    box-shadow: var(--nx-sh-1);
+    animation: nx-message-in 420ms var(--nx-ease) both;
+}
+
+.messagelist li::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 4px;
+    align-self: stretch;
+    border-radius: 4px;
+    background: currentColor;
+    opacity: .7;
+}
+
+.messagelist li.success { background: var(--message-success-bg); border-color: #b6e8cd; color: #0b7a44; }
+.messagelist li.warning { background: var(--message-warning-bg); border-color: #f4dfae; color: #9c6008; }
+.messagelist li.error   { background: var(--message-error-bg);   border-color: #f6c6cf; color: #b02b41; }
+.messagelist li.info    { background: #e8f3fd;                   border-color: #bcdcf5; color: #0a5f9e; }
+
+html[data-theme="dark"] .messagelist li.success { border-color: #17593a; color: #63d69b; }
+html[data-theme="dark"] .messagelist li.warning { border-color: #5a4415; color: #e8b45a; }
+html[data-theme="dark"] .messagelist li.error   { border-color: #5d2331; color: #f28fa2; }
+html[data-theme="dark"] .messagelist li.info    { background: #0d2438; border-color: #1b466e; color: #6cb8f0; }
+
+.errornote {
+    border-radius: var(--nx-r);
+    border: 1px solid #f6c6cf;
+    background: var(--message-error-bg);
+    color: var(--nx-err);
+    padding: .7rem 1rem;
+    font-weight: 600;
+    font-size: .8125rem;
+    animation: nx-shake 420ms var(--nx-ease) both;
+}
+
+ul.errorlist {
+    border-radius: var(--nx-r-sm);
+    background: var(--message-error-bg);
+    color: var(--nx-err);
+    padding: .4rem .7rem;
+    margin: 0 0 .4rem;
+    font-size: .75rem;
+    font-weight: 500;
+    list-style: none;
+}
+
+.form-row.errors { background: var(--message-error-bg); border-left: 3px solid var(--nx-err); }
+
+/* ==========================================================================
+   13. INLINES, SELECTOR, POPUPS
+   ========================================================================== */
+
+.inline-group {
+    border-radius: var(--nx-r);
+    border: 1px solid var(--nx-line);
+    overflow: hidden;
+    box-shadow: var(--nx-sh-1);
+}
+
+.inline-related h3 {
+    background: var(--nx-surface-2);
+    border-bottom: 1px solid var(--nx-line);
+    font-family: var(--nx-mono);
+    font-size: .6875rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+    padding: .6rem 1rem;
+}
+
+.add-row a {
+    display: inline-block;
+    padding: .35rem .8rem;
+    border-radius: 999px;
+    background: var(--nx-accent-soft);
+    color: var(--nx-accent);
+    font-weight: 600;
+    font-size: .75rem;
+    transition: background var(--nx-fast), transform var(--nx-fast);
+}
+
+.add-row a:hover { background: var(--nx-accent); color: #fff; transform: translateY(-1px); text-decoration: none; }
+
+.selector-chosen h2, .selector-available h2 {
+    background: var(--nx-surface-2);
+    color: var(--nx-fg);
+    border-radius: var(--nx-r-sm) var(--nx-r-sm) 0 0;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    letter-spacing: .1em;
+}
+
+.selector-chosen h2 { background: var(--nx-accent); color: #fff; }
+
+.select2-container--admin-autocomplete .select2-selection {
+    border-radius: var(--nx-r-sm);
+    border-color: var(--nx-line);
+    background: var(--nx-surface);
+}
+
+.select2-container--admin-autocomplete.select2-container--focus .select2-selection {
+    border-color: var(--nx-blue);
+    box-shadow: 0 0 0 4px rgba(0, 118, 200, .14);
+}
+
+.related-widget-wrapper-link {
+    transition: transform var(--nx-fast), opacity var(--nx-fast);
+}
+
+.related-widget-wrapper-link:hover { transform: scale(1.12); }
+
+/* ==========================================================================
+   14. LOGIN
+   ========================================================================== */
+
+body.login {
+    background: var(--nx-ink);
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+}
+
+body.login::before {
+    background:
+        radial-gradient(36rem 26rem at 20% 18%, rgba(0, 118, 200, .55), transparent 62%),
+        radial-gradient(32rem 24rem at 82% 78%, rgba(0, 181, 226, .45), transparent 62%),
+        radial-gradient(28rem 22rem at 62% 12%, rgba(90, 60, 220, .32), transparent 62%);
+    animation: nx-aurora 30s ease-in-out infinite alternate;
+}
+
+body.login #container {
+    width: min(24rem, 100%);
+    min-width: 0;
+    margin: 0;
+    background: color-mix(in srgb, var(--nx-paper) 96%, transparent);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 20px;
+    box-shadow: 0 32px 80px -24px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .2);
+    overflow: hidden;
+    animation: nx-login-in 620ms var(--nx-ease) both;
+}
+
+html[data-theme="dark"] body.login #container { background: color-mix(in srgb, #0e1927 94%, transparent); }
+
+body.login #header {
+    flex-direction: column;
+    align-items: center;
+    gap: .1rem;
+    padding: 1.75rem 1.5rem 1.5rem;
+    text-align: center;
+}
+
+body.login #branding { flex-direction: column; gap: .7rem; }
+
+/* Anonymous visitors get the theme toggle inside #branding, which stacks it
+   under the wordmark. Park it in the card corner instead. */
+body.login #header .theme-toggle {
+    position: absolute;
+    top: .85rem;
+    right: .85rem;
+}
+body.login .nx-mark { width: 2.75rem; height: 2.75rem; border-radius: 14px; }
+body.login .nx-mark svg { width: 1.4rem; height: 1.4rem; }
+body.login #site-name { font-size: 1.125rem; }
+body.login .nx-brand-sub { letter-spacing: .22em; }
+
+body.login #content { padding: 1.5rem; }
+body.login .main > .content { padding: 0; }
+
+body.login .form-row {
+    padding: 0 0 .9rem;
+    border: none;
+}
+
+body.login .form-row label {
+    display: block;
+    margin-bottom: .3rem;
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--nx-fg-3);
+}
+
+body.login .form-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: .65rem .8rem;
+    font-size: .875rem;
+}
+
+body.login .submit-row {
+    padding: 0;
+    margin: .4rem 0 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    display: block;
+}
+
+body.login .submit-row input {
+    width: 100%;
+    padding: .7rem 1rem;
+    font-size: .875rem;
+    background: linear-gradient(120deg, var(--nx-blue), var(--nx-cyan));
+    box-shadow: 0 4px 16px rgba(0, 130, 205, .38);
+}
+
+body.login .password-reset-link {
+    text-align: center;
+    margin-top: .9rem;
+    font-size: .75rem;
+}
+
+body.login .errornote { margin-bottom: 1rem; }
+body.login #footer { display: none; }
+
+/* ==========================================================================
+   15. FOOTER
+   ========================================================================== */
+
+#footer {
+    padding: 1.25rem 2rem;
+    color: var(--nx-fg-3);
+    font-family: var(--nx-mono);
+    font-size: .625rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: transparent;
+}
+
+.nx-footer { display: flex; align-items: center; gap: .5rem; }
+.nx-footer-dot { color: var(--nx-accent); }
+
+/* ==========================================================================
+   16. ANIMATION KEYFRAMES
+   ========================================================================== */
+
+@keyframes nx-aurora {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(2%, -1.5%, 0) scale(1.08); }
+    100% { transform: translate3d(-2%, 1.5%, 0) scale(1.04); }
+}
+
+@keyframes nx-card-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes nx-spine-draw {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+}
+
+@keyframes nx-row-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes nx-seam-draw {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+}
+
+@keyframes nx-rule-in {
+    from { width: 0; opacity: 0; }
+    to   { width: 3rem; opacity: 1; }
+}
+
+@keyframes nx-marker-in {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes nx-mark-in {
+    from { opacity: 0; transform: scale(.7) rotate(-12deg); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes nx-message-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes nx-login-in {
+    from { opacity: 0; transform: translateY(18px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes nx-shake {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(-5px); }
+    40%      { transform: translateX(4px); }
+    60%      { transform: translateX(-3px); }
+    80%      { transform: translateX(2px); }
+}
+
+/* ==========================================================================
+   17. FOCUS + REDUCED MOTION
+   ========================================================================== */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--nx-cyan);
+    outline-offset: 2px;
+    border-radius: var(--nx-r-sm);
+}
+
+#header a:focus-visible,
+#user-tools button:focus-visible { outline-color: #fff; }
+
+.skip-to-content-link {
+    background: var(--nx-blue);
+    color: #fff;
+    border-radius: 0 0 var(--nx-r-sm) 0;
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .nx-card::before { transform: scaleY(1); }
+    .nx-card:hover, .nx-card:focus-within { transform: none; }
+    .nx-model-actions { opacity: 1; transform: none; }
+    #content h1::after { width: 3rem; opacity: 1; }
+}
+
+/* ==========================================================================
+   18. RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    /* Recent actions drops below the grid rather than squeezing it. */
+    body.dashboard #content.colMS { grid-template-columns: minmax(0, 1fr); }
+    #content-related { width: 100%; margin: 0; float: none; }
+    .nx-grid { columns: 16rem; }
+}
+
+@media (max-width: 767px) {
+    #header { padding: .8rem 1rem; }
+    #content { padding: 1rem; }
+    div.breadcrumbs { padding: .75rem 1rem .1rem; }
+    .messagelist { padding: 0 1rem; }
+    #footer { padding: 1rem; }
+
+    #user-tools { flex-wrap: wrap; white-space: normal; gap: .35rem; }
+
+    .nx-dash-head { flex-direction: column; align-items: stretch; }
+    .nx-grid-filter { flex: 1 1 auto; }
+    .nx-dash-title { font-size: 1.375rem; }
+    .nx-grid { columns: 1; }
+
+    .nx-model-actions { opacity: 1; transform: none; }
+
+    body.change-form .submit-row { position: static; backdrop-filter: none; }
+
+    #changelist table thead th { position: static; }
+}

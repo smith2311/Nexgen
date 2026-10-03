@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Logistics Performance Center{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logistics_performance/lp_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lpd">
+
+  <!-- ═══ TITLE BAR ═══ -->
+  <div class="lpd-titlebar">
+    <a href="{% url 'logistics:home' %}" class="lp-back-db">
+      <span class="lp-back-icon-db"><i class="fas fa-arrow-left"></i></span>
+      Back
+    </a>
+    <div class="lpd-title-center">
+      <i class="fas fa-truck-moving lpd-title-icon"></i>
+      <span>Logistics Performance Center</span>
+    </div>
+    <button class="lpd-refresh" id="lpdRefreshBtn" title="Refresh data">
+      <i class="fas fa-sync-alt"></i>
+    </button>
+  </div>
+
+  <!-- ═══ STATS STRIP ═══ -->
+  <div class="lpd-strip">
+    <div class="lpd-strip-item" id="stripTotal">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#0076c8,#00b5e2)"><i class="fas fa-box"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statTotal">—</div><div class="lpd-strip-lbl">Total Records</div></div>
+    </div>
+    <div class="lpd-strip-item" id="stripDelivered">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#10b981,#34d399)"><i class="fas fa-check-circle"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statDelivered">—</div><div class="lpd-strip-lbl">Delivered</div></div>
+    </div>
+    <div class="lpd-strip-item" id="stripPending">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)"><i class="fas fa-clock"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statPending">—</div><div class="lpd-strip-lbl">In Transit / Pending</div></div>
+    </div>
+    <div class="lpd-strip-item" id="stripEdd">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)"><i class="fas fa-calendar-check"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statEdd">—</div><div class="lpd-strip-lbl">With EDD</div></div>
+    </div>
+    <div class="lpd-strip-item" id="stripHighTat">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#ef4444,#f87171)"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statHighTat">—</div><div class="lpd-strip-lbl">High TAT (&gt;5d)</div></div>
+    </div>
+    <div class="lpd-strip-item" id="stripPincodes">
+      <div class="lpd-strip-icon" style="background:linear-gradient(135deg,#0284c7,#38bdf8)"><i class="fas fa-map-pin"></i></div>
+      <div class="lpd-strip-body"><div class="lpd-strip-val" id="statPincodes">—</div><div class="lpd-strip-lbl">Pincodes Mapped</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <div class="lpd-body">
+
+    <!-- ── ROW 1: KPI CARDS ── -->
+    <div class="lpd-kpi-row">
+
+      <!-- Delivery Rate -->
+      <div class="lpd-card lpd-kpi-card kpi-green clickable" onclick="window.location.href=LPD_CONFIG.urls.lp_list">
+        <div class="lpd-kpi-header">
+          <div class="lpd-kpi-icon"><i class="fas fa-tachometer-alt"></i></div>
+          <div>
+            <div class="lpd-kpi-title">Delivery Rate</div>
+            <div class="lpd-kpi-sub">Overall performance</div>
+          </div>
+        </div>
+        <div class="lpd-gauge-wrap">
+          <div class="lpd-gauge" id="lpdGauge">
+            <svg class="lpd-gauge-svg" viewBox="0 0 120 120">
+              <circle class="lpd-gauge-track" cx="60" cy="60" r="50" />
+              <circle class="lpd-gauge-fill" id="lpdGaugeFill" cx="60" cy="60" r="50"
+                style="stroke-dasharray:0 314" />
+            </svg>
+            <div class="lpd-gauge-center">
+              <div class="lpd-gauge-pct" id="lpdGaugePct">0%</div>
+              <div class="lpd-gauge-lbl">delivered</div>
+            </div>
+          </div>
+          <div class="lpd-gauge-stats">
+            <div class="lpd-gauge-stat">
+              <span class="lpd-gauge-stat-val" id="lpdTotal">—</span>
+              <span class="lpd-gauge-stat-lbl">Total</span>
+            </div>
+            <div class="lpd-gauge-divider"></div>
+            <div class="lpd-gauge-stat">
+              <span class="lpd-gauge-stat-val green" id="lpdDelivered">—</span>
+              <span class="lpd-gauge-stat-lbl">Delivered</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Network Coverage -->
+      <div class="lpd-card lpd-kpi-card kpi-blue clickable" onclick="window.location.href=LPD_CONFIG.urls.pincode_list">
+        <div class="lpd-kpi-header">
+          <div class="lpd-kpi-icon"><i class="fas fa-network-wired"></i></div>
+          <div>
+            <div class="lpd-kpi-title">Network Coverage</div>
+            <div class="lpd-kpi-sub">Pincodes &amp; states</div>
+          </div>
+        </div>
+        <div class="lpd-cov-nums">
+          <div class="lpd-cov-num">
+            <span id="lpdPincodes">—</span>
+            <small>Pincodes</small>
+          </div>
+          <div class="lpd-cov-sep"></div>
+          <div class="lpd-cov-num">
+            <span id="lpdStates">—</span>
+            <small>States</small>
+          </div>
+        </div>
+        <div class="lpd-chip-row" id="lpdCovChips"></div>
+      </div>
+
+      <!-- TAT Health -->
+      <div class="lpd-card lpd-kpi-card kpi-amber">
+        <div class="lpd-kpi-header">
+          <div class="lpd-kpi-icon"><i class="fas fa-heartbeat"></i></div>
+          <div>
+            <div class="lpd-kpi-title">TAT Health</div>
+            <div class="lpd-kpi-sub">Shipment timeline</div>
+          </div>
+        </div>
+        <div class="lpd-tat-bars" id="lpdTatBars"></div>
+      </div>
+
+    </div><!-- /kpi-row -->
+
+    <!-- ── ROW 2: QUAD GRID ── -->
+    <div class="lpd-quad-grid">
+
+      <!-- A: Shipment Status -->
+      <div class="lpd-card lpd-quad">
+        <div class="lpd-quad-hd">
+          <div class="lpd-quad-badge badge-blue">A</div>
+          <span class="lpd-quad-title">Shipment Status</span>
+          <a href="{{ LPD_CONFIG.urls.lp_list }}" class="lpd-quad-link" id="linkQuadA">View all <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="lpd-quad-body" id="quadA">
+          <div class="lpd-skeleton"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w70"></div><div class="sk-line w50"></div></div>
+        </div>
+      </div>
+
+      <!-- B: Master Data Health -->
+      <div class="lpd-card lpd-quad">
+        <div class="lpd-quad-hd">
+          <div class="lpd-quad-badge badge-green">B</div>
+          <span class="lpd-quad-title">Master Data Health</span>
+          <a href="#" class="lpd-quad-link" id="linkQuadB">Manage <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="lpd-quad-body" id="quadB">
+          <div class="lpd-skeleton"><div class="sk-line w80"></div><div class="sk-line w60"></div><div class="sk-line w70"></div><div class="sk-line w90"></div><div class="sk-line w55"></div></div>
+        </div>
+      </div>
+
+      <!-- C: Recent Shipments -->
+      <div class="lpd-card lpd-quad">
+        <div class="lpd-quad-hd">
+          <div class="lpd-quad-badge badge-purple">C</div>
+          <span class="lpd-quad-title">Recent Shipments</span>
+          <a href="#" class="lpd-quad-link" id="linkQuadC">View all <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="lpd-quad-body" id="quadC">
+          <div class="lpd-skeleton"><div class="sk-line w100"></div><div class="sk-line w80"></div><div class="sk-line w90"></div><div class="sk-line w70"></div></div>
+        </div>
+      </div>
+
+      <!-- D: Quick Actions -->
+      <div class="lpd-card lpd-quad">
+        <div class="lpd-quad-hd">
+          <div class="lpd-quad-badge badge-amber">D</div>
+          <span class="lpd-quad-title">Quick Actions</span>
+        </div>
+        <div class="lpd-quad-body" id="quadD">
+          <div class="lpd-skeleton"><div class="sk-block"></div><div class="sk-block"></div><div class="sk-block"></div><div class="sk-block"></div></div>
+        </div>
+      </div>
+
+    </div><!-- /quad-grid -->
+  </div><!-- /body -->
+</div><!-- /lpd -->
+
+
+<div class="lpd">
+
+  <!-- ═══ TITLE BAR ═══ -->
+  <div class="lpd-titlebar">
+    <a href="{% url 'logistics:home' %}" class="lp-back-db">
+      <span class="lp-back-icon-db"><i class="fas fa-arrow-left"></i></span>
+      Logistics Performance
+    </a>
+    <i class="fas fa-truck-fast"></i>
+    <span>Logistics Performance Center</span>
+    <button class="lpd-refresh" onclick="LPD.refresh(this)" title="Refresh data">
+      <i class="fas fa-sync-alt"></i>
+    </button>
+  </div>
+
+  <div class="lpd-grid">
+
+    <!-- LEFT PHASE RAIL -->
+    <div class="lpd-rail" id="lpdRail"></div>
+
+    <div class="lpd-main">
+
+      <!-- ═══ KPI ROW ═══ -->
+      <div class="lpd-kpis">
+
+        <!-- KPI 1: Delivery Rate Gauge -->
+        <div class="lpd-card kpi clickable" onclick="LPD.go('lp_list')">
+          <div class="lpd-card-hd">
+            <i class="fas fa-tachometer-alt"></i> Shipment Delivery Rate
+          </div>
+          <div class="kpi-gauge-wrap">
+            <div class="kpi-gauge" id="lpdGauge">
+              <div class="kpi-gauge-center">
+                <div class="kpi-gauge-pct" id="lpdGaugePct">—</div>
+                <div class="kpi-gauge-lbl">DELIVERED</div>
+              </div>
+            </div>
+            <div class="kpi-gauge-side">
+              <div><span id="lpdTotal">—</span><small>Total Records</small></div>
+              <div><span id="lpdDelivered">—</span><small>Delivered</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI 2: Network Coverage -->
+        <div class="lpd-card kpi clickable" onclick="LPD.go('pincode_list')">
+          <div class="lpd-card-hd">
+            Network Coverage
+            <i class="fas fa-network-wired" style="margin-left:auto;color:var(--text-muted)"></i>
+          </div>
+          <div class="kpi-cov">
+            <div class="kpi-cov-num"><span id="lpdPincodes">—</span><small>Pincodes</small></div>
+            <div class="kpi-cov-num"><span id="lpdStates">—</span><small>States</small></div>
+          </div>
+          <div class="kpi-chips" id="lpdCovChips"></div>
+        </div>
+
+        <!-- KPI 3: TAT Health -->
+        <div class="lpd-card kpi">
+          <div class="lpd-card-hd">
+            <i class="fas fa-heartbeat"></i> TAT &amp; Shipment Health
+          </div>
+          <div class="kpi-tat">
+            <canvas id="lpdTatChart"></canvas>
+          </div>
+        </div>
+
+      </div><!-- /kpis -->
+
+      <!-- ═══ QUADRANTS ═══ -->
+      <div class="lpd-quads">
+
+        <!-- A: Shipment Status -->
+        <div class="lpd-card quad">
+          <div class="lpd-card-hd">
+            <span class="quad-tag">A</span> Shipment Status Overview
+          </div>
+          <div class="quad-body" id="quadA">
+            <div class="lpd-empty"><i class="fas fa-spinner fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+
+        <!-- B: Master Data Health -->
+        <div class="lpd-card quad">
+          <div class="lpd-card-hd">
+            <span class="quad-tag">B</span> Master Data Health
+            <button class="lpd-mini" onclick="LPD.refresh(this)" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+          </div>
+          <div class="quad-body" id="quadB">
+            <div class="lpd-empty"><i class="fas fa-spinner fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+
+        <!-- C: Recent Shipments -->
+        <div class="lpd-card quad">
+          <div class="lpd-card-hd">
+            <span class="quad-tag">C</span> Recent Shipments
+          </div>
+          <div class="quad-body" id="quadC">
+            <div class="lpd-empty"><i class="fas fa-spinner fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+
+        <!-- D: Quick Actions -->
+        <div class="lpd-card quad">
+          <div class="lpd-card-hd">
+            <span class="quad-tag">D</span> Quick Actions &amp; Navigation
+          </div>
+          <div class="quad-body" id="quadD">
+            <div class="lpd-empty"><i class="fas fa-spinner fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+
+      </div><!-- /quads -->
+    </div><!-- /main -->
+  </div><!-- /grid -->
+</div><!-- /lpd -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/logistics_performance/lp_dashboard.js' %}"></script>
+{% endblock %}

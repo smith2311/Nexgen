@@ -1,0 +1,35 @@
+/* ═══════════════════════════════════════════════════════
+   vat_rate_master.css — VAT Rate Master grid overrides
+   Chrome from components/{master_page,data_table,modal}.css
+═══════════════════════════════════════════════════════ */
+
+/* LIST: ID | Country | Type | HSN/SAC | VAT% | Status | Actions */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 70px 1.3fr 0.9fr 1.1fr 0.7fr 0.8fr 120px;
+}
+
+/* SCHEMA ROW: Column | Type | Description */
+.lm-page .schema-row {
+  grid-template-columns: 180px 100px 1fr;
+}
+
+#editModalOverlay .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .lm-page .tbl-head,
+  .lm-page .tbl-row {
+    grid-template-columns: 1.3fr 1.1fr 0.7fr 110px;
+  }
+  .lm-page .tbl-head > *:nth-child(1),
+  .lm-page .tbl-row  > *:nth-child(1),
+  .lm-page .tbl-head > *:nth-child(3),
+  .lm-page .tbl-row  > *:nth-child(3),
+  .lm-page .tbl-head > *:nth-child(6),
+  .lm-page .tbl-row  > *:nth-child(6) { display: none; }
+  #editModalOverlay .form-grid { grid-template-columns: 1fr; }
+}

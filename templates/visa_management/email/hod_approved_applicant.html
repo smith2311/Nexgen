@@ -1,0 +1,26 @@
+{% extends "visa_management/email/base_email.html" %}
+{% block title %}Approved by Your HOD — {{ app.ref_no }}{% endblock %}
+{% block content %}
+
+<tr>
+  <td style="background:#ffffff;padding:28px 36px 0;">
+    <p style="margin:0 0 6px;color:#0f172a;font-size:16px;font-weight:600;">Dear {{ app.applicant_name }},</p>
+    <p style="margin:0;color:#5f6c7d;font-size:14px;line-height:1.6;">
+      Good news — your visa application <strong>{{ app.ref_no }}</strong> has been approved by your reporting head,
+      <strong>{{ app.hod_name }}</strong>. It is now with the Visa Department for processing.
+    </p>
+  </td>
+</tr>
+
+<tr>
+  <td style="background:#ffffff;padding:20px 36px 0;">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;">
+      <p style="margin:0;color:#166534;font-size:13px;line-height:1.6;">
+        You'll receive another email shortly asking you to double-check your submitted details, followed by
+        a final notification once your invitation letter is ready.
+      </p>
+    </div>
+  </td>
+</tr>
+
+{% endblock %}

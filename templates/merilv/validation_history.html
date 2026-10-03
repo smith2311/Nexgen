@@ -1,0 +1,58 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Validation History — the 200 most recent stock validator runs.{% endcomment %}
+
+{% block mv_title %}Validation History{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:validator' %}">Stock Validator</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">History</span>
+{% endblock %}
+{% block mv_heading %}Validation History{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Every reconciliation, newest first.</p>{% endblock %}
+{% block mv_actions %}<a href="{% url 'merilv:validator' %}" class="mv-btn mv-btn--primary">{% icon "plus" %} New validation</a>{% endblock %}
+
+{% block mv_body %}
+<div class="mv-card mv-card--flush">
+    <form method="get" class="mv-table-toolbar">
+        <select class="mv-select" name="entity" style="width:auto;min-width:180px;" onchange="this.form.submit()">
+            <option value="">All entities</option>
+            {% for e in entities %}<option value="{{ e.code }}" {% if e.code == entity_code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>{% endfor %}
+        </select>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    </form>
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Run</th><th>Entity</th><th class="mv-num">Scanned</th><th class="mv-num">In SAP</th><th class="mv-num">Variance</th><th class="mv-num">Reconciled</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for run in page_obj %}
+            <tr data-mv-href="{% url 'merilv:validation_detail' run.pk %}" class="mv-row-link">
+                <td>
+                    <a href="{% url 'merilv:validation_detail' run.pk %}" class="mv-t-strong">{{ run }}</a>
+                    <div class="mv-t-caption">{{ run.scan_filename|default:"—" }}</div>
+                </td>
+                <td><span class="mv-badge mv-badge--neutral">{{ run.entity.code }}</span></td>
+                <td class="mv-num">{{ run.total_scanned|floatformat:0 }}</td>
+                <td class="mv-num">{{ run.total_system|floatformat:0 }}</td>
+                <td class="mv-num">{{ run.variance_qty|floatformat:0 }}</td>
+                <td class="mv-num">
+                    <span class="mv-badge {% if run.reconciliation_pct >= 95 %}mv-badge--ok{% elif run.reconciliation_pct >= 80 %}mv-badge--warn{% else %}mv-badge--danger{% endif %}">{{ run.reconciliation_pct|pct }}</span>
+                </td>
+                <td class="mv-t-caption">{{ run.created_at|date:"d M" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "clipboard" 48 %}<div class="mv-empty__title">No validations yet</div></div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3PL Capability Assessment — Meril Life Sciences</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#000618 0%,#0061a6 100%);border-radius:12px 12px 0 0;padding:30px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:50%;width:58px;height:58px;line-height:58px;text-align:center;margin-bottom:12px;">
+              <span style="font-size:24px;color:#ffffff;">&#128203;</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:21px;font-weight:800;letter-spacing:-0.3px;">3PL Capability Assessment</h1>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:30px 36px 6px;">
+            <p style="margin:0 0 14px;color:#1f2937;font-size:15px;">Dear Partner,</p>
+            <p style="margin:0 0 14px;color:#374151;font-size:14px;line-height:1.7;">
+              Meril Life Sciences would like to invite you to complete a 3PL Capability
+              Assessment. It covers your company &amp; network, operational capability,
+              compliance &amp; quality, technology, and strategic fit — it takes most vendors
+              15&ndash;20 minutes to complete.
+            </p>
+            <p style="margin:0 0 14px;color:#374151;font-size:14px;line-height:1.7;">
+              You do not need to create an account. You can save your progress at any time
+              and return to it later using the same link below.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Call to action -->
+        <tr>
+          <td style="background:#ffffff;padding:10px 36px 6px;text-align:center;">
+            <a href="{{ link }}"
+               style="display:inline-block;background:linear-gradient(135deg,#000618 0%,#0061a6 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:9px;box-shadow:0 4px 14px rgba(0,97,166,.28);">
+              Start the Assessment &rarr;
+            </a>
+            <p style="margin:14px 0 0;color:#6b7280;font-size:12.5px;">
+              This link expires on {{ assessment.token_expires_at|date:"d M Y" }}.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Signature -->
+        <tr>
+          <td style="background:#ffffff;padding:22px 36px 28px;">
+            <p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+              Kind regards,<br>
+              <strong style="color:#1f2937;">{{ invited_by_name }}</strong><br>
+              Meril Life Sciences — Global SCM
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 12px 12px;padding:26px 36px 24px;text-align:center;">
+            {% comment %}
+            The logo is a cid: reference to an image attached to the message,
+            not a URL: Gmail, Outlook and Apple Mail block remote images by
+            default, so a hosted logo shows as a broken placeholder on first
+            open. vendorlink/mailer.py attaches it and sets brand_logo_cid;
+            without it this falls back to a wordmark rather than rendering a
+            dead image.
+            {% endcomment %}
+            {% if brand_logo_cid %}
+            {% comment %}
+            The logo sits in a white chip on purpose. The only Meril artwork in
+            the repo is JPEG, which has no alpha, so the image carries its own
+            white background — dropped straight onto the navy footer it reads
+            as a rendering fault. A rounded panel makes the same pixels read as
+            a deliberate badge. Replace with a transparent PNG and this wrapper
+            can go.
+            Centred with an auto-margin table, not flexbox: Outlook renders
+            through Word and supports neither flex nor margin:auto on a div.
+            {% endcomment %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from Meril VendorLink.
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

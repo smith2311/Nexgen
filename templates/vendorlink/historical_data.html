@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Historical Data | VendorLink{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">{% endblock %}
+
+{% comment %}
+The read-only replacement for deleting a completed year.
+
+VendorLink used to offer "remove completed year", which destroyed that year's
+requests, bids, awards, evaluations, registrations, scores, scorecards, KPI
+records and rate cards. Those records are the audit trail behind commercial
+decisions, so nothing deletes them any more — they stay in the database and are
+read here over whatever date range is asked for.
+
+Every control on this page is a filter or an export. There is deliberately no
+action that mutates anything.
+{% endcomment %}
+
+{% block content %}
+<div class="vlx"><div class="vlx-wrap">
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a><span class="sep">/</span>
+        <span class="current">Historical data</span>
+    </div>
+
+    <div class="vlx-pagehead">
+        <div>
+            <h1 class="vlx-title">Historical data</h1>
+            <p class="vlx-subtitle">Read any date range of VendorLink activity. Nothing on this screen deletes or changes records.</p>
+        </div>
+    </div>
+
+    {% comment %}
+    .vlx-cd-filters pins flex-direction: row — components.css makes every form
+    a flex column site-wide, so a bare display:flex here would stack the fields
+    and push them to one edge.
+    {% endcomment %}
+    <form method="get" class="vlx-cd-filters">
+        <div class="vlx-cd-fgroup">
+            <label for="histFrom">From</label>
+            <input type="date" class="vlx-select" id="histFrom" name="from" value="{{ start|date:'Y-m-d' }}">
+        </div>
+        <div class="vlx-cd-fgroup">
+            <label for="histTo">To</label>
+            <input type="date" class="vlx-select" id="histTo" name="to" value="{{ end|date:'Y-m-d' }}">
+        </div>
+        <button class="vlx-btn vlx-btn--primary vlx-btn--sm" type="submit"><i class="fas fa-filter"></i> Apply</button>
+        <a class="vlx-btn vlx-btn--outline vlx-btn--sm"
+           href="{% url 'vendorlink:historical_data_excel' %}?from={{ start|date:'Y-m-d' }}&amp;to={{ end|date:'Y-m-d' }}">
+            <i class="fas fa-file-excel"></i> Excel
+        </a>
+        <a class="vlx-btn vlx-btn--outline vlx-btn--sm"
+           href="{% url 'vendorlink:historical_data_pdf' %}?from={{ start|date:'Y-m-d' }}&amp;to={{ end|date:'Y-m-d' }}">
+            <i class="fas fa-file-pdf"></i> PDF
+        </a>
+    </form>
+
+    <div class="vlx-ba-kpis">
+        <div class="vlx-ba-kpi"><span>Requests</span><strong>{{ requests|length }}</strong></div>
+        <div class="vlx-ba-kpi"><span>Bids</span><strong>{{ bids|length }}</strong></div>
+        <div class="vlx-ba-kpi"><span>Awards</span><strong>{{ awards|length }}</strong></div>
+        <div class="vlx-ba-kpi"><span>Registrations</span><strong>{{ registrations|length }}</strong></div>
+        <div class="vlx-ba-kpi"><span>Evaluations</span><strong>{{ evaluations|length }}</strong></div>
+        <div class="vlx-ba-kpi"><span>Rate cards</span><strong>{{ commercials|length }}</strong></div>
+    </div>
+
+    <p class="vlx-muted" style="font-size:12.5px;margin:0 0 16px;">
+        Showing {{ start|date:"d M Y" }} &ndash; {{ end|date:"d M Y" }} (inclusive).
+        Vendors are master data and are not date-scoped, so the export carries the full list of {{ vendors|length }}.
+    </p>
+
+    {% if requests %}
+    <div class="vlx-card vlx-card--flush">
+        <div class="vlx-table-wrap">
+            <table class="vlx-table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Subject</th>
+                        <th>Country</th>
+                        <th>Raised by</th>
+                        <th class="right">Bids</th>
+                        <th>Award</th>
+                        <th>Raised</th>
+                        <th class="right">Open</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in requests %}
+                    <tr>
+                        <td>
+                            {% comment %}
+                            Copyable: the reference is the thing people paste
+                            into mail and into MerilGPT, and on the analytics
+                            cards it sits inside a click-to-expand header whose
+                            user-select:none makes it impossible to select.
+                            {% endcomment %}
+                            {% if r.reference_id %}
+                            <button type="button" class="vlx-refcopy" data-ref="{{ r.reference_id }}"
+                                    title="Copy {{ r.reference_id }}">
+                                <span class="vlx-mono">{{ r.reference_id }}</span>
+                                <i class="fas fa-copy" aria-hidden="true"></i>
+                                <span class="sr-only">Copy reference number</span>
+                            </button>
+                            {% else %}<span class="vlx-muted">&mdash;</span>{% endif %}
+                        </td>
+                        <td>{{ r.subject }}</td>
+                        <td>{{ r.country }}</td>
+                        <td>{{ r.raised_by.get_full_name|default:r.raised_by.username|default:"—" }}</td>
+                        <td class="right">{{ r.bid_total }}</td>
+                        <td>
+                            {% with a=r.award %}
+                            {% if a %}<span class="vlx-pill vlx-pill--yes">{{ a.vendor_name|truncatechars:24 }}</span>
+                            {% else %}<span class="vlx-muted">&mdash;</span>{% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="vlx-muted" style="white-space:nowrap;">{{ r.created_at|date:"d M Y" }}</td>
+                        <td class="right">
+                            <a href="{% url 'vendorlink:request_detail' r.pk %}" class="vlx-iconbtn" title="Open request">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="vlx-card">
+        <div class="vlx-empty" style="padding:34px 16px;">
+            <div class="vlx-empty__icon"><i class="fas fa-clock-rotate-left"></i></div>
+            <h3 style="font-size:15px;">Nothing in this range</h3>
+            <p style="font-size:13px;">
+                No requests were raised between {{ start|date:"d M Y" }} and {{ end|date:"d M Y" }}.
+                Widen the dates and apply again.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+</div></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-refcopy.js' %}"></script>
+{% endblock %}

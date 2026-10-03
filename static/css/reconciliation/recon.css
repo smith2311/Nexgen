@@ -1,0 +1,1509 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GST Reconciliation — GSTR-1 · E-Invoice · E-Way Bill
+   Shares the palette and rhythm of the Grocery / Logistics / VAT modules so
+   the module does not read as a bolt-on. Everything is prefixed rc- and
+   scoped under .rc-app, so nothing here can leak into another screen.
+
+   The table is the point of this module: a filing team lives in it for hours
+   at a time. So it gets the sticky header, the monospaced money column, the
+   quiet row striping and the tight vertical rhythm, and everything else is
+   deliberately calmer than it.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The drawer, the modals and the toast stack are rendered into base.html's
+   `extra_modals` block, which sits OUTSIDE `<main>` and therefore outside
+   `.rc-app`. Custom properties inherit down the tree, so declaring the tokens
+   on `.rc-app` alone would leave every one of those panels resolving
+   `var(--rc-blue)` to nothing — invisible borders, black-on-black text. They
+   are declared on each root instead; only the page frame's own layout
+   properties below belong to `.rc-app`. */
+.rc-app,
+.rc-scrim,
+.rc-drawer,
+.rc-modal,
+.rc-toasts {
+    --rc-navy:      #0b1f3a;
+    --rc-blue:      #2e6fd8;
+    --rc-blue-mid:  #4a89e8;
+    --rc-blue-lt:   #ebf2ff;
+    --rc-purple:    #5b21b6;
+    --rc-purple-lt: #f0e9fe;
+    --rc-teal:      #0f766e;
+    --rc-teal-lt:   #e6f7f5;
+    --rc-amber:     #b45309;
+    --rc-amber-lt:  #fef3c7;
+    --rc-red:       #b91c1c;
+    --rc-red-lt:    #fee2e2;
+    --rc-green:     #166534;
+    --rc-green-lt:  #dcfce7;
+
+    --rc-text:      #1e2d40;
+    --rc-text-2:    #3d5269;
+    --rc-muted:     #587089;
+    --rc-bg:        #f0f4f9;
+    --rc-surface:   #ffffff;
+    --rc-surface-2: #f7f9fc;
+    --rc-border:    rgba(11, 31, 58, 0.10);
+    --rc-border-md: rgba(11, 31, 58, 0.18);
+
+    --rc-radius:    12px;
+    --rc-radius-sm: 8px;
+    --rc-shadow:    0 1px 2px rgba(11, 31, 58, .04), 0 8px 24px rgba(11, 31, 58, .06);
+    --rc-shadow-lg: 0 24px 64px rgba(11, 31, 58, .22);
+
+    --rc-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.rc-app {
+    background: var(--rc-bg);
+    color: var(--rc-text);
+    min-height: 100vh;
+    font-size: 14px;
+}
+
+/* The browser's `[hidden] { display: none }` lives in the UA stylesheet, so
+   ANY author rule setting `display` on the same element beats it — and this
+   file sets `display` on several elements that are shown and hidden with the
+   attribute (`.rc-modal` is `grid`, `.rc-drop-file` is `inline-block`).
+   Restate the rule at author origin, for the page and for the panels that
+   live outside it. */
+.rc-app [hidden],
+.rc-drawer [hidden],
+.rc-modal [hidden],
+.rc-modal[hidden],
+#rcDrawerHost[hidden] { display: none !important; }
+
+.rc-app *, .rc-app *::before, .rc-app *::after,
+.rc-drawer *, .rc-drawer *::before, .rc-drawer *::after,
+.rc-modal *, .rc-modal *::before, .rc-modal *::after { box-sizing: border-box; }
+
+
+/* ── page frame ───────────────────────────────────────────────────────── */
+
+.rc-header {
+    background: linear-gradient(135deg, #0b1f3a 0%, #133a67 55%, #1b4f8a 100%);
+    color: #fff;
+    padding: 22px 0 26px;
+}
+
+.rc-header-inner,
+.rc-inner {
+    max-width: 1720px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.rc-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, .78);
+    text-decoration: none;
+    font-size: .82rem;
+    font-weight: 600;
+    letter-spacing: .3px;
+    margin-bottom: 14px;
+    transition: color .15s;
+}
+.rc-back:hover { color: #fff; text-decoration: none; }
+
+.rc-header-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.rc-header h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.rc-header h1 i { opacity: .7; font-size: 1.3rem; }
+
+.rc-header p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, .72);
+    font-size: .88rem;
+}
+
+.rc-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.rc-inner { padding-top: 20px; padding-bottom: 56px; }
+
+/* The header sits behind the tiles, which overlap it — a small thing that
+   stops the page reading as two disconnected slabs. */
+.rc-kpis { margin-top: -34px; }
+
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+
+.rc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: var(--rc-radius-sm);
+    border: 1px solid var(--rc-border-md);
+    background: var(--rc-surface);
+    color: var(--rc-text);
+    font-size: .84rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .15s, border-color .15s, transform .08s, box-shadow .15s;
+}
+.rc-btn:hover:not(:disabled) {
+    background: var(--rc-blue-lt);
+    border-color: var(--rc-blue);
+    color: var(--rc-blue);
+    text-decoration: none;
+}
+.rc-btn:active:not(:disabled) { transform: translateY(1px); }
+.rc-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.rc-btn-primary {
+    background: linear-gradient(135deg, var(--rc-blue), var(--rc-blue-mid));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(46, 111, 216, .3);
+}
+.rc-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2560c0, #3f7ada);
+    border-color: transparent;
+    color: #fff;
+}
+
+.rc-btn-success {
+    background: linear-gradient(135deg, #15803d, var(--rc-green));
+    border-color: transparent;
+    color: #fff;
+}
+.rc-btn-success:hover:not(:disabled) { color: #fff; background: #15803d; }
+
+.rc-btn-danger { color: var(--rc-red); border-color: rgba(220, 38, 38, .28); }
+.rc-btn-danger:hover:not(:disabled) {
+    background: var(--rc-red-lt);
+    border-color: var(--rc-red);
+    color: #b91c1c;
+}
+
+/* Only ever used inside .rc-header, i.e. on the dark navy gradient — white on
+   a 10% white veil over #0b1f3a. A contrast checker that cannot see the header
+   behind it will report this as white-on-white; it is not. */
+.rc-btn-ghost {
+    background: rgba(255, 255, 255, .1);
+    border-color: rgba(255, 255, 255, .26);
+    color: #fff;
+}
+.rc-btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, .2);
+    border-color: rgba(255, 255, 255, .45);
+    color: #fff;
+}
+
+.rc-btn-sm { padding: 5px 10px; font-size: .78rem; }
+.rc-btn-icon { padding: 6px 9px; }
+
+
+/* ── cards ────────────────────────────────────────────────────────────── */
+
+.rc-card {
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-border);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    margin-bottom: 18px;
+    overflow: hidden;
+}
+
+.rc-card-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rc-border);
+    background: var(--rc-surface-2);
+}
+
+.rc-card-hdr h2 {
+    margin: 0;
+    font-size: .98rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+.rc-card-hdr h2 i { color: var(--rc-blue); }
+
+.rc-card-hdr .rc-sub {
+    margin: 3px 0 0;
+    font-size: .8rem;
+    color: var(--rc-muted);
+    font-weight: 500;
+}
+
+.rc-card-body { padding: 18px; }
+.rc-card-body.rc-flush { padding: 0; }
+
+
+/* ── KPI tiles ────────────────────────────────────────── */
+/* Four tiles, each an icon beside a stacked label / figure / hint.
+   The stack is the whole point: label, value and hint are <span>s, and a span
+   is inline, so without an explicit column they ran together as one sentence
+   ("DOCUMENTS 3,732 in the current view") and wrapped wherever the box ended.
+   The grid is laid out in one row on a normal screen and never fewer than two
+   across, so the four never end up as a ragged 3 + 1. */
+
+.rc-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.rc-kpi {
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-border);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    width: 100%;
+    min-width: 0;
+    font: inherit;
+    /* A link tile must not arrive underlined and blue just because it is an
+       anchor — the filing summary's tiles are links to the filtered grid. */
+    color: var(--rc-text);
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .12s, box-shadow .15s, border-color .15s;
+}
+.rc-kpi:hover,
+.rc-kpi:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--rc-blue);
+    box-shadow: 0 6px 20px rgba(11, 31, 58, .12);
+    color: var(--rc-text);
+    text-decoration: none;
+}
+.rc-kpi:focus-visible { outline: 2px solid var(--rc-blue); outline-offset: 2px; }
+
+/* The applied tile. A ring rather than a fill, so the figure inside keeps the
+   same contrast whether or not it is the one being filtered on. */
+.rc-kpi[aria-pressed="true"] {
+    border-color: var(--rc-blue);
+    box-shadow: 0 0 0 2px var(--rc-blue-lt), var(--rc-shadow);
+}
+
+/* The summary's Documents tile is a plain total, not a filter. */
+.rc-kpi-static { cursor: default; }
+.rc-kpi-static:hover { transform: none; border-color: var(--rc-border); box-shadow: var(--rc-shadow); }
+
+.rc-kpi-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    font-size: 1.05rem;
+}
+.rc-kpi-icon.blue  { background: var(--rc-blue-lt);  color: var(--rc-blue); }
+.rc-kpi-icon.green { background: var(--rc-green-lt); color: var(--rc-green); }
+.rc-kpi-icon.amber { background: var(--rc-amber-lt); color: var(--rc-amber); }
+.rc-kpi-icon.red   { background: var(--rc-red-lt);   color: var(--rc-red); }
+
+/* min-width:0 lets the hint below actually truncate instead of forcing the
+   tile wider than its grid column. */
+.rc-kpi-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.rc-kpi-label {
+    display: block;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--rc-muted);
+    line-height: 1.3;
+}
+
+/* The figure shrinks with the column rather than running past the tile's
+   edge. A nine-digit rupee value in a sixth of the row did exactly that, and
+   an overflowing number reads as a broken page, not as a big number. The
+   money tiles also carry a compact figure (64.78 Cr) with the exact one on
+   their tooltip — this is the backstop for everything else. */
+.rc-kpi-value {
+    display: block;
+    font-size: clamp(1.15rem, 1.35vw + .55rem, 1.65rem);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -.5px;
+    color: var(--rc-text);
+    font-variant-numeric: tabular-nums;
+    margin: 1px 0 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* One line, ellipsised. On the Documents tile this carries the active filter
+   description, which can be arbitrarily long — the full text is on the
+   element's title attribute. */
+.rc-kpi-hint {
+    display: block;
+    font-size: .75rem;
+    line-height: 1.35;
+    color: var(--rc-text-2);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+    .rc-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 460px) {
+    .rc-kpi-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* ── upload ───────────────────────────────────────────────────────────── */
+
+.rc-drop {
+    border: 2px dashed rgba(46, 111, 216, .32);
+    border-radius: var(--rc-radius);
+    background: linear-gradient(180deg, var(--rc-blue-lt), #f7faff);
+    padding: 28px 20px;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+}
+.rc-drop.rc-drag {
+    border-color: var(--rc-blue);
+    background: #e2edff;
+}
+.rc-drop i.rc-drop-icon {
+    font-size: 1.9rem;
+    color: var(--rc-blue);
+    display: block;
+    margin-bottom: 10px;
+}
+.rc-drop h3 { margin: 0 0 4px; font-size: .96rem; font-weight: 700; }
+.rc-drop p { margin: 0 0 16px; font-size: .82rem; color: var(--rc-text-2); }
+.rc-drop-file {
+    display: inline-block;
+    margin-top: 12px;
+    font-family: var(--rc-mono);
+    font-size: .8rem;
+    color: var(--rc-text-2);
+}
+
+.rc-modes {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.rc-mode {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 14px;
+    border: 1px solid var(--rc-border-md);
+    border-radius: var(--rc-radius-sm);
+    background: var(--rc-surface);
+    cursor: pointer;
+    max-width: 320px;
+    text-align: left;
+}
+.rc-mode input { margin-top: 3px; accent-color: var(--rc-blue); }
+.rc-mode:has(input:checked) {
+    border-color: var(--rc-blue);
+    box-shadow: 0 0 0 2px var(--rc-blue-lt);
+}
+.rc-mode b { display: block; font-size: .84rem; }
+.rc-mode span { font-size: .76rem; color: var(--rc-text-2); }
+
+.rc-note {
+    font-size: .8rem;
+    color: var(--rc-text-2);
+    background: var(--rc-surface-2);
+    border-left: 3px solid var(--rc-blue);
+    border-radius: 0 var(--rc-radius-sm) var(--rc-radius-sm) 0;
+    padding: 10px 14px;
+    margin: 14px auto 0;
+    max-width: 720px;
+    text-align: left;
+    line-height: 1.55;
+}
+
+.rc-progress { padding: 4px 0; }
+.rc-track {
+    height: 10px;
+    border-radius: 6px;
+    background: var(--rc-blue-lt);
+    overflow: hidden;
+}
+.rc-bar {
+    height: 100%;
+    width: 2%;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--rc-blue), var(--rc-blue-mid));
+    transition: width .3s ease;
+}
+.rc-bar.rc-bar-error { background: var(--rc-red); }
+.rc-progress-line {
+    margin-top: 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: .84rem;
+    color: var(--rc-text-2);
+}
+.rc-progress-count {
+    font-family: var(--rc-mono);
+    font-weight: 700;
+    color: var(--rc-text);
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ── filters ──────────────────────────────────────────────────────────── */
+
+.rc-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+.rc-filters .rc-field-wide { grid-column: span 2; }
+
+.rc-field label {
+    display: block;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--rc-muted);
+    margin-bottom: 5px;
+}
+
+.rc-input,
+.rc-select {
+    width: 100%;
+    padding: 8px 11px;
+    border: 1px solid var(--rc-border-md);
+    border-radius: var(--rc-radius-sm);
+    background: var(--rc-surface);
+    color: var(--rc-text);
+    font-size: .85rem;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+}
+.rc-input:focus,
+.rc-select:focus {
+    outline: none;
+    border-color: var(--rc-blue);
+    box-shadow: 0 0 0 3px var(--rc-blue-lt);
+}
+.rc-input::placeholder { color: var(--rc-muted); }
+textarea.rc-input { resize: vertical; min-height: 70px; }
+
+.rc-filter-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rc-border);
+}
+.rc-filter-actions .rc-spacer { flex: 1 1 auto; }
+
+
+/* ── table ────────────────────────────────────────────────────────────── */
+
+.rc-table-wrap {
+    overflow: auto;
+    max-height: 68vh;
+    border-radius: 0 0 var(--rc-radius) var(--rc-radius);
+}
+
+.rc-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .84rem;
+}
+
+.rc-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--rc-surface-2);
+    border-bottom: 1px solid var(--rc-border-md);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--rc-text-2);
+    white-space: nowrap;
+}
+.rc-table thead th.rc-sortable { cursor: pointer; user-select: none; }
+.rc-table thead th.rc-sortable:hover { color: var(--rc-blue); }
+.rc-table thead th i { margin-left: 5px; opacity: .45; font-size: .7rem; }
+/* "taxable" under a money heading: says which figure the column carries
+   without making the heading twice as wide. */
+.rc-table thead th small {
+    font-size: .62rem;
+    font-weight: 600;
+    opacity: .7;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.rc-table thead th.rc-sorted i { opacity: 1; color: var(--rc-blue); }
+
+.rc-table tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--rc-border);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.rc-table tbody tr:hover td { background: var(--rc-blue-lt); }
+.rc-table tbody tr.rc-row-removed td { opacity: .55; }
+.rc-table tbody tr.rc-row-removed td:first-child { box-shadow: inset 3px 0 0 var(--rc-red); }
+
+.rc-num {
+    text-align: right;
+    font-family: var(--rc-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: .82rem;
+}
+.rc-neg { color: var(--rc-red); }
+.rc-gap { font-weight: 700; color: #b91c1c; }
+.rc-dash { color: var(--rc-muted); }
+
+.rc-doc { font-weight: 700; }
+.rc-party {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+/* Clicking a money figure opens the record — the amounts are what people are
+   chasing, so they are the largest target on the row. */
+.rc-amt-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--rc-border-md);
+    cursor: pointer;
+    background: none;
+    border-top: 0; border-left: 0; border-right: 0;
+    padding: 0;
+    font: inherit;
+    font-family: var(--rc-mono);
+}
+.rc-amt-link:hover { color: var(--rc-blue); border-bottom-color: var(--rc-blue); }
+
+/* Document number is the row's identity, so it is a drill-in too — same
+   affordance as the amounts, keyboard-focusable, no colour of its own so the
+   number still reads as a label when nothing is hovered. */
+.rc-doc-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+}
+.rc-doc-link:hover,
+.rc-doc-link:focus-visible { color: var(--rc-blue); text-decoration: underline; }
+
+.rc-row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.rc-icon-btn {
+    border: 1px solid transparent;
+    background: none;
+    color: var(--rc-muted);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.rc-icon-btn:hover { background: var(--rc-blue-lt); color: var(--rc-blue); }
+.rc-icon-btn.rc-danger:hover { background: var(--rc-red-lt); color: var(--rc-red); }
+.rc-icon-btn.rc-good:hover { background: var(--rc-green-lt); color: #15803d; }
+
+
+/* ── presence glyph: G / E / W ────────────────────────────────────────── */
+
+.rc-glyph { display: inline-flex; gap: 2px; }
+.rc-glyph i {
+    font-style: normal;
+    width: 17px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 4px;
+    /* The "absent" state. Muted, but still readable against its own background.
+       This keeps the code/label clear without becoming a low-contrast hint. */
+    background: #e7ebf1;
+    color: #425a70;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-align: center;
+    font-family: var(--rc-mono);
+}
+.rc-glyph i.on-g { background: var(--rc-blue);   color: #fff; }
+.rc-glyph i.on-e { background: var(--rc-purple); color: #fff; }
+.rc-glyph i.on-w { background: var(--rc-teal);   color: #fff; }
+
+
+/* ── chips ────────────────────────────────────────────────────────────── */
+
+.rc-chip {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: .74rem;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.rc-chip.ok   { background: var(--rc-green-lt); color: var(--rc-green); }
+.rc-chip.warn { background: var(--rc-amber-lt); color: var(--rc-amber); }
+.rc-chip.bad  { background: var(--rc-red-lt);   color: var(--rc-red); }
+.rc-chip.idle { background: var(--rc-surface-2); color: var(--rc-text-2); }
+.rc-chip.info { background: var(--rc-blue-lt);  color: var(--rc-blue); }
+.rc-chip.pin  { background: var(--rc-purple-lt); color: var(--rc-purple); }
+
+.rc-count-badge {
+    font-family: var(--rc-mono);
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--rc-text-2);
+    background: var(--rc-surface-2);
+    border: 1px solid var(--rc-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+
+/* ── pagination ───────────────────────────────────────────────────────── */
+
+.rc-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    border-top: 1px solid var(--rc-border);
+    background: var(--rc-surface-2);
+    font-size: .82rem;
+    color: var(--rc-text-2);
+}
+.rc-pager-btns { display: flex; align-items: center; gap: 6px; }
+.rc-pager-page { font-family: var(--rc-mono); font-variant-numeric: tabular-nums; }
+
+
+/* ── empty / loading ──────────────────────────────────────────────────── */
+
+.rc-empty {
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--rc-muted);
+}
+.rc-empty i { font-size: 2rem; opacity: .35; display: block; margin-bottom: 12px; }
+.rc-empty h3 { margin: 0 0 6px; color: var(--rc-text); font-size: 1rem; }
+.rc-empty p { margin: 0; font-size: .86rem; }
+
+.rc-spinner {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    border: 2px solid var(--rc-blue-lt);
+    border-top-color: var(--rc-blue);
+    border-radius: 50%;
+    animation: rc-spin .7s linear infinite;
+    vertical-align: -2px;
+}
+@keyframes rc-spin { to { transform: rotate(360deg); } }
+
+.rc-busy {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, .62);
+    display: grid;
+    place-items: center;
+    z-index: 3;
+}
+.rc-table-host { position: relative; min-height: 180px; }
+
+
+/* ── drawer (edit all fields) ─────────────────────────────────────────── */
+
+.rc-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 31, 58, .55);
+    z-index: 1200;
+    animation: rc-fade .15s ease;
+}
+@keyframes rc-fade { from { opacity: 0; } }
+
+.rc-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(1080px, 100vw);
+    background: var(--rc-bg);
+    box-shadow: var(--rc-shadow-lg);
+    z-index: 1201;
+    display: flex;
+    flex-direction: column;
+    animation: rc-slide .22s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes rc-slide { from { transform: translateX(28px); opacity: .4; } }
+
+.rc-drawer-hdr {
+    padding: 16px 22px;
+    background: var(--rc-surface);
+    border-bottom: 1px solid var(--rc-border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.rc-drawer-hdr h2 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.rc-drawer-hdr .rc-sub { margin: 4px 0 0; font-size: .8rem; color: var(--rc-muted); }
+
+.rc-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 22px;
+    background: var(--rc-surface);
+    border-bottom: 1px solid var(--rc-border);
+    overflow-x: auto;
+}
+.rc-tab {
+    border: 0;
+    background: none;
+    padding: 10px 14px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--rc-text-2);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+.rc-tab:hover { color: var(--rc-blue); }
+.rc-tab[aria-selected="true"] { color: var(--rc-blue); border-bottom-color: var(--rc-blue); }
+.rc-tab .rc-tab-n {
+    font-family: var(--rc-mono);
+    font-size: .7rem;
+    opacity: .6;
+    margin-left: 5px;
+}
+
+.rc-drawer-body { flex: 1; overflow: auto; padding: 18px 22px; }
+
+.rc-field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+.rc-field-grid .rc-field label {
+    font-size: .66rem;
+    letter-spacing: .4px;
+    color: var(--rc-text-2);
+    font-family: var(--rc-mono);
+    text-transform: none;
+}
+.rc-field-grid .rc-input { padding: 6px 9px; font-size: .82rem; }
+
+.rc-drawer-foot {
+    padding: 14px 22px;
+    background: var(--rc-surface);
+    border-top: 1px solid var(--rc-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.rc-drawer-foot .rc-spacer { flex: 1 1 auto; }
+
+.rc-pin {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--rc-purple-lt);
+    background: #faf7ff;
+    border-radius: var(--rc-radius-sm);
+    margin-bottom: 14px;
+}
+.rc-pin input { margin-top: 3px; accent-color: var(--rc-purple); }
+.rc-pin b { font-size: .84rem; }
+.rc-pin span { display: block; font-size: .78rem; color: var(--rc-text-2); line-height: 1.5; }
+
+.rc-audit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    font-size: .78rem;
+    color: var(--rc-text-2);
+    background: var(--rc-surface-2);
+    border-radius: var(--rc-radius-sm);
+    padding: 12px 14px;
+    margin-top: 16px;
+}
+.rc-audit dt {
+    font-size: .66rem;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--rc-muted);
+    font-weight: 700;
+}
+.rc-audit dd { margin: 2px 0 0; font-family: var(--rc-mono); font-size: .76rem; }
+
+
+/* ── modal ────────────────────────────────────────────────────────────── */
+
+.rc-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: grid;
+    place-items: start center;
+    padding: 6vh 16px;
+    overflow: auto;
+    background: rgba(11, 31, 58, .55);
+}
+.rc-modal-box {
+    background: var(--rc-surface);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow-lg);
+    width: min(760px, 100%);
+    overflow: hidden;
+    animation: rc-pop .18s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes rc-pop { from { transform: translateY(-10px); opacity: .5; } }
+.rc-modal-hdr {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rc-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.rc-modal-hdr h2 { margin: 0; font-size: 1rem; font-weight: 700; }
+.rc-modal-body { padding: 20px; }
+.rc-modal-foot {
+    padding: 14px 20px;
+    border-top: 1px solid var(--rc-border);
+    background: var(--rc-surface-2);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.rc-modal-foot .rc-spacer { flex: 1 1 auto; }
+
+.rc-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 13px;
+}
+.rc-form-grid .rc-span-2 { grid-column: span 2; }
+
+
+/* ── document detail modal ────────────────────────────────────────────── */
+/* Opens on any amount in the grid. Its job is to explain a number, so the
+   verdict sits at the top at full width and the raw source columns sit below
+   it, split GST / E-Invoice / E-Way Bill — the comparison is the point, and a
+   single alphabetical list of 204 fields makes it impossible. */
+
+.rc-doc-modal { padding: 3vh 16px; }
+
+.rc-doc-box {
+    width: min(1240px, 100%);
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-doc-modal .rc-modal-hdr h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.rc-doc-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 18px 20px;
+    background: var(--rc-bg);
+}
+
+/* ── the verdict band ─────────────────────────────────────────────────── */
+
+.rc-verdict {
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-border);
+    border-left: 4px solid var(--rc-blue);
+    border-radius: var(--rc-radius);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+}
+
+.rc-verdict-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.rc-verdict-head .rc-chip { max-width: none; font-size: .82rem; }
+
+.rc-verdict-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.rc-verdict-tags .rc-chip { font-size: .72rem; font-weight: 600; }
+
+.rc-verdict-why {
+    margin: 0 0 14px;
+    font-size: .9rem;
+    color: var(--rc-text);
+    line-height: 1.55;
+}
+
+.rc-verdict-sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.rc-src {
+    border: 1px solid var(--rc-border);
+    border-radius: var(--rc-radius-sm);
+    background: var(--rc-surface-2);
+    padding: 11px 13px;
+}
+/* A source that is not there is dimmed, not hidden — "not present" is an
+   answer, and the map has to keep showing all three slots. */
+.rc-src-absent { opacity: .62; }
+
+.rc-src-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--rc-text-2);
+    margin-bottom: 7px;
+}
+.rc-src-head .rc-chip { font-size: .66rem; padding: 2px 8px; }
+
+.rc-src-value {
+    font-family: var(--rc-mono);
+    font-size: 1.12rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.rc-src-note {
+    font-size: .7rem;
+    color: var(--rc-muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-top: 2px;
+}
+
+.rc-verdict-math,
+.rc-verdict-rule {
+    margin: 0;
+    font-size: .82rem;
+    color: var(--rc-text-2);
+    line-height: 1.55;
+}
+.rc-verdict-math {
+    font-family: var(--rc-mono);
+    font-size: .78rem;
+    background: var(--rc-surface-2);
+    border-radius: var(--rc-radius-sm);
+    padding: 9px 12px;
+    margin-bottom: 8px;
+}
+
+/* ── the source columns ───────────────────────────────────────────────── */
+
+.rc-doc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.rc-doc-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 14px;
+    align-items: start;
+}
+
+.rc-doc-panel {
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-border);
+    border-radius: var(--rc-radius);
+    overflow: hidden;
+}
+.rc-doc-panel h3 {
+    margin: 0;
+    padding: 11px 15px;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: var(--rc-text-2);
+    background: var(--rc-surface-2);
+    border-bottom: 1px solid var(--rc-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.rc-doc-n {
+    font-family: var(--rc-mono);
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--rc-muted);
+}
+
+/* One accent per source, so the three blocks are told apart at a glance
+   without reading their headings. */
+.rc-panel-GST  h3 { box-shadow: inset 3px 0 0 var(--rc-blue); }
+.rc-panel-EINV h3 { box-shadow: inset 3px 0 0 var(--rc-purple); }
+.rc-panel-EWB  h3 { box-shadow: inset 3px 0 0 var(--rc-teal); }
+
+.rc-doc-fields { margin: 0; padding: 4px 0; }
+
+.rc-doc-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 10px;
+    padding: 5px 15px;
+    align-items: baseline;
+}
+.rc-doc-field:nth-child(odd) { background: rgba(11, 31, 58, .015); }
+
+.rc-doc-field dt {
+    font-family: var(--rc-mono);
+    font-size: .7rem;
+    color: var(--rc-text-2);
+    overflow-wrap: anywhere;
+}
+.rc-doc-field dd {
+    margin: 0;
+    font-size: .82rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* NA is rendered as text, not as a blank — the source genuinely does not
+   carry this, which is different from us having lost it. */
+.rc-doc-empty dd { color: var(--rc-muted); font-weight: 500; }
+
+@media (max-width: 900px) {
+    .rc-doc-modal { padding: 0; }
+    .rc-doc-box { max-height: 100vh; border-radius: 0; }
+    .rc-doc-panels { grid-template-columns: 1fr; }
+}
+
+
+/* ── preview modal ────────────────────────────────────────────────────── */
+/* Wider and taller than an ordinary modal: it is showing a spreadsheet, and a
+   preview you have to squint at answers nothing. The sheet scrolls in both
+   directions inside a fixed frame so the header and the download button stay
+   reachable however far across 210 columns you have gone. */
+
+.rc-preview-modal { padding: 3vh 16px; }
+
+.rc-preview-box {
+    width: min(1560px, 100%);
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-preview-host {
+    flex: 1 1 auto;
+    min-height: 240px;
+    overflow: auto;
+    background: var(--rc-surface-2);
+    border-top: 1px solid var(--rc-border);
+    border-bottom: 1px solid var(--rc-border);
+    padding: 14px;
+}
+
+/* The preview table arrives as server-built HTML with its own inline styles —
+   the exporter's palette, not this file's. Nothing here may restyle a cell, or
+   the preview would stop matching the workbook it is previewing. These rules
+   only place the block. */
+.rc-preview-sheet {
+    display: inline-block;
+    min-width: 100%;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, .10);
+}
+.rc-preview-sheet table { background: #fff; }
+
+.rc-preview-loading {
+    padding: 48px 16px;
+    text-align: center;
+    color: var(--rc-muted);
+    font-size: .88rem;
+}
+
+.rc-preview-error {
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--rc-red);
+    font-size: .9rem;
+    font-weight: 600;
+}
+.rc-preview-error i { margin-right: 6px; }
+
+@media (max-width: 900px) {
+    .rc-preview-modal { padding: 0; }
+    .rc-preview-box { max-height: 100vh; border-radius: 0; }
+}
+
+
+/* ── toasts ───────────────────────────────────────────────────────────── */
+
+.rc-toasts {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1400;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: min(440px, calc(100vw - 40px));
+}
+.rc-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 15px;
+    border-radius: var(--rc-radius-sm);
+    background: var(--rc-surface);
+    border-left: 4px solid var(--rc-blue);
+    box-shadow: 0 10px 30px rgba(11, 31, 58, .2);
+    font-size: .85rem;
+    animation: rc-toast-in .2s ease;
+}
+@keyframes rc-toast-in { from { transform: translateX(16px); opacity: 0; } }
+.rc-toast.ok   { border-left-color: var(--rc-green); }
+.rc-toast.warn { border-left-color: var(--rc-amber); }
+.rc-toast.bad  { border-left-color: var(--rc-red); }
+.rc-toast i { margin-top: 2px; }
+.rc-toast.ok i   { color: var(--rc-green); }
+.rc-toast.warn i { color: var(--rc-amber); }
+.rc-toast.bad i  { color: var(--rc-red); }
+.rc-toast button {
+    border: 0; background: none; cursor: pointer;
+    color: var(--rc-muted); margin-left: auto; padding: 0 2px;
+}
+
+
+/* ── pivot (dashboard) ────────────────────────────────────────────────── */
+
+.rc-pivot-wrap { overflow: auto; max-height: 78vh; }
+
+.rc-pivot {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .82rem;
+}
+.rc-pivot th,
+.rc-pivot td {
+    border: 1px solid #bfbfbf;
+    padding: 6px 10px;
+    vertical-align: middle;
+}
+.rc-pivot thead th,
+.rc-pivot tr.rc-pivot-head th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+    font-weight: 700;
+    text-align: left;
+    font-size: .74rem;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    white-space: nowrap;
+}
+.rc-pivot .rc-num { font-size: .8rem; }
+
+.rc-pivot td.rc-pivot-entity { font-weight: 700; }
+.rc-pivot tr.rc-lvl-gstr1   td { background: #ffff00; font-weight: 700; }
+.rc-pivot tr.rc-lvl-segment td { background: #fce4d6; font-weight: 700; }
+.rc-pivot tr.rc-lvl-entity  td { background: #e2efda; font-weight: 700; }
+.rc-pivot tr.rc-lvl-grand   td { background: #ddebf7; font-weight: 700; }
+.rc-pivot td.rc-pivot-label { text-align: center; }
+
+.rc-letterhead td {
+    border: none;
+    background: #fff;
+    text-align: center;
+    padding: 20px 8px 2px;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.rc-letterhead-sub td {
+    border: none;
+    background: #fff;
+    text-align: center;
+    padding: 0 8px 12px;
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--rc-text-2);
+}
+
+
+/* ── billing-type master ──────────────────────────────────────────────── */
+
+.rc-bt-table td { white-space: normal; }
+.rc-bt-code {
+    font-family: var(--rc-mono);
+    font-weight: 700;
+    background: var(--rc-surface-2);
+    border-radius: 5px;
+    padding: 2px 7px;
+}
+.rc-flags { display: flex; gap: 4px; }
+.rc-flag {
+    font-size: .66rem;
+    font-weight: 700;
+    font-family: var(--rc-mono);
+    border-radius: 4px;
+    padding: 2px 6px;
+    /* "Not applicable" — muted but legible, same reasoning as .rc-glyph. */
+    background: #e7ebf1;
+    color: #425a70;
+}
+.rc-flag.on { background: var(--rc-blue-lt); color: var(--rc-blue); }
+.rc-inactive { opacity: .5; }
+
+.rc-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: .84rem;
+    cursor: pointer;
+}
+.rc-check input { accent-color: var(--rc-blue); }
+
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    .rc-header-inner, .rc-inner { padding: 0 16px; }
+    .rc-inner { padding-top: 16px; }
+    .rc-filters .rc-field-wide { grid-column: span 1; }
+    .rc-form-grid .rc-span-2 { grid-column: span 1; }
+    .rc-table-wrap { max-height: none; }
+    .rc-drawer { width: 100vw; }
+}
+
+
+/* ── dashboard analytics ──────────────────────────────────────────────── */
+/* Charts, the insight list and the vendor table on the filing summary. The
+   chart colours live in recon_charts.js, beside the data they encode — the
+   only colours here are chrome. */
+
+.rc-kpi-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1400px) { .rc-kpi-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 860px)  { .rc-kpi-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px)  { .rc-kpi-6 { grid-template-columns: minmax(0, 1fr); } }
+
+.rc-kpi-icon.purple { background: var(--rc-purple-lt); color: var(--rc-purple); }
+.rc-kpi-icon.teal   { background: var(--rc-teal-lt);   color: var(--rc-teal); }
+
+.rc-chart-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+@media (max-width: 1100px) { .rc-chart-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* Chart.js sizes to its container, so the container must have a height and
+   must not be allowed to grow on every resize. */
+.rc-chart { position: relative; min-width: 0; }
+.rc-chart canvas { max-width: 100%; }
+
+.rc-chart-note {
+    margin: 0 0 12px;
+    font-size: .8rem;
+    color: var(--rc-text-2);
+}
+
+.rc-chart-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+/* The legend is HTML rather than Chart.js's own, so it can sit in the card
+   header beside the title instead of stealing height from the plot. */
+.rc-chart-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.rc-lg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--rc-text-2);
+}
+.rc-lg i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.rc-btn.rc-btn-on {
+    background: var(--rc-blue-lt);
+    border-color: var(--rc-blue);
+    color: var(--rc-blue);
+}
+
+/* The table view behind every chart. Required relief: amber sits below 3:1 on
+   white, and a chart nobody can read has to have a readable twin. */
+.rc-chart-table { overflow: auto; max-height: 300px; }
+.rc-chart-table .rc-table { font-size: .82rem; }
+
+/* ── insights ─────────────────────────────────────────────────────────── */
+
+.rc-insights { display: flex; flex-direction: column; gap: 10px; }
+
+.rc-insight {
+    background: var(--rc-surface-2);
+    border: 1px solid var(--rc-border);
+    border-left: 3px solid var(--rc-muted);
+    border-radius: var(--rc-radius-sm);
+    padding: 11px 14px;
+}
+.rc-insight strong {
+    display: block;
+    font-size: .92rem;
+    margin: 4px 0 3px;
+    line-height: 1.4;
+}
+.rc-insight-tag {
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--rc-muted);
+}
+.rc-insight-detail {
+    font-size: .8rem;
+    color: var(--rc-text-2);
+    line-height: 1.5;
+}
+
+/* Tone is carried by the rule at the left AND by the tag text above it, never
+   by colour alone. */
+.rc-tone-ok   { border-left-color: #15803d; }
+.rc-tone-warn { border-left-color: #f59e0b; }
+.rc-tone-bad  { border-left-color: #be123c; }
+.rc-tone-idle { border-left-color: var(--rc-muted); }
+
+
+/* ── staged-file notice ───────────────────────────────────────────────── */
+/* Shown when a file read in an earlier visit is still staged. It is an offer,
+   not a restored state: the upload card behind it stays in its normal "choose
+   a file" condition, because a workbook nobody picked this session appearing
+   pre-loaded reads as the module importing something on its own. */
+
+.rc-resume {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 13px 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--rc-amber-lt);
+    border-left: 3px solid var(--rc-amber);
+    border-radius: var(--rc-radius-sm);
+    background: #fffdf6;
+}
+.rc-resume > i { color: var(--rc-amber); margin-top: 3px; }
+
+.rc-resume-copy { flex: 1 1 auto; min-width: 0; }
+.rc-resume-copy b { display: block; font-size: .88rem; }
+.rc-resume-copy > span {
+    display: block;
+    font-size: .8rem;
+    color: var(--rc-text-2);
+    overflow-wrap: anywhere;
+}
+.rc-resume-note { margin-top: 3px; }
+
+.rc-resume-actions { display: flex; gap: 7px; flex-shrink: 0; }
+
+@media (max-width: 700px) {
+    .rc-resume { flex-wrap: wrap; }
+    .rc-resume-actions { width: 100%; }
+}
+
+
+/* ── unmapped sales types ─────────────────────────────────────────────── */
+/* Codes the data carries that the master has no row for. They still classify,
+   on the built-in fallback — this panel says which ones, because "it works but
+   silently" is the state nobody notices. */
+
+.rc-unmapped { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.rc-unmapped-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--rc-amber-lt);
+    border-radius: var(--rc-radius-sm);
+    background: #fffdf6;
+}
+.rc-unmapped-count { font-size: .78rem; color: var(--rc-text-2); }
+
+.rc-check span { line-height: 1.5; }
+.rc-check span b { display: block; }

@@ -1,0 +1,101 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Meril-V launcher — the module's home page. Six-plus workflow tiles (from the
+view's `tools` list, which already includes/excludes Master Data by tier),
+today's KPIs, and a feed of recently completed dispatches.
+{% endcomment %}
+
+{% block mv_title %}Meril-V{% endblock %}
+{% comment %}
+No mv_back override here: _base.html now resolves Back from the hierarchy in
+merilv/navigation.py, and this screen's entry already points out of the module
+to the platform landing page. Overriding it locally just restored the generic
+"Back" label and re-introduced the dead data-mv-back attributes.
+{% endcomment %}
+{% block mv_heading %}Meril-V{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Warehouse validation &amp; outbound operations — one console for every business unit.</p>{% endblock %}
+
+{% block mv_body %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "truck" %}</span><span class="mv-kpi__label">Deliveries Today</span>
+        <span class="mv-kpi__value">{{ stats.deliveries_today }}</span>
+        <span class="mv-kpi__sub">{% icon "check-circle" 12 %} Closed since midnight</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scans Today</span>
+        <span class="mv-kpi__value">{{ stats.scans_today }}</span>
+        <span class="mv-kpi__sub">{% icon "scan" 12 %} Accepted outbound scans</span>
+    </div>
+    <div class="mv-kpi{% if stats.open_sessions %} mv-kpi--warn{% endif %}">
+        <span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Open Sessions</span>
+        <span class="mv-kpi__value">{{ stats.open_sessions }}</span>
+        <span class="mv-kpi__sub">{% icon "box" 12 %} Still being picked</span>
+    </div>
+    <div class="mv-kpi mv-kpi--active">
+        <span class="mv-kpi__icon">{% icon "clipboard" %}</span><span class="mv-kpi__label">Validations This Week</span>
+        <span class="mv-kpi__value">{{ stats.validations_week }}</span>
+        <span class="mv-kpi__sub">{% icon "clipboard" 12 %} Last 7 days</span>
+    </div>
+</div>
+
+<div class="mv-section">
+    <div class="mv-tiles">
+        {% for tool in tools %}
+        <a href="{{ tool.url }}" class="mv-tile">
+            <span class="mv-tile__icon">{% fa_icon tool.icon 20 %}</span>
+            <span class="mv-tile__title">{{ tool.name }}</span>
+            <span class="mv-tile__desc">{{ tool.description }}</span>
+            <span class="mv-tile__go">Open {% icon "arrow-right" 14 %}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="mv-card">
+    <div class="mv-card__head">
+        <h2 class="mv-card__title">{% icon "package" %} Recent dispatches</h2>
+        <a href="{% url 'merilv:delivery_history' %}" class="mv-link-btn mv-t-caption">View all {% icon "arrow-right" 12 %}</a>
+    </div>
+    {% if recent_deliveries %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead>
+            <tr>
+                <th>Delivery</th>
+                <th>Customer</th>
+                <th>Entity</th>
+                <th>Courier</th>
+                <th class="mv-num">Boxes</th>
+                <th>Closed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in recent_deliveries %}
+            <tr data-mv-href="{% url 'merilv:delivery_detail' d.pk %}" class="mv-row-link">
+                <td>
+                    <span class="mv-mono">{{ d.delivery_no }}</span>
+                    {% if d.is_partial %}<span class="mv-badge mv-badge--warn" style="margin-left:var(--mv-2);">Partial</span>{% endif %}
+                </td>
+                <td>{{ d.customer_name|default:"—"|truncatechars:32 }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ d.entity.code }}</span></td>
+                <td>{{ d.courier_partner|default:"—" }}</td>
+                <td class="mv-num">{{ d.box_count }}</td>
+                <td class="mv-t-caption">{{ d.created_at|date:"d M, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "inbox" 48 %}
+        <div class="mv-empty__title">No dispatches yet</div>
+        <p class="mv-empty__text">Completed deliveries appear here as soon as the first outbound session is closed.</p>
+        <a href="{% url 'merilv:outbound' %}" class="mv-btn mv-btn--primary mv-empty__action">{% icon "scan" %} Start an outbound session</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

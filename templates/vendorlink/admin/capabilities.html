@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Capability Master — VendorLink{% endblock %}
+{% block page_title %}Capability Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_console' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Admin Console
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-shield-halved"></i> Capability Master</h1>
+          <p>The capability dimensions tracked for every vendor, with live adoption across
+             {{ active_total }} active vendor{{ active_total|pluralize }}. Add one here and it
+             appears on the vendor form, the public registration form, the capability matrix,
+             the directory filters and the AI evaluator's service list.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ rows|length }}</div>
+            <div class="lm-hstat-lbl">Dimensions</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ active_total }}</div>
+            <div class="lm-hstat-lbl">Vendors</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'vendorlink:capability_matrix' %}" class="btn btn-ghost btn-sm">
+          <i class="fas fa-table-cells-large"></i> Capability matrix
+        </a>
+      </div>
+      <div class="actions-right">
+        <button type="button" class="btn btn-primary btn-sm" id="vlCapAddToggle">
+          <i class="fas fa-plus"></i> Add capability
+        </button>
+      </div>
+    </div>
+
+    {% comment %}
+    Add form. Rendered open when the POST came back with errors, so the values
+    the person typed are still on screen instead of being hidden behind a
+    collapsed panel with a message pointing at nothing.
+    {% endcomment %}
+    <form method="post" class="vl-panel" id="vlCapAddPanel"
+          {% if not form.errors %}hidden{% endif %}>
+      {% csrf_token %}
+      <div class="vl-panel-hdr"><i class="fas fa-plus-circle"></i> New capability</div>
+      <div class="vl-panel-body">
+        {% comment %}
+        Two fields only. Code and Position used to be on this form and are now
+        derived in CapabilityForm.save — a field labelled "Code" collected a
+        label with spaces in it, and "Position" was left at its default every
+        time, which then ordered by name anyway.
+        {% endcomment %}
+        <div class="vl-formgrid">
+          <label class="vl-field">
+            <span class="vl-field__label">Capability name <span class="vl-field__req">*</span></span>
+            {{ form.label }}
+            <span class="vl-field__hint">What every screen shows, e.g. "Cold Chain Validation".</span>
+            {% for e in form.label.errors %}<span class="vl-field__err">{{ e }}</span>{% endfor %}
+          </label>
+          {% include "vendorlink/admin/_capability_icon_picker.html" %}
+        </div>
+        {% for e in form.non_field_errors %}<div class="vl-field__err">{{ e }}</div>{% endfor %}
+        <div class="vl-formfoot">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Add capability</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="vlCapAddCancel">Cancel</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="tbl-wrap" style="--cols: 1.6fr 150px 110px 2fr 190px">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Capability</div>
+        <div>Code</div>
+        <div style="text-align:center;">Vendors</div>
+        <div>Adoption</div>
+        <div style="text-align:right;">Actions</div>
+      </div>
+      {% for r in rows %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        <div class="tbl-name">
+          <i class="fas {{ r.icon }}" style="color:var(--purple);width:18px;margin-right:8px;"></i>{{ r.label }}
+          {% if r.description %}<div class="vl-muted" style="font-size:12px;">{{ r.description }}</div>{% endif %}
+        </div>
+        <div><code class="vl-mono" style="font-size:12px;">{{ r.code }}</code></div>
+        <div style="text-align:center;" class="vl-cap-count">{{ r.count }}</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="vl-progress" style="flex:1;margin-top:0;">
+            <div class="vl-progress-fill" data-pct="{{ r.pct }}"></div>
+          </div>
+          <span class="vl-mono" style="min-width:44px;text-align:right;">{{ r.pct }}%</span>
+        </div>
+        <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;">
+          <a href="{% url 'vendorlink:capability_edit' r.capability.pk %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-pen"></i> Edit
+          </a>
+          <form method="post" action="{% url 'vendorlink:capability_toggle' r.capability.pk %}"
+                onsubmit="return confirm('Retire &quot;{{ r.label|escapejs }}&quot;? It comes off the forms and filters. The {{ r.count }} vendor(s) holding it keep it on their record.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-box-archive"></i> Retire</button>
+          </form>
+        </div>
+      </div>
+      {% empty %}
+      <div class="tbl-row" style="grid-template-columns:1fr">
+        <div class="vl-muted" style="padding:18px;">
+          No capabilities yet. Add the first one above — until then the vendor and
+          registration forms will show no capability section at all.
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if retired %}
+    <div class="section-hdr" style="margin-top:26px;">
+      <h2><i class="fas fa-box-archive"></i> Retired</h2>
+    </div>
+    <div class="tbl-wrap" style="--cols: 1.6fr 150px 110px 2fr 190px">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Capability</div>
+        <div>Code</div>
+        <div style="text-align:center;">Vendors</div>
+        <div></div>
+        <div style="text-align:right;">Actions</div>
+      </div>
+      {% for c in retired %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols);opacity:.72;">
+        <div class="tbl-name">
+          <i class="fas {{ c.icon }}" style="width:18px;margin-right:8px;"></i>{{ c.label }}
+        </div>
+        <div><code class="vl-mono" style="font-size:12px;">{{ c.code }}</code></div>
+        <div style="text-align:center;" class="vl-cap-count">{{ c.vendor_count }}</div>
+        <div class="vl-muted" style="font-size:12px;">Off the forms and filters; still on the vendors that declared it.</div>
+        <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;">
+          <a href="{% url 'vendorlink:capability_edit' c.pk %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-pen"></i> Edit
+          </a>
+          <form method="post" action="{% url 'vendorlink:capability_toggle' c.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-ghost btn-sm"><i class="fas fa-rotate-left"></i> Reinstate</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vl-notice" style="margin-top:18px;">
+      <i class="fas fa-circle-info"></i>
+      <div>
+        Retiring is the way to stop tracking a dimension. Capabilities are never deleted:
+        the links are the record of what each vendor declared, and removing the master row
+        would erase that history rather than closing it.
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-icon-picker.js' %}"></script>
+<script>
+(function () {
+  var toggle = document.getElementById('vlCapAddToggle');
+  var panel  = document.getElementById('vlCapAddPanel');
+  var cancel = document.getElementById('vlCapAddCancel');
+  /* `hidden`, not style.display: the panel is a .vl-panel, whose own display
+     the inline style would have to keep re-asserting. */
+  if (toggle && panel) {
+    toggle.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) {
+        var first = panel.querySelector('input:not([disabled]), select, textarea');
+        if (first) { first.focus(); }
+      }
+    });
+  }
+  if (cancel && panel) {
+    cancel.addEventListener('click', function () { panel.hidden = true; });
+  }
+
+  var bars = document.querySelectorAll('.vl-progress-fill[data-pct]');
+  if (!bars.length) return;
+  function fill(b) { b.style.width = b.dataset.pct + '%'; }
+  if (!('IntersectionObserver' in window)) { bars.forEach(fill); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { fill(e.target); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.3 });
+  bars.forEach(function (b) { io.observe(b); });
+})();
+</script>
+{% endblock %}

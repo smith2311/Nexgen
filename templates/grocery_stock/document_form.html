@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ spec.title }} — Grocery Stock{% endblock %}
+{% block page_title %}{{ spec.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+
+{{ header_fields|json_script:"gs-header-fields" }}
+{{ line_columns|json_script:"gs-line-columns" }}
+{{ line_result_columns|json_script:"gs-line-results" }}
+<script>
+  const GS_DOC = {
+    slug:       "{{ slug|escapejs }}",
+    title:      "{{ spec.title|escapejs }}",
+    apiBase:    "/grocery/api/v1/{{ spec.endpoint }}/",
+    lookupBase: "/grocery/api/v1/",
+    listUrl:    "{% url 'grocery_stock:document_list' slug %}",
+    detailUrlTemplate: "{% url 'grocery_stock:document_detail' slug 0 %}",
+    documentId: {{ document_id|default:"null" }},
+    numberField: "{{ spec.number_field|escapejs }}",
+    canWrite:   {{ can_write|yesno:"true,false" }},
+    showAvailability: {{ spec.show_availability|yesno:"true,false" }},
+    availabilityLabel: "{{ spec.availability_label|default:'Available'|escapejs }}",
+    quantityField: "{{ spec.quantity_field|default:'quantity'|escapejs }}",
+    headerFields:  JSON.parse(document.getElementById('gs-header-fields').textContent),
+    lineColumns:   JSON.parse(document.getElementById('gs-line-columns').textContent),
+    lineResults:   JSON.parse(document.getElementById('gs-line-results').textContent),
+  };
+</script>
+
+<div class="lm-page gs-master gs-master-wide">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'grocery_stock:document_list' slug %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        {{ spec.plural }}
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1>
+            <i class="{{ spec.icon }}"></i>
+            <span id="gsDocTitle">{{ spec.title }}</span>
+            <span class="gs-status-chip" id="gsStatusChip" hidden></span>
+          </h1>
+          <p>{{ spec.subtitle }}</p>
+        </div>
+
+        <div class="gs-doc-actions">
+          <button class="btn" id="gsSaveDraftBtn" hidden>
+            <i class="fas fa-floppy-disk"></i> Save Draft
+          </button>
+          <button class="btn btn-green" id="gsPostBtn" hidden>
+            <i class="fas fa-circle-check"></i> Post
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    <div class="alert-banner" id="gsReadOnlyBanner" hidden>
+      <i class="fas fa-lock"></i>
+      <span id="gsReadOnlyText"></span>
+    </div>
+
+    <div class="alert-banner error" id="gsFormError" hidden>
+      <i class="fas fa-circle-exclamation"></i>
+      <span id="gsFormErrorText"></span>
+    </div>
+
+    <!-- ─── HEADER ─── -->
+    <div class="gs-panel">
+      <div class="gs-panel-hdr"><i class="fas fa-file-lines"></i> Document Details</div>
+      <div class="gs-panel-body">
+        <div class="form-grid" id="gsHeaderGrid"></div>
+      </div>
+    </div>
+
+    <!-- ─── LINES ─── -->
+    <div class="gs-panel">
+      <div class="gs-panel-hdr">
+        <i class="fas fa-list"></i> Lines
+        <button class="btn btn-navy btn-xs" id="gsAddLineBtn">
+          <i class="fas fa-plus"></i> Add Line
+        </button>
+      </div>
+      <div class="gs-panel-body gs-panel-body-flush">
+        <div class="gs-lines-scroll">
+          <table class="gs-tbl gs-lines-tbl">
+            <thead id="gsLinesHead"></thead>
+            <tbody id="gsLinesBody"></tbody>
+          </table>
+        </div>
+        <div class="gs-lines-empty" id="gsLinesEmpty">
+          <i class="fas fa-inbox"></i>
+          <p>No lines yet. Use <strong>Add Line</strong> to start.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── TOTALS ─── -->
+    <div class="gs-totals" id="gsTotals"></div>
+
+  </div>
+</div>
+
+
+<!-- ═══ POST CONFIRMATION ═══ -->
+<div class="lmodal-overlay" id="gsPostOverlay">
+  <div class="lmodal gs-modal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-circle-check"></i></div>
+      <div>
+        <h3>Post this {{ spec.title|lower }}?</h3>
+        <p>This moves stock and cannot be undone</p>
+      </div>
+    </div>
+    <div class="lmodal-body">
+      <div class="alert-banner warn">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span>Posting updates stock, writes the ledger and changes the item
+              average cost. A posted document cannot be edited or cancelled —
+              a mistake has to be corrected with a reversing document.</span>
+      </div>
+      <div class="lmodal-record" id="gsPostSummary"></div>
+    </div>
+    <div class="lmodal-footer">
+      <button class="btn btn-ghost" id="gsPostCancel">
+        <i class="fas fa-arrow-left"></i> Not yet
+      </button>
+      <button class="btn btn-green" id="gsPostConfirm">
+        <i class="fas fa-circle-check"></i> Post
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div class="lm-toast" id="gsToast">
+  <i class="fas fa-check-circle"></i><span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/grocery_stock/grocery_common.js' %}"></script>
+<script src="{% static 'js/grocery_stock/grocery_document_form.js' %}"></script>
+{% endblock %}

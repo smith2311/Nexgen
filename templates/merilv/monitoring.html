@@ -1,0 +1,147 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Live Monitoring — who is picking what, right now. Polls monitoring_state every
+5s (slower than the outbound console's 2s: this is an overview board, not the
+hot path a picker's own gun depends on).
+{% endcomment %}
+
+{% block mv_title %}Live Monitoring{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Live Monitoring</span>
+{% endblock %}
+{% block mv_heading %}Live Monitoring{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">See who is picking what, right now.</p>{% endblock %}
+{% block mv_actions %}<svg class="mv-poll-spinner" data-mv="poll-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/></svg>{% endblock %}
+
+{% block mv_body %}
+<div class="mv-kpis">
+    <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "users" %}</span><span class="mv-kpi__label">Active Operators</span><span class="mv-kpi__value" data-mv="active-operators">{{ payload.summary.active_operators }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "activity" %}</span><span class="mv-kpi__label">Open Sessions</span><span class="mv-kpi__value" data-mv="open-sessions">{{ payload.summary.open_sessions }}</span></div>
+    <div class="mv-kpi{% if payload.summary.idle_sessions %} mv-kpi--warn{% endif %}"><span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Idle Sessions</span><span class="mv-kpi__value" data-mv="idle-sessions">{{ payload.summary.idle_sessions }}</span></div>
+    <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scans (last {{ payload.summary.window_minutes }}m)</span><span class="mv-kpi__value" data-mv="scans-window">{{ payload.summary.scans_in_window }}</span></div>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "scan" %} Outbound sessions</h2></div>
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Session</th><th>Entity</th><th>Operator</th><th>Focus</th><th class="mv-num">Progress</th><th>Status</th></tr></thead>
+        <tbody data-mv="outbound-rows">
+            {% for row in payload.outbound %}
+            <tr data-mv-href="/meril-v/outbound/{{ row.id }}/" class="mv-row-link">
+                <td class="mv-t-strong">{{ row.name }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ row.entity }}</span></td>
+                <td>{{ row.operator }}</td>
+                <td>{% if row.is_focused %}<span class="mv-mono">{{ row.focus }}</span>{% else %}<span class="mv-fg-3">—</span>{% endif %}</td>
+                <td class="mv-num mv-mono">{{ row.scanned|floatformat:0 }} / {{ row.required|floatformat:0 }} ({{ row.percent }}%)</td>
+                <td>{% if row.is_active %}<span class="mv-badge mv-badge--ok">Active</span>{% else %}<span class="mv-badge mv-badge--neutral">Idle</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6"><div class="mv-empty">{% icon "scan" 48 %}<div class="mv-empty__title">No open outbound sessions</div></div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "barcode" %} Extractor sessions</h2></div>
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Session</th><th>Mode</th><th>Entity</th><th>Operator</th><th class="mv-num">Found</th><th class="mv-num">Total</th><th>Status</th></tr></thead>
+        <tbody data-mv="scan-rows">
+            {% for row in payload.scan_sessions %}
+            <tr data-mv-href="/meril-v/extractor/session/{{ row.id }}/" class="mv-row-link">
+                <td class="mv-t-strong">{{ row.name }}</td>
+                <td class="mv-fg-3">{{ row.mode }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ row.entity }}</span></td>
+                <td>{{ row.operator }}</td>
+                <td class="mv-num">{{ row.found }}</td>
+                <td class="mv-num">{{ row.total }}</td>
+                <td>{% if row.is_active %}<span class="mv-badge mv-badge--ok">Active</span>{% else %}<span class="mv-badge mv-badge--neutral">Idle</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7"><div class="mv-empty">{% icon "barcode" 48 %}<div class="mv-empty__title">No open extractor sessions</div></div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block mv_js %}
+<script>
+(function () {
+    var spinner = document.querySelector('[data-mv="poll-spinner"]');
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function poll() {
+        if (spinner) { spinner.classList.add('is-active'); }
+        fetch('{% url "merilv:monitoring_state" %}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(render)
+            .catch(function () {})
+            .finally(function () { if (spinner) { spinner.classList.remove('is-active'); } });
+    }
+    function render(p) {
+        document.querySelector('[data-mv="active-operators"]').textContent = p.summary.active_operators;
+        document.querySelector('[data-mv="open-sessions"]').textContent = p.summary.open_sessions;
+        document.querySelector('[data-mv="idle-sessions"]').textContent = p.summary.idle_sessions;
+        document.querySelector('[data-mv="scans-window"]').textContent = p.summary.scans_in_window;
+
+        var ob = document.querySelector('[data-mv="outbound-rows"]');
+        ob.innerHTML = '';
+        (p.outbound || []).forEach(function (row) {
+            var tr = document.createElement('tr');
+            /* Same declarative contract as the server-rendered rows, so the one
+             * handler in datatable.js governs navigation everywhere — including
+             * modifier-clicks and the no-duplicate-history rule. */
+            tr.className = 'mv-row-link';
+            tr.dataset.mvHref = '/meril-v/outbound/' + row.id + '/';
+            tr.innerHTML =
+                '<td class="mv-t-strong"></td>' +
+                '<td><span class="mv-badge mv-badge--neutral"></span></td>' +
+                '<td></td><td></td><td class="mv-num mv-mono"></td><td></td>';
+            var c = tr.children;
+            c[0].textContent = row.name;
+            c[1].querySelector('span').textContent = row.entity;
+            c[2].textContent = row.operator;
+            c[3].innerHTML = row.is_focused ? '<span class="mv-mono"></span>' : '<span class="mv-fg-3">—</span>';
+            if (row.is_focused) { c[3].querySelector('span').textContent = row.focus; }
+            c[4].textContent = Math.round(row.scanned) + ' / ' + Math.round(row.required) + ' (' + row.percent + '%)';
+            c[5].innerHTML = row.is_active ? '<span class="mv-badge mv-badge--ok">Active</span>' : '<span class="mv-badge mv-badge--neutral">Idle</span>';
+            ob.appendChild(tr);
+        });
+        if (!p.outbound || !p.outbound.length) {
+            ob.innerHTML = '<tr><td colspan="6"><div class="mv-empty"><div class="mv-empty__title">No open outbound sessions</div></div></td></tr>';
+        }
+
+        var ss = document.querySelector('[data-mv="scan-rows"]');
+        ss.innerHTML = '';
+        (p.scan_sessions || []).forEach(function (row) {
+            var tr = document.createElement('tr');
+            tr.className = 'mv-row-link';
+            tr.dataset.mvHref = '/meril-v/extractor/session/' + row.id + '/';
+            tr.innerHTML =
+                '<td class="mv-t-strong"></td><td class="mv-fg-3"></td>' +
+                '<td><span class="mv-badge mv-badge--neutral"></span></td>' +
+                '<td></td><td class="mv-num"></td><td class="mv-num"></td><td></td>';
+            var c = tr.children;
+            c[0].textContent = row.name;
+            c[1].textContent = row.mode;
+            c[2].querySelector('span').textContent = row.entity;
+            c[3].textContent = row.operator;
+            c[4].textContent = row.found;
+            c[5].textContent = row.total;
+            c[6].innerHTML = row.is_active ? '<span class="mv-badge mv-badge--ok">Active</span>' : '<span class="mv-badge mv-badge--neutral">Idle</span>';
+            ss.appendChild(tr);
+        });
+        if (!p.scan_sessions || !p.scan_sessions.length) {
+            ss.innerHTML = '<tr><td colspan="7"><div class="mv-empty"><div class="mv-empty__title">No open extractor sessions</div></div></td></tr>';
+        }
+    }
+    setInterval(poll, 5000);
+})();
+</script>
+{% endblock %}

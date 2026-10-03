@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Purge — Permanent Delete{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ────────────────────────────────────────────────── */
+.purge-page { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+.purge-header { margin-bottom: 24px; }
+.purge-header h1 { font-size: 1.6rem; font-weight: 800; color: #06152b; display: flex; align-items: center; gap: 10px; }
+.purge-header h1 i { color: #ef4444; }
+.purge-header p { color: #5f6c7d; margin-top: 4px; font-size: .9rem; }
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.purge-tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+.purge-tab { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: .9rem; font-weight: 600; color: #5f6c7d; border-radius: 6px 6px 0 0; transition: all .15s; }
+.purge-tab:hover { background: #f3f4f6; color: #06152b; }
+.purge-tab.active { color: #ef4444; border-bottom: 3px solid #ef4444; margin-bottom: -2px; background: none; }
+.purge-tab .badge { display: inline-flex; align-items: center; justify-content: center; background: #e5e7eb; color: #374151; font-size: .75rem; border-radius: 99px; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px; }
+
+/* ── Panel ─────────────────────────────────────────────────── */
+.purge-panel { display: none; }
+.purge-panel.active { display: block; }
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+.purge-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.purge-search { flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .875rem; outline: none; }
+.purge-search:focus { border-color: #0076c8; box-shadow: 0 0 0 3px rgba(0,118,200,.15); }
+.btn-bulk-del { padding: 8px 16px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: .875rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; }
+.btn-bulk-del:disabled { background: #fca5a5; cursor: not-allowed; }
+.btn-bulk-del:not(:disabled):hover { background: #dc2626; }
+.sel-count { font-size: .85rem; color: #5f6c7d; }
+
+/* ── Table ─────────────────────────────────────────────────── */
+.purge-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+.purge-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.purge-table thead th { background: #f9fafb; padding: 10px 12px; text-align: left; font-weight: 700; color: #374151; white-space: nowrap; border-bottom: 1px solid #e5e7eb; }
+.purge-table tbody tr { border-bottom: 1px solid #f3f4f6; transition: background .1s; }
+.purge-table tbody tr:hover { background: #fef2f2; }
+.purge-table td { padding: 9px 12px; color: #374151; vertical-align: middle; }
+.purge-table .cb-col { width: 36px; text-align: center; }
+.purge-table .act-col { width: 80px; text-align: center; white-space: nowrap; }
+
+/* ── Individual delete button ──────────────────────────────── */
+.btn-del-one { padding: 4px 10px; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 5px; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-del-one:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+/* ── Status pill ───────────────────────────────────────────── */
+.pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .75rem; font-weight: 600; }
+.pill-green  { background: #d1fae5; color: #065f46; }
+.pill-orange { background: #fed7aa; color: #9a3412; }
+.pill-blue   { background: #dbeafe; color: #1e40af; }
+.pill-gray   { background: #f3f4f6; color: #374151; }
+.pill-red    { background: #fee2e2; color: #991b1b; }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.purge-empty { text-align: center; padding: 48px 20px; color: #9ca3af; }
+.purge-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+
+/* ── Modal ─────────────────────────────────────────────────── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9999; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal-box { background: #fff; border-radius: 10px; padding: 28px 32px; max-width: 440px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.modal-box h3 { font-size: 1.1rem; font-weight: 800; color: #06152b; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.modal-box h3 i { color: #ef4444; }
+.modal-box p { color: #5f6c7d; font-size: .9rem; line-height: 1.5; margin-bottom: 20px; }
+.modal-box strong { color: #ef4444; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel { padding: 9px 18px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: .875rem; font-weight: 600; cursor: pointer; color: #374151; }
+.btn-cancel:hover { background: #f9fafb; }
+.btn-confirm-del { padding: 9px 18px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.btn-confirm-del:hover { background: #dc2626; }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 8px; font-size: .875rem; font-weight: 600; color: #fff; z-index: 99999; transition: opacity .3s; }
+.toast.success { background: #16a34a; }
+.toast.error   { background: #dc2626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="purge-page">
+    <a href="{% url 'material_rework:dashboard' %}" style="display:inline-flex;align-items:center;gap:6px;color:#0076c8;font-size:.875rem;font-weight:600;text-decoration:none;margin-bottom:16px;">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <div class="purge-header">
+        <h1><i class="fas fa-trash-alt"></i> Admin Purge — Permanent Delete</h1>
+        <p>Permanently delete records from any submodule. This action cannot be undone. Only Root User / Superuser can access this page.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="purge-tabs">
+        <button class="purge-tab active" onclick="switchTab('md_batch', this)">
+            <i class="fas fa-box"></i> MD Batches
+            <span class="badge">{{ md_batches|length }}</span>
+        </button>
+        {% if wi_available %}
+        <button class="purge-tab" onclick="switchTab('wi_submission', this)">
+            <i class="fas fa-clipboard-check"></i> WI Submissions
+            <span class="badge">{{ wi_submissions|length }}</span>
+        </button>
+        <button class="purge-tab" onclick="switchTab('wi_second', this)">
+            <i class="fas fa-clipboard-list"></i> WI 2nd Submissions
+            <span class="badge">{{ wi_second|length }}</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- ── MD Batches ─────────────────────────────────────────── -->
+    <div id="tab-md_batch" class="purge-panel active">
+        <div class="purge-toolbar">
+            <input class="purge-search" type="search" placeholder="Search batches…" oninput="filterTable('tbl-md_batch', this.value)">
+            <span class="sel-count" id="sel-md_batch">0 selected</span>
+            <button class="btn-bulk-del" id="bulk-md_batch" disabled onclick="confirmBulk('md_batch')">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </div>
+        {% if md_batches %}
+        <div class="purge-table-wrap">
+            <table class="purge-table" id="tbl-md_batch">
+                <thead>
+                    <tr>
+                        <th class="cb-col"><input type="checkbox" onchange="toggleAll('md_batch', this)"></th>
+                        <th>#</th>
+                        <th>Reference</th>
+                        <th>Subject</th>
+                        <th>Uploaded By</th>
+                        <th>Uploaded At</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th class="act-col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for b in md_batches %}
+                <tr data-id="{{ b.pk }}" data-search="{{ b.reference_number|lower }} {{ b.subject|lower }} {{ b.uploaded_by_email|lower }}">
+                    <td class="cb-col"><input type="checkbox" class="row-cb" data-type="md_batch" data-id="{{ b.pk }}" onchange="updateSel('md_batch')"></td>
+                    <td>{{ b.pk }}</td>
+                    <td><strong>{{ b.reference_number|default:"—" }}</strong></td>
+                    <td>{{ b.subject|default:"—"|truncatechars:40 }}</td>
+                    <td>{{ b.uploaded_by_email }}</td>
+                    <td>{{ b.uploaded_at|date:"d M Y H:i" }}</td>
+                    <td>
+                        {% if b.status == 'approved' %}<span class="pill pill-green">Approved</span>
+                        {% elif b.status == 'rejected' %}<span class="pill pill-red">Rejected</span>
+                        {% elif b.status == 'pending_hod' %}<span class="pill pill-orange">Pending HOD</span>
+                        {% elif b.status == 'pending_ppic' %}<span class="pill pill-blue">Pending PPIC</span>
+                        {% else %}<span class="pill pill-gray">{{ b.status }}</span>{% endif %}
+                    </td>
+                    <td>{{ b.item_count }}</td>
+                    <td class="act-col">
+                        <button class="btn-del-one" onclick="confirmOne('md_batch', {{ b.pk }}, 'Batch #{{ b.pk }} ({{ b.reference_number|default:b.pk }})')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="purge-empty"><i class="fas fa-inbox"></i>No MD batches found.</div>
+        {% endif %}
+    </div>
+
+    {% if wi_available %}
+    <!-- ── WI Submissions ─────────────────────────────────────── -->
+    <div id="tab-wi_submission" class="purge-panel">
+        <div class="purge-toolbar">
+            <input class="purge-search" type="search" placeholder="Search submissions…" oninput="filterTable('tbl-wi_submission', this.value)">
+            <span class="sel-count" id="sel-wi_submission">0 selected</span>
+            <button class="btn-bulk-del" id="bulk-wi_submission" disabled onclick="confirmBulk('wi_submission')">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </div>
+        {% if wi_submissions %}
+        <div class="purge-table-wrap">
+            <table class="purge-table" id="tbl-wi_submission">
+                <thead>
+                    <tr>
+                        <th class="cb-col"><input type="checkbox" onchange="toggleAll('wi_submission', this)"></th>
+                        <th>#</th>
+                        <th>Building</th>
+                        <th>Condition</th>
+                        <th>Floor</th>
+                        <th>Submitted By</th>
+                        <th>Submitted At</th>
+                        <th>Responses</th>
+                        <th class="act-col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in wi_submissions %}
+                <tr data-id="{{ s.submission_id }}" data-search="{{ s.building.building_name|lower }} {{ s.condition_category.condition_category_name|lower }} {{ s.floor.floor_name|lower }} {{ s.submitted_by_email|lower }}">
+                    <td class="cb-col"><input type="checkbox" class="row-cb" data-type="wi_submission" data-id="{{ s.submission_id }}" onchange="updateSel('wi_submission')"></td>
+                    <td>{{ s.submission_id }}</td>
+                    <td>{{ s.building.building_name }}</td>
+                    <td>{{ s.condition_category.condition_category_name }}</td>
+                    <td>{{ s.floor.floor_name }}</td>
+                    <td>{{ s.submitted_by_email }}</td>
+                    <td>{{ s.submitted_at|date:"d M Y H:i" }}</td>
+                    <td>{{ s.response_count }}</td>
+                    <td class="act-col">
+                        <button class="btn-del-one" onclick="confirmOne('wi_submission', {{ s.submission_id }}, 'Submission #{{ s.submission_id }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="purge-empty"><i class="fas fa-inbox"></i>No WI submissions found.</div>
+        {% endif %}
+    </div>
+
+    <!-- ── WI Second Submissions ──────────────────────────────── -->
+    <div id="tab-wi_second" class="purge-panel">
+        <div class="purge-toolbar">
+            <input class="purge-search" type="search" placeholder="Search second submissions…" oninput="filterTable('tbl-wi_second', this.value)">
+            <span class="sel-count" id="sel-wi_second">0 selected</span>
+            <button class="btn-bulk-del" id="bulk-wi_second" disabled onclick="confirmBulk('wi_second')">
+                <i class="fas fa-trash"></i> Delete Selected
+            </button>
+        </div>
+        {% if wi_second %}
+        <div class="purge-table-wrap">
+            <table class="purge-table" id="tbl-wi_second">
+                <thead>
+                    <tr>
+                        <th class="cb-col"><input type="checkbox" onchange="toggleAll('wi_second', this)"></th>
+                        <th>#</th>
+                        <th>Building</th>
+                        <th>Condition</th>
+                        <th>Floor</th>
+                        <th>Submitted By</th>
+                        <th>Submitted At</th>
+                        <th>Responses</th>
+                        <th class="act-col">Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in wi_second %}
+                <tr data-id="{{ s.second_submission_id }}" data-search="{{ s.building.building_name|lower }} {{ s.condition_category.condition_category_name|lower }} {{ s.floor.floor_name|lower }} {{ s.submitted_by_email|lower }}">
+                    <td class="cb-col"><input type="checkbox" class="row-cb" data-type="wi_second" data-id="{{ s.second_submission_id }}" onchange="updateSel('wi_second')"></td>
+                    <td>{{ s.second_submission_id }}</td>
+                    <td>{{ s.building.building_name }}</td>
+                    <td>{{ s.condition_category.condition_category_name }}</td>
+                    <td>{{ s.floor.floor_name }}</td>
+                    <td>{{ s.submitted_by_email }}</td>
+                    <td>{{ s.submitted_at|date:"d M Y H:i" }}</td>
+                    <td>{{ s.response_count }}</td>
+                    <td class="act-col">
+                        <button class="btn-del-one" onclick="confirmOne('wi_second', {{ s.second_submission_id }}, '2nd Submission #{{ s.second_submission_id }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="purge-empty"><i class="fas fa-inbox"></i>No WI second submissions found.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Confirmation Modal ───────────────────────────────────── -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <h3><i class="fas fa-exclamation-triangle"></i> Confirm Permanent Delete</h3>
+        <p id="confirmMsg">Are you sure you want to permanently delete this record? This action <strong>cannot be undone</strong>.</p>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-confirm-del" id="confirmBtn" onclick="executeDelete()">Delete Permanently</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────────── -->
+<div class="toast" id="toast" style="display:none;"></div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const PURGE_URL      = '{% url "material_rework:admin_purge_bulk" %}';
+{% if wi_available %}
+const _WI_SUB_TPL    = '{% url "warehouse_inspection:admin_delete_submission" submission_id=99999999 %}';
+const _WI_SECOND_TPL = '{% url "warehouse_inspection:admin_delete_second_submission" second_submission_id=99999999 %}';
+const wiSubUrl    = id => _WI_SUB_TPL.replace('99999999', id);
+const wiSecondUrl = id => _WI_SECOND_TPL.replace('99999999', id);
+{% endif %}
+
+let _pendingType = null;
+let _pendingIds  = [];
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+function switchTab(type, btn) {
+    document.querySelectorAll('.purge-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.purge-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + type).classList.add('active');
+}
+
+/* ── Filter ───────────────────────────────────────────────── */
+function filterTable(tblId, q) {
+    q = q.toLowerCase();
+    const rows = document.querySelectorAll('#' + tblId + ' tbody tr');
+    rows.forEach(r => {
+        r.style.display = r.dataset.search.includes(q) ? '' : 'none';
+    });
+}
+
+/* ── Selection ────────────────────────────────────────────── */
+function toggleAll(type, cb) {
+    document.querySelectorAll('.row-cb[data-type="' + type + '"]').forEach(c => {
+        const row = c.closest('tr');
+        if (row.style.display !== 'none') c.checked = cb.checked;
+    });
+    updateSel(type);
+}
+
+function updateSel(type) {
+    const checked = document.querySelectorAll('.row-cb[data-type="' + type + '"]:checked');
+    const n = checked.length;
+    document.getElementById('sel-' + type).textContent = n + ' selected';
+    document.getElementById('bulk-' + type).disabled = (n === 0);
+}
+
+/* ── Confirm helpers ──────────────────────────────────────── */
+function confirmOne(type, id, label) {
+    _pendingType = type;
+    _pendingIds  = [id];
+    document.getElementById('confirmMsg').innerHTML =
+        'Permanently delete <strong>' + escHtml(label) + '</strong>? This <strong>cannot be undone</strong>.';
+    document.getElementById('confirmModal').classList.add('open');
+}
+
+function confirmBulk(type) {
+    const checked = document.querySelectorAll('.row-cb[data-type="' + type + '"]:checked');
+    _pendingType  = type;
+    _pendingIds   = Array.from(checked).map(c => parseInt(c.dataset.id));
+    document.getElementById('confirmMsg').innerHTML =
+        'Permanently delete <strong>' + _pendingIds.length + ' record(s)</strong>? This <strong>cannot be undone</strong>.';
+    document.getElementById('confirmModal').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('confirmModal').classList.remove('open');
+    _pendingType = null;
+    _pendingIds  = [];
+}
+
+/* ── Execute delete ───────────────────────────────────────── */
+function executeDelete() {
+    closeModal();
+    if (!_pendingType || !_pendingIds.length) return;
+
+    const type = _pendingType;
+    const ids  = _pendingIds;
+
+    /* WI single deletes go to WI URLs */
+    {% if wi_available %}
+    if (ids.length === 1 && type === 'wi_submission') {
+        fetchDel(wiSubUrl(ids[0]), type, ids);
+        return;
+    }
+    if (ids.length === 1 && type === 'wi_second') {
+        fetchDel(wiSecondUrl(ids[0]), type, ids);
+        return;
+    }
+    {% endif %}
+
+    /* All others (incl. bulk WI) go to admin_purge_bulk */
+    const body = new FormData();
+    body.append('csrfmiddlewaretoken', CSRF);
+    body.append('type', type);
+    body.append('ids', ids.join(','));
+
+    fetch(PURGE_URL, { method: 'POST', body })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                removeRows(type, ids);
+                showToast('Deleted ' + data.deleted + ' record(s).', 'success');
+            } else {
+                showToast(data.error || 'Delete failed.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+}
+
+function fetchDel(url, type, ids) {
+    const body = new FormData();
+    body.append('csrfmiddlewaretoken', CSRF);
+    fetch(url, { method: 'POST', body })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                removeRows(type, ids);
+                showToast('Deleted successfully.', 'success');
+            } else {
+                showToast(data.error || 'Delete failed.', 'error');
+            }
+        })
+        .catch(() => showToast('Network error.', 'error'));
+}
+
+/* ── DOM helpers ──────────────────────────────────────────── */
+function removeRows(type, ids) {
+    const idSet = new Set(ids.map(String));
+    let tblId;
+    if (type === 'md_batch' || type === 'md_item') tblId = 'tbl-md_batch';
+    else if (type === 'wi_submission') tblId = 'tbl-wi_submission';
+    else tblId = 'tbl-wi_second';
+
+    const tbl = document.getElementById(tblId);
+    if (!tbl) return;
+    tbl.querySelectorAll('tbody tr').forEach(row => {
+        if (idSet.has(row.dataset.id)) row.remove();
+    });
+    updateSel(type);
+    /* Update tab badge */
+    const remaining = tbl.querySelectorAll('tbody tr').length;
+    document.querySelectorAll('.purge-tab').forEach(tab => {
+        if (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(type)) {
+            const badge = tab.querySelector('.badge');
+            if (badge) badge.textContent = remaining;
+        }
+    });
+}
+
+function showToast(msg, cls) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + cls;
+    t.style.display = 'block';
+    t.style.opacity = '1';
+    setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.display = 'none'; }, 300);
+    }, 3000);
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Close modal on overlay click */
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

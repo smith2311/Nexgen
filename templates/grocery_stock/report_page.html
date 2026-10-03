@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ spec.title }} — Grocery Stock{% endblock %}
+{% block page_title %}{{ spec.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+
+{{ columns|json_script:"gs-columns" }}
+{{ filters|json_script:"gs-filters" }}
+{{ toggles|json_script:"gs-toggles" }}
+<script>
+  const GS_REPORT = {
+    slug:       "{{ slug|escapejs }}",
+    apiBase:    "/grocery/api/v1/{{ spec.endpoint }}/",
+    lookupBase: "/grocery/api/v1/",
+    dateRange:  {{ spec.date_range|yesno:"true,false" }},
+    sortable:   {{ spec.sortable|default_if_none:True|yesno:"true,false" }},
+    fixedParams: {{ fixed_params_json|safe }},
+    columns: JSON.parse(document.getElementById('gs-columns').textContent),
+    filters: JSON.parse(document.getElementById('gs-filters').textContent),
+    toggles: JSON.parse(document.getElementById('gs-toggles').textContent),
+  };
+</script>
+
+<div class="lm-page gs-master gs-master-wide">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'grocery_stock:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Grocery Stock Management
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="{{ spec.icon }}"></i> {{ spec.title }}</h1>
+          <p>{{ spec.subtitle }}</p>
+        </div>
+        <div class="lm-header-stats" id="gsKpis">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statRows">—</div>
+            <div class="lm-hstat-lbl">Rows</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    <div class="gs-filter-bar">
+      <div class="gs-search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="gsSearch" autocomplete="off"
+               placeholder="{{ spec.search_placeholder }}">
+        <button type="button" class="gs-search-clear" id="gsSearchClear" hidden>&times;</button>
+      </div>
+      <div class="gs-filter-controls" id="gsFilterControls"></div>
+    </div>
+
+    <div class="gs-actions-bar">
+      <div class="gs-actions-left" id="gsToggleControls"></div>
+      <div class="gs-actions-right">
+        <button class="btn btn-ghost btn-sm" id="gsResetBtn">
+          <i class="fas fa-rotate-left"></i> Reset filters
+        </button>
+        <button class="btn btn-ghost btn-sm" id="gsRefreshBtn">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <div class="gs-record-count" id="gsRecordCount">Loading…</div>
+      </div>
+    </div>
+
+    <div class="gs-tbl-wrap">
+      <table class="gs-tbl">
+        <thead id="gsTblHead"></thead>
+        <tbody id="gsTblBody">
+          <tr><td class="gs-loading"><span class="gs-spinner"></span> Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="gs-pagi">
+        <div class="gs-pagi-info" id="gsPagiInfo">—</div>
+        <div class="gs-pagi-btns" id="gsPagiBtns"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="lm-toast" id="gsToast">
+  <i class="fas fa-check-circle"></i><span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/grocery_stock/grocery_common.js' %}"></script>
+<script src="{% static 'js/grocery_stock/grocery_report.js' %}"></script>
+{% endblock %}

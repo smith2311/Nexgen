@@ -1,0 +1,252 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOD Approval — Batch #{{ batch.pk }}</title>
+<link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/material-rework/hod_review.css' %}">
+<link rel="stylesheet" href="{% static 'css/material-rework/md_responsive.css' %}">
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- Brand -->
+    <div class="top-brand">
+        <div class="top-brand-name">NexGen <span>Automation</span></div>
+        <div class="top-brand-sub">Material Rework — HOD Approval Portal</div>
+    </div>
+
+    {% if link_blocked %}
+    <!-- ── One-time link already opened elsewhere ── -->
+    <div class="state-card">
+        <div class="state-icon">🔒</div>
+        <div class="state-title">Approval Link Already Used</div>
+        <div class="state-sub">
+            This one-time approval link has already been opened in another browser or device.
+            For security, forwarded or reused links cannot access this batch.
+        </div>
+        <span class="state-chip rejected"><i class="fas fa-lock"></i> Link Blocked</span>
+    </div>
+
+    {% elif already_reviewed %}
+    <!-- ── Already reviewed ── -->
+    <div class="state-card">
+        {% if batch.status == 'hod_approved' %}
+        <div class="state-icon">✅</div>
+        <div class="state-title">Batch Already Approved</div>
+        <div class="state-sub">
+            This batch was reviewed and <strong>approved</strong> on
+            {{ batch.hod_reviewed_at|date:"d M Y" }} at {{ batch.hod_reviewed_at|date:"H:i" }}.
+            {% if batch.hod_comments %}<br><br><em>"{{ batch.hod_comments }}"</em>{% endif %}
+        </div>
+        <span class="state-chip approved"><i class="fas fa-check"></i> Approved</span>
+        {% else %}
+        <div class="state-icon">❌</div>
+        <div class="state-title">Batch Already Rejected</div>
+        <div class="state-sub">
+            This batch was reviewed and <strong>rejected</strong> on
+            {{ batch.hod_reviewed_at|date:"d M Y" }} at {{ batch.hod_reviewed_at|date:"H:i" }}.
+            {% if batch.hod_comments %}<br><br><em>"{{ batch.hod_comments }}"</em>{% endif %}
+        </div>
+        <span class="state-chip rejected"><i class="fas fa-times"></i> Rejected</span>
+        {% endif %}
+    </div>
+
+    {% elif done %}
+    <!-- ── Just submitted ── -->
+    <div class="state-card">
+        {% if action == 'approve' %}
+        <div class="state-icon">🎉</div>
+        <div class="state-title">Batch #{{ batch.id }} Approved!</div>
+        <div class="state-sub">
+            The items are now queued for production review.<br>
+            Thank you for your prompt response.
+        </div>
+        <span class="state-chip approved"><i class="fas fa-check"></i> Approved Successfully</span>
+        {% else %}
+        <div class="state-icon">🚫</div>
+        <div class="state-title">Batch #{{ batch.id }} Rejected</div>
+        <div class="state-sub">
+            The uploader has been notified of your decision.<br>
+            They may re-submit a corrected batch if needed.
+        </div>
+        <span class="state-chip rejected"><i class="fas fa-times"></i> Rejected</span>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <!-- ── Approval form ── -->
+
+    <!-- Header card -->
+    <div class="hdr-card">
+        <div class="hdr-left">
+            <h1><i class="fas fa-clipboard-check"></i> HOD Approval Required</h1>
+            <p>Batch #{{ batch.pk }} &nbsp;·&nbsp; {{ batch.vertical.name }} &nbsp;·&nbsp; {{ batch.department.name }}</p>
+        </div>
+        <div style="display:flex;gap:12px;">
+            <div class="hdr-badge">
+                <div class="hdr-badge-num">{{ items|length }}</div>
+                <div class="hdr-badge-lbl">Items</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meta info -->
+    <div class="meta-card">
+        <div class="meta-item">
+            <label>Vertical</label>
+            <p>{{ batch.vertical.name }}</p>
+        </div>
+        <div class="meta-item">
+            <label>Department</label>
+            <p>{{ batch.department.name }}</p>
+        </div>
+        <div class="meta-item">
+            <label>Source</label>
+            <p>
+                {% if batch.source %}
+                <span class="badge-src {{ batch.source }}">{{ batch.get_source_display }}</span>
+                {% else %}—{% endif %}
+            </p>
+        </div>
+        <div class="meta-item">
+            <label>Submitted By</label>
+            <p>{{ batch.uploaded_by_name }}</p>
+            <small>{{ batch.uploaded_by_email }}</small>
+        </div>
+        <div class="meta-item">
+            <label>Submitted On</label>
+            <p>{{ batch.uploaded_at|date:"d M Y" }}</p>
+            <small>{{ batch.uploaded_at|date:"H:i" }} IST</small>
+        </div>
+    </div>
+
+    <!-- Items table -->
+    <p class="section-title"><i class="fas fa-list-ul" style="color:#1d4ed8;"></i> Disposition Items &nbsp;<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:10px;font-size:.72rem;">{{ items|length }} total</span></p>
+    <div class="items-card" style="overflow-x:auto;">
+        <table class="items-table" style="min-width:900px;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Serial No</th>
+                    <th>Country</th>
+                    <th>Code</th>
+                    <th>Batch</th>
+                    <th>Mfg Date</th>
+                    <th>Exp Date</th>
+                    <th>From Storage</th>
+                    <th>To Storage</th>
+                    <th>Qty</th>
+                    <th>Box No</th>
+                    <th>Remarks</th>
+                    <th>Uploaded At</th>
+                    <th>Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in items %}
+            <tr onclick="openItemDetail({{ forloop.counter }},'{{ item.material|escapejs }}','{{ item.batch_no|default:''|escapejs }}','{{ item.qty|floatformat:0 }}','{{ item.box_no|default:''|escapejs }}','{{ item.remark|default:''|escapejs }}','{{ item.serial_number|default:''|escapejs }}','{{ item.country|default:''|escapejs }}','{{ item.mfg_date|default:''|escapejs }}','{{ item.exp_date|default:''|escapejs }}','{{ item.from_storage_location|default:''|escapejs }}','{{ item.to_storage_location|default:''|escapejs }}','{{ item.item_date|default:''|escapejs }}')">
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.serial_number|default:"—" }}</td>
+                <td>{{ item.country|default:"—" }}</td>
+                <td><strong>{{ item.material }}</strong></td>
+                <td>{{ item.batch_no|default:"—" }}</td>
+                <td>{{ item.mfg_date|default:"—" }}</td>
+                <td>{{ item.exp_date|default:"—" }}</td>
+                <td>{{ item.from_storage_location|default:"—" }}</td>
+                <td>{{ item.to_storage_location|default:"—" }}</td>
+                <td><strong>{{ item.qty|floatformat:0 }}</strong></td>
+                <td>{{ item.box_no|default:"—" }}</td>
+                <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ item.remark }}">{{ item.remark|default:"—" }}</td>
+                <td>{{ item.item_date|default:"—" }}</td>
+                <td>
+                    <button class="preview-btn" onclick="event.stopPropagation();openItemDetail({{ forloop.counter }},'{{ item.material|escapejs }}','{{ item.batch_no|default:''|escapejs }}','{{ item.qty|floatformat:0 }}','{{ item.box_no|default:''|escapejs }}','{{ item.remark|default:''|escapejs }}','{{ item.serial_number|default:''|escapejs }}','{{ item.country|default:''|escapejs }}','{{ item.mfg_date|default:''|escapejs }}','{{ item.exp_date|default:''|escapejs }}','{{ item.from_storage_location|default:''|escapejs }}','{{ item.to_storage_location|default:''|escapejs }}','{{ item.item_date|default:''|escapejs }}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="13" style="text-align:center;color:#9ca3af;padding:28px;">No items found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Action form -->
+    <div class="action-card">
+        <p class="action-card-title"><i class="fas fa-gavel" style="color:#0076c8;"></i> Your Decision</p>
+        <label style="font-size:.82rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">
+            Comments <span style="color:#94a3b8;font-weight:400;">(optional — visible to the submitter)</span>
+        </label>
+        <textarea class="comments" id="commentsInput" placeholder="Add comments or reason for your decision..."></textarea>
+        <div class="btn-row">
+            <button type="button" class="btn btn-approve" onclick="triggerConfirm('approve')">
+                <i class="fas fa-check-circle"></i> Approve
+            </button>
+            <button type="button" class="btn btn-reject" onclick="triggerConfirm('reject')">
+                <i class="fas fa-times-circle"></i> Reject
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden real form -->
+    <form method="post" id="realForm" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="actionInput">
+        <input type="hidden" name="comments" id="commentsHidden">
+    </form>
+
+    {% endif %}
+</div>
+
+<!-- ── Confirm Modal ── -->
+<div class="overlay" id="confirmOverlay">
+    <div class="confirm-modal">
+        <div class="confirm-head" id="confirmHead">
+            <div class="confirm-icon" id="confirmIcon"></div>
+            <div class="confirm-title" id="confirmTitle"></div>
+            <div class="confirm-sub" id="confirmSub"></div>
+        </div>
+        <div class="confirm-body">
+            <div class="confirm-comments" id="confirmComments" style="display:none;"></div>
+            <div class="confirm-btns">
+                <button class="confirm-cancel" onclick="closeConfirm()"><i class="fas fa-arrow-left"></i> Go Back</button>
+                <button id="confirmGoBtn" onclick="submitDecision()"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Item Detail Modal ── -->
+<div class="overlay" id="itemOverlay">
+    <div class="item-modal">
+        <div class="item-modal-head">
+            <span class="item-modal-title"><i class="fas fa-box" style="color:#1d4ed8;"></i> Item Detail</span>
+            <button class="modal-close" onclick="closeItemDetail()">&times;</button>
+        </div>
+        <div class="item-modal-body" id="itemModalBody"></div>
+        <div class="item-modal-foot">
+            <button class="preview-btn" onclick="closeItemDetail()" style="padding:7px 18px;font-size:.82rem;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Page Loader -->
+<div id="pageLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:9999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <style>@keyframes pl-spin{to{transform:rotate(360deg)}}</style>
+  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#10b981;border-radius:50%;animation:pl-spin .85s linear infinite;"></div>
+  <div style="text-align:center;">
+    <p id="pageLoaderMsg" style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Submitting your decision…</p>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+  </div>
+</div>
+
+<script>
+const ITEM_COUNT = {{ items|length }};
+</script>
+<script src="{% static 'js/material-rework/hod_review.js' %}"></script>
+{% include "_matomo.html" %}
+</body>
+</html>

@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Warehouse Checklist - Inspection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .checklist-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .checklist-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .checklist-header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+
+    .checklist-header p {
+        opacity: 0.95;
+        font-size: 1rem;
+    }
+
+    .warehouse-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .warehouse-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .warehouse-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    .warehouse-card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+    }
+
+    .warehouse-name {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .warehouse-location {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    .warehouse-card-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .warehouse-info {
+        margin-bottom: 1.5rem;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.9rem;
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: #1f2937;
+        font-weight: 600;
+    }
+
+    .start-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: block;
+        text-align: center;
+        margin-top: auto;
+    }
+
+    .start-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .my-inspections {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .my-inspections h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 1rem;
+    }
+
+    .inspection-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background 0.2s ease;
+    }
+
+    .inspection-item:last-child {
+        border-bottom: none;
+    }
+
+    .inspection-item:hover {
+        background: #f9fafb;
+    }
+
+    .inspection-details {
+        flex-grow: 1;
+    }
+
+    .inspection-warehouse-name {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 1rem;
+    }
+
+    .inspection-meta {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.3rem;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    .status-badge.in-progress {
+        background: #dbeafe;
+        color: #0c4a6e;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .warehouse-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .checklist-header {
+            padding: 1.5rem;
+        }
+
+        .checklist-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checklist-container py-5">
+    <!-- Header -->
+    <div class="checklist-header">
+        <h1>
+            <i class="fas fa-clipboard-check"></i> Warehouse Inspection Checklist
+        </h1>
+        <p>Select a warehouse to start or continue an inspection</p>
+    </div>
+
+    <!-- Available Warehouses -->
+    {% if warehouses %}
+    <div class="warehouse-grid">
+        {% for warehouse in warehouses %}
+        <div class="warehouse-card">
+            <div class="warehouse-card-header">
+                <div class="warehouse-name">
+                    <i class="fas fa-warehouse"></i> {{ warehouse.name }}
+                </div>
+                <div class="warehouse-location">
+                    <i class="fas fa-map-marker-alt"></i> {{ warehouse.location }}
+                </div>
+            </div>
+            <div class="warehouse-card-body">
+                <div class="warehouse-info">
+                    <div class="info-item">
+                        <span class="info-label">Address:</span>
+                        <span class="info-value">{{ warehouse.address|truncatewords:5 }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Pincode:</span>
+                        <span class="info-value">{{ warehouse.pincode }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Capacity:</span>
+                        <span class="info-value">{{ warehouse.capacity }} units</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Manager:</span>
+                        <span class="info-value">{{ warehouse.manager.get_full_name|default:"Unassigned" }}</span>
+                    </div>
+                </div>
+                <a href="{% url 'warehouse_inspection:start_inspection' warehouse.id %}" class="start-btn">
+                    <i class="fas fa-play-circle"></i> Start Inspection
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <h3>No Active Warehouses</h3>
+        <p>There are currently no active warehouses available for inspection.</p>
+    </div>
+    {% endif %}
+
+    <!-- My Recent Inspections -->
+    {% if my_inspections %}
+    <div class="my-inspections">
+        <h3>
+            <i class="fas fa-clock"></i> My Recent Inspections
+        </h3>
+        {% for inspection in my_inspections %}
+        <div class="inspection-item">
+            <div class="inspection-details">
+                <div class="inspection-warehouse-name">
+                    {{ inspection.warehouse.name }}
+                </div>
+                <div class="inspection-meta">
+                    Date: <strong>{{ inspection.inspection_date|date:"M d, Y" }}</strong>
+                    • Template: <strong>{{ inspection.template.name }}</strong>
+                    {% if inspection.score %}
+                    • Score: <strong>{{ inspection.score }}%</strong>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <span class="status-badge {% if inspection.status == 'completed' %}completed{% elif inspection.status == 'failed' %}failed{% else %}in-progress{% endif %}">
+                    {{ inspection.get_status_display }}
+                </span>
+            </div>
+            <a href="{% url 'warehouse_inspection:inspection_detail' inspection.id %}" class="start-btn" style="margin-left: 1rem; width: auto;">
+                View
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

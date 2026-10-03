@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Domestic Sales Type Master — Logistics Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logistics_performance/domestic_sales_master.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<script>
+const DSM_CONFIG = {
+  urls: {
+    list:    "{% url 'logistics:sales_list_api' %}",
+    create:  "{% url 'logistics:sales_create_api' %}",
+    update:  "{% url 'logistics:sales_update_api' 0 %}".replace('/0/', '/'),
+    delete:  "{% url 'logistics:sales_delete_api' 0 %}".replace('/0/', '/'),
+    upload:  "{% url 'logistics:sales_upload_api' %}",
+    preview: "{% url 'logistics:sales_preview_api' %}",
+    confirm: "{% url 'logistics:sales_confirm_api' %}",
+  }
+};
+</script>
+
+<div class="dsm-page">
+
+  <!-- ═══ PAGE HEADER ═══ -->
+  <div class="dsm-header">
+    <div class="dsm-header-inner">
+      <a href="{% url 'logistics:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Logistics Performance
+      </a>
+      <div class="dsm-header-top">
+
+        <div class="dsm-header-title">
+          <h1><i class="fas fa-tags"></i> Domestic Sales Type Master</h1>
+          <p>Manage sales types, divisions and pending status</p>
+        </div>
+
+        <div class="dsm-header-stats">
+          <div class="dsm-hstat">
+            <div class="dsm-hstat-val" id="statTotal">—</div>
+            <div class="dsm-hstat-lbl">Total</div>
+          </div>
+          <div class="dsm-hstat">
+            <div class="dsm-hstat-val" id="statActive">—</div>
+            <div class="dsm-hstat-lbl">Active</div>
+          </div>
+          <div class="dsm-hstat">
+            <div class="dsm-hstat-val" id="statDivisions">—</div>
+            <div class="dsm-hstat-lbl">Divisions</div>
+          </div>
+          <div class="dsm-hstat">
+            <div class="dsm-hstat-val" id="statPending">—</div>
+            <div class="dsm-hstat-lbl">Pending</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="dsm-tabs">
+        <button class="dsm-tab-btn active" data-tab="tab-list" onclick="switchDsmTab('tab-list')">
+          <i class="fas fa-list"></i> All Sales Types
+        </button>
+        <button class="dsm-tab-btn" data-tab="tab-upload" onclick="switchDsmTab('tab-upload')">
+          <i class="fas fa-upload"></i> Bulk Upload
+        </button>
+        <button class="dsm-tab-btn" data-tab="tab-preview" onclick="switchDsmTab('tab-preview')">
+          <i class="fas fa-eye"></i> Import Preview
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB CONTENT AREA ═══ -->
+  <div class="dsm-inner">
+
+    <!-- ─── TAB 1 — LIST ─── -->
+    <div class="dsm-tab-content active" id="tab-list">
+
+      <div class="filter-bar fi fi-1">
+        <button class="filter-pill active" data-division="" onclick="setDivisionFilter('', this)">All Divisions</button>
+        {% for d in lp_divisions %}
+        <button class="filter-pill" data-division="{{ d.code }}" onclick="setDivisionFilter('{{ d.code }}', this)">{{ d.label }}</button>
+        {% endfor %}
+        <div class="search-wrap" id="dsmSearchWrap">
+          <i class="fas fa-search"></i>
+          <input type="text" id="listSearch" placeholder="Search sales type, division…">
+        </div>
+      </div>
+      <!-- Advanced filter chips -->
+      <div id="dsmAdvChips" class="af-chips"></div>
+
+      <div class="actions-bar fi fi-2">
+        <div class="actions-left">
+          <button class="btn btn-navy btn-sm" onclick="openAdd()">
+            <i class="fas fa-plus"></i> Add Sales Type
+          </button>
+          <button class="btn btn-green btn-sm" onclick="switchDsmTab('tab-upload')">
+            <i class="fas fa-upload"></i> Bulk Upload
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="loadList()">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select id="dsmPerPageSelect" onchange="onDsmPerPageChange(this.value)"
+                  style="padding:5px 10px;font-size:12px;font-family:var(--font);border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-secondary);cursor:pointer;">
+            <option value="15">15 / page</option>
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+          <div class="record-count" id="recordCountBadge">Loading…</div>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="listLoading" style="display:none">
+        <span class="loading-spinner"></span> Loading sales types…
+      </div>
+
+      <div class="tbl-wrap fi fi-3">
+        <div class="tbl-head">
+          <div>ID</div>
+          <div>Division</div>
+          <div>Sales Type</div>
+          <div>Description</div>
+          <div>Status</div>
+          <div>Created</div>
+          <div>Actions</div>
+        </div>
+        <div id="tblBody">
+          <div class="loading-overlay">
+            <span class="loading-spinner"></span> Loading…
+          </div>
+        </div>
+        <div class="pagi">
+          <div class="pagi-info" id="pagiInfo">—</div>
+          <div class="pagi-btns" id="pagiBtns"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-list -->
+
+
+    <!-- ─── TAB 2 — ADD / EDIT ─── -->
+
+
+    <!-- ─── TAB 3 — BULK UPLOAD ─── -->
+    <div class="dsm-tab-content" id="tab-upload">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Bulk Upload</h2>
+      </div>
+
+      <div class="upload-layout">
+
+        <div>
+          <div id="fileSelectedRow" class="file-selected" style="display:none">
+            <i class="fas fa-file-csv"></i>
+            <div>
+              <div class="file-selected-name" id="fileSelectedName">file.csv</div>
+              <div class="file-selected-size" id="fileSelectedSize">—</div>
+            </div>
+            <button class="file-selected-clear" onclick="clearFile()" title="Remove file">×</button>
+          </div>
+          <div id="uploadFileRef" style="display:none"></div>
+
+          <div class="upload-zone fi fi-1" id="dropZone">
+            <div class="upload-icon">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-title">Drop your file here</div>
+            <div class="upload-sub">or click to browse from your computer</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">.csv</span>
+              <span class="fmt-chip">.xlsx</span>
+              <span class="fmt-chip">.xls</span>
+            </div>
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls"
+                   style="display:none" onchange="onFileInput(this)">
+          </div>
+
+          <div class="schema-table fi fi-2">
+            <div class="schema-hdr">Required Column Format</div>
+            <div class="schema-row" style="background:var(--bg);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted)">
+              <div>Column</div><div>Type</div><div>Description</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">division</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">{% for d in lp_divisions %}{{ d.code }}{% if not forloop.last %} / {% endif %}{% endfor %}</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">sales_type</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Unique sales type name</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">sales_type_description</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Description of the sales type</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">pending_show</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">true / false (default: false)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-side">
+
+          <div class="form-submit-block fi fi-2">
+            <button class="btn btn-navy btn-lg" onclick="submitUpload(this)">
+              <i class="fas fa-upload"></i> Upload File
+            </button>
+            <button class="btn btn-green" onclick="downloadSample()">
+              <i class="fas fa-download"></i> Download Sample CSV
+            </button>
+            <button class="btn btn-ghost" onclick="switchDsmTab('tab-list')">
+              <i class="fas fa-arrow-left"></i> Cancel
+            </button>
+          </div>
+
+          <div class="form-block fi fi-3">
+            <div class="form-block-hdr"><i class="fas fa-code"></i> Sample CSV Preview</div>
+            <div class="csv-preview"><span class="csv-hdr">division,sales_type,sales_type_description,pending_show</span>
+Cardio,Direct Sale,Direct sales to hospital,false
+Endo,Consignment,Consignment based sale,false
+Ortho,Tender,Government tender sale,true
+Diag,Demo,Demonstration unit,false</div>
+          </div>
+
+          <div class="form-help fi fi-4">
+            <h4>📋 Upload Notes</h4>
+            <ul>
+              <li>Max file size: 10 MB</li>
+              <li>Duplicates flagged in preview</li>
+              <li>Review before confirming import</li>
+              <li>First row must be column headers</li>
+              <li>Error rows are skipped on import</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /tab-upload -->
+
+
+    <!-- ─── TAB 4 — IMPORT PREVIEW ─── -->
+    <div class="dsm-tab-content" id="tab-preview">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Review Before Import</h2>
+        <button class="btn btn-ghost btn-sm" onclick="switchDsmTab('tab-upload')">
+          <i class="fas fa-arrow-left"></i> Back to Upload
+        </button>
+      </div>
+
+      <div class="preview-summary fi fi-1">
+        <div class="prev-stat total">
+          <div class="prev-icon"><i class="fas fa-list"></i></div>
+          <div>
+            <div class="prev-val" id="prevTotal">—</div>
+            <div class="prev-lbl">Total rows</div>
+          </div>
+        </div>
+        <div class="prev-stat ok">
+          <div class="prev-icon"><i class="fas fa-check-circle"></i></div>
+          <div>
+            <div class="prev-val" id="prevOk">—</div>
+            <div class="prev-lbl">Ready to import</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div>
+            <div class="prev-val" id="prevWarn">—</div>
+            <div class="prev-lbl">Issues / duplicates</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview table (rendered by LogiTable.createDataTable) -->
+      <div id="previewBody" class="fi fi-2">
+        <div class="empty-state">
+          <i class="fas fa-file-upload"></i>
+          <p>Upload a file first to see the preview.</p>
+        </div>
+      </div>
+
+      <div class="confirm-bar fi fi-3">
+        <div class="confirm-info" id="confirmInfo">
+          Upload a file to see import summary.
+        </div>
+        <div class="confirm-btns">
+          <button class="btn btn-navy btn-lg" onclick="confirmImport(this)">
+            <i class="fas fa-check"></i> Confirm Import
+          </button>
+          <button class="btn btn-ghost" onclick="cancelImport()">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /tab-preview -->
+
+  </div><!-- /dsm-inner -->
+</div><!-- /dsm-page -->
+
+
+<!-- ═══ EDIT MODAL (centered popup — matches Performance Upload) ═══ -->
+<div class="dsm-modal-overlay" id="editModalOverlay">
+  <form class="dsm-modal" id="salesEditForm" style="max-width:560px" onsubmit="event.preventDefault()">
+    {% csrf_token %}
+    <div class="dsm-modal-hdr" style="background:var(--blue-lt)">
+      <div class="dsm-modal-icon" style="background:var(--blue)"><i class="fas fa-pencil-alt"></i></div>
+      <div>
+        <h3 style="color:var(--blue)" id="editModalTitle">Edit Sales Type</h3>
+        <p style="color:var(--navy)" id="editModalSubtitle">Update sales type details</p>
+      </div>
+      <button type="button" onclick="closeEditModal()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+
+    <div class="dsm-modal-body" style="max-height:65vh;overflow-y:auto">
+      <div class="form-grid">
+
+        <div class="form-field">
+          <label class="form-label" for="efield_division">Division <span class="req">*</span></label>
+          <select id="efield_division" name="division" class="form-select" required>
+            <option value="">Select division…</option>
+            {% for d in lp_divisions %}
+            <option value="{{ d.code }}">{{ d.label }}</option>
+            {% endfor %}
+          </select>
+          <span class="form-error" data-err="division"></span>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="efield_sales_type">Sales Type <span class="req">*</span></label>
+          <input type="text" id="efield_sales_type" name="sales_type"
+                 class="form-input" required autocomplete="off">
+          <span class="form-error" data-err="sales_type"></span>
+        </div>
+
+        <div class="form-field span-2">
+          <label class="form-label" for="efield_sales_type_description">Description</label>
+          <textarea id="efield_sales_type_description" name="sales_type_description"
+                    class="form-textarea"
+                    placeholder="Brief description of this sales type…"></textarea>
+          <span class="form-error" data-err="sales_type_description"></span>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label" for="efield_pending_show">Pending Status</label>
+          <select id="efield_pending_show" name="pending_show" class="form-select">
+            <option value="false">Active</option>
+            <option value="true">Pending</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="dsm-modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeEditModal()">
+        <i class="fas fa-times"></i> Cancel
+      </button>
+      <button type="button" class="btn btn-navy" onclick="submitEditModal(this)">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    </div>
+  </form>
+</div>
+
+
+<!-- ═══ DELETE MODAL ═══ -->
+<div class="dsm-modal-overlay" id="deleteModalOverlay">
+  <div class="dsm-modal">
+    <div class="dsm-modal-hdr">
+      <div class="dsm-modal-icon"><i class="fas fa-trash"></i></div>
+      <div>
+        <h3>Confirm Deletion</h3>
+        <p>This action is permanent and cannot be undone</p>
+      </div>
+    </div>
+    <div class="dsm-modal-body">
+      <div class="alert-banner warn" style="margin-bottom:0">
+        <i class="fas fa-exclamation-triangle" style="color:var(--amber)"></i>
+        <span>This sales type record will be permanently deleted.</span>
+      </div>
+      <div class="dsm-modal-record">
+        <div style="padding:10px 14px;background:var(--bg);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">
+          Record to be deleted
+        </div>
+        <div id="deleteModalRows"></div>
+      </div>
+    </div>
+    <div class="dsm-modal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">
+        <i class="fas fa-arrow-left"></i> Cancel
+      </button>
+      <button class="btn btn-red" onclick="confirmDelete(this)">
+        <i class="fas fa-trash"></i> Delete Permanently
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ TOAST ═══ -->
+<div class="dsm-toast" id="dsmToast">
+  <i class="fas fa-check-circle"></i>
+  <span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/logistics_performance/domestic_sales_master.js' %}"></script>
+{% endblock %}

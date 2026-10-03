@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Upload · {{ up.original_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/billing_dashboard/billing.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="bd-wrap">
+
+  <header class="bd-hero">
+    <div class="bd-hero-text">
+      <div class="bd-hero-eyebrow">Order Management · Export Billing · Upload report</div>
+      <h1 class="bd-hero-title"><i class="fas fa-file-alt"></i> {{ up.original_name }}</h1>
+      <p class="bd-hero-sub">
+        <span class="bd-badge bd-badge-{{ up.status|lower }}">{{ up.get_status_display }}</span>
+        · {{ up.detected_columns }} columns detected · layout signature <code>{{ up.layout_signature }}</code>
+      </p>
+    </div>
+    <div class="bd-hero-actions">
+      <a href="{% url 'billing:home' %}" class="bd-btn"><i class="fas fa-arrow-left"></i> Back to uploads</a>
+    </div>
+  </header>
+
+  <div class="bd-stat-row">
+    <div class="bd-stat">
+      <div class="bd-stat-icon"><i class="fas fa-list-ul"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ up.total_rows }}">{{ up.total_rows }}</div>
+        <div class="bd-stat-lbl">Rows read</div>
+      </div>
+    </div>
+    <div class="bd-stat bd-stat--green">
+      <div class="bd-stat-icon"><i class="fas fa-plus"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ up.inserted }}">{{ up.inserted }}</div>
+        <div class="bd-stat-lbl">Inserted</div>
+      </div>
+    </div>
+    <div class="bd-stat bd-stat--cyan">
+      <div class="bd-stat-icon"><i class="fas fa-arrows-rotate"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ up.updated }}">{{ up.updated }}</div>
+        <div class="bd-stat-lbl">Updated</div>
+      </div>
+    </div>
+    <div class="bd-stat bd-stat--amber">
+      <div class="bd-stat-icon"><i class="fas fa-forward"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ up.skipped }}">{{ up.skipped }}</div>
+        <div class="bd-stat-lbl">Skipped</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bd-card bd-card--rail">
+    <p class="bd-note bd-flush-top">
+      <i class="fas fa-shield-alt"></i>
+      <span>
+        Columns are matched <b>by header name, not by position</b>, and every column of every row is stored as JSON.
+        If the SAP export reorders or adds columns, the numbers stay accurate — this page shows exactly how the last
+        file resolved, so any real layout change is visible at a glance.
+      </span>
+    </p>
+    <pre class="bd-msg" style="margin-top:1rem">{{ up.message }}</pre>
+  </div>
+
+  <div class="bd-grid-2">
+    <div class="bd-card bd-card--rail bd-rail-indigo">
+      <h3 class="bd-card-title"><i class="fas fa-project-diagram"></i> Field mapping ({{ column_map|length }})</h3>
+      <p class="bd-hint bd-flush-top">Dashboard field &larr; the Excel header it was read from.</p>
+      <div class="bd-table-scroll bd-table-scroll-y" style="max-height:460px">
+        <table class="bd-table bd-table-sm">
+          <thead><tr><th scope="col">Dashboard field</th><th scope="col">Excel header</th></tr></thead>
+          <tbody>
+            {% for field, header in column_map %}
+            <tr><td><code>{{ field }}</code></td><td>{{ header }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bd-card bd-card--rail bd-rail-teal">
+      <h3 class="bd-card-title"><i class="fas fa-database"></i> Extra columns kept in JSON ({{ unmapped_headers|length }})</h3>
+      <p class="bd-hint bd-flush-top">Not promoted to a dashboard field, but fully preserved &amp; exportable.</p>
+      <div class="bd-table-scroll bd-table-scroll-y" style="max-height:460px">
+        <table class="bd-table bd-table-sm">
+          <tbody>
+            {% for h in unmapped_headers %}<tr><td>{{ h }}</td></tr>{% empty %}
+            <tr><td class="bd-empty">Every column mapped to a dashboard field.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="bd-card bd-card--rail bd-rail-purple">
+    <h3 class="bd-card-title"><i class="fas fa-code"></i> Extracted JSON — sample rows</h3>
+    <p class="bd-hint bd-flush-top" style="margin-bottom:1rem">Each billing line is stored as JSON keyed by header name (all columns).</p>
+    {% for s in samples %}
+    <details {% if forloop.first %}open{% endif %} class="bd-json">
+      <summary>{{ s.key }}</summary>
+      <pre class="bd-msg">{{ s.json }}</pre>
+    </details>
+    {% empty %}
+    <p class="bd-empty">No rows stored for this upload.</p>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/billing_dashboard/billing.js' %}"></script>
+{% endblock %}

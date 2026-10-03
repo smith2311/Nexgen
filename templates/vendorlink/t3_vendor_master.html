@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% load static %}
+{% load vm_extras %}
+{% comment %}
+TIER 3.2 — Vendor Master.
+
+Wireframe
+    breadcrumb / title / [Capability Matrix] [Import] [Export] [Add vendor]
+    ┌ rail ─┐┌ toolbar: search · country · capability · clear ────────────┐
+    │ saved ││ table: vendor · country · state · city · capabilities · contact │
+    │filters││ (row click → right drawer, tabbed)                         │
+    └───────┘└─────────────────────────────────────────────────────────────┘
+
+Row click opens a drawer fetched as a fragment rather than navigating, so the
+list keeps its filters and scroll position — losing those on every look-up is
+the main reason the old screen was slow to work through.
+
+Capability Matrix is the same data pivoted (vendors × capabilities, ✓/—),
+toggled by ?view=matrix rather than a separate page, so the filters carry over.
+
+States: empty first-time, empty filtered (distinct message + clear link),
+loading (drawer shows a skeleton while fetching), error (drawer shows a retry),
+permission (write actions gated on can_edit).
+{% endcomment %}
+
+{% block title %}Vendor Master — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">Vendor Master</span>
+            </nav>
+            <h1 class="vl-title">Vendor Master</h1>
+            <p class="vl-subtitle">{{ total_count }} active vendor{{ total_count|pluralize }} and what each can do.</p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <div class="vl-seg" role="group" aria-label="View">
+                <a class="vl-btn" href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% if country %}country={{ country|urlencode }}&amp;{% endif %}{% if capability %}capability={{ capability|urlencode }}{% endif %}"
+                   style="border:none;border-right:1px solid var(--vl-border);border-radius:0;{% if view != 'matrix' %}background:var(--vl-accent);color:var(--vl-ink-inverse);{% endif %}">Table</a>
+                <a class="vl-btn" href="?view=matrix{% if q %}&amp;q={{ q|urlencode }}{% endif %}{% if country %}&amp;country={{ country|urlencode }}{% endif %}{% if capability %}&amp;capability={{ capability|urlencode }}{% endif %}"
+                   style="border:none;border-radius:0;{% if view == 'matrix' %}background:var(--vl-accent);color:var(--vl-ink-inverse);{% endif %}">Matrix</a>
+            </div>
+            <a class="vl-btn" href="{% url 'vendorlink:export_excel' %}">Export</a>
+            {% if can_edit %}
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:vendor_create' %}">Add vendor</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vl-railed">
+        {# ── Saved filters ──────────────────────────────────────── #}
+        <aside class="vl-card" style="padding:var(--vl-3);">
+            <nav class="vl-rail" aria-label="Filters">
+                <a href="?" class="{% if not filtered %}is-active{% endif %}">
+                    All vendors <span class="vl-rail__n">{{ total_count }}</span>
+                </a>
+                <div class="vl-rail__group">Continent</div>
+                {% for code, name in continent_choices %}{% if code %}
+                <a href="?continent={{ code }}" class="{% if continent == code %}is-active{% endif %}">{{ name }}</a>
+                {% endif %}{% endfor %}
+                <div class="vl-rail__group">Country{% if continent %} in {{ continent_label }}{% endif %}</div>
+                {% comment %}
+                Country links carry the continent through, so clicking a country
+                inside a chosen continent narrows rather than resetting the rail
+                to every country again.
+                {% endcomment %}
+                {% for c in countries %}
+                <a href="?{% if continent %}continent={{ continent }}&amp;{% endif %}country={{ c|urlencode }}"
+                   class="{% if country == c %}is-active{% endif %}">{{ c }}</a>
+                {% empty %}
+                <span class="vl-meta">none yet</span>
+                {% endfor %}
+                <div class="vl-rail__group">Capability</div>
+                {% for cap in capabilities %}
+                <a href="?capability={{ cap.attr }}" class="{% if capability == cap.attr %}is-active{% endif %}">
+                    {{ cap.label }} <span class="vl-rail__n">{{ cap.count }}</span>
+                </a>
+                {% endfor %}
+            </nav>
+        </aside>
+
+        <div>
+            <form method="get" class="vl-filterbar">
+                {% if view == "matrix" %}<input type="hidden" name="view" value="matrix">{% endif %}
+                <span class="vl-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input class="vl-input" type="text" name="q" value="{{ q }}" placeholder="Search vendor, state, city, country…">
+                </span>
+                <select class="vl-select" name="continent" data-vl-continent="country">
+                    {% for code, name in continent_choices %}
+                    <option value="{{ code }}" {% if code == continent %}selected{% endif %}>{% if code %}{{ name }}{% else %}Any continent{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <select class="vl-select" name="country" data-vl-country="1">
+                    <option value="">Any country</option>
+                    {% for c in countries %}<option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>{% endfor %}
+                </select>
+                <select class="vl-select" name="capability">
+                    <option value="">Any capability</option>
+                    {% for cap in capabilities %}
+                    <option value="{{ cap.attr }}" {% if cap.attr == capability %}selected{% endif %}>{{ cap.label }}</option>
+                    {% endfor %}
+                </select>
+                <button class="vl-btn vl-btn--primary">Filter</button>
+                {% if filtered %}<a class="vl-btn vl-btn--ghost" href="{% url 'vendorlink:t3_vendor_master' %}">Clear</a>{% endif %}
+                <span class="vl-meta" style="margin-left:auto;">{{ result_count }} of {{ total_count }}</span>
+            </form>
+
+            {% if vendors %}
+            {% if view == "matrix" %}
+            {# ── Capability Matrix: same rows, pivoted ───────────── #}
+            <div class="vl-tablewrap">
+                <table class="vl-table vl-table--stickycol">
+                    <thead>
+                        <tr>
+                            <th style="min-width:200px;">Vendor</th>
+                            {% for cap in capabilities %}
+                            <th style="text-align:center;">{{ cap.label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vendors %}
+                        <tr>
+                            <th scope="row" style="font-weight:500;text-transform:none;letter-spacing:0;">{{ v.vendor_name }}</th>
+                            {% comment %}
+                            One cell per master capability, in the same order as
+                            the header loop above. These were nine hardcoded
+                            <td>s reading nine boolean fields — so the header
+                            was already dynamic while the body was not, and a
+                            tenth capability would have shifted every tick one
+                            column left of its own heading.
+                            {% endcomment %}
+                            {% for cap in capabilities %}
+                            <td style="text-align:center;color:{% if v|attr:cap.attr %}var(--vl-green){% else %}var(--vl-300){% endif %};">{% if v|attr:cap.attr %}&check;{% else %}&mdash;{% endif %}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="vl-tablewrap">
+                <table class="vl-table">
+                    <thead>
+                        <tr><th>Vendor</th><th>Country</th><th>State</th><th>City</th><th>Capabilities</th><th>Contact</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vendors %}
+                        <tr data-vl-vendor="{{ v.pk }}" style="cursor:pointer;">
+                            <td>
+                                <div style="font-weight:600;">{{ v.vendor_name }}</div>
+                                <div class="vl-meta">#{{ v.pk }}</div>
+                            </td>
+                            <td>{{ v.country|default:"—" }}</td>
+                            <td>{{ v.state|default:"—" }}</td>
+                            <td>{{ v.city|default:"—" }}</td>
+                            <td>
+                                {% comment %}
+                                The nine short codes (GDP, ISO, TEMP…) were
+                                hand-written here and had no home in the data,
+                                so a new capability could not get one. The chip
+                                now shows the master's label, truncated — one
+                                source, and it never goes stale.
+                                {% endcomment %}
+                                <span class="vl-caps">
+                                    {% for cap in v.capabilities.all %}
+                                    <span class="vl-cap" title="{{ cap.label }}">{{ cap.label|truncatechars:9 }}</span>
+                                    {% empty %}
+                                    <span class="vl-meta">none recorded</span>
+                                    {% endfor %}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-size:var(--vl-t-sm);">{{ v.contact_person|default:"—" }}</div>
+                                <div class="vl-meta">{{ v.email|default:"" }}</div>
+                            </td>
+                            <td style="text-align:right;"><span class="vl-meta">open →</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% elif filtered %}
+            <div class="vl-card"><div class="vl-empty">
+                <div class="vl-empty__title">No results match your filters</div>
+                <div class="vl-empty__hint">{{ total_count }} vendor{{ total_count|pluralize }} in the master overall.</div>
+                <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:t3_vendor_master' %}">Clear filters</a></div>
+            </div></div>
+            {% else %}
+            <div class="vl-card"><div class="vl-empty">
+                <div class="vl-empty__title">No vendors yet</div>
+                <div class="vl-empty__hint">Add the first 3PL vendor, or approve a pending registration.</div>
+                {% if can_edit %}
+                <div class="vl-empty__cta"><a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:vendor_create' %}">Add vendor</a></div>
+                {% endif %}
+            </div></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="vl-drawer-scrim" id="vlDrawerScrim" hidden></div>
+<aside class="vl-drawer" id="vlDrawer" aria-hidden="true" aria-label="Vendor detail"></aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    var drawer = document.getElementById('vlDrawer');
+    var scrim = document.getElementById('vlDrawerScrim');
+    if (!drawer) { return; }
+
+    function close() {
+        drawer.classList.remove('is-open');
+        drawer.setAttribute('aria-hidden', 'true');
+        scrim.hidden = true;
+    }
+
+    function open(pk) {
+        // Skeleton first so the drawer appears immediately — waiting for the
+        // fetch before showing anything reads as a dead click.
+        drawer.innerHTML =
+            '<div class="vl-drawer__head"><h2 class="vl-drawer__title">Loading…</h2></div>' +
+            '<div class="vl-drawer__body"><div class="vl-skel vl-skel--row"></div>' +
+            '<div class="vl-skel vl-skel--row"></div><div class="vl-skel vl-skel--row"></div></div>';
+        drawer.classList.add('is-open');
+        drawer.setAttribute('aria-hidden', 'false');
+        scrim.hidden = false;
+
+        fetch('/vendorlink/v2/vendors/' + pk + '/drawer/')
+            .then(function (r) {
+                if (!r.ok) { throw new Error('http ' + r.status); }
+                return r.text();
+            })
+            .then(function (html) {
+                drawer.innerHTML = html;
+                var closeBtn = drawer.querySelector('[data-vl-drawer-close]');
+                if (closeBtn) { closeBtn.addEventListener('click', close); }
+                drawer.querySelectorAll('.vl-tab').forEach(function (tab) {
+                    tab.addEventListener('click', function () {
+                        drawer.querySelectorAll('.vl-tab').forEach(function (t) {
+                            t.setAttribute('aria-selected', String(t === tab));
+                        });
+                        drawer.querySelectorAll('[data-vl-panel]').forEach(function (p) {
+                            p.hidden = p.dataset.vlPanel !== tab.dataset.vlTab;
+                        });
+                    });
+                });
+            })
+            .catch(function () {
+                // An error state inside the drawer, not a toast that leaves an
+                // empty panel sitting open with no explanation.
+                drawer.innerHTML =
+                    '<div class="vl-drawer__head"><h2 class="vl-drawer__title">Could not load</h2>' +
+                    '<button class="vl-btn vl-btn--ghost vl-btn--icon" data-vl-drawer-close>&times;</button></div>' +
+                    '<div class="vl-drawer__body"><div class="vl-banner vl-banner--error">' +
+                    '<div class="vl-banner__body">That vendor could not be loaded. Try again.</div></div></div>';
+                var b = drawer.querySelector('[data-vl-drawer-close]');
+                if (b) { b.addEventListener('click', close); }
+            });
+    }
+
+    document.querySelectorAll('[data-vl-vendor]').forEach(function (row) {
+        row.addEventListener('click', function () { open(row.dataset.vlVendor); });
+    });
+    scrim.addEventListener('click', close);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && drawer.classList.contains('is-open')) { close(); }
+    });
+}());
+</script>
+{% endblock %}

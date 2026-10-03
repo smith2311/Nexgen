@@ -1,0 +1,53 @@
+{% load merilv_ui %}{% comment %}
+Descriptor for the sidebar hover-flyout, consumed by static/merilv/js/flyout.js.
+
+Rendered server-side so tier gating is authoritative: items and whole groups the
+user cannot reach are never emitted, rather than shipped and disabled. A Picker
+never receives the Master Data URLs at all.
+
+Deliberately a JSON island rather than markup — flyout.js appends the panel to
+<body> so no ancestor's overflow or transform can clip it, and building from
+data keeps the same code path usable by sibling modules via data-flyout.
+{% endcomment %}{% is_merilv_admin request.user as mv_is_admin %}{% can_operate_merilv request.user as mv_can_operate %}
+<script type="application/json" id="mv-flyout-data">
+{
+  "anchor": "/meril-v/",
+  "label": "Meril-V sections",
+  "groups": [
+    {% if mv_can_operate %}{
+      "label": "Operate",
+      "items": [
+        {"label": "Outbound Scanner",    "url": "{% url 'merilv:outbound' %}",      "icon": "scan"},
+        {"label": "Stock Validator",     "url": "{% url 'merilv:validator' %}",     "icon": "clipboard"},
+        {"label": "Branch Transfer",     "url": "{% url 'merilv:branch_transfer' %}","icon": "transfer"},
+        {"label": "Inbound Scanner",     "url": "{% url 'merilv:inbound' %}",       "icon": "inbox"},
+        {"label": "Barcode Extractor",   "url": "{% url 'merilv:extractor' %}",     "icon": "barcode"},
+        {"label": "Invoice Consolidator","url": "{% url 'merilv:consolidator' %}",  "icon": "file"}
+      ]
+    },{% endif %}
+    {
+      "label": "History & Live",
+      "items": [
+        {"label": "Delivery History",   "url": "{% url 'merilv:delivery_history' %}",  "icon": "truck"},
+        {"label": "Validation History", "url": "{% url 'merilv:validation_history' %}","icon": "history"},
+        {"label": "Scan History",       "url": "{% url 'merilv:scan_history' %}",      "icon": "list"},
+        {"label": "Reports",            "url": "{% url 'merilv:reports' %}",           "icon": "chart"},
+        {"label": "Monitoring",         "url": "{% url 'merilv:monitoring' %}",        "icon": "monitor"}
+      ]
+    }{% if mv_is_admin %},
+    {
+      "label": "Master Data",
+      "items": [
+        {"label": "Materials",     "url": "{% url 'merilv:masters_materials' %}", "icon": "package"},
+        {"label": "Customers",     "url": "{% url 'merilv:masters_customers' %}", "icon": "users"},
+        {"label": "Couriers",      "url": "{% url 'merilv:masters_couriers' %}",  "icon": "truck"},
+        {"label": "Cartons",       "url": "{% url 'merilv:masters_boxes' %}",     "icon": "box"},
+        {"label": "Organisation",  "url": "{% url 'merilv:masters_org' %}",       "icon": "layers"},
+        {"label": "Entities",      "url": "{% url 'merilv:masters_entities' %}",  "icon": "building"},
+        {"label": "Roles & Access","url": "{% url 'merilv:masters_roles' %}",     "icon": "key"},
+        {"label": "Activity Log",  "url": "{% url 'merilv:masters_activity' %}",  "icon": "scroll"}
+      ]
+    }{% endif %}
+  ]
+}
+</script>

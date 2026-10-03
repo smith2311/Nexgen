@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+VendorLink Admin → Insights → one user. Admin-only individual tracking.
+
+Charts are Highcharts (vendored); the heatmap is a CSS grid — see
+_heatmap.html for why. Every series is built in vendorlink/useractivity.py.
+
+Five views of the same data, each answering something the others cannot:
+  * Daily trend, stacked by work type, with this person's own average as a
+    dashed plotLine and a cumulative spline on a second axis — the last is what
+    turns "busy days" into "are they still active".
+  * Personal heatmap — their own shift shape.
+  * Work mix donut + per-activity bar — WHAT they did.
+  * Weekday pattern — averaged per occurrence, not summed.
+  * Event feed — the actual sequence, newest first.
+
+Plus a Standing panel: rank, team median and a signed delta. Performance only
+means something relative, and an admin should not have to eyeball whether 45
+actions is a lot.
+{% endcomment %}
+
+{% block title %}{{ identity.name|default:subject.username }} — VendorLink Insights{% endblock %}
+{% block page_title %}VendorLink Admin{% endblock %}
+
+{% block extra_css %}
+{% comment %}
+Both are required and in this order, matching every other admin-console page.
+master_page.css carries the lm-* header classes; data_table.css defines the
+--navy / --navy-light custom properties its header gradient resolves against.
+With master_page.css alone the gradient collapsed to nothing and the header's
+white text landed on the page's near-white background — invisible.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-insights.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_insights' %}?days={{ days }}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        All users
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-user-gear"></i> {{ identity.name|default:subject.username }}</h1>
+          <p>
+            {{ identity.email|default:identity.username }} ·
+            {{ since|date:"d M Y" }} to {{ until|date:"d M Y" }}
+          </p>
+        </div>
+        {% comment %}
+        No lm-header-stats here: the hero cards below already carry these
+        numbers, and printing each twice on one screen is noise.
+        {% endcomment %}
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% comment %}
+    The picker jumps sideways to another user without going back to the roster.
+    It posts to the *list* view, which redirects — so "All users" (an empty
+    value) lands on the roster and a pk lands on that person's page, from one
+    control.
+    {% endcomment %}
+    <form method="get" action="{% url 'vendorlink:admin_insights' %}" class="vla-controls"
+          style="margin-bottom:18px;">
+      <select class="vla-select" name="user" onchange="this.form.submit()"
+              aria-label="Track a specific user">
+        <option value="">&larr; All users</option>
+        {% for option in picker %}
+        <option value="{{ option.id }}" {% if option.id == subject.pk %}selected{% endif %}>
+          {{ option.name }} — {{ option.role }} · {{ option.total }}
+        </option>
+        {% endfor %}
+      </select>
+      <select class="vla-select" name="days" onchange="this.form.submit()"
+              style="min-width:150px;" aria-label="Reporting window">
+        {% for value, label in windows %}
+        <option value="{{ value }}" {% if days == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+
+    {# ── Identity ──────────────────────────────────────────────────────── #}
+    <div class="vla-card" style="margin-bottom:18px;">
+      <div class="vla-idstrip">
+        <span class="vla-idavatar{% if not stats.total %} vla-idavatar--idle{% endif %}">
+          {{ identity.name|default:subject.username|slice:":2" }}
+        </span>
+        <dl class="vla-kvgrid">
+          <div>
+            <dt>Role</dt>
+            <dd><span class="vla-rolechip vla-rolechip--{{ identity.role|lower|cut:" " }}">{{ identity.role }}</span></dd>
+          </div>
+          <div>
+            <dt>Username</dt>
+            <dd>{{ identity.username }}</dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd>{% if identity.is_active %}Active{% else %}Disabled{% endif %}</dd>
+          </div>
+          <div>
+            <dt>Joined</dt>
+            <dd>{{ identity.date_joined|date:"d M Y" }}</dd>
+          </div>
+          <div>
+            <dt>Last login</dt>
+            <dd>{% if identity.last_login %}{{ identity.last_login|date:"d M Y, H:i" }}{% else %}Never{% endif %}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    {% if stats.total %}
+
+    {# ── Hero band ─────────────────────────────────────────────────────── #}
+    <div class="vla-hero">
+      <div class="vla-herocard vla-herocard--blue">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-bolt"></i></span> Total actions
+        </div>
+        <div class="vla-herocard-val">{{ stats.total }}</div>
+        <div class="vla-herocard-sub">{{ breakdown|length }} of {{ breakdown_all|length }} activities used</div>
+      </div>
+      <div class="vla-herocard vla-herocard--cyan">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-calendar-check"></i></span> Active days
+        </div>
+        <div class="vla-herocard-val">{{ stats.active_days }}</div>
+        <div class="vla-herocard-sub">of {{ days }} in window</div>
+      </div>
+      <div class="vla-herocard vla-herocard--violet">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-gauge-high"></i></span> Per active day
+        </div>
+        <div class="vla-herocard-val">{{ stats.per_active_day }}</div>
+        <div class="vla-herocard-sub">busiest {{ stats.busiest_day|date:"d M" }} ({{ stats.busiest_day_count }})</div>
+      </div>
+      <div class="vla-herocard {% if peers.vs_median_pct >= 0 %}vla-herocard--green{% else %}vla-herocard--amber{% endif %}">
+        <div class="vla-herocard-top">
+          <span class="vla-herocard-ic"><i class="fas fa-ranking-star"></i></span> vs team median
+        </div>
+        <div class="vla-herocard-val">
+          {% if peers.vs_median_pct > 0 %}+{% endif %}{{ peers.vs_median_pct }}%
+        </div>
+        <div class="vla-herocard-sub">median is {{ peers.median }} action{{ peers.median|pluralize }}</div>
+      </div>
+    </div>
+
+    <div class="vla-legend">
+      {% for row in by_kind %}{% if row.n %}
+      <span class="vla-legend-item"><span class="vla-dot vla-dot--{{ row.key }}"></span>{{ row.label }} · {{ row.n }}</span>
+      {% endif %}{% endfor %}
+    </div>
+
+    <div class="vla-grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);">
+      <div class="vla-card">
+        <div class="vla-card-hdr">
+          <h3><i class="fas fa-chart-column"></i> Daily activity</h3>
+          <span class="vla-card-note">Dashed = their average · dotted = cumulative</span>
+        </div>
+        <div id="chartTrend" class="vla-chart vla-chart--tall"></div>
+      </div>
+
+      {# ── Peer standing ─────────────────────────────────────────────── #}
+      <div class="vla-card">
+        <div class="vla-card-hdr"><h3><i class="fas fa-ranking-star"></i> Standing</h3></div>
+        {% if peers.rank %}
+        <div class="vla-rank">
+          <span class="vla-rank-n">#{{ peers.rank }}</span>
+          <span class="vla-rank-of">of {{ peers.of }} active user{{ peers.of|pluralize }}</span>
+        </div>
+        <dl class="vla-kvgrid" style="margin-top:16px;grid-template-columns:1fr 1fr;">
+          <div><dt>Their actions</dt><dd>{{ peers.mine }}</dd></div>
+          {% comment %}
+          Median, not mean — one bulk import of 200 vendors drags an average far
+          enough to make everyone else look idle.
+          {% endcomment %}
+          <div><dt>Team median</dt><dd>{{ peers.median }}</dd></div>
+          <div><dt>Busiest user</dt><dd>{{ peers.top }}</dd></div>
+          <div>
+            <dt>vs median</dt>
+            <dd>
+              {% if peers.vs_median_pct > 0 %}
+              <span class="vla-delta vla-delta--up">+{{ peers.vs_median_pct }}%</span>
+              {% elif peers.vs_median_pct < 0 %}
+              <span class="vla-delta vla-delta--down">{{ peers.vs_median_pct }}%</span>
+              {% else %}at median{% endif %}
+            </dd>
+          </div>
+        </dl>
+        {% else %}
+        <p class="vla-card-note">Not ranked — no activity in this window.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Their own heatmap ─────────────────────────────────────────────── #}
+    <div class="vla-grid vla-grid--full">
+      {% include "vendorlink/admin/_heatmap.html" with heat_title="When they work" heat_note="This person's own weekday and hour pattern. Compare against the team heatmap on the all-users page to spot someone working outside the shift." %}
+    </div>
+
+    <div class="vla-grid vla-grid--full">
+      <div class="vla-card">
+        <div class="vla-card-hdr">
+          <h3><i class="fas fa-list-ul"></i> What exactly they did</h3>
+          <span class="vla-card-note">{{ breakdown|length }} of {{ breakdown_all|length }} activities used</span>
+        </div>
+        <div id="chartSources" class="vla-chart vla-chart--tall"></div>
+      </div>
+    </div>
+
+    {# ── Event feed ────────────────────────────────────────────────────── #}
+    <div class="vla-card">
+      <div class="vla-card-hdr">
+        <h3><i class="fas fa-clock-rotate-left"></i> Recent activity</h3>
+        <span class="vla-card-note">Newest first · {{ events|length }} event{{ events|length|pluralize }}</span>
+      </div>
+      {% if events %}
+      <div class="vla-feed">
+        {% for event in events %}
+        <div class="vla-feed-row">
+          <span class="vla-feed-ic"><i class="fas {{ event.icon }}"></i></span>
+          <span class="vla-feed-time">{{ event.at|date:"d M H:i" }}</span>
+          <span class="vla-feed-what">{{ event.what|default:"—" }}</span>
+          <span class="vla-feed-tag">
+            <span class="vla-dot vla-dot--{{ event.kind }}" style="display:inline-block;"></span>
+            {{ event.label }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="vla-card-note">No events in this window.</p>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <div class="vla-card">
+      <div class="vla-empty">
+        <i class="fas fa-user-slash"></i>
+        <h4>Nothing logged in this window</h4>
+        <p>
+          {{ identity.name|default:subject.username }} has VendorLink access but recorded no
+          activity between {{ since|date:"d M Y" }} and {{ until|date:"d M Y" }}. Try a longer window.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{{ charts|json_script:"vlaData" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-insights.js' %}"></script>
+<script>
+(function () {
+    if (!window.vlInsights) { return; }
+    var data = window.vlInsights.readPayload('vlaData');
+    if (!data || !data.has_data) { return; }
+    var vl = window.vlInsights;
+    vl.applyTheme();
+
+    vl.stackedTrend('chartTrend', data.trend, { cumulative: true, average: true });
+    vl.rankedBar('chartSources', data.sources.names, data.sources.values);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% comment %}
+Capability chips for a VendorRegistration row.
+
+Used to name the nine capabilities one by one, with their labels and icons
+written out here — a third hand-maintained copy of a list the model and
+constants.py each also held. Capabilities are rows in the Capability master
+now, so the chips come off the record's own links and a capability an admin adds
+appears here with no edit to this file.
+
+One deliberate change of meaning: this shows only the capabilities the
+registration DECLARED, where before it drew all nine and dimmed the absent
+ones. With an extensible master, "all of them, dimmed" is a row that grows
+without bound and reads as noise in a table cell — and a dimmed dot never
+distinguished "said no" from "was not asked", which is the distinction the
+detail screens exist for. The count carries the rest of the story.
+
+Usage: {% include "vendorlink/_reg_caps.html" with reg=reg %}
+{% endcomment %}
+{% for capability in reg.capabilities.all %}
+<span class="vl-cap dot on" title="{{ capability.label }}"><i class="fas {{ capability.icon }}"></i></span>
+{% empty %}
+<span class="vlx-muted" style="font-size:12px;">None declared</span>
+{% endfor %}

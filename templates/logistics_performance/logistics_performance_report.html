@@ -1,0 +1,599 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Logistics Performance Report{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logistics_performance/logistics_performance_report.css' %}">
+<style>
+.lp-back{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.7);font-size:12.5px;font-weight:500;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .2s cubic-bezier(.4,0,.2,1);margin-bottom:16px;width:fit-content}
+.lp-back:hover{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.28);color:#fff;text-decoration:none;transform:translateX(-4px)}
+.lp-back-icon{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.11);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:background .2s,transform .2s}
+.lp-back:hover .lp-back-icon{background:rgba(255,255,255,0.22);transform:translateX(-2px)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<script>
+const RPT_CONFIG = {
+  urls: {
+    stats:          "{% url 'logistics:report_stats_api' %}",
+    tat:            "{% url 'logistics:report_tat_api' %}",
+    cost:           "{% url 'logistics:report_cost_api' %}",
+    courier:        "{% url 'logistics:report_courier_api' %}",
+    lc:             "{% url 'logistics:report_lc_api' %}",
+    pincode:        "{% url 'logistics:report_pincode_api' %}",
+    tat_detail:     "{% url 'logistics:report_tat_detail_api' %}",
+    courier_detail: "{% url 'logistics:report_courier_detail_api' %}",
+    tat_export:     "{% url 'logistics:report_tat_export' %}",
+    cost_export:    "{% url 'logistics:report_cost_export' %}",
+    courier_export: "{% url 'logistics:report_courier_export' %}",
+    lc_export:      "{% url 'logistics:report_lc_export' %}",
+  },
+  divisions:   {{ divisions_json|safe }},
+  modes:       {{ modes_json|safe }},
+  couriers:    {{ couriers_json|safe }},
+  plants:      {{ plants_json|safe }},
+  plant_map:   {{ plant_map_json|safe }},
+  pincode_modes: {{ pincode_modes_json|safe }},
+  locations:   {{ locations_json|safe }},
+  sales_types: {{ sales_types_json|safe }},
+};
+</script>
+
+<div class="rpt-page">
+
+  <!-- ═══ PAGE HEADER ═══ -->
+  <div class="rpt-header">
+    <div class="rpt-header-mesh"></div>
+    <div class="rpt-header-inner">
+      <a href="{% url 'logistics:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Logistics Performance
+      </a>
+      <div class="rpt-header-top">
+
+        <div class="rpt-header-title">
+          <div class="rpt-header-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="rpt-header-text">
+            <h1>Logistics Performance Report</h1>
+            <p>TAT, Cost, Courier performance &amp; Pincode rate analysis</p>
+          </div>
+        </div>
+
+        <div class="rpt-header-stats">
+          <div class="rpt-hstat blue">
+            <div class="rpt-hstat-icon"><i class="fas fa-boxes"></i></div>
+            <div class="rpt-hstat-body">
+              <div class="rpt-hstat-val" id="statTotal">—</div>
+              <div class="rpt-hstat-lbl">Total Records</div>
+            </div>
+          </div>
+          <div class="rpt-hstat green">
+            <div class="rpt-hstat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="rpt-hstat-body">
+              <div class="rpt-hstat-val" id="statOnTime">—</div>
+              <div class="rpt-hstat-lbl">On Time</div>
+            </div>
+          </div>
+          <div class="rpt-hstat red">
+            <div class="rpt-hstat-icon"><i class="fas fa-exclamation-circle"></i></div>
+            <div class="rpt-hstat-body">
+              <div class="rpt-hstat-val" id="statDelayed">—</div>
+              <div class="rpt-hstat-lbl">Delayed</div>
+            </div>
+          </div>
+          <div class="rpt-hstat amber">
+            <div class="rpt-hstat-icon"><i class="fas fa-hourglass-half"></i></div>
+            <div class="rpt-hstat-body">
+              <div class="rpt-hstat-val" id="statPending">—</div>
+              <div class="rpt-hstat-lbl">Pending</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tabs -->
+      <div class="rpt-tabs">
+        <button class="rpt-tab-btn active" data-tab="tab-tat"     onclick="switchRptTab('tab-tat')">
+          <i class="fas fa-clock"></i> TAT Report
+        </button>
+        <button class="rpt-tab-btn" data-tab="tab-cost"    onclick="switchRptTab('tab-cost')">
+          <i class="fas fa-rupee-sign"></i> Cost Report
+        </button>
+        <button class="rpt-tab-btn" data-tab="tab-courier" onclick="switchRptTab('tab-courier')">
+          <i class="fas fa-truck"></i> Courier Performance
+        </button>
+        <button class="rpt-tab-btn" data-tab="tab-lc"      onclick="switchRptTab('tab-lc')">
+          <i class="fas fa-percentage"></i> LC Contribution
+        </button>
+        <button class="rpt-tab-btn" data-tab="tab-pincode" onclick="switchRptTab('tab-pincode')">
+          <i class="fas fa-map-marker-alt"></i> Pincode Search
+        </button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <!-- ═══ TAB CONTENT ═══ -->
+  <div class="rpt-inner">
+
+    <!-- ─────────────────────────────────────
+         TAB 1 — TAT REPORT
+    ───────────────────────────────────────── -->
+    <div class="rpt-tab-content active" id="tab-tat">
+
+      <!-- Filter bar -->
+      <div class="rpt-filter-bar fi fi-1">
+        <div class="rpt-filter-fields" style="flex-wrap:wrap;gap:10px;">
+          <div class="rpt-field">
+            <label>View By</label>
+            <select id="tatView" onchange="loadTAT()">
+              <option value="Division">Division</option>
+              <option value="State">State</option>
+              <option value="Zone">Zone</option>
+            </select>
+          </div>
+          <div class="rpt-field">
+            <label>From</label>
+            <input type="date" id="tatFromDate" onchange="loadTAT()">
+          </div>
+          <div class="rpt-field">
+            <label>To</label>
+            <input type="date" id="tatToDate" onchange="loadTAT()">
+          </div>
+          <div class="rpt-field">
+            <label>Company</label>
+            <select id="tatDivision" onchange="loadTAT()"><option value="">All Companies</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Mode</label>
+            <select id="tatMode" onchange="loadTAT()"><option value="">All Modes</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Courier</label>
+            <select id="tatCourier" onchange="loadTAT()"><option value="">All Couriers</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Plant</label>
+            <select id="tatPlant" onchange="loadTAT()"><option value="">All Plants</option></select>
+          </div>
+          <button class="btn-export" onclick="exportReport('tat')">
+            <i class="fas fa-file-excel"></i> Export
+          </button>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="tatLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading data…</span>
+      </div>
+
+      <!-- TAT summary table -->
+      <div class="rpt-tbl-wrap fi fi-2" id="tatTableWrap">
+        <div class="rpt-tbl-head tat-head">
+          <div>#</div><div id="tatGroupHeader">Division</div>
+          <div>Met</div><div>Not Met</div><div>Grand Total</div>
+          <div>Met %</div><div>Not Met %</div><div>Total %</div>
+        </div>
+        <div id="tatTableBody">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-filter"></i></div>
+            <p>Adjust the date range to load data.</p>
+          </div>
+        </div>
+        <!-- Footer totals row -->
+        <div class="rpt-tbl-footer tat-head" id="tatFooter" style="display:none">
+          <div></div><div><strong>Total</strong></div>
+          <div id="ftTatHit"></div>
+          <div id="ftTatMiss"></div>
+          <div id="ftTatGrand"></div>
+          <div id="ftTatHitPct"></div>
+          <div id="ftTatMissPct"></div>
+          <div id="ftTatGrandPct"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-tat -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 2 — COST REPORT
+    ───────────────────────────────────────── -->
+    <div class="rpt-tab-content" id="tab-cost">
+
+      <div class="rpt-filter-bar fi fi-1">
+        <!-- Row 1: date pickers (always visible) -->
+        <div class="rpt-filter-row">
+          <div class="rpt-filter-fields">
+            <div class="rpt-field">
+              <label>From</label>
+              <input type="date" id="costFromDate" onchange="onCostDateChange()">
+            </div>
+            <div class="rpt-field">
+              <label>To</label>
+              <input type="date" id="costToDate" onchange="onCostDateChange()">
+            </div>
+          </div>
+          <span class="cost-date-hint" id="costDateHint">
+            <i class="fas fa-info-circle"></i> Select a date range to load filters &amp; data
+          </span>
+        </div>
+
+        <!-- Row 2+: advanced filters — hidden until both dates are set -->
+        <div class="cost-advanced-filters" id="costAdvancedFilters" style="display:none;">
+          <div class="rpt-filter-row cost-advanced-row">
+            <div class="rpt-filter-fields">
+              <div class="rpt-field">
+                <label>Company</label>
+                <select id="costDivision" onchange="loadCost()"><option value="">All Companies</option></select>
+              </div>
+              <div class="rpt-field">
+                <label>Plant</label>
+                <select id="costPlant" onchange="loadCost()"><option value="">All Plants</option></select>
+              </div>
+            </div>
+            <button class="btn-export" onclick="exportReport('cost')">
+              <i class="fas fa-file-excel"></i> Export All
+            </button>
+          </div>
+          <div class="rpt-filter-row cost-doctype-row">
+            <div class="rpt-filter-group">
+              <label>Doc Type</label>
+              <div class="filter-pills" id="costDocTypePills">
+                <button class="filter-pill active" data-val="Sales"       onclick="toggleCostPill(this)">Sales</button>
+                <button class="filter-pill active" data-val="Consignment" onclick="toggleCostPill(this)">Consignment</button>
+                <button class="filter-pill active" data-val="BT"          onclick="toggleCostPill(this)">BT</button>
+                <button class="filter-pill active" data-val="FOC"         onclick="toggleCostPill(this)">FOC</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Cost by Division ── -->
+      <div class="cost-section-label fi fi-2"><i class="fas fa-building"></i> Cost by Division</div>
+      <div class="loading-overlay" id="costDivLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading…</span>
+      </div>
+      <div class="rpt-tbl-wrap" id="costDivWrap">
+        <div class="rpt-tbl-head cost-head" style="grid-template-columns:40px 1fr 130px 130px 100px 100px 110px 140px">
+          <div>#</div><div>Division</div>
+          <div>Total Sales (₹)</div><div>Actual LC (₹)</div>
+          <div>Actual LC %</div><div>Budget LC %</div>
+          <div>Difference %</div><div>Abs Amount (₹)</div>
+        </div>
+        <div id="costDivBody"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-filter"></i></div><p>Select a date range to load data.</p></div></div>
+        <div class="rpt-tbl-footer cost-head" id="costDivFooter" style="display:none;grid-template-columns:40px 1fr 130px 130px 100px 100px 110px 140px">
+          <div></div><div><strong>Total</strong></div>
+          <div id="ftDivSales"></div><div id="ftDivLC"></div>
+          <div></div><div></div><div></div><div id="ftDivAbs"></div>
+        </div>
+      </div>
+
+      <!-- ── Cost by Mode ── -->
+      <div class="cost-section-label" style="margin-top:24px"><i class="fas fa-plane"></i> Cost by Mode</div>
+      <div class="loading-overlay" id="costModeLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading…</span>
+      </div>
+      <div class="rpt-tbl-wrap" id="costModeWrap">
+        <div class="rpt-tbl-head cost-head" style="grid-template-columns:40px 110px 90px 130px 130px 100px 100px 140px">
+          <div>#</div><div>Division</div><div>Mode</div>
+          <div>Total Sales (₹)</div><div>Actual LC (₹)</div>
+          <div>Actual LC %</div><div>Budget LC %</div><div>Abs Amount (₹)</div>
+        </div>
+        <div id="costModeBody"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-filter"></i></div><p>Select a date range to load data.</p></div></div>
+        <div class="rpt-tbl-footer cost-head" id="costModeFooter" style="display:none;grid-template-columns:40px 110px 90px 130px 130px 100px 100px 140px">
+          <div></div><div><strong>Total</strong></div><div></div>
+          <div id="ftModeSales"></div><div id="ftModeLC"></div>
+          <div></div><div></div><div id="ftModeAbs"></div>
+        </div>
+      </div>
+
+      <!-- ── Cost by State ── -->
+      <div class="cost-section-label" style="margin-top:24px"><i class="fas fa-map-marker-alt"></i> Cost by State</div>
+      <div class="loading-overlay" id="costStateLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading…</span>
+      </div>
+      <div class="rpt-tbl-wrap" id="costStateWrap">
+        <div class="rpt-tbl-head cost-head" style="grid-template-columns:40px 1fr 110px 130px 130px 100px 100px 140px">
+          <div>#</div><div>State</div><div>Division</div>
+          <div>Total Sales (₹)</div><div>Actual LC (₹)</div>
+          <div>Actual LC %</div><div>Budget LC %</div><div>Abs Amount (₹)</div>
+        </div>
+        <div id="costStateBody"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-filter"></i></div><p>Select a date range to load data.</p></div></div>
+        <div class="rpt-tbl-footer cost-head" id="costStateFooter" style="display:none;grid-template-columns:40px 1fr 110px 130px 130px 100px 100px 140px">
+          <div></div><div><strong>Total</strong></div><div></div>
+          <div id="ftStateSales"></div><div id="ftStateLC"></div>
+          <div></div><div></div><div id="ftStateAbs"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-cost -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 3 — COURIER PERFORMANCE
+    ───────────────────────────────────────── -->
+    <div class="rpt-tab-content" id="tab-courier">
+
+      <div class="rpt-filter-bar fi fi-1">
+        <div class="rpt-filter-fields" style="flex-wrap:wrap;gap:10px;">
+          <div class="rpt-field">
+            <label>From</label>
+            <input type="date" id="courierFromDate" onchange="loadCourier()">
+          </div>
+          <div class="rpt-field">
+            <label>To</label>
+            <input type="date" id="courierToDate" onchange="loadCourier()">
+          </div>
+          <div class="rpt-field">
+            <label>Mode</label>
+            <select id="courierMode" onchange="loadCourier()"><option value="">All Modes</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Courier</label>
+            <select id="courierCourier" onchange="loadCourier()"><option value="">All Couriers</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Company</label>
+            <select id="courierDivision" onchange="loadCourier()"><option value="">All Companies</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Plant</label>
+            <select id="courierPlant" onchange="loadCourier()"><option value="">All Plants</option></select>
+          </div>
+          <button class="btn-export" onclick="exportReport('courier')">
+            <i class="fas fa-file-excel"></i> Export
+          </button>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="courierLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading data…</span>
+      </div>
+
+      <div class="rpt-tbl-wrap fi fi-2">
+      <div class="rpt-tbl-scroll">
+        <div class="rpt-tbl-head courier-head">
+          <div>#</div><div>Month</div><div>Year</div><div>Courier</div><div>Svc Type</div><div>Mode</div>
+          <div>On Time</div><div>+1 Day</div><div>+2 Days</div>
+          <div>+3 Days</div><div>+4 Days</div><div>+5 Days</div>
+          <div>Grand Total</div><div>On Time %</div><div>Delay %</div>
+        </div>
+        <div id="courierTableBody">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-filter"></i></div>
+            <p>Select a date range to load data.</p>
+          </div>
+        </div>
+        <div class="rpt-tbl-footer courier-head" id="courierFooter" style="display:none">
+          <div></div><div></div><div></div><div><strong>Total</strong></div><div></div><div></div>
+          <div id="ftCrD0"></div>
+          <div id="ftCrD1"></div>
+          <div id="ftCrD2"></div>
+          <div id="ftCrD3"></div>
+          <div id="ftCrD4"></div>
+          <div id="ftCrD5"></div>
+          <div id="ftCrGrand"></div>
+          <div id="ftCrOntime"></div>
+          <div id="ftCrDelay"></div>
+        </div>
+      </div><!-- /rpt-tbl-scroll -->
+      </div><!-- /rpt-tbl-wrap -->
+
+    </div><!-- /tab-courier -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 4 — LC CONTRIBUTION
+    ───────────────────────────────────────── -->
+    <div class="rpt-tab-content" id="tab-lc">
+
+      <div class="rpt-filter-bar fi fi-1">
+        <div class="rpt-filter-fields" style="flex-wrap:wrap;gap:10px;">
+          <div class="rpt-field">
+            <label>From</label>
+            <input type="date" id="lcFromDate" onchange="loadLC()">
+          </div>
+          <div class="rpt-field">
+            <label>To</label>
+            <input type="date" id="lcToDate" onchange="loadLC()">
+          </div>
+          <div class="rpt-field">
+            <label>Company</label>
+            <select id="lcDivision" onchange="loadLC()"><option value="">All Companies</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Plant</label>
+            <select id="lcPlant" onchange="loadLC()"><option value="">All Plants</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Courier</label>
+            <select id="lcCourier" onchange="loadLC()"><option value="">All Couriers</option></select>
+          </div>
+          <div class="rpt-field">
+            <label>Mode</label>
+            <select id="lcMode" onchange="loadLC()"><option value="">All Modes</option></select>
+          </div>
+          <button class="btn-export" onclick="exportReport('lc')">
+            <i class="fas fa-file-excel"></i> Export
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary totals -->
+      <div class="lc-summary fi fi-1" id="lcSummary" style="display:none">
+        <div class="lc-sum-card">
+          <div class="lc-sum-icon teal"><i class="fas fa-shipping-fast"></i></div>
+          <div class="lc-sum-body">
+            <div class="lc-sum-label">Total Logistics Cost</div>
+            <div class="lc-sum-val" id="lcTotalLC">—</div>
+          </div>
+        </div>
+        <div class="lc-sum-card">
+          <div class="lc-sum-icon blue"><i class="fas fa-rupee-sign"></i></div>
+          <div class="lc-sum-body">
+            <div class="lc-sum-label">Total Sales Value</div>
+            <div class="lc-sum-val" id="lcTotalSales">—</div>
+          </div>
+        </div>
+        <div class="lc-sum-card">
+          <div class="lc-sum-icon amber"><i class="fas fa-weight-hanging"></i></div>
+          <div class="lc-sum-body">
+            <div class="lc-sum-label">Total Weight (kg)</div>
+            <div class="lc-sum-val" id="lcTotalWt">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="lcLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading data…</span>
+      </div>
+
+      <div class="rpt-tbl-wrap fi fi-2">
+        <div class="rpt-tbl-head lc-head">
+          <div>#</div><div>Courier Name</div>
+          <div>Sale Value (₹)</div><div>LC Freight Value (₹)</div>
+          <div>Biz Contribution %</div><div>LC %</div>
+          <div>Weight (kg)</div><div>Weight %</div>
+        </div>
+        <div id="lcTableBody">
+          <div class="empty-state">
+            <i class="fas fa-filter"></i>
+            <p>Select a date range to load data.</p>
+          </div>
+        </div>
+        <div class="rpt-tbl-footer lc-head" id="lcFooter" style="display:none">
+          <div></div><div><strong>Total</strong></div>
+          <div id="ftLcSales"></div>
+          <div id="ftLcFV"></div>
+          <div id="ftLcBiz"></div>
+          <div></div>
+          <div id="ftLcWt"></div>
+          <div id="ftLcWtPct"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-lc -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 5 — PINCODE SEARCH
+    ───────────────────────────────────────── -->
+    <div class="rpt-tab-content" id="tab-pincode">
+
+      <div class="rpt-filter-bar fi fi-1">
+        <div class="rpt-filter-fields" style="flex-wrap:wrap;gap:10px;">
+          <div class="rpt-field">
+            <label>Pincode <span style="color:var(--red)">*</span></label>
+            <input type="text" id="pincodeInput" placeholder="e.g. 400001 (auto-searches)" maxlength="10"
+                   oninput="onPincodeInput(this)"
+                   onkeyup="if(event.key==='Enter') loadPincode()">
+          </div>
+          <div class="rpt-field">
+            <label>Actual Weight (kg)</label>
+            <input type="number" id="pincodeWeight" placeholder="0.00" step="0.1" min="0"
+                   onchange="loadPincode()">
+          </div>
+          <div class="rpt-field">
+            <label>Mode</label>
+            <select id="pincodeMode" onchange="loadPincode()">
+              <option value="">All Modes</option>
+            </select>
+          </div>
+          <div class="rpt-field">
+            <label>From Location</label>
+            <select id="pincodeLocation" onchange="loadPincode()">
+              <option value="">All Locations</option>
+            </select>
+          </div>
+          <div class="rpt-field">
+            <label>Date From</label>
+            <input type="date" id="pincodeDateFrom" onchange="loadPincode()">
+          </div>
+          <div class="rpt-field">
+            <label>Date To</label>
+            <input type="date" id="pincodeDateTo" onchange="loadPincode()">
+          </div>
+          <button class="btn btn-navy btn-sm" onclick="loadPincode()">
+            <i class="fas fa-search"></i> Search
+          </button>
+
+        </div>
+      </div>
+
+      <!-- District pill -->
+      <div id="pincodeDistrict" class="pincode-district" style="display:none"></div>
+
+      <div class="loading-overlay" id="pincodeLoading" style="display:none">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Searching…</span>
+      </div>
+
+      <!-- Legend -->
+      <div class="pincode-legend fi fi-1" id="pincodeLegend" style="display:none">
+        <span class="legend-chip best-rate">Best Rate</span>
+        <span class="legend-chip second-rate">2nd Best Rate</span>
+        <span class="legend-chip best-tat">Best TAT</span>
+        <span class="legend-chip second-tat">2nd Best TAT</span>
+      </div>
+
+      <div class="rpt-tbl-wrap fi fi-2">
+        <div class="rpt-tbl-head pincode-head">
+          <div>#</div><div>Courier</div>
+          <div>Rate (₹/kg)</div><div>Min Weight</div>
+          <div>Min Amount (₹)</div><div>TAT (days)</div>
+          <div>Business Alloc (₹)</div><div>ODA Status</div>
+          <div>Mode</div><div>Zone</div>
+        </div>
+        <div id="pincodeTableBody">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-map-marker-alt"></i></div>
+            <p>Enter a pincode above to see available couriers, rates and TAT.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-pincode -->
+
+  </div><!-- /rpt-inner -->
+</div><!-- /rpt-page -->
+
+<!-- ═══ DETAIL PANEL ═══ -->
+<div class="detail-panel-overlay" id="detailPanelOverlay" onclick="if(event.target===this)closeDetailPanel()">
+  <div class="detail-panel">
+    <div class="detail-panel-header">
+      <h3 id="detailPanelTitle"><i class="fas fa-list-alt"></i> Detail Records</h3>
+      <button class="detail-panel-close" onclick="closeDetailPanel()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="detail-panel-body" id="detailPanelBody">
+      <div class="loading-overlay">
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+        <span>Loading detail records…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="rpt-toast" id="rptToast">
+  <i class="fas fa-info-circle"></i>
+  <span class="toast-msg">—</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/logistics_performance/logistics_performance_report.js' %}"></script>
+{% endblock %}

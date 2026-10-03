@@ -1,0 +1,505 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Billing Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/billing_dashboard/billing.css' %}">
+{% endblock %}
+
+{% block content %}
+{{ data|json_script:"bdData" }}
+<div class="bd-wrap">
+
+  <header class="bd-hero">
+    <div class="bd-hero-text">
+      <div class="bd-hero-eyebrow">Order Management · Export Billing</div>
+      <h1 class="bd-hero-title"><i class="fas fa-chart-line"></i> Billing Dashboard</h1>
+      <p class="bd-hero-sub">Revenue in <b>₹ Lakhs</b> · Billing Type F5 excluded · Financial year Apr–Mar.
+        {% if selected_upload %}<br>Snapshot: <b>{{ selected_upload.original_name }}</b> · uploaded {{ selected_upload.created_at|date:"d M Y H:i" }}.{% endif %}
+      </p>
+    </div>
+    <div class="bd-hero-actions">
+      <a href="{% url 'billing:home' %}" class="bd-btn"><i class="fas fa-cloud-upload-alt"></i> Upload</a>
+      <a href="{% url 'billing:data_grid' %}{% if selected_upload %}?upload={{ selected_upload.pk }}{% endif %}" class="bd-btn"><i class="fas fa-table"></i> Browse Data</a>
+      <a id="bdExportLink" href="{% url 'billing:export' %}" class="bd-btn"><i class="fas fa-file-excel"></i> Download Export</a>
+      <button type="button" id="bdPrint" class="bd-btn bd-btn-primary"
+              title="Print this dashboard, or choose “Save as PDF” as the destination">
+        <i class="fas fa-file-pdf"></i> Print / PDF
+      </button>
+    </div>
+  </header>
+
+  {# Paper-only report header — the gradient hero is hidden when printing. #}
+  <div class="bd-print-head">
+    <div class="bd-print-brand">Meril · NexGen Automation</div>
+    <h1 class="bd-print-title">Export Billing Dashboard</h1>
+    <dl class="bd-print-meta">
+      <div>
+        <dt>Snapshot</dt>
+        <dd>{% if selected_upload %}{{ selected_upload.original_name }} · uploaded {{ selected_upload.created_at|date:"d M Y H:i" }}{% else %}—{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Filters</dt>
+        <dd>
+          {% if active_filter_count %}
+            {% if filters.scope == 'subsidiary' %}Subsidiary only · {% endif %}
+            {% if filters.scope == 'non_subsidiary' %}Non-Subsidiary only · {% endif %}
+            {% if filters.fin_year %}FY {{ filters.fin_year }} · {% endif %}
+            {% if filters.region %}Region: {{ filters.region }} · {% endif %}
+            {% if filters.lob %}LOB: {{ filters.lob }} · {% endif %}
+            {% if filters.billing_type %}Doc type: {{ filters.billing_type }} · {% endif %}
+            {% if filters.exclude_reversals %}Reversals excluded{% endif %}
+          {% else %}None — full snapshot{% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>Basis</dt>
+        <dd>Revenue in ₹ Lakhs · Billing Type F5 excluded · Financial year Apr–Mar</dd>
+      </div>
+      <div>
+        <dt>Generated</dt>
+        <dd>{% now "d M Y, H:i" %} by {{ user.get_full_name|default:user.username }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="bd-toolbar">
+  {% if uploads %}
+  <form method="get" class="bd-filters bd-snapshot-picker">
+    <span class="bd-snap-lbl"><i class="fas fa-camera-retro"></i> Snapshot</span>
+    <select name="upload" aria-label="Snapshot" title="Each upload is an independent snapshot with its own dashboard" onchange="this.form.submit()">
+      {% for u in uploads %}
+      <option value="{{ u.pk }}" {% if selected_upload and selected_upload.pk == u.pk %}selected{% endif %}>
+        {{ u.original_name }} — {{ u.created_at|date:"d M Y H:i" }}{% if u.total_rows %} ({{ u.total_rows }} rows){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+
+  <div class="bd-filterbar">
+    <button type="button" class="bd-btn bd-filter-toggle" id="bdFilterToggle"
+            aria-expanded="false" aria-controls="bdFilterPanel" aria-haspopup="true">
+      <i class="fas fa-sliders-h"></i> Filters
+      {% if active_filter_count %}<span class="bd-filter-count">{{ active_filter_count }}</span>{% endif %}
+      <i class="fas fa-chevron-down bd-filter-caret"></i>
+    </button>
+    {% if active_filter_count %}
+    <a href="{% url 'billing:dashboard' %}{% if filters.upload %}?upload={{ filters.upload }}{% endif %}"
+       class="bd-filter-clear"><i class="fas fa-times"></i> Clear</a>
+    {% endif %}
+
+    <div class="bd-filter-backdrop" id="bdFilterBackdrop" hidden></div>
+
+    <form method="get" class="bd-filter-panel" id="bdFilterPanel" hidden>
+      {% if filters.upload %}<input type="hidden" name="upload" value="{{ filters.upload }}">{% endif %}
+      <div class="bd-filter-panel-head">
+        <span><i class="fas fa-filter"></i> Filters</span>
+        <button type="button" class="bd-filter-x" id="bdFilterClose" aria-label="Close filters">&times;</button>
+      </div>
+      <div class="bd-filter-grid">
+        <label class="bd-field">
+          <span class="bd-field-lbl">Customers</span>
+          <select name="scope">
+            <option value="">All customers</option>
+            <option value="subsidiary" {% if filters.scope == 'subsidiary' %}selected{% endif %}>Subsidiary only</option>
+            <option value="non_subsidiary" {% if filters.scope == 'non_subsidiary' %}selected{% endif %}>Non-Subsidiary only</option>
+          </select>
+        </label>
+        <label class="bd-field">
+          <span class="bd-field-lbl">Financial year</span>
+          <select name="fin_year">
+            <option value="">All years</option>
+            {% for y in options.fin_years %}<option value="{{ y }}" {% if filters.fin_year == y %}selected{% endif %}>FY {{ y }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="bd-field">
+          <span class="bd-field-lbl">Region</span>
+          <select name="region">
+            <option value="">All regions</option>
+            {% for r in options.regions %}<option value="{{ r }}" {% if filters.region == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="bd-field">
+          <span class="bd-field-lbl">Line of business</span>
+          <select name="lob">
+            <option value="">All LOB</option>
+            {% for l in options.lobs %}<option value="{{ l }}" {% if filters.lob == l %}selected{% endif %}>{{ l }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="bd-field">
+          <span class="bd-field-lbl">Document type</span>
+          <select name="billing_type">
+            <option value="">All doc types</option>
+            {% for d in options.doc_types %}<option value="{{ d }}" {% if filters.billing_type == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="bd-field bd-field-check" title="Exclude S1 / negative-value reversal lines from the figures">
+          <input type="checkbox" name="exclude_reversals" value="1" {% if filters.exclude_reversals %}checked{% endif %}>
+          <span>Exclude reversals <small>(S1 / negative-value lines)</small></span>
+        </label>
+      </div>
+      <div class="bd-filter-actions">
+        <a href="{% url 'billing:dashboard' %}{% if filters.upload %}?upload={{ filters.upload }}{% endif %}" class="bd-btn bd-btn-sm">Clear all</a>
+        <button type="submit" class="bd-btn bd-btn-sm bd-btn-primary"><i class="fas fa-check"></i> Apply</button>
+      </div>
+    </form>
+  </div>
+  </div>
+
+  {% if active_filter_count %}
+  <div class="bd-chip-row">
+    {% if filters.scope == 'subsidiary' %}<span class="bd-filter-chip"><i class="fas fa-sitemap"></i> Subsidiary only</span>{% endif %}
+    {% if filters.scope == 'non_subsidiary' %}<span class="bd-filter-chip"><i class="fas fa-sitemap"></i> Non-Subsidiary only</span>{% endif %}
+    {% if filters.fin_year %}<span class="bd-filter-chip"><i class="fas fa-calendar"></i> FY {{ filters.fin_year }}</span>{% endif %}
+    {% if filters.region %}<span class="bd-filter-chip"><i class="fas fa-map-marker-alt"></i> {{ filters.region }}</span>{% endif %}
+    {% if filters.lob %}<span class="bd-filter-chip"><i class="fas fa-cubes"></i> {{ filters.lob }}</span>{% endif %}
+    {% if filters.billing_type %}<span class="bd-filter-chip"><i class="fas fa-file-invoice"></i> {{ filters.billing_type }}</span>{% endif %}
+    {% if filters.exclude_reversals %}<span class="bd-filter-chip"><i class="fas fa-ban"></i> Reversals excluded</span>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if not data.has_data %}
+    <div class="bd-card bd-empty-state">
+      <i class="fas fa-inbox"></i>
+      <p>No billing data yet. <a href="{% url 'billing:home' %}">Upload a SAP Billing Dump</a> to populate the dashboard.</p>
+    </div>
+  {% else %}
+
+  <!-- KPI cards -->
+  <div class="bd-kpi-row">
+    <div class="bd-kpi bd-kpi-primary bd-kpi-hero">
+      <span class="bd-kpi-icon"><i class="fas fa-indian-rupee-sign"></i></span>
+      <div class="bd-kpi-val">₹ <span data-countup="{{ data.kpis.revenue_lakhs }}">{{ data.kpis.revenue_lakhs }}</span> <span class="bd-unit">L</span></div>
+      <div class="bd-kpi-lbl">Total Billing ({{ data.kpis.revenue_crores }} Cr)</div>
+    </div>
+    <div class="bd-kpi bd-kpi-indigo">
+      <span class="bd-kpi-icon"><i class="fas fa-file-invoice"></i></span>
+      <div class="bd-kpi-val" data-countup="{{ data.kpis.invoices }}">{{ data.kpis.invoices }}</div>
+      <div class="bd-kpi-lbl">Invoices</div>
+    </div>
+    <div class="bd-kpi bd-kpi-teal">
+      <span class="bd-kpi-icon"><i class="fas fa-list-ol"></i></span>
+      <div class="bd-kpi-val" data-countup="{{ data.kpis.lines }}">{{ data.kpis.lines }}</div>
+      <div class="bd-kpi-lbl">Line items</div>
+    </div>
+    <div class="bd-kpi bd-kpi-sub">
+      <span class="bd-kpi-icon"><i class="fas fa-sitemap"></i></span>
+      <div class="bd-kpi-val">₹ <span data-countup="{{ data.kpis.subsidiary_lakhs }}">{{ data.kpis.subsidiary_lakhs }}</span> L</div>
+      <div class="bd-kpi-lbl">Subsidiary</div>
+    </div>
+    <div class="bd-kpi bd-kpi-nonsub">
+      <span class="bd-kpi-icon"><i class="fas fa-globe"></i></span>
+      <div class="bd-kpi-val">₹ <span data-countup="{{ data.kpis.non_subsidiary_lakhs }}">{{ data.kpis.non_subsidiary_lakhs }}</span> L</div>
+      <div class="bd-kpi-lbl">Non-Subsidiary</div>
+    </div>
+    <div class="bd-kpi bd-kpi-rev">
+      <span class="bd-kpi-icon"><i class="fas fa-rotate-left"></i></span>
+      <div class="bd-kpi-val">₹ <span data-countup="{{ data.kpis.reversal_lakhs }}">{{ data.kpis.reversal_lakhs }}</span> L</div>
+      <div class="bd-kpi-lbl">Reversals ({{ data.kpis.reversal_count }})</div>
+    </div>
+    <div class="bd-kpi bd-kpi-pend">
+      <span class="bd-kpi-icon"><i class="fas fa-hourglass-half"></i></span>
+      <div class="bd-kpi-val" data-countup="{{ data.kpis.pending_count }}">{{ data.kpis.pending_count }}</div>
+      <div class="bd-kpi-lbl">Pending lines</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="bd-grid-2">
+    <div class="bd-card bd-card--rail">
+      <h3 class="bd-card-title"><i class="fas fa-chart-area"></i> Monthly Billing Trend (₹ L)</h3>
+      <div id="chartTrend" class="bd-chart"></div>
+    </div>
+    <div class="bd-card bd-card--rail bd-rail-cyan">
+      <h3 class="bd-card-title"><i class="fas fa-chart-pie"></i> Subsidiary vs Non-Subsidiary</h3>
+      <div id="chartSub" class="bd-chart"></div>
+    </div>
+  </div>
+  <div class="bd-grid-2">
+    <div class="bd-card bd-card--rail bd-rail-indigo">
+      <h3 class="bd-card-title"><i class="fas fa-map-marked-alt"></i> Billing by Region (₹ L)</h3>
+      <div id="chartRegion" class="bd-chart"></div>
+    </div>
+    <div class="bd-card bd-card--rail bd-rail-green">
+      <h3 class="bd-card-title"><i class="fas fa-cubes"></i> Billing by LOB (₹ L)</h3>
+      <div id="chartLob" class="bd-chart"></div>
+    </div>
+  </div>
+  <div class="bd-grid-2">
+    <div class="bd-card bd-card--rail bd-rail-amber">
+      <h3 class="bd-card-title"><i class="fas fa-file-invoice-dollar"></i> Document Type Split</h3>
+      <div id="chartDoc" class="bd-chart"></div>
+    </div>
+    <div class="bd-card bd-card--rail bd-rail-purple">
+      <h3 class="bd-card-title"><i class="fas fa-ranking-star"></i> Top Subsidiaries (₹ L)</h3>
+      <div id="chartSubName" class="bd-chart"></div>
+    </div>
+  </div>
+
+  <!-- World / country revenue -->
+  <div class="bd-card bd-card--rail bd-rail-teal">
+    <h3 class="bd-card-title"><i class="fas fa-globe"></i> Country Revenue — World View (₹ L)</h3>
+    <div id="chartWorldMap" class="bd-chart bd-chart-tall"></div>
+    <p class="bd-hint" id="bdMapFallback" style="display:none;"></p>
+
+    <h3 class="bd-card-title bd-card-subtitle"><i class="fas fa-list-ol"></i> Top Countries — Ranked (₹ L)</h3>
+    <div id="chartCountry" class="bd-chart bd-chart-tall"></div>
+
+    <div class="bd-table-scroll bd-table-scroll-y bd-table-scroll--cards bd-rank-print">
+      <table class="bd-table bd-table-sm bd-table-cards">
+        <thead><tr><th>Country</th><th>Code</th><th class="num">Billing (₹ L)</th><th class="num">Lines</th></tr></thead>
+        <tbody>
+          {% for c in data.by_country %}
+          <tr>
+            <td class="bd-card-head" data-label="Country">{{ c.country }}</td>
+            <td data-label="Code">{{ c.code }}</td>
+            <td class="num" data-label="Billing (₹ L)">{{ c.value }}</td>
+            <td class="num" data-label="Lines">{{ c.lines }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Monthly by region pivot -->
+  <div class="bd-card bd-card--rail bd-print-page">
+    <h3 class="bd-card-title">
+      <i class="fas fa-table-cells"></i> Monthly Revenue by Region (₹ L)
+      <span class="bd-card-note">Grand Total: ₹ {{ data.monthly_by_region.grand_total }} L</span>
+    </h3>
+    <p class="bd-hint bd-flush-top bd-only-mobile" style="margin-bottom:.6rem">
+      <i class="fas fa-arrows-left-right"></i> Scroll the table sideways to see every month.
+    </p>
+    <div class="bd-table-scroll">
+      <table class="bd-table bd-pivot">
+        <thead>
+          <tr><th>Region</th>{% for m in data.monthly_by_region.labels %}<th class="num">{{ m }}</th>{% endfor %}<th class="num">Total</th></tr>
+        </thead>
+        {% for block in data.monthly_by_region.blocks %}
+        <tbody>
+          <tr class="bd-pivot-section"><th colspan="{{ data.monthly_by_region.labels|length|add:2 }}">{{ block.name }}</th></tr>
+          {% for row in block.rows %}
+          <tr><td>{{ row.region }}</td>{% for v in row.months %}<td class="num">{{ v }}</td>{% endfor %}<td class="num bd-total">{{ row.total }}</td></tr>
+          {% endfor %}
+          <tr class="bd-pivot-subtotal"><th>{{ block.name }} Total</th>{% for v in block.subtotal.months %}<th class="num">{{ v }}</th>{% endfor %}<th class="num">{{ block.subtotal.total }}</th></tr>
+        </tbody>
+        {% endfor %}
+        <tfoot>
+          <tr><th>Grand Total</th>{% for v in data.monthly_by_region.col_totals %}<th class="num">{{ v }}</th>{% endfor %}<th class="num">{{ data.monthly_by_region.grand_total }}</th></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/billing_dashboard/billing.js' %}"></script>
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'lib/highcharts/map.js' %}"></script>
+<script>
+(function () {
+  var el = document.getElementById('bdData');
+  if (!el) return;
+  var D = JSON.parse(el.textContent);
+  if (!D.has_data) return;
+
+  // Keep the export link in sync with the active filters.
+  var exportLink = document.getElementById('bdExportLink');
+  if (exportLink && window.location.search) {
+    exportLink.href = exportLink.href.split('?')[0] + window.location.search;
+  }
+
+  // Phones get shorter charts and simplified labels so nothing is cramped.
+  var isPhone = window.matchMedia('(max-width: 640px)').matches;
+  var H       = isPhone ? 260 : 320;   // standard chart height
+  var H_TALL  = isPhone ? 340 : 480;   // map / ranked-country height
+
+  Highcharts.setOptions({
+    credits: { enabled: false },
+    lang: { thousandsSep: ',' },
+    chart: { style: { fontFamily: 'inherit' }, backgroundColor: 'transparent', spacing: [8, 4, 8, 4] },
+    title: { style: { fontWeight: '600' } },
+    tooltip: {
+      backgroundColor: 'rgba(255,255,255,.97)', borderColor: '#e5e7eb', borderRadius: 10,
+      borderWidth: 1, shadow: { color: 'rgba(16,24,40,.18)', offsetX: 0, offsetY: 3, opacity: .1, width: 6 },
+      style: { color: '#1f2937', fontSize: '12px' }
+    },
+    xAxis: { lineColor: '#e5e7eb', tickColor: '#e5e7eb', labels: { style: { color: '#6b7280', fontSize: '11px' } } },
+    yAxis: {
+      gridLineColor: '#eef2f7', gridLineDashStyle: 'Dash',
+      labels: { style: { color: '#9ca3af', fontSize: '11px' } },
+      title: { style: { color: '#9ca3af', fontSize: '11px' } }
+    },
+    plotOptions: { series: { animation: { duration: 600 }, borderRadius: 4 } }
+  });
+
+  var PALETTE = ['#0076c8','#00b5e2','#6366f1','#10b981','#f59e0b','#7c3aed','#ef4444','#14b8a6','#3b82f6','#f97316'];
+
+  // Always-on value labels so every chart shows its numbers without hovering.
+  // Zero / empty points stay unlabeled to avoid clutter (e.g. months with no
+  // billing on the trend line).
+  var DL = {
+    enabled: true,
+    formatter: function () { return this.y ? '₹' + Highcharts.numberFormat(this.y, 1) + ' L' : null; },
+    style: { fontWeight: '600', fontSize: isPhone ? '9px' : '10px', textOutline: 'none', color: '#374151' }
+  };
+
+  // Horizontal bars grow with the number of categories but are capped, so a
+  // long list can't leave a 400px hole beside a short chart in the same row.
+  function barHeight(count) {
+    var natural = count * (isPhone ? 22 : 26) + 80;
+    return Math.max(H - 60, Math.min(isPhone ? 380 : 560, natural));
+  }
+
+  function bar(id, cats, values, name, horizontal) {
+    if (!document.getElementById(id) || !values.length) return;
+    Highcharts.chart(id, {
+      chart: {
+        type: horizontal ? 'bar' : 'column',
+        height: horizontal ? barHeight(cats.length) : H
+      },
+      title: { text: null },
+      xAxis: { categories: cats, labels: { style: { fontSize: isPhone ? '10px' : '11px' } } },
+      yAxis: { title: { text: '₹ Lakhs' } },
+      legend: { enabled: false },
+      colors: PALETTE,
+      plotOptions: { series: { dataLabels: DL } },
+      tooltip: { pointFormat: '<b>₹{point.y} L</b>' },
+      series: [{ name: name, data: values, colorByPoint: true }]
+    });
+  }
+
+  // Monthly trend — gradient-filled area
+  Highcharts.chart('chartTrend', {
+    chart: { type: 'areaspline', height: H },
+    title: { text: null },
+    xAxis: { categories: D.monthly_trend.map(function (m){return m.month;}) },
+    yAxis: { title: { text: '₹ Lakhs' } },
+    legend: { enabled: false },
+    colors: ['#0076c8'],
+    tooltip: { pointFormat: '<b>₹{point.y} L</b>' },
+    series: [{
+      name: 'Billing',
+      data: D.monthly_trend.map(function (m){return m.value;}),
+      dataLabels: DL,
+      lineWidth: 2.5,
+      fillColor: {
+        linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+        stops: [[0, 'rgba(0,118,200,.35)'], [1, 'rgba(0,181,226,.02)']]
+      },
+      marker: { radius: 3, fillColor: '#fff', lineColor: '#0076c8', lineWidth: 2, symbol: 'circle' }
+    }]
+  });
+
+  // Subsidiary vs Non-subsidiary donut
+  Highcharts.chart('chartSub', {
+    chart: { type: 'pie', height: H },
+    title: { text: null },
+    plotOptions: {
+      pie: {
+        innerSize: '64%', borderWidth: 3, borderColor: '#fff',
+        dataLabels: {
+          enabled: !isPhone, format: '{point.name}<br>₹{point.y} L',
+          style: { fontWeight: '600', textOutline: 'none', color: '#4b5563' }
+        },
+        showInLegend: isPhone
+      }
+    },
+    legend: { enabled: isPhone, itemStyle: { fontSize: '11px' } },
+    colors: ['#0076c8', '#00b5e2'],
+    tooltip: { pointFormat: '<b>₹{point.y} L</b> ({point.percentage:.1f}%)' },
+    series: [{ name: 'Billing', data: [
+      { name: 'Subsidiary', y: D.kpis.subsidiary_lakhs },
+      { name: 'Non-Subsidiary', y: D.kpis.non_subsidiary_lakhs }
+    ] }]
+  });
+
+  // World map — choropleth of billing by country. Both the map module and
+  // the map outline data are served locally (static/lib/highcharts/), not
+  // from the Highcharts CDN — that CDN blocks non-browser/bot-like traffic
+  // with 403s on its script endpoints, which made the map unreliable.
+  (function buildWorldMap() {
+    var mapEl = document.getElementById('chartWorldMap');
+    if (!mapEl) return;
+    var mapData = D.by_country
+      .filter(function (c) { return c.code; })
+      .map(function (c) { return { code: c.code, name: c.country, value: c.value, lines: c.lines }; });
+
+    if (!mapData.length || typeof Highcharts.mapChart !== 'function') {
+      mapEl.style.display = 'none';
+      return;
+    }
+
+    fetch('{% static "lib/highcharts/world.topo.json" %}')
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (topology) {
+        Highcharts.mapChart('chartWorldMap', {
+          chart: { map: topology, height: H_TALL, backgroundColor: 'transparent' },
+          title: { text: null },
+          mapNavigation: { enabled: true, buttonOptions: { verticalAlign: 'bottom' } },
+          colorAxis: { min: 0, minColor: '#eaf4fc', maxColor: '#0076c8', labels: { format: '₹{value} L' } },
+          legend: {
+            align: 'right', verticalAlign: 'bottom', layout: 'vertical', floating: true,
+            backgroundColor: 'rgba(255,255,255,.9)', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb',
+            enabled: !isPhone
+          },
+          tooltip: { headerFormat: '', pointFormat: '<b>{point.name}</b><br>Billing: ₹{point.value} L<br>Lines: {point.lines}' },
+          series: [{
+            name: 'Billing (₹ L)',
+            data: mapData,
+            joinBy: ['iso-a2', 'code'],
+            nullColor: '#f1f5f9',
+            borderColor: '#d7dee7',
+            borderWidth: 0.5,
+            states: { hover: { color: '#00b5e2' } }
+          }]
+        });
+      })
+      .catch(function (err) {
+        console.warn('World map unavailable:', err);
+        mapEl.style.display = 'none';
+        var note = document.getElementById('bdMapFallback');
+        if (note) {
+          note.style.display = 'block';
+          note.innerHTML = '<i class="fas fa-info-circle"></i> World map view could not load — showing the ranked chart and table below instead.';
+        }
+      });
+  })();
+
+  bar('chartRegion', D.by_region.map(function(r){return r.label;}), D.by_region.map(function(r){return r.value;}), 'Billing', true);
+  bar('chartLob', D.by_lob.map(function(r){return r.label;}), D.by_lob.map(function(r){return r.value;}), 'Billing', true);
+  bar('chartSubName', D.by_subsidiary.map(function(r){return r.label;}), D.by_subsidiary.map(function(r){return r.value;}), 'Billing', true);
+  bar('chartCountry', D.by_country.slice(0,25).map(function(r){return r.country;}), D.by_country.slice(0,25).map(function(r){return r.value;}), 'Billing', true);
+
+  // Document type split (column with count tooltip)
+  if (D.by_doc_type.length) {
+    Highcharts.chart('chartDoc', {
+      chart: { type: 'column', height: H },
+      title: { text: null },
+      xAxis: { categories: D.by_doc_type.map(function(r){return r.billing_type;}) },
+      yAxis: { title: { text: '₹ Lakhs' } },
+      legend: { enabled: false },
+      colors: PALETTE,
+      plotOptions: { column: { dataLabels: DL } },
+      tooltip: { pointFormat: '₹{point.y} L · {point.lines} lines' },
+      series: [{ name: 'Billing', colorByPoint: true,
+        data: D.by_doc_type.map(function(r){return { y: r.value, lines: r.lines, name: r.descr || r.billing_type }; }) }]
+    });
+  }
+
+  // Charts are absolutely positioned by Highcharts — reflow them when the
+  // sidebar collapses or the device rotates so they never overflow the card.
+  var reflow = function () {
+    (Highcharts.charts || []).forEach(function (c) { if (c) c.reflow(); });
+  };
+  window.addEventListener('orientationchange', function () { setTimeout(reflow, 300); });
+  var toggleBtn = document.getElementById('sidebarToggle');
+  if (toggleBtn) toggleBtn.addEventListener('click', function () { setTimeout(reflow, 420); });
+})();
+</script>
+{% endblock %}

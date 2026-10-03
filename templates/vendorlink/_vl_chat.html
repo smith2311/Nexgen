@@ -1,0 +1,285 @@
+{% comment %}
+TIER 1.1 — Ask MerilGPT panel.
+
+A dockable right drawer, collapsible to a launcher pill. Wired to the existing
+vendorlink:merilgpt_ask endpoint plus the conversation-history endpoints.
+
+Three things the old panel got wrong that this fixes:
+
+* It was modal-ish: a full-screen scrim sat over the page, so you could not
+  read the bids you were asking about while the answer came back. There is no
+  scrim here — the drawer is non-blocking and the page stays clickable.
+* Nothing said what the model could see. The context chips do, so "compare the
+  bids" is unambiguous about *which* bids.
+* Answers were prose only, so "prepare a commercial report" came back as text
+  the reader had to re-tabulate. Answers now carry an optional structured
+  report, drawn as KPI tiles, a chart and a table inside the bubble.
+
+Caller supplies: ctx_chips (list of short strings) and suggestions (list of
+{label, prompt}).
+{% endcomment %}
+
+<button type="button" class="vl-chat-fab" id="vlChatFab" aria-controls="vlChat" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>
+    </svg>
+    Ask MerilGPT
+</button>
+
+<aside class="vl-chat" id="vlChat" aria-hidden="true" aria-label="Ask MerilGPT">
+    {# Drag the left edge to widen. Width is remembered per browser. #}
+    <div class="vl-chat__grip" id="vlChatGrip" role="separator" aria-orientation="vertical"
+         aria-label="Resize panel" title="Drag to resize"></div>
+
+    <div class="vl-chat__head">
+        <button type="button" class="vl-btn vl-btn--ghost vl-btn--icon" id="vlChatHistToggle"
+                aria-label="Recent chats" title="Recent chats" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <h2 class="vl-chat__title">Ask MerilGPT</h2>
+        <button type="button" class="vl-btn vl-btn--ghost vl-btn--sm" id="vlChatNew">New</button>
+        <button type="button" class="vl-btn vl-btn--ghost vl-btn--icon" id="vlChatClose" aria-label="Close panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    {% if ctx_chips %}
+    <div class="vl-chat__ctx" aria-label="Context loaded">
+        {% for chip in ctx_chips %}<span class="vl-chat__ctxchip">{{ chip }}</span>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vl-chat__cols">
+        <nav class="vl-chat__history" id="vlChatHistory" hidden aria-label="Recent chats">
+            <div class="vl-chat__histhead"><span>Recent</span></div>
+            <div id="vlChatHistList"></div>
+        </nav>
+        <div class="vl-chat__log" id="vlChatLog" role="log" aria-live="polite"></div>
+    </div>
+
+    <div class="vl-chat__foot">
+        <div class="vl-chat__files" id="vlChatFiles"></div>
+        <div class="vl-chat__suggest" id="vlChatSuggest" style="margin-bottom:var(--vl-2);">
+            {% for s in suggestions %}
+            <button type="button" class="vl-btn vl-btn--sm" data-prompt="{{ s.prompt }}">{{ s.label }}</button>
+            {% endfor %}
+            <button type="button" class="vl-btn vl-btn--sm"
+                    data-prompt="Prepare a concise commercial report for management from this bid data.">Create report</button>
+        </div>
+        <form class="vl-chat__composer" id="vlChatForm">
+            <textarea id="vlChatInput" rows="1" placeholder="Ask about these bids, or attach a file…" aria-label="Your question"></textarea>
+            <label class="vl-btn vl-btn--icon" title="Attach files" style="cursor:pointer;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true"><path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.2-9.2a3.67 3.67 0 1 1 5.18 5.18l-9.2 9.2a1.83 1.83 0 0 1-2.6-2.6l8.5-8.48"/></svg>
+                <input type="file" id="vlChatFileInput" multiple hidden
+                       accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.xlsx,.txt">
+            </label>
+            <button type="submit" class="vl-btn vl-btn--primary">Send</button>
+        </form>
+        <div class="vl-meta" style="margin-top:var(--vl-1);">Enter sends · Shift+Enter for a new line · attach a file for a report on it</div>
+    </div>
+</aside>
+
+{# Chart.js powers the report charts. Same version the rest of NexGen loads. #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    function initChat() {
+        var root = document.getElementById('vlChat');
+        if (!root) { return; }
+        if (!window.VL || !window.VL.ChatPanel) {
+            /* Loud, not silent. The previous guard bailed quietly when VL was
+               absent, which is exactly how the launcher came to do nothing when
+               clicked -- the click listener below is part of this initialiser,
+               so skipping it disables the button with no visible symptom. */
+            console.error(
+                'Ask MerilGPT: window.VL.ChatPanel is undefined, so the panel '
+                + 'cannot start. vendorlink-components.js must load before this '
+                + 'initialiser runs.'
+            );
+            return;
+        }
+
+        var fileInput = document.getElementById('vlChatFileInput');
+        var fileList = document.getElementById('vlChatFiles');
+        var histPanel = document.getElementById('vlChatHistory');
+        var histList = document.getElementById('vlChatHistList');
+        var picked = [];
+        var conversationId = null;
+
+        // ── attachments ────────────────────────────────────────────────
+        function renderFiles() {
+            fileList.innerHTML = '';
+            picked.forEach(function (file, index) {
+                var chip = document.createElement('span');
+                chip.className = 'vl-chat__file';
+                if (file.type.indexOf('image/') === 0) {
+                    var img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.alt = '';
+                    img.addEventListener('load', function () { URL.revokeObjectURL(img.src); });
+                    chip.appendChild(img);
+                }
+                var name = document.createElement('span');
+                name.textContent = file.name;
+                chip.appendChild(name);
+                var x = document.createElement('button');
+                x.type = 'button';
+                x.className = 'vl-btn vl-btn--ghost vl-btn--sm';
+                x.textContent = '×';
+                x.setAttribute('aria-label', 'Remove ' + file.name);
+                x.addEventListener('click', function () { picked.splice(index, 1); renderFiles(); });
+                chip.appendChild(x);
+                fileList.appendChild(chip);
+            });
+        }
+        fileInput.addEventListener('change', function () {
+            picked = picked.concat(Array.prototype.slice.call(fileInput.files)).slice(0, 4);
+            fileInput.value = '';
+            renderFiles();
+        });
+
+        // ── panel ──────────────────────────────────────────────────────
+        var panel = window.VL.ChatPanel(root, {
+            send: function (question) {
+                var fd = new FormData();
+                fd.append('question', question);
+                if (conversationId) { fd.append('conversation_id', conversationId); }
+                picked.forEach(function (f) { fd.append('files', f); });
+
+                return fetch('{% url "vendorlink:merilgpt_ask" %}', {
+                    method: 'POST', headers: window.VL.csrfHeaders(), body: fd
+                }).then(function (r) {
+                    return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+                }).then(function (res) {
+                    picked = [];
+                    renderFiles();
+                    if (!res.ok) { throw new Error(res.data.error || 'MerilGPT could not answer that.'); }
+                    if (res.data.conversation_id) {
+                        conversationId = res.data.conversation_id;
+                        loadHistory();          // the new/updated thread moves to the top
+                    }
+                    // Resolved as an object so ChatPanel can draw the report card.
+                    return { answer: res.data.answer || '', report: res.data.report || null };
+                });
+            }
+        });
+
+        // ── recent chats ───────────────────────────────────────────────
+        function loadHistory() {
+            fetch('{% url "vendorlink:merilgpt_conversations" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    histList.innerHTML = '';
+                    if (!data.conversations.length) {
+                        var empty = document.createElement('div');
+                        empty.className = 'vl-meta';
+                        empty.style.padding = 'var(--vl-2)';
+                        empty.textContent = 'No earlier chats yet.';
+                        histList.appendChild(empty);
+                        return;
+                    }
+                    data.conversations.forEach(function (c) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'vl-chat__hist' + (c.id === conversationId ? ' is-active' : '');
+
+                        var label = document.createElement('span');
+                        label.textContent = c.title;
+                        var when = document.createElement('small');
+                        when.textContent = new Date(c.updated_at).toLocaleDateString()
+                            + ' · ' + c.turns + ' msg';
+                        label.appendChild(when);
+                        btn.appendChild(label);
+
+                        btn.addEventListener('click', function () { openConversation(c.id); });
+                        histList.appendChild(btn);
+                    });
+                })
+                .catch(function () { /* history is a convenience — never block the chat */ });
+        }
+
+        function openConversation(id) {
+            fetch('{% url "vendorlink:merilgpt_conversations" %}' + id + '/')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    panel.clear();
+                    conversationId = data.id;
+                    data.messages.forEach(function (m) {
+                        panel.addMessage(m.role === 'user' ? 'user' : 'bot', m.body, m.report);
+                    });
+                    loadHistory();
+                })
+                .catch(function () { window.VL.toast('error', 'Could not open that chat'); });
+        }
+
+        document.getElementById('vlChatHistToggle').addEventListener('click', function () {
+            var showing = histPanel.hidden;
+            histPanel.hidden = !showing;
+            this.setAttribute('aria-pressed', String(showing));
+            if (showing) { loadHistory(); }
+        });
+        document.getElementById('vlChatNew').addEventListener('click', function () {
+            conversationId = null;
+            panel.clear();
+            loadHistory();
+        });
+
+        // ── open / close ───────────────────────────────────────────────
+        document.getElementById('vlChatFab').addEventListener('click', function () {
+            panel.open();
+            this.setAttribute('aria-expanded', 'true');
+            loadHistory();
+        });
+        function close() {
+            panel.close();
+            document.getElementById('vlChatFab').setAttribute('aria-expanded', 'false');
+        }
+        document.getElementById('vlChatClose').addEventListener('click', close);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && root.classList.contains('is-open')) { close(); }
+        });
+
+        // ── resize ─────────────────────────────────────────────────────
+        // Dragging the left edge sets an explicit width that beats the token
+        // default. Stored per browser so it survives a reload; wrapped because a
+        // private window can throw on localStorage rather than just returning null.
+        var STORE = 'vlChatWidth';
+        try {
+            var saved = window.localStorage.getItem(STORE);
+            if (saved) { root.style.width = saved; }
+        } catch (err) { /* storage unavailable — keep the default width */ }
+
+        var grip = document.getElementById('vlChatGrip');
+        var dragging = false;
+        grip.addEventListener('mousedown', function (e) {
+            dragging = true;
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) { return; }
+            var width = Math.min(Math.max(window.innerWidth - e.clientX, 380), window.innerWidth - 80);
+            root.style.width = width + 'px';
+        });
+        document.addEventListener('mouseup', function () {
+            if (!dragging) { return; }
+            dragging = false;
+            document.body.style.userSelect = '';
+            try { window.localStorage.setItem(STORE, root.style.width); } catch (err) { /* no-op */ }
+        });
+
+        window.vlChat = panel;   // page scripts open it with a prefilled question
+    }
+
+    /* Deferred deliberately. This partial is rendered inside the page's
+       content block, but the component library it needs is loaded lower down
+       in the page's extra_js block. Every classic script has executed by the
+       time DOMContentLoaded fires, so VL is guaranteed to exist here -- and
+       running immediately, as this used to, guaranteed the opposite. */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initChat);
+    } else {
+        initChat();
+    }
+}());
+</script>

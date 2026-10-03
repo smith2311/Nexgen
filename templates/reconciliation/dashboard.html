@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% load static recon_tags %}
+
+{% comment %}
+Filing summary — the source workbook's Dashboard pivot, computed live.
+
+Rendered server-side rather than fetched: the pivot is one shape with merged
+cells spanning arbitrary numbers of rows, and rebuilding that in JavaScript
+would mean a second implementation of the row-span logic beside the one in
+pivot.py. There is one, and the Excel export uses it too.
+{% endcomment %}
+
+{% block title %}Filing summary — 3 Way Reconciliation{% endblock %}
+{% block page_title %}Filing summary{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reconciliation/recon.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="rc-app">
+
+  <header class="rc-header">
+    <div class="rc-header-inner">
+      <a href="{% url 'reconciliation:records' %}" class="rc-back">
+        <i class="fas fa-arrow-left"></i> Records
+      </a>
+      <div class="rc-header-top">
+        <div>
+          <h1>
+            <i class="fas fa-chart-column"></i> Filing summary
+            {% if spec.vendor %}
+            <span class="rc-chip info" style="font-size:.7rem">GSTIN {{ spec.vendor }}</span>
+            {% endif %}
+          </h1>
+          <p>
+            {% if has_rows %}
+              {{ summary.vendors }} vendor{{ summary.vendors|pluralize }} &middot;
+              {{ period|default:"no dated documents" }} &middot;
+              {{ summary.documents|count_in }} document{{ summary.documents|pluralize }}
+            {% else %}
+              Nothing to summarise for this filter
+            {% endif %}
+          </p>
+        </div>
+        <div class="rc-header-actions">
+          {% if has_rows %}
+          <button type="button" class="rc-btn rc-btn-ghost" id="rcSummaryPreview"
+                  data-preview-url="{% url 'reconciliation:export_summary_preview' %}{% if query_string %}?{{ query_string }}{% endif %}"
+                  data-download-url="{% url 'reconciliation:export_summary' %}{% if query_string %}?{{ query_string }}{% endif %}">
+            <i class="fas fa-eye"></i> Preview
+          </button>
+          {% endif %}
+          <a class="rc-btn rc-btn-ghost"
+             href="{% url 'reconciliation:export_summary' %}{% if query_string %}?{{ query_string }}{% endif %}">
+            <i class="fas fa-file-excel"></i> Export filing summary
+          </a>
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:billing_types' %}">
+            <i class="fas fa-list-check"></i> Billing type master
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="rc-inner">
+
+    {% if has_rows %}
+    <div class="rc-kpi-grid rc-kpis rc-kpi-6">
+      <div class="rc-kpi rc-kpi-static">
+        <span class="rc-kpi-icon blue"><i class="fas fa-file-invoice"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Documents</span>
+          <span class="rc-kpi-value">{{ analysis.kpis.documents|count_in }}</span>
+          <span class="rc-kpi-hint">in this summary</span>
+        </span>
+      </div>
+      <a class="rc-kpi" href="{% url 'reconciliation:records' %}?health=ok">
+        <span class="rc-kpi-icon green"><i class="fas fa-circle-check"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Clear</span>
+          <span class="rc-kpi-value">{{ analysis.kpis.ok|count_in }}</span>
+          <span class="rc-kpi-hint">{{ analysis.kpis.ok_pct }}% of documents</span>
+        </span>
+      </a>
+      <a class="rc-kpi" href="{% url 'reconciliation:records' %}?health=warn">
+        <span class="rc-kpi-icon amber"><i class="fas fa-triangle-exclamation"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Watch</span>
+          <span class="rc-kpi-value">{{ analysis.kpis.warn|count_in }}</span>
+          <span class="rc-kpi-hint">pending or incomplete</span>
+        </span>
+      </a>
+      <a class="rc-kpi" href="{% url 'reconciliation:records' %}?health=bad">
+        <span class="rc-kpi-icon red"><i class="fas fa-circle-exclamation"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Exception</span>
+          <span class="rc-kpi-value">{{ analysis.kpis.bad|count_in }}</span>
+          <span class="rc-kpi-hint">{{ analysis.kpis.bad_pct }}% needs a decision</span>
+        </span>
+      </a>
+      <div class="rc-kpi rc-kpi-static">
+        <span class="rc-kpi-icon purple"><i class="fas fa-indian-rupee-sign"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Taxable value</span>
+          <span class="rc-kpi-value" title="Rs {{ analysis.kpis.gst_value|rupees }}">{{ analysis.kpis.gst_value|rupees_compact }}</span>
+          <span class="rc-kpi-hint" title="GSTR-1 taxable value, summed across the current scope — the figure reconciliation compares.">taxable value</span>
+        </span>
+      </div>
+      <div class="rc-kpi rc-kpi-static">
+        <span class="rc-kpi-icon teal"><i class="fas fa-arrows-left-right-to-line"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Gap exposure</span>
+          <span class="rc-kpi-value" title="Rs {{ analysis.kpis.gap_exposure|rupees }}">{{ analysis.kpis.gap_exposure|rupees_compact }}</span>
+          <span class="rc-kpi-hint" title="Sum of every document's largest taxable disagreement">taxable disagreement</span>
+        </span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ═══ Filters ═══ -->
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-filter"></i> Scope</h2>
+        <span class="rc-count-badge">Removed records are never counted here</span>
+      </div>
+      <div class="rc-card-body">
+        <form method="get" class="rc-filters">
+          <div class="rc-field rc-field-wide">
+            <label for="vendor">Vendor</label>
+            <select class="rc-select" id="vendor" name="vendor">
+              <option value="">All vendors</option>
+              {% for option in vendors %}
+              <option value="{{ option.value }}" {% if option.value == spec.vendor %}selected{% endif %}>
+                {{ option.value }} ({{ option.count|count_in }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="rc-field">
+            <label for="date_from">GST date from</label>
+            <input type="date" class="rc-input" id="date_from" name="date_from"
+                   value="{% if spec.date_from %}{{ spec.date_from|date:'Y-m-d' }}{% endif %}">
+          </div>
+          <div class="rc-field">
+            <label for="date_to">GST date to</label>
+            <input type="date" class="rc-input" id="date_to" name="date_to"
+                   value="{% if spec.date_to %}{{ spec.date_to|date:'Y-m-d' }}{% endif %}">
+          </div>
+          {% comment %}
+          Upload date: the date the file was imported, not the invoice date.
+          Business uploads one file per month and invoice dates spill
+          across months, so this pair returns a single upload's rows.
+          {% endcomment %}
+          <div class="rc-field">
+            <label for="upload_from">Upload date from</label>
+            <input type="date" class="rc-input" id="upload_from" name="upload_from"
+                   value="{% if spec.upload_from %}{{ spec.upload_from|date:'Y-m-d' }}{% endif %}">
+          </div>
+          <div class="rc-field">
+            <label for="upload_to">Upload date to</label>
+            <input type="date" class="rc-input" id="upload_to" name="upload_to"
+                   value="{% if spec.upload_to %}{{ spec.upload_to|date:'Y-m-d' }}{% endif %}">
+          </div>
+          <div class="rc-field" style="display:flex;gap:8px;align-items:flex-end">
+            <button type="submit" class="rc-btn rc-btn-primary">
+              <i class="fas fa-check"></i> Apply
+            </button>
+            <a class="rc-btn" href="{% url 'reconciliation:dashboard' %}">
+              <i class="fas fa-rotate-left"></i> Show all
+            </a>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ═══ Analytics ═══ -->
+    {% if has_rows %}
+
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-chart-column"></i> Documents by month</h2>
+        <div class="rc-chart-tools">
+          <span class="rc-chart-legend" id="rcTrendLegend"></span>
+          <button type="button" class="rc-btn rc-btn-sm" data-table-toggle="rcTrend">
+            <i class="fas fa-table-list"></i> Table
+          </button>
+        </div>
+      </div>
+      <div class="rc-card-body">
+        {% comment %}
+        Stacked, not three lines: document volume and exception volume differ by
+        two orders of magnitude, so separate lines on one axis flatten the
+        exceptions into the baseline — and a second y-axis is the one chart form
+        never worth using. Stacking keeps one axis and puts the total back as
+        the bar's height.
+
+        {% comment %} and not {# #} — the hash form is single-line only, so a
+        multi-line one is not a comment at all: it renders as body text.
+        {% endcomment %}
+        <div class="rc-chart" style="height:280px">
+          <canvas id="rcTrendChart" aria-label="Documents per month by health"></canvas>
+        </div>
+        <div class="rc-chart-table" id="rcTrendTable" hidden></div>
+      </div>
+    </section>
+
+    <div class="rc-chart-row">
+      <section class="rc-card">
+        <div class="rc-card-hdr">
+          <h2><i class="fas fa-ranking-star"></i> Reason remarks</h2>
+          <button type="button" class="rc-btn rc-btn-sm" data-table-toggle="rcReasons">
+            <i class="fas fa-table-list"></i> Table
+          </button>
+        </div>
+        <div class="rc-card-body">
+          <div class="rc-chart" style="height:280px">
+            <canvas id="rcReasonChart" aria-label="Documents by reason remark"></canvas>
+          </div>
+          <div class="rc-chart-table" id="rcReasonsTable" hidden></div>
+        </div>
+      </section>
+
+      <section class="rc-card">
+        <div class="rc-card-hdr">
+          <h2><i class="fas fa-layer-group"></i> GSTR-1 sections</h2>
+          <button type="button" class="rc-btn rc-btn-sm" data-table-toggle="rcSections">
+            <i class="fas fa-table-list"></i> Table
+          </button>
+        </div>
+        <div class="rc-card-body">
+          <div class="rc-chart" style="height:280px">
+            <canvas id="rcSectionChart" aria-label="Documents by GSTR-1 section"></canvas>
+          </div>
+          <div class="rc-chart-table" id="rcSectionsTable" hidden></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="rc-chart-row">
+      <section class="rc-card">
+        <div class="rc-card-hdr">
+          <h2><i class="fas fa-diagram-project"></i> Source footprint</h2>
+          <button type="button" class="rc-btn rc-btn-sm" data-table-toggle="rcPresence">
+            <i class="fas fa-table-list"></i> Table
+          </button>
+        </div>
+        <div class="rc-card-body">
+          <p class="rc-chart-note">Which of GSTR-1 (G), E-Invoice (E) and E-Way Bill (W) each document sits in.</p>
+          <div class="rc-chart" style="height:236px">
+            <canvas id="rcPresenceChart" aria-label="Documents by source presence"></canvas>
+          </div>
+          <div class="rc-chart-table" id="rcPresenceTable" hidden></div>
+        </div>
+      </section>
+
+      <section class="rc-card">
+        <div class="rc-card-hdr">
+          <h2><i class="fas fa-lightbulb"></i> What needs attention</h2>
+          <span class="rc-count-badge">from the current scope</span>
+        </div>
+        <div class="rc-card-body rc-insights">
+          {% for item in analysis.insights %}
+          <div class="rc-insight rc-tone-{{ item.tone }}">
+            <span class="rc-insight-tag">{{ item.tag }}</span>
+            <strong>{{ item.headline }}</strong>
+            <span class="rc-insight-detail">{{ item.detail }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    {% if analysis.vendors %}
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-building"></i> Vendor health</h2>
+        <span class="rc-count-badge">worst exception count first</span>
+      </div>
+      <div class="rc-table-wrap" style="max-height:340px">
+        <table class="rc-table">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>GSTIN</th>
+              <th class="rc-num">Documents</th>
+              <th class="rc-num">Clear</th>
+              <th class="rc-num">Exceptions</th>
+              <th class="rc-num">Taxable value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in analysis.vendors %}
+            <tr>
+              <td class="rc-doc">{{ v.name }}</td>
+              <td><span class="rc-bt-code">{{ v.gstin }}</span></td>
+              <td class="rc-num">{{ v.docs|count_in }}</td>
+              <td class="rc-num">{{ v.ok_pct }}%</td>
+              <td class="rc-num">
+                {% if v.bad %}<span class="rc-chip bad">{{ v.bad|count_in }}</span>
+                {% else %}<span class="rc-dash">&mdash;</span>{% endif %}
+              </td>
+              <td class="rc-num">{{ v.gst_value|rupees }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% endif %}
+
+    <!-- ═══ Pivot ═══ -->
+    {% if has_rows %}
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-table-cells-large"></i> 3-way reconciliation</h2>
+        <span class="rc-count-badge">
+          EntityGstin → Segment → GSTR1 → Reason Remarks → DocumentType
+        </span>
+      </div>
+      <div class="rc-pivot-wrap">
+        <table class="rc-pivot">
+          <tbody>
+          {% for index, row, banner in rows %}
+
+            {% if banner %}
+            <tr class="rc-letterhead">
+              <td colspan="9">{{ banner.name }}</td>
+            </tr>
+            <tr class="rc-letterhead-sub">
+              <td colspan="9">3Way Reco M/o {{ banner.period }}</td>
+            </tr>
+            <tr class="rc-pivot-head">
+              <th>EntityGstin</th><th>Segment</th><th>GSTR1</th>
+              <th>Reason Remarks</th><th>DocumentType</th>
+              <th class="rc-num">Documents</th>
+              <th class="rc-num">GST</th><th class="rc-num">EINV</th><th class="rc-num">EWB</th>
+            </tr>
+            {% endif %}
+
+            {% if row.kind == "detail" %}
+            <tr>
+              {% if row.entity_span %}
+              <td class="rc-pivot-entity" rowspan="{{ row.entity_span }}">{{ row.entity }}</td>
+              {% endif %}
+              {% if row.segment_span %}
+              <td rowspan="{{ row.segment_span }}">{{ row.segment }}</td>
+              {% endif %}
+              {% if row.gstr1_span %}
+              <td rowspan="{{ row.gstr1_span }}">{{ row.gstr1 }}</td>
+              {% endif %}
+              <td>{{ row.reason }}</td>
+              <td>{{ row.doc_type }}</td>
+              <td class="rc-num">{{ row.doc_count|count_in }}</td>
+              <td class="rc-num">{{ row.gst|rupees }}</td>
+              <td class="rc-num">{{ row.einv|rupees }}</td>
+              <td class="rc-num">{{ row.ewb|rupees }}</td>
+            </tr>
+            {% else %}
+            <tr class="rc-lvl-{{ row.kind|cut:'_total' }}">
+              <td class="rc-pivot-label" colspan="{{ row.label_colspan }}">{{ row.label }}</td>
+              <td class="rc-num">{{ row.doc_count|count_in }}</td>
+              <td class="rc-num">{{ row.gst|rupees }}</td>
+              <td class="rc-num">{{ row.einv|rupees }}</td>
+              <td class="rc-num">{{ row.ewb|rupees }}</td>
+            </tr>
+            {% endif %}
+
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% else %}
+    <section class="rc-card">
+      <div class="rc-empty">
+        <i class="fas fa-chart-simple"></i>
+        {% if any_records %}
+        <h3>No documents match this scope</h3>
+        <p>Try a different vendor or date range, or click &ldquo;Show all&rdquo;.</p>
+        {% else %}
+        <h3>Nothing to summarise yet</h3>
+        <p>Import a reconciliation export on the
+           <a href="{% url 'reconciliation:records' %}">Records</a> page.</p>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+{% include "reconciliation/_preview_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+{{ chart_data|json_script:"rcChartData" }}
+<script src="{% static 'lib/chartjs/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/reconciliation/recon_charts.js' %}"></script>
+<script src="{% static 'js/reconciliation/recon_preview.js' %}"></script>
+<script>
+(function () {
+    var button = document.getElementById('rcSummaryPreview');
+    if (!button) { return; }
+    button.addEventListener('click', function () {
+        window.ReconPreview.open({
+            url: button.dataset.previewUrl,
+            downloadUrl: button.dataset.downloadUrl,
+            title: 'Filing summary'
+        });
+    });
+}());
+</script>
+{% endblock %}

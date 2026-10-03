@@ -1,0 +1,18 @@
+{% autoescape off %}Warehouse Inspection Report
+
+Submitted by: {% if submission.submitted_by_name %}{{ submission.submitted_by_name }} <{{ submission.submitted_by_email }}>{% else %}{{ submission.submitted_by_email }}{% endif %}
+Submitted at: {{ submitted_at|date:"Y-m-d H:i" }}
+
+{% for floor_group in floor_groups %}Building Name: {{ floor_group.submission.building.building_name }}
+Floor: {{ floor_group.floor.floor_name }}
+Conditions: {{ floor_group.submission.condition_category.condition_category_name }}
+Inspection Attempt: {{ floor_group.inspection_attempt }}
+Remarks: {% if floor_group.submission.notes %}{{ floor_group.submission.notes }}{% else %}-{% endif %}
+Checkpoints | For Yes | For No | Proof
+{% for response in floor_group.responses %}- {{ response.checkpoint.checkpoint_name }} | {% if response.response == "yes" %}Yes{% else %}-{% endif %} | {% if response.response == "no" %}No{% else %}-{% endif %} | {% if response.photo %}{{ response.photo_absolute_url }}{% else %}-{% endif %}
+{% endfor %}
+
+{% endfor %}
+
+For any query, please contact us at {{ contact_email }}.
+{% endautoescape %}

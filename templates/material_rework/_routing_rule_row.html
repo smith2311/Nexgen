@@ -1,0 +1,55 @@
+{% comment %}
+One existing rule, with its flow editable in place.
+
+Each row is its own form so a save touches one rule — editing several and
+submitting once would make a single validation failure discard every other
+change on the screen.
+{% endcomment %}
+<div style="border:1px solid #e2e8f0;border-radius:9px;padding:16px;margin-bottom:12px;background:{% if rule.is_active %}#fff{% else %}#f9fafb{% endif %};">
+    <form method="post" data-rr-form>
+        {% csrf_token %}
+        <input type="hidden" name="rule_id" value="{{ rule.pk }}">
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+            <div>
+                <strong style="font-size:.9rem;color:#06152b;">{{ rule.key_label }}</strong>
+                {% if not rule.is_active %}
+                <span style="margin-left:8px;background:#f1f5f9;color:#64748b;font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:9px;">INACTIVE</span>
+                {% endif %}
+                <div style="font-size:.76rem;color:#64748b;margin-top:3px;">
+                    Current flow: <strong>{{ rule.chain_label }}</strong>
+                    {% if rule.notes %} &nbsp;·&nbsp; {{ rule.notes }}{% endif %}
+                </div>
+            </div>
+            <label style="display:inline-flex;align-items:center;gap:7px;font-size:.8rem;color:#374151;white-space:nowrap;">
+                <input type="checkbox" name="is_active" {% if rule.is_active %}checked{% endif %}> Active
+            </label>
+        </div>
+
+        {% comment %}
+        data-initial seeds the picker with the stages already saved, so the
+        strip opens showing this rule's real flow rather than empty.
+        {% endcomment %}
+        <div class="rr-flow" data-rr-chain data-initial="{{ rule.stages|join:"," }}"></div>
+        <div class="rr-pool" data-rr-pool>
+            {% for code, label in stage_choices %}
+            <button type="button" class="rr-chip rr-chip--pool" data-stage="{{ code }}"
+                    data-terminal="{% if code in terminal_stages %}1{% else %}0{% endif %}">
+                <i class="fas fa-plus" style="font-size:.65rem;"></i> {{ label }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <input type="hidden" name="notes" value="{{ rule.notes }}">
+
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button type="submit" name="action" value="save" class="rr-btn rr-btn--save"><i class="fas fa-check"></i> Save</button>
+            <button type="submit" name="action" value="delete" class="rr-btn rr-btn--del"
+                    data-confirm="Delete the flow for {{ rule.key_label }}? New uploads will fall back to the default flow. Batches already in progress keep the flow they started on."
+                    data-confirm-action="Delete flow"
+                    data-confirm-tone="danger">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,175 @@
+/* The confirm dialog's own styling. Ships with vl-confirm.js.
+ *
+ * Deliberately self-contained, which is why it repeats positioning and button
+ * rules that exist elsewhere in the module. The dialog appears on screens
+ * built in two different design systems: bid_analytics, the Commercial
+ * Database and the KPI dashboard load only vendorlink-ds.css, whose tokens are
+ * --vlx-* declared on .vlx, while bid_detail and the scorecard load
+ * vendorlink-components.css, whose --vl-* tokens are declared on .vl. Styling
+ * the dialog through either family left it completely unstyled on the other
+ * three screens — no scrim, no centring, the buttons and message rendered as
+ * plain text in the page flow.
+ *
+ * So: every selector below starts with .vl-confirm, nothing here depends on
+ * .vl, .vlx, .vl-btn, .vl-scrim or .vl-modal, and each colour names its
+ * literal value with the two token families as preferences ahead of it. The
+ * dialog then looks native under .vl, native under .vlx, and still correct
+ * appended to a bare <body>.
+ *
+ * Loading this file alongside the script is enforced by
+ * vendorlink/test_confirm_dialog.py — the pairing is easy to break by adding
+ * the script to a new template and easy to miss, because a broken dialog still
+ * confirms correctly and only looks wrong.
+ */
+
+.vl-confirm__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(9, 9, 11, .45);
+    /* No transition on opacity: the dialog is removed from the DOM on close,
+       so a fade-out would need the removal deferred and a half-faded scrim
+       left behind if anything threw. */
+}
+
+.vl-confirm {
+    position: fixed;
+    z-index: 1301;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(440px, calc(100vw - 32px));
+    overflow: hidden;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E5E7EB));
+    border-radius: 14px;
+    box-shadow: 0 24px 48px -12px rgba(9, 9, 11, .28), 0 0 0 1px rgba(9, 9, 11, .04);
+    font-family: inherit;
+    /* Pinned rather than inherited: the dialog is mounted on whatever
+       container is available, and a page whose wrapper sets a smaller or
+       larger base size would otherwise change the dialog's proportions. */
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: left;
+    animation: vl-confirm-in .14s ease-out;
+}
+
+@keyframes vl-confirm-in {
+    from { opacity: 0; transform: translate(-50%, -46%) scale(.97); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Respected because this animation carries no information — it is decoration
+   on a dialog that has to be readable the instant it appears. */
+@media (prefers-reduced-motion: reduce) {
+    .vl-confirm { animation: none; }
+}
+
+.vl-confirm__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 22px;
+    background: var(--vl-100, var(--vlx-surface-container-low, #F4F6FB));
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #E5E7EB));
+}
+
+.vl-confirm__head.is-danger {
+    background: #FEF2F2;
+    border-bottom-color: #FCA5A5;
+}
+
+.vl-confirm__ic {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E5E7EB));
+    font-size: 16px;
+    line-height: 1;
+    color: var(--vl-ink-2, var(--vlx-ink-700, #1F2A44));
+}
+
+.vl-confirm__head.is-danger .vl-confirm__ic {
+    color: #B91C1C;
+    border-color: #FCA5A5;
+}
+
+.vl-confirm__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--vl-ink, var(--vlx-ink-700, #0F172A));
+}
+
+.vl-confirm__body { padding: 20px 22px 4px; }
+
+.vl-confirm__msg {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--vl-ink-2, var(--vlx-ink-700, #334155));
+    /* A vendor name or an RFI subject can be long and unbroken. */
+    overflow-wrap: anywhere;
+}
+
+.vl-confirm__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 18px 22px 20px;
+}
+
+/* The buttons carry their own styling rather than reusing .vl-btn, which is
+   defined in vendorlink.css and assessment_external.css — neither of which
+   three of the six screens load. */
+.vl-confirm__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 18px;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #CBD5E1));
+    border-radius: 9px;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    color: var(--vl-ink, var(--vlx-ink-700, #1F2A44));
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: filter .15s, background .15s, border-color .15s;
+}
+
+.vl-confirm__btn:hover { background: var(--vl-100, var(--vlx-surface-bright, #F8FAFC)); }
+
+.vl-confirm__btn:focus-visible {
+    outline: 2px solid var(--vl-accent, var(--vlx-primary, #4338CA));
+    outline-offset: 2px;
+}
+
+/* The confirming button carries the weight, so a destructive action is
+   unmistakable rather than sharing a neutral "OK" with everything else — the
+   distinction the native dialog could not draw at all. */
+.vl-confirm__ok {
+    background: var(--vl-accent, var(--vlx-primary, #000618));
+    border-color: var(--vl-accent, var(--vlx-primary, #000618));
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+.vl-confirm__ok:hover {
+    filter: brightness(1.12);
+    background: var(--vl-accent, var(--vlx-primary, #000618));
+}
+
+.vl-confirm__ok.is-danger,
+.vl-confirm__ok.is-danger:hover {
+    background: #B91C1C;
+    border-color: #B91C1C;
+    color: #FFFFFF;
+}

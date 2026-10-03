@@ -1,0 +1,21 @@
+{% load static %}
+{% comment %}
+Asset bundle for redesigned (.vl) VendorLink screens.
+
+Order matters: tokens define the variables the component sheet consumes, so
+tokens must load first. Both are additive — .vl and the legacy .vlx scope share
+no selectors or variable names, so a page can carry either without the other
+leaking in.
+
+Instrument Serif is the one font not already self-hosted (Inter lives in
+css/google-fonts.css, JetBrains Mono in vendorlink-ds.css). It is pulled from
+Google here because the platform already loads chart.js from a CDN, and it is
+display-only: --vl-font-display falls through to Iowan/Georgia/serif, so a
+blocked request costs the page its title face and nothing else.
+{% endcomment %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-components.css' %}">

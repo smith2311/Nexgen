@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════════════════════
+   subsidiary_logistic/sub.css — module-specific styles only
+   CSS vars  → components/data_table/data_table.css  (:root)
+   Page shell → components/master_page/master_page.css (.lm-page)
+   This file: filter bar, table overrides, upload zone, preview badges
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Filter bar ─────────────────────────────────────────────── */
+.sub-filter-bar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;
+}
+.sub-filter-bar label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.sub-filter-bar input[type=date],
+.sub-filter-bar select {
+  font-family: var(--font); font-size: 13px; padding: 7px 11px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--text-primary);
+  outline: none; transition: border-color .15s;
+}
+.sub-filter-bar input:focus,
+.sub-filter-bar select:focus { border-color: var(--blue); background: #fff; }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.sub-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  padding: 8px 15px; border-radius: 8px; border: none;
+  cursor: pointer; text-decoration: none; transition: var(--transition); white-space: nowrap;
+}
+.sub-btn:hover { text-decoration: none; }
+.sub-btn-navy  { background: var(--navy);   color: #fff; } .sub-btn-navy:hover  { background: #0f2d52; }
+.sub-btn-teal  { background: var(--accent); color: #fff; } .sub-btn-teal:hover  { background: #009e8a; }
+.sub-btn-amber { background: var(--amber);  color: #fff; } .sub-btn-amber:hover { background: #d97706; }
+.sub-btn-ghost {
+  background: transparent; color: var(--navy);
+  border: 1px solid var(--border-md);
+}
+.sub-btn-ghost:hover { background: var(--bg); }
+.sub-btn-sm { font-size: 12px; padding: 5px 11px; }
+
+/* ── Table ──────────────────────────────────────────────────── */
+.sub-tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.sub-tbl      { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.sub-tbl thead tr { background: var(--bg); }
+.sub-tbl th   { padding: 10px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+.sub-tbl th.num, .sub-tbl td.num { text-align: right; }
+.sub-tbl td   { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.sub-tbl tbody tr:last-child td { border-bottom: none; }
+.sub-tbl tbody tr:hover td      { background: #f8fafd; }
+.sub-tbl tr.sub-total-row td    { font-weight: 700; background: #f0f4f9; color: var(--navy); border-top: 2px solid var(--border-md); border-bottom: none; }
+
+/* ── Upload zone ────────────────────────────────────────────── */
+.sub-upload-zone {
+  border: 2px dashed var(--border-md); border-radius: var(--radius-md);
+  padding: 36px 24px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: var(--bg);
+}
+.sub-upload-zone:hover, .sub-upload-zone.drag-over { border-color: var(--blue); background: var(--blue-lt); }
+.sub-upload-zone .upload-icon { font-size: 2.4rem; color: var(--blue); margin-bottom: 12px; }
+.sub-upload-zone p    { font-size: 14px; color: var(--text-secondary); margin: 0 0 5px; }
+.sub-upload-zone small{ font-size: 12px; color: var(--text-muted); }
+
+/* ── Column guide card ──────────────────────────────────────── */
+.sub-col-guide { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+.sub-col-guide h4 { font-size: 12.5px; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+.sub-col-row { display: flex; gap: 10px; align-items: center; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.sub-col-row:last-child { border-bottom: none; }
+.sub-col-letter { background: var(--blue-lt); color: var(--blue); font-weight: 700; font-family: var(--font-mono); font-size: 11.5px; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
+.sub-col-name   { color: var(--text-muted); }
+
+/* ── Preview status badges ──────────────────────────────────── */
+.sub-badge-valid { background: var(--green-lt);  color: #065f46; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.sub-badge-error { background: var(--red-lt);    color: var(--red);    font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+
+/* ── Preview notice ─────────────────────────────────────────── */
+.sub-preview-notice {
+  background: var(--accent-lt); border: 1px solid rgba(0,194,168,.3);
+  border-radius: var(--radius-md); padding: 11px 15px; font-size: 13px;
+  color: #067a6a; display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px;
+}
+.sub-preview-error-notice {
+  background: var(--red-lt); border: 1px solid rgba(239,68,68,.3);
+  border-radius: var(--radius-md); padding: 11px 15px; font-size: 13px;
+  color: #991b1b; display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px;
+}
+
+/* ── Inline alert ───────────────────────────────────────────── */
+.sub-alert { padding: 11px 15px; border-radius: var(--radius-md); font-size: 13px; margin-bottom: 14px; display: flex; gap: 8px; align-items: flex-start; }
+.sub-alert.success { background: var(--green-lt); color: #065f46; border: 1px solid #86efac; }
+.sub-alert.error   { background: var(--red-lt);   color: #991b1b; border: 1px solid #fca5a5; }
+.sub-alert.warning { background: var(--amber-lt); color: #92400e; border: 1px solid #fcd34d; }
+
+/* ── Empty state ────────────────────────────────────────────── */
+.sub-empty { text-align: center; padding: 50px 24px; color: var(--text-muted); }
+.sub-empty i { font-size: 2.4rem; margin-bottom: 12px; opacity: .25; display: block; }
+.sub-empty p { font-size: 14px; margin: 0; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .sub-filter-bar { flex-direction: column; align-items: stretch; }
+  .upload-grid    { grid-template-columns: 1fr !important; }
+}

@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Record #{{ r.id }} — Logistics Performance{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logistics_performance/logistics_performance_upload.css' %}">
+<style>
+  .lpd-page {
+    font-family: var(--font);
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--text-primary);
+    padding-bottom: 40px;
+  }
+
+  /* Header — same navy gradient as the list page */
+  .lpd-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    padding: 22px 28px 26px;
+    position: relative;
+    overflow: hidden;
+  }
+  .lpd-header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(0,194,168,0.12);
+    pointer-events: none;
+  }
+  .lpd-header-inner { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+
+  .lpd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 18px;
+  }
+  .lpd-back:hover { background: rgba(255,255,255,0.20); color: #fff; }
+
+  .lpd-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .lpd-title h1 {
+    font-size: 26px;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .lpd-title h1 i { color: var(--accent); }
+  .lpd-title .lpd-id {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: rgba(255,255,255,0.6);
+  }
+  .lpd-sub {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: rgba(255,255,255,0.75);
+  }
+  .lpd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lpd-actions .btn-light {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fff; color: var(--navy);
+    border: none; border-radius: var(--radius-sm);
+    padding: 9px 16px; font-size: 13px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; text-decoration: none;
+    transition: var(--transition);
+  }
+  .lpd-actions .btn-light:hover { background: var(--accent-lt); }
+
+  /* Body */
+  .lpd-body { max-width: 1100px; margin: 22px auto 0; padding: 0 28px; }
+  .lpd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 18px;
+  }
+
+  .lpd-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .lpd-card.calc { border-color: rgba(139,92,246,0.30); }
+
+  .lpd-card-hdr {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 13px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .lpd-card-hdr i { color: var(--blue); }
+  .lpd-card.calc .lpd-card-hdr { background: var(--purple-lt); color: #5b21b6; }
+  .lpd-card.calc .lpd-card-hdr i { color: var(--purple); }
+
+  .lpd-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .lpd-field:last-child { border-bottom: none; }
+  .lpd-field-lbl {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+  .lpd-field-val {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+  }
+  .lpd-field-val.empty { color: var(--text-muted); font-weight: 400; }
+  .lpd-card.calc .lpd-field-val { color: #5b21b6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lpd-page">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="lpd-header">
+    <div class="lpd-header-inner">
+      <a href="{% url 'logistics:home' %}" class="lpd-back">
+        <i class="fas fa-arrow-left"></i> Logistics Performance
+      </a>
+
+      <div class="lpd-title-row">
+        <div class="lpd-title">
+          <h1>
+            <i class="fas fa-file-invoice"></i>
+            Logistics Record <span class="lpd-id">#{{ r.id }}</span>
+          </h1>
+          <div class="lpd-sub">
+            <span class="badge {{ division_badge }}">{{ r.division|default:"—" }}</span>
+            {% if r.mode %}<span class="badge badge-blue">{{ r.mode }}</span>{% endif %}
+            {% if r.docket_no %}<span><i class="fas fa-barcode"></i> {{ r.docket_no }}</span>{% endif %}
+            {% if r.shipto_name %}<span><i class="fas fa-user"></i> {{ r.shipto_name }}</span>{% endif %}
+          </div>
+        </div>
+
+        <div class="lpd-actions">
+          <a href="{% url 'logistics:logistics_performance_list' %}" class="btn-light">
+            <i class="fas fa-list"></i> All Records
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DETAIL CARDS ═══ -->
+  <div class="lpd-body">
+    <div class="lpd-grid">
+      {% for section in sections %}
+      <div class="lpd-card {% if section.calc %}calc{% endif %}">
+        <div class="lpd-card-hdr">
+          <i class="{{ section.icon }}"></i> {{ section.title }}
+        </div>
+        {% for label, value in section.fields %}
+        <div class="lpd-field">
+          <span class="lpd-field-lbl">{{ label }}</span>
+          {% if value is None or value == '' %}
+            <span class="lpd-field-val empty">—</span>
+          {% else %}
+            <span class="lpd-field-val">{{ value }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

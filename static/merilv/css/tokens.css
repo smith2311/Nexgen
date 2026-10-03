@@ -1,0 +1,222 @@
+/* ============================================================================
+   Meril-V — Enterprise Precision design tokens
+   Source: dummy_tempelate/_design_extracted/.../enterprise_precision/DESIGN.md
+
+   Every colour, font, space, radius and shadow used anywhere in this module
+   comes from here. No hex codes and no off-scale pixel values in templates or
+   in the other stylesheets.
+
+   Scoped to `.mv` rather than `:root` so the module cannot restyle the eleven
+   sibling modules that share NexGen's base template.
+   ========================================================================= */
+
+.mv {
+    /* ── Surface ──────────────────────────────────────────────────────────── */
+    --mv-surface:               #F0F4F9;   /* page background */
+    --mv-surface-container:     #FFFFFF;   /* cards, panels */
+    --mv-surface-container-low: #F1F5F9;   /* nested / hover */
+    --mv-surface-container-hi:  #E8EEF7;   /* subtle emphasis */
+    --mv-border:                rgba(11, 31, 58, .10);   /* hairline */
+    --mv-border-strong:         rgba(11, 31, 58, .18);   /* dividers, hover borders */
+    --mv-outline:               #9CA3AF;   /* strong borders */
+
+    /* ── Text ─────────────────────────────────────────────────────────────── */
+    --mv-fg:                    #0B1F3A;   /* primary */
+    --mv-fg-2:                  #4A5568;   /* secondary */
+    --mv-fg-3:                  #9CA3AF;   /* tertiary / captions */
+    --mv-fg-inverse:            #F1F1F0;
+
+    /* ── Brand and accents ───────────────────────────────────────────────── */
+    --mv-primary:               #0076C8;
+    --mv-primary-hover:         #0B1F3A;
+    --mv-primary-container:     #0076C8;   /* filled buttons */
+    --mv-primary-tint:          #E6F2FB;   /* subtle backgrounds only */
+
+    --mv-accent-blue:           #0076C8;   --mv-accent-blue-bg:   #E6F2FB; --mv-accent-blue-border:   rgba(0,118,200,.20);
+    --mv-accent-teal:           #00A891;   --mv-accent-teal-bg:   #E0F8F5; --mv-accent-teal-border:   rgba(0,194,168,.24);
+    --mv-accent-amber:          #F59E0B;   --mv-accent-amber-bg:  #FEF3C7; --mv-accent-amber-border:  rgba(245,158,11,.24);
+    --mv-accent-violet:         #8B5CF6;   --mv-accent-violet-bg: #EDE9FE; --mv-accent-violet-border: rgba(139,92,246,.22);
+    --mv-accent-rose:           #EF4444;   --mv-accent-rose-bg:   #FEE2E2; --mv-accent-rose-border:   rgba(239,68,68,.22);
+    --mv-accent-cyan:           #00B5E2;   --mv-accent-cyan-bg:   #E0F2FE; --mv-accent-cyan-border:   rgba(0,181,226,.22);
+
+    /* ── Semantic status ──────────────────────────────────────────────────── */
+    --mv-ok:                    #15803D;   --mv-ok-bg:      #ECFDF5; --mv-ok-border:     #BBF7D0;
+    --mv-warn:                  #B45309;   --mv-warn-bg:    #FFF7ED; --mv-warn-border:   #FED7AA;
+    --mv-danger:                #BE123C;   --mv-danger-bg:  #FFF1F2; --mv-danger-border: #FECDD3;
+    --mv-neutral:               #475569;   --mv-neutral-bg: #F1F5F9; --mv-neutral-border:#CBD5E1;
+    --mv-info:                  #0369A1;   --mv-info-bg:    #F0F9FF; --mv-info-border:   #BAE6FD;
+
+    /* ── Typography ───────────────────────────────────────────────────────── */
+    /* Both families are served locally: Inter from css/google-fonts.css,
+       JetBrains Mono from css/poppins-fonts.css. No CDN, no webfont request. */
+    --mv-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --mv-font-mono: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+
+    /* Type scale — size / line-height pairs are applied by the .mv-t-* classes
+       below, because CSS cannot expand a "1.5rem/2rem" shorthand from a var. */
+    --mv-t-h1-size:        1.500rem;  --mv-t-h1-lh:        2.000rem;
+    --mv-t-h2-size:        1.125rem;  --mv-t-h2-lh:        1.750rem;
+    --mv-t-body-size:      0.875rem;  --mv-t-body-lh:      1.250rem;
+    --mv-t-cell-size:      0.813rem;  --mv-t-cell-lh:      1.125rem;
+    --mv-t-header-size:    0.750rem;  --mv-t-header-lh:    1.000rem;
+    --mv-t-mono-size:      0.813rem;  --mv-t-mono-lh:      1.000rem;
+    --mv-t-input-size:     0.875rem;  --mv-t-input-lh:     1.250rem;
+    --mv-t-caption-size:   0.750rem;  --mv-t-caption-lh:   1.125rem;
+    --mv-t-kpi-size:       1.875rem;  --mv-t-kpi-lh:       2.250rem;
+
+    /* ── Spacing scale — snap to these, nothing off-scale ─────────────────── */
+    --mv-space-1:  4px;
+    --mv-space-2:  8px;
+    --mv-space-3: 12px;
+    --mv-space-4: 16px;
+    --mv-space-5: 20px;
+    --mv-space-6: 24px;
+    --mv-space-7: 32px;
+    --mv-space-8: 40px;
+    --mv-space-9: 56px;
+    --mv-space-10: 80px;
+
+    /* Backward-compatible aliases used by older Meril-V templates. */
+    --mv-1: var(--mv-space-1);
+    --mv-2: var(--mv-space-2);
+    --mv-3: var(--mv-space-3);
+    --mv-4: var(--mv-space-4);
+    --mv-5: var(--mv-space-5);
+    --mv-6: var(--mv-space-6);
+    --mv-7: var(--mv-space-7);
+    --mv-8: var(--mv-space-8);
+    --mv-9: var(--mv-space-9);
+    --mv-10: var(--mv-space-10);
+
+    /* ── Radius ───────────────────────────────────────────────────────────── */
+    --mv-radius-sm:    6px;      /* inputs, chips, checkboxes */
+    --mv-radius-md:   10px;      /* cards, buttons */
+    --mv-radius-lg:   16px;      /* modals */
+    --mv-radius-full: 9999px;    /* pills */
+
+    /* ── Elevation — no neomorphism, no glassmorphism ─────────────────────── */
+    --mv-shadow-1: 0 1px 4px rgba(11, 31, 58, .07);   /* cards */
+    --mv-shadow-2: 0 8px 32px rgba(11, 31, 58, .13); /* modals, flyout */
+
+    /* ── Motion ───────────────────────────────────────────────────────────── */
+    --mv-ease-state: cubic-bezier(.2, 0, .2, 1);      /* 120ms hover/focus */
+    --mv-ease-enter: cubic-bezier(.16, 1, .3, 1);     /* 180ms panels */
+    --mv-dur-state: 120ms;
+    --mv-dur-enter: 180ms;
+
+    /* ── Fixed metrics referenced by more than one component ──────────────── */
+    --mv-control-h:   40px;   /* buttons, inputs */
+    --mv-row-h:       40px;   /* table rows, flyout items */
+    --mv-kpi-h:       96px;
+    --mv-scan-input-h: 56px;
+    --mv-flyout-w:   240px;
+    --mv-aside-w:    360px;   /* right-hand helper column */
+    /* No cap by default. Meril-V's screens are working surfaces — a scanner
+       console, delivery tables nine columns wide, master lists — and a 1440px
+       cap left a wide monitor showing dead margin either side of exactly the
+       thing the operator wanted more of.
+
+       A cap is still right for reading-width content, so it stays available as
+       a token: a screen that is mostly prose sets --mv-page-max on its own
+       wrapper rather than making every table pay for it. */
+    --mv-page-max:  none;
+
+    /* Height of NexGen's fixed header, so sticky things sit under it. */
+    --mv-navbar-h:    70px;
+}
+
+/* ── Base type application ───────────────────────────────────────────────── */
+.mv {
+    font-family: var(--mv-font-sans);
+    font-size: var(--mv-t-body-size);
+    line-height: var(--mv-t-body-lh);
+    color: var(--mv-fg);
+    background: var(--mv-surface);
+    caret-color: transparent;
+}
+
+.mv :is(input, textarea, select, [contenteditable="true"]) {
+    caret-color: auto;
+}
+
+.mv :is(
+    button,
+    a,
+    [role="button"],
+    .mv-btn,
+    .mv-link-btn,
+    .mv-badge,
+    .mv-chip,
+    .mv-flag,
+    .mv-tier,
+    .mv-kpi,
+    .mv-card__title,
+    .mv-page-header,
+    .mv-breadcrumb,
+    .mv-entity-selector
+) {
+    user-select: none;
+}
+
+/* Semantic type helpers — used instead of ad-hoc font declarations. */
+.mv-t-h1      { font-size: var(--mv-t-h1-size);      line-height: var(--mv-t-h1-lh);      font-weight: 600; }
+.mv-t-h2      { font-size: var(--mv-t-h2-size);      line-height: var(--mv-t-h2-lh);      font-weight: 600; }
+.mv-t-body    { font-size: var(--mv-t-body-size);    line-height: var(--mv-t-body-lh);    font-weight: 400; }
+.mv-t-strong  { font-size: var(--mv-t-body-size);    line-height: var(--mv-t-body-lh);    font-weight: 600; }
+.mv-t-cell    { font-size: var(--mv-t-cell-size);    line-height: var(--mv-t-cell-lh);    font-weight: 400; }
+.mv-t-caption { font-size: var(--mv-t-caption-size); line-height: var(--mv-t-caption-lh); font-weight: 400; color: var(--mv-fg-3); }
+.mv-t-header  {
+    font-size: var(--mv-t-header-size);
+    line-height: var(--mv-t-header-lh);
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--mv-fg-3);
+}
+
+/* Every barcode, serial, batch, material code, delivery/docket number, plant
+   and storage code, scan input and IP address uses this. A picker has to be
+   able to tell O from 0 and l from 1 — this is a correctness requirement, not
+   a stylistic one. */
+.mv-mono {
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-mono-size);
+    line-height: var(--mv-t-mono-lh);
+    font-weight: 500;
+    font-variant-ligatures: none;
+    font-feature-settings: "zero" 1;   /* slashed zero where the face has it */
+}
+
+.mv h1, .mv h2, .mv h3 { margin: 0; color: var(--mv-fg); text-align: left; }
+.mv h1 { font-size: var(--mv-t-h1-size); line-height: var(--mv-t-h1-lh); font-weight: 600; }
+.mv h2 { font-size: var(--mv-t-h2-size); line-height: var(--mv-t-h2-lh); font-weight: 600; }
+
+.mv a { color: var(--mv-primary); text-decoration: none; }
+.mv a:hover { color: var(--mv-primary-hover); }
+
+/* Colour is never the only signal, but where it is used it is semantic. */
+.mv-fg-ok      { color: var(--mv-ok); }
+.mv-fg-warn    { color: var(--mv-warn); }
+.mv-fg-danger  { color: var(--mv-danger); }
+.mv-fg-neutral { color: var(--mv-neutral); }
+.mv-fg-2       { color: var(--mv-fg-2); }
+.mv-fg-3       { color: var(--mv-fg-3); }
+
+/* Visible focus for keyboard users everywhere in the module. */
+/* The `hidden` attribute and an author rule setting `display` on the same
+   element have equal CSS specificity, and an author rule beats the browser's
+   own `[hidden] { display: none }` default on a tie — so any component class
+   that sets display:flex/grid/block will render even while JS has set
+   `hidden`, unless something re-asserts none. Reasserting it once, here, for
+   the whole module removes the need to remember this on every component. */
+.mv [hidden] { display: none !important; }
+
+.mv :focus-visible {
+    outline: 2px solid var(--mv-primary);
+    outline-offset: 2px;
+    border-radius: var(--mv-radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mv * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

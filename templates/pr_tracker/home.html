@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}PR Tracker{% endblock %}
+{% block page_title %}PR Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+.prt-home {
+  --navy:      #0b1f3a; --blue:       #0076c8; --blue-lt:    #e6f2fb;
+  --accent:    #00c2a8; --accent-lt:  #e0f8f5; --amber:      #f59e0b;
+  --amber-lt:  #fef3c7; --green:      #10b981; --green-lt:   #d1fae5;
+  --purple:    #8b5cf6; --purple-lt:  #ede9fe; --red:        #ef4444;
+  --red-lt:    #fee2e2; --text:       #0b1f3a; --muted:      #4a5568;
+  --bg:        #f0f4f9; --surface:    #ffffff; --border:     rgba(11,31,58,.10);
+  --shadow:    0 4px 16px rgba(11,31,58,.10);  --radius:     16px;
+  --tr:        all .2s cubic-bezier(.4,0,.2,1);
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--bg); min-height: 100vh; padding: 32px 24px 60px; color: var(--text);
+}
+.prt-header           { margin-bottom: 28px; }
+.prt-header h1        { font-size: 26px; font-weight: 700; color: var(--navy); margin: 0 0 5px; display: flex; align-items: center; gap: 12px; }
+.prt-header p         { font-size: 14px; color: var(--muted); margin: 0; }
+.prt-role-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px; margin-left: 12px; vertical-align: middle;
+}
+.badge-manager { background: var(--blue-lt);   color: var(--blue);   }
+.badge-admin   { background: var(--purple-lt); color: var(--purple); }
+.badge-member  { background: var(--accent-lt);  color: var(--accent); }
+
+.prt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+.prt-card {
+  display: flex; align-items: flex-start; gap: 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+  text-decoration: none; color: var(--text); position: relative; overflow: hidden; transition: var(--tr);
+}
+.prt-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: currentColor; opacity: 0; transition: opacity .2s; }
+.prt-card:hover  { transform: translateY(-3px); box-shadow: var(--shadow); text-decoration: none; }
+.prt-card:hover::after { opacity: 1; }
+.prt-card.blue   { color: var(--blue);   }
+.prt-card.accent { color: var(--accent); }
+.prt-card.amber  { color: var(--amber);  }
+.prt-card.green  { color: var(--green);  }
+.prt-card.purple { color: var(--purple); }
+.prt-card.navy   { color: var(--navy);   }
+
+.prt-icon { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: var(--tr); }
+.prt-card.blue   .prt-icon { background: var(--blue-lt);   color: var(--blue);   }
+.prt-card.accent .prt-icon { background: var(--accent-lt); color: var(--accent); }
+.prt-card.amber  .prt-icon { background: var(--amber-lt);  color: var(--amber);  }
+.prt-card.green  .prt-icon { background: var(--green-lt);  color: var(--green);  }
+.prt-card.purple .prt-icon { background: var(--purple-lt); color: var(--purple); }
+.prt-card.navy   .prt-icon { background: #e6ebf2;          color: var(--navy);   }
+.prt-card:hover .prt-icon  { transform: scale(1.08); }
+
+.prt-body h2 { font-size: 15px; font-weight: 600; color: var(--navy); margin: 0 0 5px; }
+.prt-body p  { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="prt-home">
+  <div class="prt-header">
+    <h1>
+      <i class="fas fa-file-invoice"></i> PR Tracker
+      {% if is_pr_manager %}
+      <span class="prt-role-badge badge-manager"><i class="fas fa-user-tie"></i> Manager</span>
+      {% endif %}
+      {% if is_pr_admin %}
+      <span class="prt-role-badge badge-admin"><i class="fas fa-user-gear"></i> Admin</span>
+      {% endif %}
+      {% if is_pr_member %}
+      <span class="prt-role-badge badge-member"><i class="fas fa-user"></i> Member</span>
+      {% endif %}
+    </h1>
+    <p>Purchase Request assignment, tracking, and closure management.</p>
+  </div>
+
+  <div class="prt-grid">
+
+    {% if is_pr_manager %}
+    <a href="{% url 'pr_tracker:pr_dashboard' %}" class="prt-card blue">
+      <span class="prt-icon"><i class="fas fa-gauge-high"></i></span>
+      <span class="prt-body">
+        <h2>Dashboard</h2>
+        <p>Full overview of all PR assignments, statuses, and team progress.</p>
+      </span>
+    </a>
+
+    <a href="{% url 'pr_tracker:pr_assign' %}" class="prt-card accent">
+      <span class="prt-icon"><i class="fas fa-file-import"></i></span>
+      <span class="prt-body">
+        <h2>Assign PRs</h2>
+        <p>Upload an Excel sheet or manually assign a PR to a team member.</p>
+      </span>
+    </a>
+    {% endif %}
+
+    {% if is_pr_admin %}
+    <a href="{% url 'pr_tracker:tracking_master' %}" class="prt-card amber">
+      <span class="prt-icon"><i class="fas fa-hashtag"></i></span>
+      <span class="prt-body">
+        <h2>Tracking Master</h2>
+        <p>Manage tracking numbers available for PR assignments.</p>
+      </span>
+    </a>
+
+    <a href="{% url 'pr_tracker:user_master' %}" class="prt-card purple">
+      <span class="prt-icon"><i class="fas fa-users-gear"></i></span>
+      <span class="prt-body">
+        <h2>User Master</h2>
+        <p>Add users to the PR Tracker and assign them as Manager or Member.</p>
+      </span>
+    </a>
+    {% endif %}
+
+    {% if is_pr_member %}
+    <a href="{% url 'pr_tracker:my_prs' %}" class="prt-card blue">
+      <span class="prt-icon"><i class="fas fa-list-check"></i></span>
+      <span class="prt-body">
+        <h2>My Assigned PRs</h2>
+        <p>View and fill in details for all PRs assigned to you.</p>
+      </span>
+    </a>
+    {% endif %}
+
+  </div>
+
+  {% if has_no_pr_role %}
+  <div class="prt-card navy" style="max-width:520px;cursor:default">
+    <span class="prt-icon"><i class="fas fa-lock"></i></span>
+    <span class="prt-body">
+      <h2>No access yet</h2>
+      <p>You haven't been added to PR Tracker. Contact a PR Tracker admin to be added as a Manager, Member, or Admin via User Master.</p>
+    </span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

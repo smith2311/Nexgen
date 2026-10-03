@@ -1,0 +1,485 @@
+/* ============================================================================
+   Meril-V — shell: page frame, page header, breadcrumb, hover-flyout nav
+
+   Spacing here is only ever a --mv-space-* token. Page container padding 24px,
+   header 24px 24px 16px, 24px between cards, 32px between sections.
+   ========================================================================= */
+
+
+/* ── Page frame ──────────────────────────────────────────────────────────────
+   This lives inside NexGen's <main>, which already clears the fixed header and
+   the sibling-module sidebar. The module therefore never positions itself
+   against the viewport — no 100vh, no top:0 sticky — or it measures against
+   the wrong box. Width is capped and centred only when the viewport is wider
+   than the cap.                                                             */
+.mv-page {
+    width: 100%;
+    max-width: var(--mv-page-max);
+    margin: 0 auto;
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────────
+   Breadcrumb row, then a 40px title row, then a hairline. Sticks to the top of
+   the scroll container beneath NexGen's fixed header. */
+.mv-page-header {
+    padding: var(--mv-space-6) var(--mv-space-7) var(--mv-space-5);
+    background: linear-gradient(135deg, #0b1f3a 0%, #1a3d6e 100%);
+    border-bottom: 3px solid transparent;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 4px 16px rgba(11,31,58,.10);
+    transition: border-color var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state);
+}
+/* flyout.js/scanner-agnostic scroll listener adds this once scrollY > 0 */
+.mv-page-header.is-scrolled { border-bottom-color: var(--mv-accent-teal); box-shadow: 0 8px 24px rgba(11,31,58,.16); }
+
+.mv-page-header__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--mv-space-4);
+    margin-bottom: var(--mv-space-4);
+    flex-wrap: wrap;
+}
+
+.mv-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+    min-height: 16px;
+    margin: 0;
+    font-family: var(--mv-font-mono);
+    font-size: var(--mv-t-caption-size);
+    line-height: var(--mv-t-caption-lh);
+    color: rgba(255,255,255,.56);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.mv-breadcrumb a { color: rgba(255,255,255,.72); }
+.mv-breadcrumb a:hover { color: #fff; text-decoration: underline; }
+.mv-breadcrumb__sep { display: inline-flex; color: rgba(255,255,255,.42); }
+.mv-breadcrumb__current { color: #fff; font-weight: 500; }
+
+.mv-page-header__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--mv-space-4);
+    min-height: var(--mv-space-8);            /* 40px title row */
+    flex-wrap: wrap;
+}
+.mv-page-header__titles { min-width: 0; }
+.mv-page-header__titles h1 {
+    color: #fff;
+    font-size: 22px;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+.mv-page-header__sub {
+    margin: var(--mv-space-1) 0 0;
+    font-size: 13px;
+    line-height: var(--mv-t-body-lh);
+    color: rgba(255,255,255,.62);
+}
+/* Buttons in a header row are right-aligned. */
+.mv-page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-2);
+    flex-wrap: wrap;
+}
+.mv-page-header__actions .mv-btn:not(.mv-btn--primary) {
+    background: rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.16);
+    color: rgba(255,255,255,.86);
+}
+.mv-page-header__actions .mv-btn:not(.mv-btn--primary):hover {
+    background: rgba(255,255,255,.18);
+    border-color: rgba(255,255,255,.28);
+    color: #fff;
+}
+
+/* Tier filter chips (Roles & Access) — a segmented control living in the same
+   header-actions slot as the entity selector / tier badge on other screens.
+   Translucent-white-on-navy like the buttons above; the active chip goes solid
+   white rather than adding a fourth colour to a header that already has one. */
+.mv-role-filter {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: var(--mv-radius-full);
+}
+.mv-role-filter__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mv-space-1);
+    height: 30px;
+    padding: 0 var(--mv-space-3);
+    border-radius: var(--mv-radius-full);
+    font-size: var(--mv-t-caption-size);
+    font-weight: 600;
+    color: rgba(255,255,255,.76);
+    white-space: nowrap;
+}
+.mv-role-filter__chip:hover { background: rgba(255,255,255,.12); color: #fff; }
+.mv-role-filter__chip.is-active { background: #fff; color: var(--mv-primary-hover); }
+.mv-role-filter__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--mv-radius-full);
+    background: rgba(255,255,255,.16);
+    font-family: var(--mv-font-mono);
+    font-size: 11px;
+}
+.mv-role-filter__chip.is-active .mv-role-filter__count { background: var(--mv-primary-tint); color: var(--mv-primary); }
+
+.mv-page-body {
+    padding: var(--mv-space-6) var(--mv-space-7) var(--mv-space-9);   /* never dead-end flush */
+    display: flex;
+    flex-direction: column;
+    gap: var(--mv-space-6);                           /* 24px between cards */
+}
+
+.mv-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mv-space-6);
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,.16), transparent 45%),
+        rgba(7, 16, 30, .72);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity var(--mv-dur-state) var(--mv-ease-state),
+                visibility 0s linear var(--mv-dur-state);
+}
+.mv-loading-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+.mv-loading-overlay__panel {
+    display: flex;
+    align-items: center;
+    gap: var(--mv-space-4);
+    max-width: min(92vw, 460px);
+    padding: var(--mv-space-5) var(--mv-space-6);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: var(--mv-radius-lg);
+    background: rgba(8, 18, 34, .92);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .32);
+    color: #fff;
+}
+.mv-loading-overlay__spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.18);
+    border-top-color: var(--mv-accent-teal);
+    animation: mv-spin 800ms linear infinite;
+    flex: 0 0 auto;
+}
+.mv-loading-overlay__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.mv-loading-overlay__title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+.mv-loading-overlay__message {
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgba(255,255,255,.72);
+}
+html.mv-has-loading,
+html.mv-has-loading body {
+    overflow: hidden;
+}
+/* 32px between whole sections rather than sibling cards. */
+.mv-section + .mv-section { margin-top: var(--mv-space-7); }
+.mv-section > * + * { margin-top: var(--mv-space-4); }
+
+/* First card sits 24px below the header — the header's own bottom padding is
+   16px, so add 8px rather than another full step. */
+.mv-page-body > :first-child { margin-top: 0; }
+
+/* Shared component bridge: same back affordance used by VAT/logistics pages. */
+.mv .mv-back {
+    margin-bottom: 0;
+    color: rgba(255,255,255,.78);
+}
+.mv .mv-back:hover {
+    color: #fff;
+}
+.mv .mv-back svg {
+    width: 12px;
+    height: 12px;
+    display: block;
+}
+
+/* ── Two-column layout — grid only, never mixed with flex ────────────────── */
+.mv-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr min(var(--mv-aside-w), 30%);
+    gap: var(--mv-space-6);
+    align-items: start;
+}
+@media (max-width: 1100px) {
+    .mv-grid-2col { grid-template-columns: 1fr; }
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.mv-card {
+    --mv-card-accent: var(--mv-accent-blue);
+    --mv-card-tint: var(--mv-accent-blue-bg);
+    --mv-card-border: var(--mv-accent-blue-border);
+    background: var(--mv-surface-container);
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-lg);
+    box-shadow: var(--mv-shadow-1);
+    padding: var(--mv-space-5) var(--mv-space-6);
+    position: relative;
+    overflow: hidden;
+    transition: transform var(--mv-dur-state) var(--mv-ease-state),
+                box-shadow var(--mv-dur-state) var(--mv-ease-state),
+                border-color var(--mv-dur-state) var(--mv-ease-state);
+}
+.mv-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--mv-card-accent);
+    opacity: .85;
+}
+.mv-card:hover {
+    border-color: var(--mv-border-strong);
+    box-shadow: 0 4px 16px rgba(11,31,58,.10);
+}
+.mv-card:nth-of-type(6n+1) { --mv-card-accent: var(--mv-accent-blue);   --mv-card-tint: var(--mv-accent-blue-bg);   --mv-card-border: var(--mv-accent-blue-border); }
+.mv-card:nth-of-type(6n+2) { --mv-card-accent: var(--mv-accent-teal);   --mv-card-tint: var(--mv-accent-teal-bg);   --mv-card-border: var(--mv-accent-teal-border); }
+.mv-card:nth-of-type(6n+3) { --mv-card-accent: var(--mv-accent-amber);  --mv-card-tint: var(--mv-accent-amber-bg);  --mv-card-border: var(--mv-accent-amber-border); }
+.mv-card:nth-of-type(6n+4) { --mv-card-accent: var(--mv-accent-violet); --mv-card-tint: var(--mv-accent-violet-bg); --mv-card-border: var(--mv-accent-violet-border); }
+.mv-card:nth-of-type(6n+5) { --mv-card-accent: var(--mv-accent-cyan);   --mv-card-tint: var(--mv-accent-cyan-bg);   --mv-card-border: var(--mv-accent-cyan-border); }
+.mv-card:nth-of-type(6n)   { --mv-card-accent: var(--mv-accent-rose);   --mv-card-tint: var(--mv-accent-rose-bg);   --mv-card-border: var(--mv-accent-rose-border); }
+.mv-card--flush { padding: 0; overflow: hidden; }   /* for tables */
+.mv-card__title {
+    font-size: var(--mv-t-h2-size);
+    line-height: var(--mv-t-h2-lh);
+    font-weight: 600;
+    margin: 0 0 var(--mv-space-4);                   /* 16px title → content */
+    color: var(--mv-fg);
+}
+.mv-card__title svg {
+    color: var(--mv-card-accent);
+    vertical-align: -2px;
+}
+.mv-card__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--mv-space-4);
+    margin-bottom: var(--mv-space-4);
+}
+.mv-card__head .mv-card__title { margin-bottom: 0; }
+/* Nested cards are not allowed — use a bordered sub-section instead. */
+.mv-subsection {
+    border: 1px solid var(--mv-border);
+    border-radius: var(--mv-radius-sm);
+    padding: var(--mv-space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mv-space-4);
+}
+.mv-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;                       /* footer actions right */
+    gap: var(--mv-space-2);
+    margin-top: var(--mv-space-4);
+    padding-top: var(--mv-space-4);
+    border-top: 1px solid var(--mv-border);
+}
+
+
+/* ============================================================================
+   Hover-flyout submenu
+
+   The flyout is attached to NexGen's existing "Meril-V" sidebar row by
+   flyout.js and appended to <body>, so it sits OUTSIDE the `.mv` scope and
+   cannot inherit the module tokens. It therefore declares the handful it needs
+   on its own root.
+   ========================================================================= */
+
+/* Chevron injected into the sidebar row. */
+.mv-flyout-chevron {
+    margin-left: auto;
+    margin-right: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: #757684;
+    transition: transform var(--mv-dur-state, 120ms) cubic-bezier(.2, 0, .2, 1);
+}
+.mv-flyout-chevron svg { width: 16px; height: 16px; display: block; }
+/* Open state: chevron-right becomes chevron-down. */
+.mv-flyout-chevron.is-open { transform: rotate(90deg); }
+
+.mv-flyout {
+    --mv-fo-surface: #FFFFFF;
+    --mv-fo-hover:   #F1F5F9;
+    --mv-fo-border:  #DDE5EF;
+    --mv-fo-fg:      #1A1C1C;
+    --mv-fo-fg-2:    #444653;
+    --mv-fo-fg-3:    #757684;
+    --mv-fo-primary: #2563EB;
+    --mv-fo-tint:    #EFF6FF;
+
+    position: fixed;
+    z-index: 1200;                     /* above the sidebar, below modals */
+    width: 240px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    padding: 8px 0;
+    background:
+        linear-gradient(135deg, rgba(37, 99, 235, .06), rgba(15, 118, 110, .04) 42%, transparent),
+        var(--mv-fo-surface);
+    border: 1px solid var(--mv-fo-border);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+    /* Enter/exit are driven by a class, and will-change keeps the panel from
+       flickering as the pointer travels from the row into the panel. */
+    opacity: 0;
+    transform: translateX(-8px);
+    visibility: hidden;
+    will-change: transform, opacity;
+    transition: opacity 120ms cubic-bezier(.2, 0, .2, 1),
+                transform 120ms cubic-bezier(.2, 0, .2, 1),
+                visibility 120ms linear;
+}
+.mv-flyout.is-open {
+    opacity: 1;
+    transform: translateX(0);
+    visibility: visible;
+    transition: opacity 180ms cubic-bezier(.16, 1, .3, 1),
+                transform 180ms cubic-bezier(.16, 1, .3, 1),
+                visibility 0s linear;
+}
+
+.mv-flyout__group-label {
+    padding: 12px 16px 4px;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--mv-fo-fg-3);
+}
+
+.mv-flyout__item {
+    --mv-fo-item-accent: #2563EB;
+    --mv-fo-item-bg: #EFF6FF;
+    display: flex;
+    align-items: center;
+    gap: 8px;                          /* icon → label */
+    height: 40px;
+    padding: 10px 16px;
+    box-sizing: border-box;
+    color: var(--mv-fo-fg-2);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 120ms cubic-bezier(.2, 0, .2, 1),
+                color 120ms cubic-bezier(.2, 0, .2, 1);
+}
+.mv-flyout__item:nth-of-type(6n+1) { --mv-fo-item-accent: #2563EB; --mv-fo-item-bg: #EFF6FF; }
+.mv-flyout__item:nth-of-type(6n+2) { --mv-fo-item-accent: #0F766E; --mv-fo-item-bg: #ECFDF5; }
+.mv-flyout__item:nth-of-type(6n+3) { --mv-fo-item-accent: #B45309; --mv-fo-item-bg: #FFF7ED; }
+.mv-flyout__item:nth-of-type(6n+4) { --mv-fo-item-accent: #6D28D9; --mv-fo-item-bg: #F5F3FF; }
+.mv-flyout__item:nth-of-type(6n+5) { --mv-fo-item-accent: #0369A1; --mv-fo-item-bg: #F0F9FF; }
+.mv-flyout__item:nth-of-type(6n)   { --mv-fo-item-accent: #BE123C; --mv-fo-item-bg: #FFF1F2; }
+.mv-flyout__item:hover,
+.mv-flyout__item:focus-visible {
+    background: var(--mv-fo-item-bg);
+    color: var(--mv-fo-item-accent);
+    outline: none;
+}
+.mv-flyout__item svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--mv-fo-item-accent); }
+/* Active row indicator — 3px left border, matching the Stitch treatment. */
+.mv-flyout__item.is-current {
+    border-left-color: var(--mv-fo-item-accent);
+    background: var(--mv-fo-item-bg);
+    color: var(--mv-fo-item-accent);
+    font-weight: 600;
+}
+
+/* ── Narrow viewports: the flyout becomes a left off-canvas drawer ───────── */
+.mv-flyout__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1199;
+    background: rgba(0, 0, 0, .4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 180ms cubic-bezier(.16, 1, .3, 1), visibility 0s linear 180ms;
+}
+.mv-flyout__scrim.is-open { opacity: 1; visibility: visible; transition-delay: 0s; }
+
+@media (max-width: 900px) {
+    .mv-flyout {
+        top: 0 !important;
+        left: 0 !important;
+        width: min(300px, 86vw);
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        border-left: none;
+        padding-top: 16px;
+        transform: translateX(-100%);
+        transition: transform 180ms cubic-bezier(.16, 1, .3, 1), visibility 0s;
+    }
+    .mv-flyout.is-open { transform: translateX(0); }
+    .mv-flyout__close {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: calc(100% - 32px);
+        margin: 0 16px 8px;
+        height: 40px;
+        padding: 10px 12px;
+        background: none;
+        border: 1px solid var(--mv-fo-border);
+        border-radius: 6px;
+        color: var(--mv-fo-fg-2);
+        font: inherit;
+        cursor: pointer;
+    }
+}
+/* The close button only exists in drawer mode. */
+.mv-flyout__close { display: none; }

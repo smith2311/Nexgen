@@ -1,0 +1,885 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Report & Analytics — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/report.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="rp-page">
+  <a href="{% url 'material_rework:dashboard' %}" class="rp-back"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+
+  <!-- Hero -->
+  <div class="rp-hero">
+    <div class="rp-hero-left">
+      <h1><i class="fas fa-chart-bar" style="color:#6ee7b7;"></i> Analytics &amp; Full Report</h1>
+      <p>Material Rework &mdash; end-to-end report &amp; analytics</p>
+    </div>
+    <div class="rp-hero-actions">
+      <a href="{% url 'material_rework:report_download' %}?format=excel{% if f_status %}&status={{ f_status }}{% endif %}{% if f_vertical %}&vertical={{ f_vertical }}{% endif %}{% if f_dept %}&department={{ f_dept }}{% endif %}{% if f_from %}&date_from={{ f_from }}{% endif %}{% if f_to %}&date_to={{ f_to }}{% endif %}" class="btn-dl btn-dl-excel">
+        <i class="fas fa-file-excel"></i> Download Excel
+      </a>
+      <a href="{% url 'material_rework:report_download' %}?format=csv{% if f_status %}&status={{ f_status }}{% endif %}{% if f_vertical %}&vertical={{ f_vertical }}{% endif %}{% if f_dept %}&department={{ f_dept }}{% endif %}{% if f_from %}&date_from={{ f_from }}{% endif %}{% if f_to %}&date_to={{ f_to }}{% endif %}" class="btn-dl btn-dl-csv">
+        <i class="fas fa-file-csv"></i> Download CSV
+      </a>
+      <button class="btn-dl btn-dl-print" onclick="window.print()">
+        <i class="fas fa-print"></i> Print / PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="rp-tabs">
+    <div class="rp-tab active" onclick="switchTab('dash',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+    <div class="rp-tab" onclick="switchTab('report',this)"><i class="fas fa-table"></i> Full Report {% if filtered_count %}<span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:8px;font-size:.68rem;">{{ filtered_count }}</span>{% endif %}</div>
+  </div>
+
+  <!-- ══════════════════ DASHBOARD TAB ══════════════════ -->
+  <div id="tab-dash" class="rp-tab-pane active">
+
+    {% comment %}
+    ── Dashboard scope ──────────────────────────────────────────────────────
+    Three views of the same module: the overview that was always here, every
+    user at once, and one person on their own.
+
+    Links, not a form with submit buttons. A form would need a hidden `scope`
+    field for the user picker as well as one per segment button, and two
+    fields of the same name post both values — which one wins then depends on
+    DOM order. Links carry exactly one scope each, and each is a URL somebody
+    can bookmark or paste.
+
+    `scope_query` is built in the view and carries tab=dash plus whatever
+    filters are active, so switching scope changes only the scope.
+    {% endcomment %}
+    <div class="rp-scope">
+      <span class="rp-scope__label"><i class="fas fa-user-gear"></i> View</span>
+      <div class="rp-scope__segs">
+        {% for code, label in scope_choices %}
+        <a class="rp-scope__seg{% if scope == code %} is-active{% endif %}"
+           {% if scope == code %}aria-current="page"{% endif %}
+           href="?{{ scope_query }}&amp;scope={{ code }}{% if code == scope_one_user and scope_user %}&amp;user={{ scope_user|urlencode }}{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </div>
+
+      {% if scope == scope_one_user %}
+      {% comment %}
+      Shown only in the one-user view: a picker visible in every scope would
+      imply the other two respond to it, which they do not.
+      {% endcomment %}
+      <form method="get" class="rp-scope__form">
+        <input type="hidden" name="tab" value="dash">
+        <input type="hidden" name="scope" value="{{ scope_one_user }}">
+        {% if f_status %}<input type="hidden" name="status" value="{{ f_status }}">{% endif %}
+        {% if f_vertical %}<input type="hidden" name="vertical" value="{{ f_vertical }}">{% endif %}
+        {% if f_dept %}<input type="hidden" name="department" value="{{ f_dept }}">{% endif %}
+        {% if f_from %}<input type="hidden" name="date_from" value="{{ f_from }}">{% endif %}
+        {% if f_to %}<input type="hidden" name="date_to" value="{{ f_to }}">{% endif %}
+        <select name="user" class="rp-scope__pick" onchange="this.form.submit()">
+          {% for person in user_options %}
+          <option value="{{ person.key }}" {% if person.key == scope_user %}selected{% endif %}>{{ person.label }}{% if person.roles %} — {{ person.roles|join:", " }}{% endif %}{% if not person.is_active %} (disabled){% endif %}</option>
+          {% endfor %}
+        </select>
+        {% comment %}A visible submit for anyone without JavaScript.{% endcomment %}
+        <noscript><button type="submit" class="rp-scope__go">Show</button></noscript>
+      </form>
+      {% endif %}
+    </div>
+
+    {% comment %}
+    ── All users ────────────────────────────────────────────────────────────
+    Everybody's progress side by side: headline counts, a bar chart of who is
+    doing how much, then the full per-person breakdown.
+    {% endcomment %}
+    {% if scope == scope_all_users %}
+    <div class="kpi-row" style="margin-bottom:10px;">
+      <div class="kpi-card kc-blue">
+        <div class="kpi-icon" style="background:#e0f2fe;color:#0076c8;"><i class="fas fa-users"></i></div>
+        <div class="kpi-val">{{ progress.totals.users }}</div>
+        <div class="kpi-lbl">People With Access</div>
+      </div>
+      <div class="kpi-card kc-green">
+        <div class="kpi-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-user-check"></i></div>
+        <div class="kpi-val">{{ progress.totals.active_users }}</div>
+        <div class="kpi-lbl">Active</div>
+      </div>
+      <div class="kpi-card kc-amber">
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-user-clock"></i></div>
+        <div class="kpi-val">{{ progress.totals.idle_users }}</div>
+        <div class="kpi-lbl">Nothing Yet</div>
+      </div>
+      <div class="kpi-card kc-purple">
+        <div class="kpi-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-bolt"></i></div>
+        <div class="kpi-val">{{ progress.totals.total }}</div>
+        <div class="kpi-lbl">Total Actions</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:18px;">
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-chart-bar"></i> Actions by user</div>
+        {% comment %}
+        A fixed-height wrapper, because Chart.js sizes to its container: with
+        an auto height the canvas and the container each wait for the other
+        and the chart collapses or grows on every reflow.
+        {% endcomment %}
+        <div style="position:relative;height:260px;"><canvas id="usersBar"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-diagram-project"></i> Actions by stage</div>
+        <div style="position:relative;height:260px;"><canvas id="stageBar"></canvas></div>
+      </div>
+    </div>
+
+    {% include "material_rework/_progress_table.html" %}
+    {% endif %}
+
+    {% comment %}
+    ── One user ─────────────────────────────────────────────────────────────
+    The same shape as the overview, narrowed to one person: their headline
+    counts, their split by stage, then what they actually did.
+    {% endcomment %}
+    {% if scope == scope_one_user %}
+    {% if user_dash %}
+    <div class="kpi-row" style="margin-bottom:10px;">
+      <div class="kpi-card kc-blue">
+        <div class="kpi-icon" style="background:#e0f2fe;color:#0076c8;"><i class="fas fa-bolt"></i></div>
+        <div class="kpi-val">{{ user_dash.row.total }}</div>
+        <div class="kpi-lbl">Total Actions</div>
+      </div>
+      <div class="kpi-card kc-purple">
+        <div class="kpi-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-clipboard-check"></i></div>
+        <div class="kpi-val">{{ user_dash.row.uploads }}</div>
+        <div class="kpi-lbl">Uploads Raised</div>
+      </div>
+      <div class="kpi-card kc-amber">
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-dolly"></i></div>
+        <div class="kpi-val">{{ user_dash.row.qty_released }}</div>
+        <div class="kpi-lbl">Units Released</div>
+      </div>
+      <div class="kpi-card kc-green">
+        <div class="kpi-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-box-open"></i></div>
+        <div class="kpi-val">{{ user_dash.row.qty_received }}</div>
+        <div class="kpi-lbl">Units Received</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;margin-bottom:18px;">
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-user-gear"></i> {{ user_dash.row.name }}</div>
+        <div style="padding:4px 2px 10px;">
+          <div style="font-size:.8rem;color:#6b7280;">{{ user_dash.row.email|default:user_dash.row.username }}</div>
+          <div style="margin-top:8px;">
+            {% if user_dash.row.roles %}
+            {% for role in user_dash.row.roles %}<span style="display:inline-block;background:#eef2ff;color:#4338ca;font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:8px;margin:2px 3px 2px 0;">{{ role }}</span>{% endfor %}
+            {% else %}
+            {% comment %}
+            Activity from somebody who no longer holds a role. Said plainly
+            rather than left blank: the work happened, and a blank cell reads
+            as missing data.
+            {% endcomment %}
+            <span style="font-size:.75rem;color:#9ca3af;">No Material Rework role — history only</span>
+            {% endif %}
+            {% if not user_dash.row.is_active %}
+            <span style="display:inline-block;background:#fee2e2;color:#991b1b;font-size:.66rem;font-weight:800;padding:2px 9px;border-radius:8px;margin-left:4px;">ACCOUNT DISABLED</span>
+            {% endif %}
+          </div>
+          <div style="margin-top:12px;font-size:.8rem;color:#374151;">
+            Last action:
+            <strong>{% if user_dash.row.last_action %}{{ user_dash.row.last_action|date:"d M Y, H:i" }}{% else %}never{% endif %}</strong>
+          </div>
+          <div style="margin-top:6px;font-size:.8rem;color:#374151;">
+            Units reworked and returned: <strong>{{ user_dash.row.qty_reworked }}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-diagram-project"></i> Their actions by stage</div>
+        <div style="position:relative;height:240px;"><canvas id="userStageBar"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:18px;">
+      <div class="sec-lbl"><i class="fas fa-clock-rotate-left"></i> What they did, most recent first</div>
+      {% if user_dash.events %}
+      <div class="report-tbl-scroll">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Action</th>
+              <th>Ref #</th>
+              <th>Department</th>
+              <th>Item / subject</th>
+              <th style="text-align:right;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for event in user_dash.events %}
+          <tr>
+            <td style="white-space:nowrap;font-size:.78rem;color:#6b7280;">{{ event.at|date:"d M Y, H:i" }}</td>
+            <td style="white-space:nowrap;font-weight:700;font-size:.8rem;">{{ event.action }}</td>
+            <td style="white-space:nowrap;font-family:monospace;font-size:.78rem;">{{ event.reference }}</td>
+            <td style="font-size:.8rem;">{{ event.department }}</td>
+            <td style="font-size:.78rem;color:#6b7280;">{{ event.detail|default:"—"|truncatechars:60 }}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:.8rem;">{{ event.qty|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:30px 10px 34px;text-align:center;">
+        <i class="fas fa-clock" style="font-size:1.8rem;color:#d1d5db;display:block;margin-bottom:9px;"></i>
+        <p style="color:#9ca3af;font-size:.85rem;margin:0;">
+          Nothing recorded for {{ user_dash.row.name }} in the selected period.
+        </p>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:50px;text-align:center;">
+      <i class="fas fa-user-slash" style="font-size:2.2rem;color:#d1d5db;display:block;margin-bottom:12px;"></i>
+      <p style="color:#9ca3af;font-size:.9rem;margin:0;">
+        {% if user_options %}Pick somebody from the list above.
+        {% else %}Nobody holds a Material Rework role and nothing has been recorded yet.{% endif %}
+      </p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% comment %}
+    The overview that was always here, unchanged and still the default. It is
+    wrapped rather than rewritten: this is the view people already know, and
+    the two new scopes are additions to it, not a replacement.
+    {% endcomment %}
+    {% if scope == scope_overview %}
+
+    <!-- KPI row 1: Batch -->
+    <div class="kpi-row" style="margin-bottom:10px;">
+      <div class="kpi-card kc-blue">
+        <div class="kpi-icon" style="background:#e0f2fe;color:#0076c8;"><i class="fas fa-layer-group"></i></div>
+        <div class="kpi-val">{{ total_batches }}</div>
+        <div class="kpi-lbl">Total Batches</div>
+      </div>
+      <div class="kpi-card kc-amber">
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706;"><i class="fas fa-hourglass-half"></i></div>
+        <div class="kpi-val">{{ batch_counts.pending_hod }}</div>
+        <div class="kpi-lbl">Pending HOD</div>
+      </div>
+      <div class="kpi-card kc-purple">
+        <div class="kpi-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-industry"></i></div>
+        <div class="kpi-val">{{ batch_counts.production_done }}</div>
+        <div class="kpi-lbl">Prod. Done</div>
+      </div>
+      <div class="kpi-card kc-green">
+        <div class="kpi-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-check-circle"></i></div>
+        <div class="kpi-val">{{ batch_counts.completed }}</div>
+        <div class="kpi-lbl">Completed</div>
+      </div>
+    </div>
+
+    <!-- KPI row 2: Items -->
+    <div class="kpi-row">
+      <div class="kpi-card kc-indigo">
+        <div class="kpi-icon" style="background:#e0e7ff;color:#4338ca;"><i class="fas fa-boxes"></i></div>
+        <div class="kpi-val">{{ total_items }}</div>
+        <div class="kpi-lbl">Total Items</div>
+      </div>
+      <div class="kpi-card kc-teal">
+        <div class="kpi-icon" style="background:#cffafe;color:#0891b2;"><i class="fas fa-check"></i></div>
+        <div class="kpi-val">{{ item_counts.accepted }}</div>
+        <div class="kpi-lbl">Prod. Accepted</div>
+        <div class="kpi-sub">(no warehouse step)</div>
+      </div>
+      <div class="kpi-card kc-purple">
+        <div class="kpi-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-warehouse"></i></div>
+        <div class="kpi-val">{{ item_counts.pending_warehouse }}</div>
+        <div class="kpi-lbl">Pending Warehouse</div>
+      </div>
+      <div class="kpi-card kc-green">
+        <div class="kpi-icon" style="background:#d1fae5;color:#059669;"><i class="fas fa-box-open"></i></div>
+        <div class="kpi-val">{{ item_counts.received }}</div>
+        <div class="kpi-lbl">WH Received</div>
+      </div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="pipeline-card">
+      <div class="sec-lbl"><i class="fas fa-route"></i> Batch Lifecycle Pipeline</div>
+      <div class="pl-track">
+        <div class="pl-node pn-amber">
+          <span class="pn-v">{{ batch_counts.pending_hod }}</span>
+          <span class="pn-l">Pending HOD</span>
+        </div>
+        <span class="pl-arr"><i class="fas fa-chevron-right"></i></span>
+        <div class="pl-node pn-blue">
+          <span class="pn-v">{{ batch_counts.hod_approved }}</span>
+          <span class="pn-l">HOD Approved</span>
+        </div>
+        <span class="pl-arr"><i class="fas fa-chevron-right"></i></span>
+        <div class="pl-node pn-purple">
+          <span class="pn-v">{{ batch_counts.production_done }}</span>
+          <span class="pn-l">Prod. Done</span>
+        </div>
+        <span class="pl-arr"><i class="fas fa-chevron-right"></i></span>
+        <div class="pl-node pn-green">
+          <span class="pn-v">{{ batch_counts.completed }}</span>
+          <span class="pn-l">Completed</span>
+        </div>
+        <div class="pl-sep"></div>
+        <div class="pl-node pn-red">
+          <span class="pn-v">{{ batch_counts.hod_rejected }}</span>
+          <span class="pn-l">HOD Rejected</span>
+        </div>
+        <div class="pl-sep"></div>
+        <div class="pl-node pn-red">
+          <span class="pn-v">{{ item_counts.rejected }}</span>
+          <span class="pn-l">Items Rejected</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-circle-notch"></i> Batch Status</div>
+        <canvas id="batchDonut"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-boxes"></i> Item Status</div>
+        <canvas id="itemDonut"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-chart-bar"></i> Monthly Submissions</div>
+        <canvas id="monthlyBar"></canvas>
+      </div>
+    </div>
+
+    <!-- Qty + Top depts/verticals row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px;">
+      <!-- Qty -->
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-layer-group"></i> Quantity Summary</div>
+        <div class="qty-row">
+          <div class="qty-row-h">
+            <span class="ql">Total Submitted</span>
+            <span class="qv">{{ qty.total_qty|floatformat:0|default:"0" }}</span>
+          </div>
+          <div class="qty-track"><div class="qty-fill" style="width:100%;background:#0076c8;"></div></div>
+        </div>
+        <div class="qty-row">
+          <div class="qty-row-h">
+            <span class="ql">Accepted (Prod.)</span>
+            <span class="qv" style="color:#10b981;">{{ qty.total_accepted|floatformat:0|default:"0" }}</span>
+          </div>
+          <div class="qty-track"><div class="qty-fill" id="qAccBar" style="background:#10b981;"></div></div>
+        </div>
+        <div class="qty-row">
+          <div class="qty-row-h">
+            <span class="ql">Received (WH)</span>
+            <span class="qv" style="color:#7c3aed;">{{ qty.total_received|floatformat:0|default:"0" }}</span>
+          </div>
+          <div class="qty-track"><div class="qty-fill" id="qRecBar" style="background:#7c3aed;"></div></div>
+        </div>
+      </div>
+      <!-- Top Depts -->
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-building"></i> Top Departments</div>
+        {% if top_depts %}{% with mx=top_depts.0.c %}{% for d in top_depts %}
+        <div class="bl-item">
+          <div class="bl-head"><span class="bl-name" title="{{ d.department__name }}">{{ d.department__name }}</span><span class="bl-cnt">{{ d.c }}</span></div>
+          <div class="bl-track"><div class="bl-fill" style="width:{% widthratio d.c mx 100 %}%;background:linear-gradient(90deg,#0076c8,#38bdf8);"></div></div>
+        </div>
+        {% endfor %}{% endwith %}{% endif %}
+      </div>
+      <!-- Top Verticals -->
+      <div class="chart-card">
+        <div class="sec-lbl"><i class="fas fa-sitemap"></i> Top Verticals</div>
+        {% if top_verticals %}{% with mx=top_verticals.0.c %}{% for v in top_verticals %}
+        <div class="bl-item">
+          <div class="bl-head"><span class="bl-name" title="{{ v.vertical__name }}">{{ v.vertical__name }}</span><span class="bl-cnt">{{ v.c }}</span></div>
+          <div class="bl-track"><div class="bl-fill" style="width:{% widthratio v.c mx 100 %}%;background:linear-gradient(90deg,#7c3aed,#c4b5fd);"></div></div>
+        </div>
+        {% endfor %}{% endwith %}{% endif %}
+      </div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="act-card">
+      <div class="sec-lbl"><i class="fas fa-history"></i> Recent Activity (Last 10)</div>
+      <ul class="act-list">
+        {% for b in recent %}
+        <li class="act-item">
+          {% if b.status == 'completed' %}
+            <div class="act-dot" style="background:#d1fae5;color:#065f46;"><i class="fas fa-check"></i></div>
+          {% elif b.status == 'hod_rejected' or b.status == 'ppic_rejected' %}
+            <div class="act-dot" style="background:#fee2e2;color:#991b1b;"><i class="fas fa-times"></i></div>
+          {% elif b.status == 'production_done' %}
+            <div class="act-dot" style="background:#ede9fe;color:#5b21b6;"><i class="fas fa-industry"></i></div>
+          {% elif b.status == 'hod_approved' %}
+            <div class="act-dot" style="background:#dbeafe;color:#1e40af;"><i class="fas fa-thumbs-up"></i></div>
+          {% elif b.status == 'pending_ppic' or b.status == 'ppic_approved' %}
+            <div class="act-dot" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-clipboard-check"></i></div>
+          {% else %}
+            <div class="act-dot" style="background:#fef3c7;color:#92400e;"><i class="fas fa-clock"></i></div>
+          {% endif %}
+          <div class="act-info">
+            <div class="ai-ref">{{ b.reference_number|default:b.pk }} &mdash; {{ b.vertical.name }}</div>
+            <div class="ai-sub">{{ b.department.name }} &bull; {{ b.uploaded_by_name }}</div>
+          </div>
+          <div class="act-meta">
+            <span class="badge badge-{{ b.status }}">{{ b.get_status_display }}</span>
+            <div class="am-date">{{ b.uploaded_at|date:"d M Y" }}</div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    {% endif %}{# /overview scope #}
+
+  </div><!-- /dash tab -->
+
+
+  <!-- ══════════════════ FULL REPORT TAB ══════════════════ -->
+  <div id="tab-report" class="rp-tab-pane">
+
+    <!-- Filter bar -->
+    <form method="get" id="filterForm" onsubmit="document.getElementById('filterForm').querySelector('[name=tab]').value='report'">
+      <input type="hidden" name="tab" value="report">
+      <div class="filter-bar">
+        <div>
+          <label>Status</label>
+          <select name="status">
+            <option value="">All Statuses</option>
+            <option value="pending_ppic" {% if f_status == 'pending_ppic' %}selected{% endif %}>Pending PPIC</option>
+            <option value="ppic_approved" {% if f_status == 'ppic_approved' %}selected{% endif %}>PPIC Approved</option>
+            <option value="ppic_rejected" {% if f_status == 'ppic_rejected' %}selected{% endif %}>PPIC Rejected</option>
+            <option value="pending_hod" {% if f_status == 'pending_hod' %}selected{% endif %}>Pending HOD</option>
+            <option value="hod_approved" {% if f_status == 'hod_approved' %}selected{% endif %}>HOD Approved</option>
+            <option value="hod_rejected" {% if f_status == 'hod_rejected' %}selected{% endif %}>HOD Rejected</option>
+            <option value="production_done" {% if f_status == 'production_done' %}selected{% endif %}>Production Done</option>
+            <option value="completed" {% if f_status == 'completed' %}selected{% endif %}>Completed</option>
+          </select>
+        </div>
+        <div>
+          <label>Vertical</label>
+          <select name="vertical">
+            <option value="">All Verticals</option>
+            {% for v in verticals_all %}
+            <option value="{{ v.pk }}" {% if f_vertical == v.pk|stringformat:'s' %}selected{% endif %}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Department</label>
+          <select name="department">
+            <option value="">All Departments</option>
+            {% for d in departments_all %}
+            <option value="{{ d.pk }}" {% if f_dept == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>From Date</label>
+          <input type="date" name="date_from" value="{{ f_from }}">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" name="date_to" value="{{ f_to }}">
+        </div>
+        <button type="submit" class="btn-filter"><i class="fas fa-search"></i> Filter</button>
+        <a href="{% url 'material_rework:report' %}?tab=report" class="btn-reset"><i class="fas fa-times"></i> Reset</a>
+        <span class="filter-result">{{ filtered_count }} batch(es) shown</span>
+      </div>
+    </form>
+
+    {% include "material_rework/_progress_table.html" %}
+
+    <!-- Full report table -->
+    {% if batches %}
+    <div class="report-wrap">
+      <div class="report-tbl-scroll">
+        <table class="report-table" id="reportTable">
+          <thead>
+            <!-- ── Batch-level column headers ── -->
+            <tr>
+              <th style="width:32px;"></th>
+              <th>Ref #</th>
+              <th>Source</th>
+              <th>Vertical</th>
+              <th>Department</th>
+              <th>Submitted By</th>
+              <th>Submit Date</th>
+              <th>Batch Status</th>
+              <th>HOD Decision</th>
+              <th>HOD Date</th>
+              <th>HOD Comments</th>
+              <th>Subject</th>
+              <th>Items</th>
+              <th>Total Qty</th>
+              <th>Prod. Accepted Qty</th>
+              <th>WH Pending Qty</th>
+              <th>WH Received Qty</th>
+              <th>Rejected</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for batch in batches %}
+          {% with items_list=batch.items.all %}
+
+          <!-- Batch row -->
+          <tr class="batch-grp-hdr" id="brow-{{ batch.pk }}">
+            <td>
+              <button class="expand-btn" onclick="toggleItems({{ batch.pk }})" id="expbtn-{{ batch.pk }}" title="Expand items">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </td>
+            <td>
+              <strong style="color:#1d4ed8;font-family:monospace;">{{ batch.reference_number|default:batch.pk }}</strong>
+            </td>
+            <td>
+              {% if batch.requested_by %}
+              <span class="stage stage-prod">{{ batch.requested_by.name }}</span>
+              {% elif batch.source %}
+              <span class="stage stage-prod">{{ batch.get_source_display }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ batch.vertical.name }}</td>
+            <td>{{ batch.department.name }}</td>
+            <td>
+              <div style="font-size:.78rem;font-weight:600;color:#06152b;">{{ batch.uploaded_by_name }}</div>
+              <div style="font-size:.7rem;color:#94a3b8;">{{ batch.uploaded_by_email }}</div>
+            </td>
+            <td style="white-space:nowrap;">{{ batch.uploaded_at|date:"d M Y" }}<br><span style="font-size:.7rem;color:#94a3b8;">{{ batch.uploaded_at|date:"H:i" }}</span></td>
+            <td><span class="badge badge-{{ batch.status }}">{{ batch.get_status_display }}</span></td>
+            <td>
+              {% if batch.status == 'hod_rejected' %}
+                <span class="stage stage-rej"><i class="fas fa-times"></i> HOD Rejected</span>
+              {% elif batch.status == 'ppic_rejected' %}
+                <span class="stage stage-rej"><i class="fas fa-times"></i> PPIC Rejected</span>
+              {% elif batch.status == 'pending_ppic' %}
+                <span class="stage stage-pend"><i class="fas fa-clipboard-check"></i> PPIC Review</span>
+              {% elif batch.status == 'pending_hod' %}
+                <span class="stage stage-pend"><i class="fas fa-clock"></i> Pending HOD</span>
+              {% else %}
+                <span class="stage stage-done"><i class="fas fa-check"></i> Approved</span>
+              {% endif %}
+            </td>
+            <td style="white-space:nowrap;font-size:.77rem;">
+              {% if batch.hod_reviewed_at %}{{ batch.hod_reviewed_at|date:"d M Y H:i" }}{% else %}—{% endif %}
+            </td>
+            <td style="max-width:150px;" title="{{ batch.hod_comments }}">
+              <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ batch.hod_comments|default:"—" }}</div>
+            </td>
+            <td style="max-width:180px;font-size:.78rem;" title="{{ batch.subject }}">
+              {{ batch.subject|default:"—"|truncatechars:60 }}
+            </td>
+            <td style="text-align:center;font-weight:700;">{{ items_list|length }}</td>
+            <td style="text-align:center;font-weight:700;" id="tqty-{{ batch.pk }}">
+              {{ batch.total_qty_sum|default:0 }}
+            </td>
+            <!-- Prod. Accepted Qty -->
+            <td style="text-align:center;">
+              <span style="font-size:.92rem;font-weight:800;color:#10b981;">{{ batch.prod_accepted_qty|default:0 }}</span>
+              <div style="font-size:.66rem;color:#94a3b8;">of {{ batch.total_qty_sum|default:0 }} total</div>
+              {% if batch.production_reviewed_by_name %}
+              <div style="font-size:.64rem;color:#0076c8;white-space:nowrap;" title="{{ batch.production_reviewed_by_email }}">
+                <i class="fas fa-user" style="font-size:.58rem;"></i> {{ batch.production_reviewed_by_name }}
+              </div>
+              {% if batch.production_reviewed_at %}
+              <div style="font-size:.62rem;color:#94a3b8;">{{ batch.production_reviewed_at|date:"d M Y" }}</div>
+              {% endif %}
+              {% endif %}
+            </td>
+            <!-- WH Pending Qty -->
+            <td style="text-align:center;">
+              <span style="font-size:.92rem;font-weight:800;color:#7c3aed;">{{ batch.wh_pending_qty|default:0 }}</span>
+              <div style="font-size:.66rem;color:#94a3b8;">{{ batch.pending_wh_count }} item{{ batch.pending_wh_count|pluralize }}</div>
+            </td>
+            <!-- WH Received Qty -->
+            <td style="text-align:center;">
+              <span style="font-size:.92rem;font-weight:800;color:#059669;">{{ batch.wh_received_qty|default:0 }}</span>
+              <div style="font-size:.66rem;color:#94a3b8;">{{ batch.received_count }} item{{ batch.received_count|pluralize }}</div>
+            </td>
+            <td style="text-align:center;color:#dc2626;font-weight:700;">
+              {{ batch.rejected_count }}
+            </td>
+            <td>
+              {% with uat=batch.uploaded_at|date:"d M Y H:i" hrat=batch.hod_reviewed_at|date:"d M Y H:i"|default:"—" %}
+              {% with prodrat=batch.production_reviewed_at|date:"d M Y H:i"|default:"—" %}
+              <button class="btn-view-item" onclick="openBatchPanel(
+                  {{ batch.pk }},
+                  '{{ batch.vertical.name|escapejs }}',
+                  '{{ batch.department.name|escapejs }}',
+                  '{{ batch.requested_by.name|default:''|escapejs }}',
+                  '{{ batch.status }}',
+                  '{{ batch.get_status_display|escapejs }}',
+                  '{{ batch.uploaded_by_name|escapejs }}',
+                  '{{ batch.uploaded_by_email|escapejs }}',
+                  '{{ uat }}',
+                  '{{ hrat }}',
+                  '{{ batch.hod_comments|escapejs }}',
+                  '{{ batch.subject|default:''|escapejs }}',
+                  '{{ batch.production_reviewed_by_name|default:''|escapejs }}',
+                  '{{ batch.production_reviewed_by_email|default:''|escapejs }}',
+                  '{{ prodrat }}'
+              )"><i class="fas fa-eye"></i> Info</button>
+              {% endwith %}
+              {% endwith %}
+            </td>
+          </tr>
+
+          <!-- Item sub-header — same toggle class, id 0 so selector picks it up -->
+          <tr class="item-row item-subhdr" id="irow-{{ batch.pk }}-0"
+              style="background:#e0f2fe;border-top:2px solid #0076c8;">
+            <td></td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">#&nbsp;&nbsp;Serial No</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Country</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Code</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Batch</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Mfg Date</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Exp Date</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">From Storage</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">To Storage</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Total / Prod.Acc / WH Rcvd / Pending</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;text-align:center;">Box No</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Remarks</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">Uploaded At</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">HOD</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Production</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Warehouse</td>
+            <td style="font-size:.7rem;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:.05em;">Status</td>
+            <td></td>
+            <td></td>
+          </tr>
+
+          <!-- Item rows — 19 cols matching batch header -->
+          {% for item in items_list %}
+          <tr class="item-row" id="irow-{{ batch.pk }}-{{ forloop.counter }}">
+
+            <!-- col 1: item number -->
+            <td style="padding-left:20px;color:#94a3b8;font-size:.74rem;white-space:nowrap;">└ {{ forloop.counter }}</td>
+
+            <!-- col 2: Serial Number -->
+            <td style="font-size:.78rem;font-weight:600;color:#06152b;">
+              {{ item.serial_number|default:"—" }}
+            </td>
+
+            <!-- col 3: Country -->
+            <td style="font-size:.75rem;color:#374151;">{{ item.country|default:"—" }}</td>
+
+            <!-- col 4: Code -->
+            <td style="font-size:.75rem;color:#1d4ed8;font-family:monospace;font-weight:600;">{{ item.material|default:"—" }}</td>
+
+            <!-- col 5: Batch -->
+            <td style="font-size:.75rem;color:#374151;">{{ item.batch_no|default:"—" }}</td>
+
+            <!-- col 6: Mfg Date -->
+            <td style="font-size:.75rem;color:#374151;white-space:nowrap;">{{ item.mfg_date|default:"—" }}</td>
+
+            <!-- col 7: Exp Date -->
+            <td style="font-size:.75rem;color:#374151;white-space:nowrap;">{{ item.exp_date|default:"—" }}</td>
+
+            <!-- col 8: From Storage -->
+            <td style="font-size:.75rem;color:#374151;">{{ item.from_storage_location|default:"—" }}</td>
+
+            <!-- col 9: To Storage -->
+            <td style="font-size:.75rem;color:#374151;">{{ item.to_storage_location|default:"—" }}</td>
+
+            <!-- col 10: Qty breakdown (original / prod accepted / WH received / pending) -->
+            <td style="font-size:.74rem;text-align:left;padding:5px 8px;line-height:1.6;">
+              <div><span style="color:#94a3b8;font-size:.65rem;">TOTAL</span>&nbsp;<span style="font-weight:800;color:#06152b;">{{ item.qty|floatformat:0 }}</span></div>
+              <div><span style="color:#10b981;font-size:.65rem;">PROD.&nbsp;ACC.</span>&nbsp;<span style="font-weight:700;color:#10b981;">{{ item.accepted_qty|floatformat:0 }}</span>
+                {% if batch.production_reviewed_by_name %}<span style="font-size:.6rem;color:#94a3b8;"> ({{ batch.production_reviewed_by_name }})</span>{% endif %}
+              </div>
+              <div><span style="color:#059669;font-size:.65rem;">WH&nbsp;RCVD</span>&nbsp;<span style="font-weight:700;color:#059669;">{{ item.qty_received|floatformat:0 }}</span></div>
+              <div><span style="color:#7c3aed;font-size:.65rem;">PENDING</span>&nbsp;<span style="font-weight:700;color:#7c3aed;">{{ item.pending_qty|floatformat:0 }}</span></div>
+            </td>
+
+            <!-- col 11: Box No -->
+            <td style="font-size:.75rem;color:#374151;text-align:center;">{{ item.box_no|default:"—" }}</td>
+
+            <!-- col 12: Remarks -->
+            <td style="font-size:.74rem;color:#6b7280;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ item.remark }}">
+              {{ item.remark|default:"—" }}
+            </td>
+
+            <!-- col 13: Uploaded At -->
+            <td style="font-size:.74rem;color:#374151;white-space:nowrap;">{{ item.item_date|default:"—" }}</td>
+
+            <!-- col 14: HOD stage -->
+            <td>
+              {% if item.status == 'hod_rejected' %}
+                <span class="stage stage-rej" style="font-size:.64rem;"><i class="fas fa-times"></i> Rej.</span>
+              {% elif batch.status == 'pending_hod' %}
+                <span class="stage stage-pend" style="font-size:.64rem;"><i class="fas fa-clock"></i> Pending</span>
+              {% else %}
+                <span class="stage stage-done" style="font-size:.64rem;"><i class="fas fa-check"></i> OK</span>
+              {% endif %}
+            </td>
+
+            <!-- col 15: Production stage -->
+            <td>
+              {% if item.status == 'pending_production' %}
+                <span class="stage stage-pend" style="font-size:.64rem;"><i class="fas fa-clock"></i> Pending</span>
+              {% elif item.production_reviewed_at %}
+                <span class="stage stage-done" style="font-size:.64rem;"><i class="fas fa-check"></i> Done</span>
+                <br><span style="font-size:.64rem;color:#94a3b8;">{{ item.production_reviewed_at|date:"d M Y" }}</span>
+              {% elif item.status == 'hod_rejected' %}
+                <span style="font-size:.64rem;color:#94a3b8;">—</span>
+              {% else %}—{% endif %}
+            </td>
+
+            <!-- col 16: Warehouse stage -->
+            <td>
+              {% if item.status == 'received' %}
+                <span class="stage stage-done" style="font-size:.64rem;"><i class="fas fa-box-open"></i> Rcvd</span>
+                <br><span style="font-size:.64rem;color:#94a3b8;">{{ item.warehouse_received_at|date:"d M Y" }}</span>
+              {% elif item.status == 'accepted' %}
+                <span class="stage stage-done" style="font-size:.64rem;"><i class="fas fa-check"></i> No WH</span>
+              {% elif item.status == 'pending_warehouse' %}
+                <span class="stage stage-wh" style="font-size:.64rem;"><i class="fas fa-warehouse"></i> Pending</span>
+              {% elif item.status == 'rejected' %}
+                <span class="stage stage-rej" style="font-size:.64rem;"><i class="fas fa-times"></i> Rej.</span>
+              {% else %}—{% endif %}
+            </td>
+
+            <!-- col 17: Item status badge -->
+            <td><span class="badge badge-{{ item.status }}" style="font-size:.62rem;">{{ item.get_status_display }}</span></td>
+
+            <!-- col 18: empty (Subject is a batch-level column) -->
+            <td></td>
+
+            <!-- col 19: View detail button -->
+            <td>
+              {% with prat=item.production_reviewed_at|date:"d M Y H:i"|default:"—" wrat=item.warehouse_received_at|date:"d M Y H:i"|default:"—" %}
+              <button class="btn-view-item" onclick="openItemPanel(
+                  {{ forloop.counter }},
+                  '{{ item.material|escapejs }}',
+                  '{{ item.batch_no|default:''|escapejs }}',
+                  '{{ item.qty|floatformat:0 }}',
+                  '{{ item.accepted_qty|floatformat:0 }}',
+                  '{{ item.pending_qty|floatformat:0 }}',
+                  '{{ item.qty_received|floatformat:0 }}',
+                  '{{ item.box_no|default:''|escapejs }}',
+                  '{{ item.remark|default:''|escapejs }}',
+                  '{{ item.status }}',
+                  '{{ item.get_status_display|escapejs }}',
+                  '{{ item.production_remarks|default:''|escapejs }}',
+                  '{{ prat }}',
+                  '{{ wrat }}',
+                  '{{ batch.reference_number|default:batch.pk|escapejs }}',
+                  '{{ item.serial_number|default:''|escapejs }}',
+                  '{{ item.country|default:''|escapejs }}',
+                  '{{ item.mfg_date|default:''|escapejs }}',
+                  '{{ item.exp_date|default:''|escapejs }}',
+                  '{{ item.from_storage_location|default:''|escapejs }}',
+                  '{{ item.to_storage_location|default:''|escapejs }}',
+                  '{{ item.item_date|default:''|escapejs }}'
+              )"><i class="fas fa-eye"></i></button>
+              {% endwith %}
+            </td>
+          </tr>
+          {% endfor %}
+
+          {% endwith %}
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:60px;text-align:center;">
+      <i class="fas fa-inbox" style="font-size:2.5rem;color:#d1d5db;display:block;margin-bottom:12px;"></i>
+      <p style="color:#9ca3af;font-size:.9rem;">No batches match the selected filters.</p>
+      <a href="{% url 'material_rework:report' %}?tab=report" style="color:#0076c8;font-size:.85rem;">Clear filters</a>
+    </div>
+    {% endif %}
+
+  </div><!-- /report tab -->
+</div><!-- /rp-page -->
+{% endblock %}
+
+{% block extra_modals %}
+{% include "material_rework/_delete_batch_modal.html" %}
+
+<div class="slide-overlay" id="slideOverlay" onclick="if(event.target===this)closePanel()">
+  <div class="slide-panel">
+    <div class="panel-head">
+      <span class="panel-title" id="panelTitle"><i class="fas fa-ticket-alt" style="color:#0076c8;"></i> Preview</span>
+      <button class="panel-close" onclick="closePanel()">&times;</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+    <div class="panel-foot">
+      <button onclick="closePanel()" style="width:100%;padding:9px;background:#f1f5f9;color:#374151;border:none;border-radius:6px;font-size:.84rem;font-weight:600;cursor:pointer;"><i class="fas fa-times"></i> Close</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const BC = {
+  pending_hod:     {{ batch_counts.pending_hod }},
+  hod_approved:    {{ batch_counts.hod_approved }},
+  hod_rejected:    {{ batch_counts.hod_rejected }},
+  production_done: {{ batch_counts.production_done }},
+  completed:       {{ batch_counts.completed }},
+};
+const IC = {
+  pending_production:  {{ item_counts.pending_production }},
+  pending_warehouse:   {{ item_counts.pending_warehouse }},
+  accepted:            {{ item_counts.accepted }},
+  rejected:            {{ item_counts.rejected }},
+  received:            {{ item_counts.received }},
+  hod_rejected:        {{ item_counts.hod_rejected }},
+};
+const QTY = {
+  total:    {{ qty.total_qty|default:0 }},
+  accepted: {{ qty.total_accepted|default:0 }},
+  received: {{ qty.total_received|default:0 }},
+};
+const MONTHLY = {
+  labels: [{% for m in monthly %}'{{ m.label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+  data:   [{% for m in monthly %}{{ m.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+};
+{% comment %}
+Chart data for the two per-user scopes. Undefined in the overview scope, which
+is what report.js checks before touching those canvases — the three scopes
+render different sets, and reaching for a canvas that is not there throws and
+takes the tabs and panels down with it.
+
+For "all users" the people series is capped: a bar chart of eighty names is
+unreadable, and the full list is in the table underneath it either way.
+{% endcomment %}
+{% if scope == scope_all_users %}
+const USERS = {
+  people: {
+    labels: [{% for row in progress.rows|slice:":12" %}"{{ row.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    data:   [{% for row in progress.rows|slice:":12" %}{{ row.total }}{% if not forloop.last %},{% endif %}{% endfor %}],
+  },
+  stages: {
+    labels: [{% for key, label in progress.columns %}"{{ label|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    data:   [{% for n in progress.totals.cells %}{{ n }}{% if not forloop.last %},{% endif %}{% endfor %}],
+  },
+};
+{% elif scope == scope_one_user and user_dash %}
+const USERS = {
+  people: { labels: [], data: [] },
+  stages: {
+    labels: [{% for label in user_dash.chart.labels %}"{{ label|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    data:   [{% for n in user_dash.chart.data %}{{ n }}{% if not forloop.last %},{% endif %}{% endfor %}],
+  },
+};
+{% endif %}
+
+const DEL_URL_BASE = "{% url 'material_rework:delete_batch' 0 %}".replace('/0/', '/');
+</script>
+<script src="{% static 'js/material-rework/report.js' %}"></script>
+{% endblock %}

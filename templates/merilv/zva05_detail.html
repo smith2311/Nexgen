@@ -1,0 +1,256 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+ZVA05 console. Unlike Branch Transfer, scan/undo/focus here DO return a full
+`state` payload (merilv/zva05.py:payload_for), so this reconciles the groups
+table and totals from every response directly — no reload needed.
+{% endcomment %}
+
+{% block mv_title %}{{ dump }} — ZVA05{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:outbound' %}?mode=zva05">Outbound Scanner · ZVA05</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ dump }}</span>
+{% endblock %}
+{% block mv_heading %}{{ dump }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ dump.entity.name }} · material-only matching against open order quantity</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:zva05_export' dump.pk %}" class="mv-btn">{% icon "download" %} Export</a>
+{% if not dump.is_finished %}
+<button type="button" class="mv-btn mv-btn--primary" data-mv-open-modal="mvZvaFinishModal">{% icon "check" %} Close extract</button>
+{% endif %}
+{% endblock %}
+
+{% block mv_body %}
+{% comment %}"outbound", not "zva05": ZVA05 is a mode of that console now,
+so its own tab is the one that should read as active.{% endcomment %}
+{% with mv_scan_mode="outbound" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-console" style="grid-template-columns:minmax(0,1fr) 360px;">
+    <div class="mv-console__middle">
+        <div class="mv-kpis" style="margin-bottom:var(--mv-4);">
+            <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "package" %}</span><span class="mv-kpi__label">Required</span><span class="mv-kpi__value" data-mv="kpi-required">{{ payload.totals.required|floatformat:0 }}</span></div>
+            <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scanned</span><span class="mv-kpi__value" data-mv="kpi-scanned">{{ payload.totals.scanned|floatformat:0 }}</span></div>
+            <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Reconciled</span><span class="mv-kpi__value" data-mv="kpi-percent">{{ payload.totals.percent }}%</span></div>
+        </div>
+
+        {% if not dump.is_finished %}
+        <input type="text" class="mv-scan-input" id="mvZvaInput" autocomplete="off" autofocus placeholder="SCAN BARCODE" aria-label="Scan barcode">
+        <div class="mv-scan-statusline" style="margin-top:var(--mv-2);margin-bottom:var(--mv-4);"><span id="mvZvaStatus">Ready to scan. Keyboard input is focused.</span>
+            <button type="button" class="mv-link-btn" id="mvZvaUndo" style="margin-left:auto;">{% icon "undo" 14 %} Undo last</button></div>
+        {% else %}
+        <div class="mv-alert mv-alert--ok" style="margin-bottom:var(--mv-4);">{% icon "check-circle" %}<div>This extract is closed. It is read-only.</div></div>
+        {% endif %}
+
+        {% comment %}
+        Status filter over the scan feed. The feed comes from ScanLog, so it
+        holds rejected attempts too — without that the "Rejected" tab would sit
+        empty after a reload even though the operator had just been refused a
+        dozen scans. Filtering is client-side over data-status/data-code, which
+        keeps it instant and keeps newly scanned rows filterable without a
+        round trip.
+        {% endcomment %}
+        <div class="mv-scanfilter" data-mv-scanfilter-bar="mvZvaLog">
+            <div class="mv-viewswitch" role="group" aria-label="Filter scans by status">
+                <button type="button" data-mv-scanfilter="all" aria-pressed="true">
+                    {% icon "layers" %}<span>All <span class="mv-scanfilter__n" data-mv-count="all">{{ counts.all }}</span></span>
+                </button>
+                <button type="button" data-mv-scanfilter="accepted" aria-pressed="false">
+                    {% icon "check-circle" %}<span>Assigned <span class="mv-scanfilter__n" data-mv-count="accepted">{{ counts.accepted }}</span></span>
+                </button>
+                <button type="button" data-mv-scanfilter="rejected" aria-pressed="false">
+                    {% icon "x-circle" %}<span>Rejected <span class="mv-scanfilter__n" data-mv-count="rejected">{{ counts.rejected }}</span></span>
+                </button>
+            </div>
+            <input type="search" class="mv-input mv-scanfilter__search" data-mv-scanfilter-search
+                   placeholder="Find a code, material or reason…" aria-label="Search scans"
+                   autocomplete="off" data-mv-no-nav>
+        </div>
+
+        <div class="mv-scanlog" id="mvZvaLog">
+            {% for s in feed %}
+            <div class="mv-scanrow mv-scanrow--{{ s.family }}"
+                 data-status="{% if s.accepted %}accepted{% else %}rejected{% endif %}"
+                 data-code="{{ s.raw_scan }}">
+                <div class="mv-scanrow__time mv-mono">{{ s.created_at|date:"H:i:s" }}</div>
+                <div class="mv-scanrow__badge">{% reason_badge s.reason_code %}</div>
+                <div class="mv-scanrow__body">
+                    <div class="mv-scanrow__code mv-mono">{{ s.raw_scan }}</div>
+                    <div class="mv-scanrow__msg">{{ s.message }}{% if s.target %} → {{ s.target }}{% endif %}</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="mv-empty" data-mv-empty="seed">{% icon "scan" 48 %}<div class="mv-empty__title">No scans yet</div></div>
+            {% endfor %}
+        </div>
+        <div class="mv-empty" data-mv-scanfilter-nomatch hidden>
+            {% icon "search-x" 48 %}<div class="mv-empty__title">No scans match this filter</div>
+        </div>
+    </div>
+
+    <div class="mv-console__right">
+        <div class="mv-t-caption mv-t-strong" style="text-transform:uppercase;letter-spacing:.04em;">Open orders</div>
+        <div class="mv-delivery-list" id="mvZvaGroups">
+            {% for g in payload.groups %}
+            <button type="button" class="mv-delivery-card{% if g.focus_key == payload.focus_key %} is-focused{% endif %}{% if g.complete %} is-complete{% endif %}"
+                    data-focus-key="{{ g.focus_key }}" onclick="mvZvaFocus('{{ g.focus_key }}')">
+                <div class="mv-ring{% if g.complete %} is-complete{% endif %}">
+                    <svg viewBox="0 0 48 48"><circle class="mv-ring__track" cx="24" cy="24" r="20" fill="none" stroke-width="4"/>
+                    <circle class="mv-ring__bar" cx="24" cy="24" r="20" fill="none" stroke-width="4" stroke-linecap="round"
+                        stroke-dasharray="125.6" stroke-dashoffset="{{ g.percent|default:0 }}"></circle></svg>
+                    <div class="mv-ring__text">{{ g.percent|floatformat:0 }}%</div>
+                </div>
+                <div class="mv-delivery-card__body">
+                    <div class="mv-delivery-card__head"><span class="mv-mono mv-t-strong">{{ g.sales_document }}</span>
+                        <span class="mv-badge {% if g.complete %}mv-badge--ok{% elif g.focus_key == payload.focus_key %}mv-badge--primary{% else %}mv-badge--neutral{% endif %}">
+                            {% if g.complete %}COMPLETE{% elif g.focus_key == payload.focus_key %}FOCUSED{% else %}PENDING{% endif %}</span></div>
+                    <div class="mv-delivery-card__customer">{{ g.customer }}</div>
+                    <div class="mv-delivery-card__qty mv-t-caption">{{ g.scanned|floatformat:0 }} / {{ g.required|floatformat:0 }} scanned</div>
+                </div>
+                <svg class="mv-delivery-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            {% empty %}
+            <div class="mv-empty">{% icon "package" 48 %}<div class="mv-empty__title">No open orders</div></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if not dump.is_finished %}
+<div class="mv-modal-scrim" id="mvZvaFinishModal">
+    <div class="mv-modal" role="dialog" aria-modal="true">
+        <form method="post" action="{% url 'merilv:zva05_finish' dump.pk %}">
+            {% csrf_token %}
+            <div class="mv-modal__head"><h2 class="mv-t-h2">Close this extract?</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button></div>
+            <div class="mv-modal__body"><p class="mv-t-body" style="margin:0;">No more scans can be assigned once closed. {{ payload.totals.pending|floatformat:0 }} unit(s) are still pending.</p></div>
+            <div class="mv-modal__foot"><button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Close extract</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    var input = document.getElementById('mvZvaInput');
+    var status = document.getElementById('mvZvaStatus');
+    var log = document.getElementById('mvZvaLog');
+    var posting = false;
+
+    function post(url, fd) {
+        var headers = window.mvUI ? window.mvUI.csrfHeaders() : {};
+        return fetch(url, { method: 'POST', headers: headers, body: fd || new FormData() }).then(function (r) { return r.json(); });
+    }
+    function renderState(p) {
+        document.querySelector('[data-mv="kpi-required"]').textContent = Math.round(p.totals.required);
+        document.querySelector('[data-mv="kpi-scanned"]').textContent = Math.round(p.totals.scanned);
+        document.querySelector('[data-mv="kpi-percent"]').textContent = p.totals.percent + '%';
+
+        var host = document.getElementById('mvZvaGroups');
+        host.innerHTML = '';
+        (p.groups || []).forEach(function (g) {
+            var focused = g.focus_key === p.focus_key;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mv-delivery-card' + (focused ? ' is-focused' : '') + (g.complete ? ' is-complete' : '');
+            btn.addEventListener('click', function () { mvZvaFocus(g.focus_key); });
+            var c = 2 * Math.PI * 20;
+            var off = c - (Math.max(0, Math.min(100, g.percent)) / 100) * c;
+            var pill = g.complete ? 'ok' : (focused ? 'primary' : 'neutral');
+            var pillText = g.complete ? 'COMPLETE' : (focused ? 'FOCUSED' : 'PENDING');
+            btn.innerHTML =
+                '<div class="mv-ring' + (g.complete ? ' is-complete' : '') + '"><svg viewBox="0 0 48 48">' +
+                '<circle class="mv-ring__track" cx="24" cy="24" r="20" fill="none" stroke-width="4"/>' +
+                '<circle class="mv-ring__bar" cx="24" cy="24" r="20" fill="none" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + off + '"/>' +
+                '</svg><div class="mv-ring__text">' + Math.round(g.percent) + '%</div></div>' +
+                '<div class="mv-delivery-card__body"><div class="mv-delivery-card__head"><span class="mv-mono mv-t-strong"></span>' +
+                '<span class="mv-badge mv-badge--' + pill + '">' + pillText + '</span></div>' +
+                '<div class="mv-delivery-card__customer"></div><div class="mv-delivery-card__qty mv-t-caption"></div></div>' +
+                '<svg class="mv-delivery-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+            btn.querySelector('.mv-mono').textContent = g.sales_document;
+            btn.querySelector('.mv-delivery-card__customer').textContent = g.customer;
+            btn.querySelector('.mv-delivery-card__qty').textContent = Math.round(g.scanned) + ' / ' + Math.round(g.required) + ' scanned';
+            host.appendChild(btn);
+        });
+    }
+    // The status filter itself lives in datatable.js (wireScanFilter) so this
+    // console and the Outbound one share one implementation; here we only need
+    // to re-apply it after appending a row.
+    function applyFilter() {
+        if (window.mvUI && window.mvUI.applyScanFilters) { window.mvUI.applyScanFilters(); }
+    }
+
+    window.mvZvaFocus = function (key) {
+        var fd = new FormData(); fd.append('focus_key', key);
+        post('{% url "merilv:zva05_focus" dump.pk %}', fd).then(function (d) { if (d.state) { renderState(d.state); } });
+    };
+    if (document.getElementById('mvZvaUndo')) {
+        document.getElementById('mvZvaUndo').addEventListener('click', function () {
+            post('{% url "merilv:zva05_undo" dump.pk %}').then(function (d) {
+                if (!d.ok) { status.textContent = d.message; return; }
+                // The server appends an UNDONE entry rather than deleting the
+                // original accept, so mirror that instead of removing the top
+                // row — which, now that rejections are logged too, would often
+                // have deleted an unrelated rejection.
+                var row = document.createElement('div');
+                row.className = 'mv-scanrow mv-scanrow--warn';
+                row.dataset.status = 'rejected';
+                row.dataset.code = d.raw_scan || '';
+                row.innerHTML = '<div class="mv-scanrow__time mv-mono"></div>' +
+                    '<div class="mv-scanrow__badge"><span class="mv-reason mv-reason--warn">UNDONE</span></div>' +
+                    '<div class="mv-scanrow__body"><div class="mv-scanrow__code mv-mono"></div><div class="mv-scanrow__msg"></div></div>';
+                row.querySelector('.mv-scanrow__time').textContent = new Date().toLocaleTimeString([], { hour12: false });
+                row.querySelector('.mv-scanrow__code').textContent = d.raw_scan || d.removed || '';
+                row.querySelector('.mv-scanrow__msg').textContent = d.message || '';
+                var seed = log.querySelector('[data-mv-empty="seed"]'); if (seed) { seed.remove(); }
+                log.insertBefore(row, log.firstChild);
+                if (d.state) { renderState(d.state); }
+                status.textContent = 'Undone: ' + d.removed;
+                applyFilter();
+            });
+        });
+    }
+    if (input) {
+        function refocus() { if (document.activeElement !== input && !document.querySelector('.mv-modal-scrim.is-open')) { input.focus(); } }
+        document.addEventListener('keydown', function (e) {
+            if (e.target === input || document.querySelector('.mv-modal-scrim.is-open')) { return; }
+            if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { return; }
+            if (e.key.length === 1 || e.key === 'Backspace') { refocus(); }
+        });
+        refocus();
+        input.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' || posting) { return; }
+            var raw = input.value.trim();
+            if (!raw) { return; }
+            posting = true;
+            status.textContent = 'Submitting…';
+            var fd = new FormData(); fd.append('raw_scan', raw);
+            post('{% url "merilv:zva05_scan" dump.pk %}', fd).then(function (data) {
+                var family = data.accepted ? 'ok' : (data.status === 'warning' ? 'warn' : 'danger');
+                var row = document.createElement('div');
+                row.className = 'mv-scanrow mv-scanrow--' + family;
+                // Same contract as the server-rendered rows above, so the status
+                // filter and search treat live scans identically.
+                row.dataset.status = data.accepted ? 'accepted' : 'rejected';
+                row.dataset.code = raw;
+                row.innerHTML = '<div class="mv-scanrow__time mv-mono"></div>' +
+                    '<div class="mv-scanrow__badge"><span class="mv-reason mv-reason--' + family + '"></span></div>' +
+                    '<div class="mv-scanrow__body"><div class="mv-scanrow__code mv-mono"></div><div class="mv-scanrow__msg"></div></div>';
+                row.querySelector('.mv-scanrow__time').textContent = new Date().toLocaleTimeString([], { hour12: false });
+                row.querySelector('.mv-reason').textContent = (data.reason_code || (data.accepted ? 'OK' : 'REJECTED')).replace(/_/g, ' ');
+                row.querySelector('.mv-scanrow__code').textContent = raw;
+                row.querySelector('.mv-scanrow__msg').textContent = data.message || '';
+                var seed = log.querySelector('[data-mv-empty="seed"]'); if (seed) { seed.remove(); }
+                log.insertBefore(row, log.firstChild);
+                status.textContent = data.message || (data.accepted ? 'Assigned.' : 'Rejected.');
+                if (data.state) { renderState(data.state); }
+                applyFilter();
+            }).catch(function () { status.textContent = 'Network error.'; })
+              .finally(function () { posting = false; input.value = ''; setTimeout(refocus, 50); });
+        });
+    }
+})();
+</script>
+{% endblock %}

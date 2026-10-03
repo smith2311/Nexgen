@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Invalid — Meril Life Sciences</title>
+    <link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/assessment_external.css' %}">
+</head>
+<body class="vl-ext-body">
+<header class="vl-ext-header">
+    <div class="vl-ext-header-inner">
+        <div class="vl-ext-brand">
+            <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril" class="vl-ext-logo">
+            <span class="vl-ext-brand-text">3PL Capability Assessment</span>
+        </div>
+    </div>
+</header>
+<main class="vl-ext-main">
+    <div class="vl-error-card">
+        <div class="vl-error-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        {% if reason == "expired" %}
+        <h1>Link Expired</h1>
+        <p>This assessment link has expired. Please contact the Meril Global SCM team to request a new link.</p>
+        {% elif reason == "invalid" %}
+        <h1>Link Not Found</h1>
+        <p>This assessment link is not valid. Please check the link you were sent, or contact your Meril representative for a new invite.</p>
+        {% else %}
+        <h1>Assessment Closed</h1>
+        <p>This assessment has already been submitted or is no longer accepting responses.</p>
+        {% endif %}
+        <p class="vl-hint">If you believe this is an error, please reach out to your Meril contact.</p>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Meril - SAP Reconciliation Export{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/reconciliation_export.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-main">
+    <div class="header">
+        <h1>📊 SAP Reconciliation Export</h1>
+        <p>Export scanned products for SAP billing system</p>
+    </div>
+
+    <div class="content">
+        <!-- Alert Message -->
+        <div id="alertContainer"></div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-title">🔍 Filter Batches</div>
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label for="filterHospital">Hospital</label>
+                    <select id="filterHospital">
+                        <option value="">All Hospitals</option>
+                        {% for hospital in hospitals %}
+                        <option value="{{ hospital.id }}">{{ hospital.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filterBatchId">Batch ID</label>
+                    <input type="text" id="filterBatchId" placeholder="Search batch ID...">
+                </div>
+                <div class="form-group">
+                    <label for="filterStatus">Status</label>
+                    <select id="filterStatus">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filterDateFrom">From Date</label>
+                    <input type="date" id="filterDateFrom">
+                </div>
+                <div class="form-group">
+                    <label for="filterDateTo">To Date</label>
+                    <input type="date" id="filterDateTo">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-primary" onclick="applyFilters()">🔍 Apply Filters</button>
+                <button class="btn-secondary" onclick="clearFilters()">↺ Clear</button>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalBatches">0</div>
+                <div class="stat-label">Total Batches</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalProducts">0</div>
+                <div class="stat-label">Products Scanned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedSessions">0</div>
+                <div class="stat-label">Completed Sessions</div>
+            </div>
+        </div>
+
+        <!-- Batches List -->
+        <div class="batches-section">
+            <div class="batches-title">📦 Scanning Batches</div>
+            <div id="batchesContainer" class="loading-spinner show">
+                <div class="spinner"></div>
+                <p>Loading batches...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/reconciliation_export.js' %}"></script>
+{% endblock %}

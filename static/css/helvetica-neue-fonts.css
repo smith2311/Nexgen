@@ -1,0 +1,277 @@
+/* ============================================================================
+   Helvetica Neue — the single UI typeface for NexGen.
+
+   Self-hosted, converted from the supplied OTF/TTF originals in
+   static/css/fonts/helvetica-neue-5/ and subset to Latin, Latin-Ext, Greek,
+   Cyrillic, currency, punctuation and dingbats (6.4 MB of OTF -> ~1.25 MB of
+   woff2). Browsers fetch only the cuts a page actually renders.
+
+   ── Why each face claims a weight RANGE ──────────────────────────────────
+   Helvetica Neue ships no 600 cut, and the UI asks for 600 in ~844 places and
+   700 in ~1,018 more. Left to default CSS matching a request above 500 rounds
+   UPWARD, so nearly the whole interface rendered Bold or heavier.
+
+   Each face therefore claims a slice of the 1-1000 scale, tuned so the UI
+   reads light while keeping three legible steps of hierarchy:
+
+     request              renders as   role
+     400 (body default)   Roman        normal text
+     500 600 650 700 750  Medium       emphasis / labels / most headings
+     800                  Bold         the few genuinely strong elements
+     900                  Heavy
+
+   ── Tuning ──────────────────────────────────────────────────────────────
+   HEAVIER: move the Bold slice's lower bound down (781 -> 651) to put 700
+            back on Bold, which is the single biggest lever.
+   LIGHTER: move the Medium slice's lower bound up (451 -> 551) so 500 falls
+            to Roman. Going further — putting 600 on Roman — would make
+            emphasised text identical to body text, so prefer reducing the
+            number of 600/700 declarations in the app CSS instead.
+   ========================================================================= */
+
+/* UltraLight — serves requests 1-150 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 1 150;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-100.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 1 150;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-100i.woff2) format('woff2');
+}
+
+/* Thin — serves requests 151-250 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 151 250;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-200.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 151 250;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-200i.woff2) format('woff2');
+}
+
+/* Light — serves requests 251-350 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 251 350;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-300.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 251 350;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-300i.woff2) format('woff2');
+}
+
+/* Roman — serves requests 351-450 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 351 450;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-400.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 351 450;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-400i.woff2) format('woff2');
+}
+
+/* Medium — serves requests 451-780 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 451 780;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-500.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 451 780;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-500i.woff2) format('woff2');
+}
+
+/* Bold — serves requests 781-880 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 781 880;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 781 880;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-700i.woff2) format('woff2');
+}
+
+/* Heavy — serves requests 881-950 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 881 950;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-800.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 881 950;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-800i.woff2) format('woff2');
+}
+
+/* Black — serves requests 951-1000 */
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: normal;
+  font-weight: 951 1000;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-900.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Helvetica Neue';
+  font-style: italic;
+  font-weight: 951 1000;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-900i.woff2) format('woff2');
+}
+
+/* ── Manrope alias ───────────────────────────────────────────────────────
+   Browsers holding stylesheets cached from before the switch still ask for
+   Manrope by name; pointing it at the same files keeps those pages on
+   Helvetica Neue instead of dropping to a system font. Safety net only —
+   nothing in the repo names Manrope any more.
+   --------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 1 150;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-100.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 1 150;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-100i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 151 250;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-200.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 151 250;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-200i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 251 350;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-300.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 251 350;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-300i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 351 450;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-400.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 351 450;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-400i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 451 780;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-500.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 451 780;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-500i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 781 880;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 781 880;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-700i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 881 950;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-800.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 881 950;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-800i.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 951 1000;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-900.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: italic;
+  font-weight: 951 1000;
+  font-display: swap;
+  src: url(fonts/helvetica-neue/hn-900i.woff2) format('woff2');
+}

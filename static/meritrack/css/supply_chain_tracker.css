@@ -1,0 +1,44 @@
+/* Supply Chain Tracker — uses meritrack-core.css design system */
+
+.mt-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); margin-bottom: 20px; }
+.mt-card h3 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-purple { background: var(--mt-purple-light); color: var(--mt-purple-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-700); }
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 0.9em; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-mt-primary { background: var(--mt-primary); color: #fff; }
+.btn-mt-primary:hover { background: var(--mt-primary-dark); }
+
+/* Search */
+.search-box { display: flex; gap: 12px; margin-bottom: 24px; }
+.search-box input { flex: 1; padding: 12px 16px; border: 2px solid var(--mt-gray-300); border-radius: 10px; font-size: 0.95em; }
+.search-box input:focus { outline: none; border-color: var(--mt-primary); box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+
+/* Timeline */
+.timeline { position: relative; padding-left: 40px; }
+.timeline::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 3px; background: var(--mt-gray-200); border-radius: 2px; }
+.timeline-event { position: relative; margin-bottom: 20px; padding: 16px 20px; background: #fff; border: 1px solid var(--mt-gray-200); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.timeline-event::before { content: ''; position: absolute; left: -32px; top: 20px; width: 12px; height: 12px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--mt-gray-300); }
+.timeline-event.manufactured::before { background: var(--mt-gray-600); box-shadow: 0 0 0 2px var(--mt-gray-600); }
+.timeline-event.shipped::before { background: var(--mt-primary); box-shadow: 0 0 0 2px var(--mt-primary); }
+.timeline-event.received::before { background: var(--mt-secondary); box-shadow: 0 0 0 2px var(--mt-secondary); }
+.timeline-event.stored::before { background: var(--mt-purple); box-shadow: 0 0 0 2px var(--mt-purple); }
+.timeline-event.used::before { background: var(--mt-success); box-shadow: 0 0 0 2px var(--mt-success); }
+.timeline-event.returned::before { background: var(--mt-warning); box-shadow: 0 0 0 2px var(--mt-warning); }
+.timeline-event.expired::before, .timeline-event.destroyed::before { background: var(--mt-danger); box-shadow: 0 0 0 2px var(--mt-danger); }
+.timeline-event .event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.timeline-event .event-type { font-weight: 700; font-size: 0.9em; color: var(--mt-gray-800); }
+.timeline-event .event-time { font-size: 0.78em; color: var(--mt-gray-400); }
+.timeline-event .event-detail { font-size: 0.85em; color: var(--mt-gray-700); }
+.timeline-event .event-location { font-size: 0.8em; color: var(--mt-gray-600); margin-top: 4px; }
+
+/* Product Info Card */
+.product-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.product-info .info-item .label { font-size: 0.78em; color: var(--mt-gray-600); }
+.product-info .info-item .value { font-weight: 600; color: var(--mt-gray-800); font-size: 0.92em; }
+.empty-state { text-align: center; padding: 60px; color: var(--mt-gray-400); }
+.empty-state i { font-size: 3em; margin-bottom: 16px; display: block; }

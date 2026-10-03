@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}My Visa Applications{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-list-alt"></i> My Applications</h1>
+          <p>Track and manage your visa applications</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ applications|length }}</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% elif msg.tags == 'success' %}success{% else %}warn{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'visa:apply_new' %}" class="btn btn-navy btn-sm">
+          <i class="fas fa-plus"></i> New Application
+        </a>
+      </div>
+      <div class="record-count">{{ applications|length }} application{{ applications|length|pluralize }}</div>
+    </div>
+
+    <div class="tbl-wrap tbl-scroll" style="--cols: 1.5fr 1fr 1fr 1.5fr 1fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Ref No</div>
+        <div>Country</div>
+        <div>Company</div>
+        <div>Travel Dates</div>
+        <div>Status</div>
+        <div>Submitted</div>
+        <div></div>
+      </div>
+      {% for a in applications %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols); cursor:pointer"
+           onclick="window.location.href='{% url 'visa:application_detail' a.pk %}'">
+        <div><span class="vm-mono">{{ a.ref_no }}</span></div>
+        <div class="tbl-name">{{ a.country.name }}</div>
+        <div class="tbl-sub">{{ a.company.code }}</div>
+        <div style="font-size:12px;white-space:nowrap">{{ a.visit_start_date|date:"d M Y" }} — {{ a.visit_end_date|date:"d M Y" }}</div>
+        <div><span class="vm-pill {{ a.status }}">{{ a.status_label }}</span></div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ a.created_at|date:"d M Y" }}</div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:application_detail' a.pk %}" class="tbl-btn">View</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-passport"></i>
+        <p>No applications yet. <a href="{% url 'visa:apply_new' %}" style="color:var(--blue)">Start your first application →</a></p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

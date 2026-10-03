@@ -1,0 +1,43 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Master Data → Add Material by hand. The counterpart to bulk import.{% endcomment %}
+
+{% block mv_title %}Add Material — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters_materials' %}">Materials</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Add</span>
+{% endblock %}
+{% block mv_heading %}Add Material{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">For a single new SKU. Anything more than a handful of rows belongs in a spreadsheet import.</p>{% endblock %}
+
+{% block mv_body %}
+<div class="mv-card" style="max-width:640px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="mv-field">
+            <label class="mv-label" for="mvEntity">Entity <span class="mv-req">*</span></label>
+            <select class="mv-select" id="mvEntity" name="entity" required>
+                {% for e in entities %}<option value="{{ e.code }}">{{ e.code }} — {{ e.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="mv-field-row">
+            <div class="mv-field"><label class="mv-label" for="mvScanCode">Scan code <span class="mv-req">*</span></label><input class="mv-input mv-input--mono" id="mvScanCode" name="scan_code" required style="text-transform:uppercase;"></div>
+            <div class="mv-field"><label class="mv-label" for="mvMatCode">SAP material code</label><input class="mv-input mv-input--mono" id="mvMatCode" name="material_code" style="text-transform:uppercase;">
+                <span class="mv-hint">Defaults to the scan code if left blank.</span></div>
+        </div>
+        <div class="mv-field"><label class="mv-label" for="mvDesc">Description</label><input class="mv-input" id="mvDesc" name="material_description"></div>
+        <div class="mv-field-row">
+            <div class="mv-field"><label class="mv-label" for="mvGtin">GTIN</label><input class="mv-input mv-input--mono" id="mvGtin" name="gtin"></div>
+            <div class="mv-field"><label class="mv-label" for="mvGroup">Material group</label><input class="mv-input" id="mvGroup" name="material_group"></div>
+        </div>
+        <div class="mv-card__footer">
+            <a href="{% url 'merilv:masters_materials' %}" class="mv-btn">Cancel</a>
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "plus" %} Add material</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

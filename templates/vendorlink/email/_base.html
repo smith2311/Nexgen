@@ -1,0 +1,113 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+{% comment %}
+The shell every VendorLink email renders inside.
+
+The five existing mails each carried their own copy of the wrapper — header
+gradient, card, sign-off, footer — so a change to the chrome meant five edits
+and they had already drifted. Blocks here, content in the child.
+
+Email-specific constraints this obeys, all of which look like bad practice
+anywhere else:
+
+* Tables for layout and styles inline on every element. Outlook renders through
+  Word, which has no flexbox or grid and discards a <style> block entirely.
+* The logo is a `cid:` reference to an image attached to the message, not a URL.
+  Gmail, Outlook and Apple Mail all block remote images by default, so a hosted
+  logo shows as a broken placeholder on first open — which is the one impression
+  a vendor gets. See vendorlink/mailer.py, which does the attaching.
+* No web fonts, no external CSS, no JavaScript: stripped or blocked everywhere.
+* Everything degrades to the plain-text alternative, which mailer.py sends
+  alongside — some vendors read mail as text, and spam filters weight a
+  multipart message with a real text part more kindly.
+
+Blocks: preheader, icon, title, subtitle, reference, content, signoff, footer_note.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>{% block title %}Meril VendorLink{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#eef2f7;-webkit-font-smoothing:antialiased;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+{% comment %}
+Hidden preheader: the grey line a client previews next to the subject. Left
+unset it shows whatever the first visible text happens to be, which is usually
+the header title repeated.
+{% endcomment %}
+<div style="display:none;font-size:1px;color:#eef2f7;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  {% block preheader %}{% endblock %}
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef2f7;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="620" cellpadding="0" cellspacing="0" border="0" style="max-width:620px;width:100%;">
+
+        {% comment %}Header. The gradient degrades to the solid background-color in clients that drop it.{% endcomment %}
+        <tr>
+          <td style="background:#0076c8;background-image:linear-gradient(135deg,#0076c8 0%,#00b5e2 100%);border-radius:14px 14px 0 0;padding:34px 36px;text-align:center;">
+            {% block icon %}{% endblock %}
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.3px;line-height:1.3;">{% block heading %}{% endblock %}</h1>
+            {% block subtitle %}{% endblock %}
+            {% block reference %}{% endblock %}
+          </td>
+        </tr>
+
+        {% comment %}Body.{% endcomment %}
+        <tr>
+          <td style="background:#ffffff;padding:30px 36px 8px;">
+            {% block content %}{% endblock %}
+          </td>
+        </tr>
+
+        {% comment %}Sign-off, so a vendor knows which human to reply to.{% endcomment %}
+        {% block signoff %}{% endblock %}
+
+        {% comment %}
+        Footer: the Meril logo centred, then the automated-notice line.
+        The <img> carries explicit width/height and a display:block, because
+        Outlook otherwise leaves a stray baseline gap under it, and alt text so
+        the footer still reads if a client refuses even inline images.
+        {% endcomment %}
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 14px 14px;padding:26px 36px 24px;text-align:center;">
+            {% if brand_logo_cid %}
+            {% comment %}
+            The logo sits in a white chip on purpose. The only Meril artwork in
+            the repo is JPEG, which has no alpha, so the image carries its own
+            white background — dropped straight onto the navy footer it reads
+            as a rendering fault. A rounded panel makes the same pixels read as
+            a deliberate badge. Replace with a transparent PNG and this wrapper
+            can go.
+            Centred with an auto-margin table, not flexbox: Outlook renders
+            through Word and supports neither flex nor margin:auto on a div.
+            {% endcomment %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              {% block footer_note %}This is an automated notification from Meril VendorLink.{% endblock %}
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Stock Orders — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/orders.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-truck"></i> Stock Orders</h1>
+<p>Create and manage stock replenishment orders</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <button class="hero-btn hero-btn-solid" onclick="showTab('new')"><i class="fas fa-plus"></i> New Order</button>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <div class="mt-pill-tabs">
+        <button class="mt-pill-tab active" onclick="showTab('list')"><i class="fas fa-list"></i> Orders List</button>
+        <button class="mt-pill-tab" onclick="showTab('new')"><i class="fas fa-plus-circle"></i> New Order</button>
+    </div>
+
+    <!-- Orders List -->
+    <div id="tabList" class="mt-card">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+            <select id="orderStatusFilter" onchange="loadOrders()" style="padding:8px 12px;border:1px solid var(--mt-gray-300);border-radius:8px;font-size:0.85em;">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <button class="btn-mt btn-success btn-sm" style="display:inline-flex;align-items:center;gap:6px;" onclick="document.getElementById('orderStatusFilter').value='submitted';loadOrders();">
+                <i class="fas fa-clock"></i> Pending Approval
+            </button>
+        </div>
+        <!-- Desktop table -->
+        <div class="orders-table-wrap">
+            <table>
+                <thead><tr><th>Order ID</th><th>Hospital</th><th>Urgency</th><th>Status</th><th>Items</th><th>Date</th><th></th></tr></thead>
+                <tbody id="ordersBody">{% include 'meritrack/_sk_rows.html' with cols=7 rows="12345" %}</tbody>
+            </table>
+        </div>
+        <!-- Mobile card list -->
+        <div class="order-cards" id="orderCards"></div>
+    </div>
+
+    <!-- New Order Form -->
+    <div id="tabNew" class="mt-card hidden">
+        <h2><i class="fas fa-plus-circle" style="color:var(--mt-primary)"></i> Place New Order</h2>
+
+        <div id="formError" style="display:none;padding:12px;background:var(--mt-danger-light);border:1px solid var(--mt-danger-border);border-radius:8px;color:var(--mt-danger-dark);margin-bottom:16px;"></div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="orderHospital">Hospital <span style="color:red;">*</span></label>
+                <select id="orderHospital" required onchange="onHospitalChange()">
+                    <option value="">Select hospital...</option>
+                    {% for h in hospitals %}
+                    <option value="{{ h.id }}">{{ h.name }}{% if h.city %} ({{ h.city }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="orderUrgency">Urgency</label>
+                <select id="orderUrgency">
+                    <option value="normal">Normal Delivery</option>
+                    <option value="urgent">Urgent (2-3 days)</option>
+                    <option value="critical">Critical (Next day)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="orderDepartment">Department <span style="font-size:0.85em;color:var(--mt-gray-400);">(Auto-filled if not selected)</span></label>
+            <select id="orderDepartment">
+                <option value="">Use Default Department</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Order Items <span style="color:red;">*</span></label>
+            <div id="orderStatus" style="font-size:0.85em;color:var(--mt-gray-600);margin-bottom:8px;"></div>
+            <div class="order-items" id="orderItems">
+                <div class="order-item">
+                    <select class="item-product" required><option value="">Select product...</option></select>
+                    <input type="number" class="item-qty" value="1" min="1" step="1" placeholder="Qty" required>
+                    <button type="button" class="remove-item" onclick="this.closest('.order-item').remove(); updateOrderStatus()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <button type="button" class="btn-link" onclick="addOrderItem()"><i class="fas fa-plus"></i> Add item</button>
+        </div>
+        <div class="form-group">
+            <label>Notes <span style="font-size:0.85em;color:var(--mt-gray-400);">(optional)</span></label>
+            <input type="text" id="orderNotes" placeholder="e.g., 'Rush order for surgery', 'Specific brand preference'..." maxlength="500">
+        </div>
+
+        <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-mt btn-success" id="submitBtn" onclick="placeOrder()" disabled><i class="fas fa-paper-plane"></i> Submit Order</button>
+            <button type="button" class="btn-mt btn-back" onclick="resetOrderForm()"><i class="fas fa-undo"></i> Clear Form</button>
+        </div>
+    </div>
+
+<!-- Order Detail Modal -->
+<div id="orderDetailModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div>
+                <h2 id="modalOrderId"></h2>
+                <div id="modalBadges" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+        </div>
+
+        <div class="detail-grid" id="modalGrid"></div>
+
+        <div style="font-size:0.82em;font-weight:700;text-transform:uppercase;color:var(--mt-gray-600);margin-bottom:10px;letter-spacing:0.05em;">
+            <i class="fas fa-box-open"></i> Order Items
+        </div>
+        <div id="modalItemsWrap" style="border:1px solid var(--mt-gray-200);border-radius:8px;overflow:hidden;margin-bottom:20px;">
+            <table class="items-table" style="margin:0;" data-stack>
+                <thead>
+                    <tr>
+                        <th style="width:30px;">#</th>
+                        <th>Product</th>
+                        <th>Material Code</th>
+                        <th>Size</th>
+                        <th style="text-align:right;">Qty</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="modalItemsBody"></tbody>
+            </table>
+        </div>
+
+        <div id="modalNotes" style="display:none;padding:12px;background:var(--mt-warning-light);border:1px solid var(--mt-warning-border);border-radius:8px;font-size:0.88em;margin-bottom:20px;">
+            <strong><i class="fas fa-sticky-note"></i> Notes:</strong> <span id="modalNotesText"></span>
+        </div>
+
+        <div class="modal-footer-row" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="modalApproveBtn" class="btn-mt btn-success" style="display:none;" onclick="approveOrder(currentOrderIdx)"><i class="fas fa-check-circle"></i> Approve Order</button>
+                <button class="btn-mt btn-warning" onclick="openStatusModal(currentOrderIdx)"><i class="fas fa-edit"></i> Update Status</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-mt btn-secondary" onclick="printOrder(currentOrderIdx)"><i class="fas fa-print"></i> Print</button>
+                <button class="btn-mt" onclick="closeModal()" style="background:var(--mt-gray-200);color:var(--mt-gray-700);">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div id="statusModal" class="modal-overlay" onclick="if(event.target===this)closeStatusModal()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2><i class="fas fa-edit" style="color:var(--mt-warning)"></i> Update Order Status</h2>
+            <button class="modal-close" onclick="closeStatusModal()">&#x2715;</button>
+        </div>
+        <p style="font-size:0.88em;color:var(--mt-gray-600);margin:0 0 16px;">Order: <strong id="statusModalOrderId"></strong></p>
+        <div class="form-group">
+            <label for="statusModalSelect">New Status</label>
+            <select id="statusModalSelect" style="width:100%;padding:10px 14px;border:1px solid var(--mt-gray-300);border-radius:8px;font-size:0.9em;">
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div id="statusModalError" style="display:none;padding:10px 14px;background:var(--mt-danger-light);border:1px solid var(--mt-danger-border);border-radius:8px;color:var(--mt-danger-dark);font-size:0.85em;margin-bottom:12px;"></div>
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-mt" onclick="closeStatusModal()" style="background:var(--mt-gray-200);color:var(--mt-gray-700);">Cancel</button>
+            <button class="btn-mt btn-warning" id="statusSaveBtn" onclick="saveStatus()"><i class="fas fa-check"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Print Area — hidden on screen via CSS; printOrder() hoists it to <body>
+     before printing so the print stylesheet can hide everything else. -->
+<div id="printArea"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+</script>
+
+<script src="{% static 'meritrack/js/orders.js' %}"></script>
+{% endblock %}

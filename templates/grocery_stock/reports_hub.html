@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reports — Grocery Stock{% endblock %}
+{% block page_title %}Grocery Reports{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="gs-wrap">
+
+  <div class="gs-home-header">
+    <div class="gs-home-title">
+      <h1><i class="fas fa-chart-column"></i> Reports</h1>
+      <p>Inventory, cost, purchase and expiry reporting across the grocery module.</p>
+    </div>
+    <div class="gs-home-stats">
+      <a class="btn gs-on-dark" href="{% url 'grocery_stock:dashboard' %}">
+        <i class="fas fa-gauge-high"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  {% for group in groups %}
+  <div class="gs-section-hdr">
+    <h2><i class="{{ group.icon }}"></i> {{ group.name }}</h2>
+  </div>
+
+  <div class="gs-grid">
+    {% for report in group.reports %}
+    <a href="{% url 'grocery_stock:report' report.slug %}"
+       class="gs-card {{ report.tone }}">
+      <span class="gs-card-icon"><i class="{{ report.icon }}"></i></span>
+      <span class="gs-card-body">
+        <h3>{{ report.title }}</h3>
+        <p>{{ report.subtitle }}</p>
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+</div>
+{% endblock %}

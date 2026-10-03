@@ -1,0 +1,138 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You've been selected — {{ req.subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);border-radius:12px 12px 0 0;padding:32px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.18);border-radius:50%;width:60px;height:60px;line-height:60px;text-align:center;margin-bottom:12px;">
+              <span style="font-size:28px;color:#ffffff;">&#127881;</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.3px;">Congratulations!</h1>
+            <p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">You've been selected. Welcome aboard.</p>
+            {% if req.reference_id %}
+            <div style="margin-top:12px;">
+              <span style="display:inline-block;background:rgba(255,255,255,0.18);color:#ffffff;font-family:'Courier New',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;padding:4px 12px;border-radius:9999px;">Ref: {{ req.reference_id }}</span>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:28px 36px 6px;">
+            <p style="margin:0 0 14px;color:#1f2937;font-size:15px;">Dear <strong>{{ vendor_name }}</strong>,</p>
+            <p style="margin:0 0 16px;color:#374151;font-size:14px;line-height:1.7;">
+              We are delighted to inform you that your bid for
+              <strong>&ldquo;{{ req.subject }}&rdquo;</strong> has been <strong style="color:#059669;">selected</strong>.
+              Thank you for the competitive proposal and for your commitment to partnering with Meril Life Sciences.
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d1fae5;border-radius:10px;overflow:hidden;font-size:14px;margin:6px 0 16px;">
+              <tr><td colspan="2" style="background:#ecfdf5;padding:12px 16px;color:#047857;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #d1fae5;">Award Summary</td></tr>
+              <tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f0fdf4;width:42%;">Request</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f0fdf4;">{{ req.subject }}</td></tr>
+              {% if req.reference_id %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f0fdf4;">Reference ID</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f0fdf4;font-family:'Courier New',monospace;">{{ req.reference_id }}</td></tr>{% endif %}
+              {% if req.country %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f0fdf4;">Country</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f0fdf4;">{{ req.country }}</td></tr>{% endif %}
+              {% if awarded_amount %}<tr><td style="padding:11px 16px;color:#6b7280;">Awarded amount</td><td style="padding:11px 16px;color:#059669;font-weight:800;">{{ awarded_currency }} {{ awarded_amount|floatformat:2 }}</td></tr>{% endif %}
+            </table>
+
+            {% if wins %}
+            {% comment %}Their running record, which the vendor portal shows the
+            same number for -- how many requests are currently awarded to them.
+            See BidAward.wins_for_email.{% endcomment %}
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d1fae5;border-radius:10px;background:#f0fdf4;margin:0 0 18px;">
+              <tr>
+                <td style="padding:16px 18px;" align="center">
+                  <div style="font-size:30px;font-weight:800;color:#047857;line-height:1.1;">{{ wins }}</div>
+                  <div style="color:#065f46;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding-top:4px;">
+                    Bid{{ wins|pluralize }} won with Meril
+                  </div>
+                  {% if portal_url %}
+                  <div style="padding-top:10px;">
+                    <a href="{{ portal_url }}" style="color:#047857;font-size:12px;font-weight:700;text-decoration:underline;">See your record in the vendor portal</a>
+                  </div>
+                  {% endif %}
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+
+            <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">
+              Our team will reach out to you shortly with the next steps to formalise the engagement.
+              If you have any questions in the meantime, please reply directly to the sender below.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Signature -->
+        <tr>
+          <td style="background:#ffffff;padding:6px 36px 28px;">
+            <p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+              Warm regards,<br>
+              <strong style="color:#1f2937;">{{ raised_by_name }}</strong><br>
+              {% if raised_by_email %}<a href="mailto:{{ raised_by_email }}" style="color:#0076c8;text-decoration:none;">{{ raised_by_email }}</a><br>{% endif %}
+              Meril Life Sciences — Global SCM
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 12px 12px;padding:26px 36px 24px;text-align:center;">
+            {% comment %}
+            The logo is a cid: reference to an image attached to the message,
+            not a URL: Gmail, Outlook and Apple Mail block remote images by
+            default, so a hosted logo shows as a broken placeholder on first
+            open. vendorlink/mailer.py attaches it and sets brand_logo_cid;
+            without it this falls back to a wordmark rather than rendering a
+            dead image.
+            {% endcomment %}
+            {% if brand_logo_cid %}
+            {% comment %}
+            The logo sits in a white chip on purpose. The only Meril artwork in
+            the repo is JPEG, which has no alpha, so the image carries its own
+            white background — dropped straight onto the navy footer it reads
+            as a rendering fault. A rounded panel makes the same pixels read as
+            a deliberate badge. Replace with a transparent PNG and this wrapper
+            can go.
+            Centred with an auto-margin table, not flexbox: Outlook renders
+            through Word and supports neither flex nor margin:auto on a div.
+            {% endcomment %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from Meril VendorLink.
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

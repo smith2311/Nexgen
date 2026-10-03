@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Review one vendor's 3PL Capability Assessment: the six sections read-only,
+plus (for admins, while still pending) an approve/reject decision panel.
+{% endcomment %}
+
+{% block title %}Review Assessment — {{ assessment.company_name|default:assessment.vendor_email }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.vlx-status { display:inline-flex; align-items:center; padding:3px 11px; border-radius:999px; font-size:.76rem; font-weight:700; white-space:nowrap; }
+.vlx-status--invited { background:#f1f5f9; color:#475569; }
+.vlx-status--draft { background:#e0f2fe; color:#0369a1; }
+.vlx-status--submitted { background:#fef3c7; color:#92400e; }
+.vlx-status--under_review { background:#f3e8ff; color:#6d28d9; }
+.vlx-status--approved { background:#dcfce7; color:#166534; }
+.vlx-status--rejected { background:#fee2e2; color:#991b1b; }
+
+.rv-linkbox { display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; font-size:.78rem; max-width:420px; }
+.rv-linkbox code { color:#0f1f3a; font-family:var(--vlx-mono,monospace); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rv-progress-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+.rv-progress { flex:1; height:10px; border-radius:99px; background:#eef1f6; overflow:hidden; }
+.rv-progress__fill { height:100%; background:var(--vlx-secondary); }
+.rv-section { margin-bottom:16px; }
+.rv-section__title { font-size:.9rem; font-weight:700; color:#0f1f3a; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+.rv-section__title i { color:var(--vlx-secondary); }
+.rv-dl { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px 24px; margin:0; }
+@media (max-width:760px) { .rv-dl { grid-template-columns:1fr; } }
+.rv-dl dt { font-size:.76rem; font-weight:600; color:#64748b; margin-bottom:3px; }
+.rv-dl dd { font-size:.87rem; color:#0f1f3a; margin:0; line-height:1.55; white-space:pre-wrap; }
+.rv-dl dd.rv-empty { color:#94a3b8; font-style:italic; }
+.rv-panel textarea.vm-input { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.88rem; resize:vertical; }
+.rv-panel-foot { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+.rv-past-notes { font-size:.87rem; color:#334155; line-height:1.6; white-space:pre-wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:assessment_list' %}">3PL Capability Assessment</a>
+                <span class="sep">/</span>
+                <span class="current">Review</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">{{ assessment.company_name|default:"(No company name yet)" }}</h1>
+                <span class="vlx-status vlx-status--{{ assessment.status }}">{{ assessment.get_status_display }}</span>
+            </div>
+            <p class="vlx-subtitle">{{ assessment.vendor_email }}</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:assessment_list' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if assessment.status == "approved" and is_vm_admin and not assessment.vendor %}
+            <a href="{% url 'vendorlink:assessment_promote' assessment.pk %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-user-plus"></i> Promote to Vendor Master</a>
+            {% elif assessment.vendor %}
+            <a href="{% url 'vendorlink:vendor_detail' assessment.vendor.pk %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-arrow-up-right-from-square"></i> View Vendor Record</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if is_vm_admin %}
+    <div class="rv-linkbox" style="margin-bottom:18px;">
+        <i class="fas fa-link" style="color:#64748b;"></i>
+        <code>{{ link }}</code>
+    </div>
+    {% endif %}
+
+    <div class="rv-progress-row">
+        <div class="rv-progress"><div class="rv-progress__fill" style="width:{{ assessment.completion_percentage }}%"></div></div>
+        <span class="vlx-cell__sub">{{ assessment.completion_percentage }}% completed</span>
+    </div>
+
+    {% for title, fields in assessment.sections_for_display %}
+    <div class="vlx-card rv-section">
+        <div class="rv-section__title"><i class="fas fa-circle-dot"></i> {{ title }}</div>
+        <dl class="rv-dl">
+            {% for label, value in fields %}
+            <div>
+                <dt>{{ label }}</dt>
+                {% if value %}<dd>{{ value }}</dd>{% else %}<dd class="rv-empty">Not provided</dd>{% endif %}
+            </div>
+            {% endfor %}
+        </dl>
+    </div>
+    {% endfor %}
+
+    {% if can_decide %}
+    <div class="vlx-card rv-panel">
+        <div class="rv-section__title"><i class="fas fa-gavel"></i> Review Decision</div>
+        <textarea id="reviewNotes" class="vm-input" rows="4" placeholder="Enter review notes (required for rejection)…"></textarea>
+        <div class="rv-panel-foot">
+            <form method="post" action="{% url 'vendorlink:assessment_reject' assessment.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="review_notes" id="rejectNotes">
+                <button type="submit" class="vlx-btn vlx-btn--danger" onclick="document.getElementById('rejectNotes').value=document.getElementById('reviewNotes').value">
+                    <i class="fas fa-xmark"></i> Reject
+                </button>
+            </form>
+            <form method="post" action="{% url 'vendorlink:assessment_approve' assessment.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="review_notes" id="approveNotes">
+                <button type="submit" class="vlx-btn vlx-btn--success" onclick="document.getElementById('approveNotes').value=document.getElementById('reviewNotes').value">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+            </form>
+        </div>
+    </div>
+    {% elif assessment.review_notes %}
+    <div class="vlx-card rv-panel">
+        <div class="rv-section__title"><i class="fas fa-note-sticky"></i> Review Notes</div>
+        <p class="rv-past-notes">{{ assessment.review_notes }}</p>
+        <span class="vlx-cell__sub">Reviewed by {{ assessment.reviewed_by }} on {{ assessment.reviewed_at|date:"d M Y H:i" }}</span>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

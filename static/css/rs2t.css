@@ -1,0 +1,1630 @@
+/* ═══════════════════════════════════════════════════════════
+   LiveTranslate — interpreter's console
+   Every rule is namespaced under .lt-* / [data-lt-*] so this
+   sheet cannot leak into the rest of the app.
+
+   Signature: each transcript segment carries a left rail
+   coloured by its detected source language, so the language
+   structure of a long multilingual meeting is readable as a
+   stripe down the edge of the scroll.
+═══════════════════════════════════════════════════════════ */
+
+/* ── TOKENS: DARK (default) ── */
+.lt-app,
+.lt-popup,
+.lt-modal-overlay,
+.lt-toast {
+  --ink-0:      #0e1013;   /* page ground */
+  --ink-1:      #15181d;   /* rails, bars */
+  --ink-2:      #1c2028;   /* cards */
+  --ink-3:      #262b34;   /* raised / hover */
+  --line:       rgba(255,255,255,.07);
+  --line-2:     rgba(255,255,255,.13);
+  --fg-0:       #eceff4;
+  --fg-1:       #98a1b0;
+  --fg-2:       #5c6675;
+  --accent:     #8b7cff;
+  --accent-2:   #a99dff;
+  --accent-ink: #ffffff;
+  --accent-bg:  rgba(139,124,255,.14);
+  --live:       #31c86a;
+  --live-bg:    rgba(49,200,106,.10);
+  --warn:       #e0a33e;
+  --danger:     #ff5a52;
+  --danger-bg:  rgba(255,90,82,.14);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.5);
+  --shadow-md:  0 6px 20px rgba(0,0,0,.45);
+  --shadow-lg:  0 20px 50px rgba(0,0,0,.6);
+}
+
+/* ── TOKENS: LIGHT ── */
+[data-lt-theme="light"] .lt-app,
+[data-lt-theme="light"] .lt-popup,
+[data-lt-theme="light"] .lt-modal-overlay,
+[data-lt-theme="light"] .lt-toast {
+  --ink-0:      #f5f6f9;
+  --ink-1:      #fbfcfe;
+  --ink-2:      #ffffff;
+  --ink-3:      #eceff4;
+  --line:       rgba(16,20,28,.09);
+  --line-2:     rgba(16,20,28,.16);
+  --fg-0:       #12161d;
+  --fg-1:       #59616f;
+  --fg-2:       #8a93a2;
+  --accent:     #5a48e0;
+  --accent-2:   #4536c4;
+  --accent-ink: #ffffff;
+  --accent-bg:  rgba(90,72,224,.09);
+  --live:       #12924c;
+  --live-bg:    rgba(18,146,76,.09);
+  --warn:       #a06a05;
+  --danger:     #d13b32;
+  --danger-bg:  rgba(209,59,50,.10);
+  --shadow-sm:  0 1px 2px rgba(16,20,28,.06);
+  --shadow-md:  0 6px 20px rgba(16,20,28,.10);
+  --shadow-lg:  0 20px 50px rgba(16,20,28,.18);
+}
+
+/* Shared, theme-independent tokens */
+.lt-app, .lt-popup, .lt-modal-overlay, .lt-toast {
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r-md: 13px;
+  --r-lg: 20px;
+  --font-ui:   'Manrope', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sidebar-w: 292px;
+  --topbar-h:  56px;
+  /* Reading size for the transcript — the A-/A+ control writes this. */
+  --read-size: 19px;
+}
+
+/* ── LANGUAGE RAIL PALETTE ──
+   Eight hues legible on both grounds, deliberately avoiding the
+   live-green and danger-red so a rail never reads as a status. */
+.lt-app, .lt-popup, .lt-modal-overlay {
+  --lang-0: #7c9cff;
+  --lang-1: #2fbf9f;
+  --lang-2: #e0a33e;
+  --lang-3: #c77dff;
+  --lang-4: #ff8a6b;
+  --lang-5: #5fd3e8;
+  --lang-6: #d4b96a;
+  --lang-7: #f2789f;
+}
+.lt-lang-0 { --rail: var(--lang-0); }
+.lt-lang-1 { --rail: var(--lang-1); }
+.lt-lang-2 { --rail: var(--lang-2); }
+.lt-lang-3 { --rail: var(--lang-3); }
+.lt-lang-4 { --rail: var(--lang-4); }
+.lt-lang-5 { --rail: var(--lang-5); }
+.lt-lang-6 { --rail: var(--lang-6); }
+.lt-lang-7 { --rail: var(--lang-7); }
+
+/* ── RESET (scoped) ──
+   Wrapped in :where() so the reset carries ZERO specificity. Written as
+   `.lt-app button` it would score (0,1,1) and silently beat every
+   single-class rule below it — every .lt-mic-btn / .lt-read-btn / .lt-jump
+   background and border would lose to `background: none`. */
+:where(.lt-app, .lt-popup, .lt-modal, .lt-toast) :where(*, *::before, *::after) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+:where(.lt-app, .lt-popup, .lt-modal) :where(button) {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+:where(.lt-app, .lt-modal) :where(select, input) { font: inherit; }
+
+/* Keyboard focus is always visible — never removed, only styled. */
+.lt-app :focus-visible,
+.lt-modal :focus-visible,
+.lt-popup :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* ── ROOT ── */
+.lt-app {
+  /* Layout below keys off @container, not @media, so the app adapts to the
+     width of whatever element holds it — a phone viewport or a small div. */
+  container: ltapp / inline-size;
+  font-family: var(--font-ui);
+  background: var(--ink-0);
+  color: var(--fg-0);
+  height: calc(100vh - 70px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ════════════════ TOP BAR ════════════════ */
+.lt-topbar {
+  height: var(--topbar-h);
+  background: var(--ink-1);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  flex-shrink: 0;
+  z-index: 10;
+  position: relative;   /* anchor for the collapsed action menu */
+}
+
+.lt-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+.lt-brand-name {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -.35px;
+}
+
+/* The dot is dim until audio is actually being captured — a status,
+   not decoration, so it only lights up when it means something. */
+.lt-logo-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--fg-2);
+  flex-shrink: 0;
+  transition: background .25s, box-shadow .25s;
+}
+.lt-app.is-live .lt-logo-dot {
+  background: var(--live);
+  box-shadow: 0 0 0 3px var(--live-bg);
+}
+.lt-logo-dot--sm { width: 7px; height: 7px; }
+
+/* LIVE pill — only rendered visible while capturing */
+.lt-live-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: var(--live-bg);
+  color: var(--live);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+.lt-app.is-live .lt-live-pill { display: inline-flex; }
+.lt-live-pill::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: lt-blink 1.4s ease infinite;
+}
+@keyframes lt-blink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+
+/* centre cluster: clock + latency gauge */
+.lt-topbar-center {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+  overflow: hidden;   /* shrink rather than collide with the action row */
+}
+/* ── LATENCY GAUGE ──
+   In simultaneous interpretation the lag is the number that matters,
+   so it gets a meter rather than another plain stat. */
+.lt-lag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fg-2);
+}
+.lt-lag-label { text-transform: uppercase; letter-spacing: .7px; font-weight: 700; font-size: 9.5px; }
+.lt-lag-track {
+  width: 76px; height: 4px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  overflow: hidden;
+}
+.lt-lag-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--live);
+  transition: width .35s ease, background .35s ease;
+}
+.lt-lag-fill.is-warn { background: var(--warn); }
+.lt-lag-fill.is-slow { background: var(--danger); }
+.lt-lag-val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+  min-width: 34px;
+}
+
+.lt-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lt-lang-select {
+  background: var(--ink-2);
+  color: var(--fg-0);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color .15s, background .15s;
+  max-width: 158px;
+}
+.lt-lang-select:hover { border-color: var(--accent); }
+
+/* Bare icon button — used for modal close and inline controls. 40px keeps it
+   a comfortable target; touch devices get 44px further down. */
+.lt-icon-btn {
+  width: 40px; height: 40px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.lt-icon-btn:hover { background: var(--ink-3); color: var(--fg-0); }
+.lt-icon-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
+.lt-icon-btn--danger:hover { background: var(--danger-bg); color: var(--danger); }
+.lt-icon-btn.is-on { background: var(--accent-bg); color: var(--accent); }
+
+/* ── ACTION BUTTONS ──
+   Labelled by default. Session actions used to be six 34px icons crowded into
+   the corner, which made the most consequential one (save and start over)
+   indistinguishable from the rest. */
+.lt-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lt-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 13px;
+  border-radius: var(--r-sm);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  color: var(--fg-1);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.lt-act > i { font-size: 14px; }
+.lt-act:hover { background: var(--ink-3); color: var(--fg-0); border-color: var(--line-2); }
+.lt-act:disabled { opacity: .4; cursor: default; pointer-events: none; }
+.lt-act--primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.lt-act--primary:hover { background: var(--accent-2); color: var(--accent-ink); }
+
+/* Discard sits next to Save, so it has to be unmistakably the other one:
+   tinted rather than filled, so it never competes for the default action. */
+.lt-act--danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.lt-act--danger:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+
+/* ⋯ trigger, only shown once the actions collapse into a menu */
+.lt-more {
+  display: none;
+  width: 40px; height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  color: var(--fg-0);
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.lt-more:hover { background: var(--ink-3); border-color: var(--line-2); }
+.lt-more.is-open { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+/* ════════════════ BODY ════════════════ */
+.lt-body { flex: 1; display: flex; overflow: hidden; }
+
+/* ════════════════ SIDEBAR ════════════════ */
+.lt-sidebar {
+  width: var(--sidebar-w);
+  background: var(--ink-1);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 14px;
+  overflow-y: auto;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+/* ── MIC ── */
+.lt-mic-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0 2px;
+}
+
+.lt-mic-btn {
+  position: relative;
+  width: 78px; height: 78px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  box-shadow: var(--shadow-md);
+  color: var(--accent-ink);
+  font-size: 25px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, color .2s, border-color .2s, transform .12s;
+}
+.lt-mic-btn:hover { background: var(--accent-2); transform: translateY(-1px); }
+.lt-mic-btn:active { transform: translateY(0); }
+.lt-mic-btn.active {
+  background: var(--danger);
+  color: #fff;
+}
+/* Halo scales with real input level (JS sets --level 0→1), so the
+   button reacts to the room instead of pulsing on a fixed timer. */
+.lt-mic-ring {
+  position: absolute; inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--danger);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(1);
+}
+.lt-mic-btn.active .lt-mic-ring {
+  opacity: calc(.15 + var(--level, 0) * .6);
+  transform: scale(calc(1 + var(--level, 0) * .22));
+  transition: transform .09s linear, opacity .09s linear;
+}
+
+.lt-mic-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg-1);
+  text-align: center;
+  min-height: 18px;
+}
+
+/* ── INPUT LEVEL METER ──
+   Answers "is it actually hearing me?" without waiting for a transcript. */
+.lt-level {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 22px;
+  width: 100%;
+}
+.lt-level-bar {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  transition: height .08s linear, background .12s linear;
+}
+.lt-level-bar.is-lit { background: var(--live); }
+.lt-level-bar.is-hot { background: var(--warn); }
+
+/* ── CARDS ── */
+.lt-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.lt-card-hdr {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.lt-card-hdr > .lt-card-hdr-act { margin-left: auto; }
+
+/* ── STATS ── */
+.lt-stats-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+  align-items: center;
+  padding: 12px 4px;
+  gap: 4px;
+}
+.lt-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.lt-stat-val {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--fg-0);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+/* The elapsed clock lived in the top bar and was being crushed between the
+   brand and the (now labelled) action row. It belongs with the other numbers. */
+.lt-stat-val--time { font-size: 18px; letter-spacing: -.5px; }
+.lt-stat-key {
+  font-size: 9.5px;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  font-weight: 700;
+}
+.lt-stat-divider { width: 1px; height: 30px; background: var(--line); }
+
+/* ── LANGUAGE PILLS (rail-coloured) ── */
+.lt-lang-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.lt-lang-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px 4px 7px;
+  border-radius: 999px;
+  background: var(--ink-3);
+  color: var(--fg-1);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lt-lang-pill::before {
+  content: '';
+  width: 7px; height: 7px;
+  border-radius: 2px;
+  background: var(--rail, var(--fg-2));
+}
+.lt-lang-pill small { color: var(--fg-2); font-family: var(--font-mono); font-size: 10px; }
+
+.lt-empty-note { font-size: 11.5px; color: var(--fg-2); }
+
+/* ── READING CONTROLS ── */
+.lt-read-ctl { display: flex; align-items: center; gap: 6px; }
+.lt-read-btn {
+  flex: 1;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: var(--ink-3);
+  border: 1px solid var(--line);
+  color: var(--fg-1);
+  font-weight: 700;
+  transition: background .15s, color .15s;
+}
+.lt-read-btn:hover { background: var(--accent-bg); color: var(--accent); }
+.lt-read-size {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ── CONNECTION STATUS ── */
+.lt-conn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--fg-1);
+  margin-top: auto;
+}
+.lt-conn-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+}
+.lt-conn.is-ok  .lt-conn-dot { background: var(--live); }
+.lt-conn.is-bad .lt-conn-dot { background: var(--danger); }
+.lt-conn-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ════════════════ TRANSCRIPT PANE ════════════════ */
+.lt-transcript-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  min-width: 0;
+  /* Painted explicitly: base.html gives <main> a pale gradient, and a
+     transparent pane here lets it bleed into the transcript. */
+  background: var(--ink-0);
+}
+
+/* ── TOOLBAR (search + autoscroll) ── */
+.lt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-0);
+  flex-shrink: 0;
+}
+.lt-search {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+}
+.lt-search > i {
+  position: absolute;
+  left: 11px;
+  font-size: 11px;
+  color: var(--fg-2);
+  pointer-events: none;
+}
+.lt-search input {
+  width: 100%;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 7px 11px 7px 30px;
+  color: var(--fg-0);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.lt-search input::placeholder { color: var(--fg-2); }
+.lt-search input:focus { border-color: var(--accent); }
+.lt-search-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.lt-toolbar-spacer { flex: 1; }
+
+.lt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-1);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.lt-toggle.is-on { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+
+/* ── LIVE BAR ── */
+.lt-live-bar {
+  padding: 7px 18px;
+  background: var(--live-bg);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--live);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.lt-live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: lt-blink 1.3s ease infinite;
+}
+
+/* ── SCROLL AREA ── */
+.lt-transcript {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--ink-0);
+  padding: 8px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+/* ── EMPTY STATE ── */
+.lt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 14px;
+  color: var(--fg-2);
+  text-align: center;
+  padding: 40px 24px;
+  user-select: none;
+}
+.lt-empty-icon {
+  width: 62px; height: 62px;
+  border-radius: var(--r-lg);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  color: var(--accent);
+}
+.lt-empty h3 { font-size: 17px; font-weight: 800; color: var(--fg-0); letter-spacing: -.3px; }
+.lt-empty p  { font-size: 13px; max-width: 320px; line-height: 1.6; }
+.lt-empty kbd { margin: 0 2px; }
+
+kbd.lt-kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+  background: var(--ink-3);
+  border: 1px solid var(--line-2);
+  color: var(--fg-1);
+  white-space: nowrap;
+}
+
+/* ── SEGMENT ──
+   The rail is the signature: colour = detected source language. */
+.lt-seg {
+  position: relative;
+  padding: 14px 0 14px 16px;
+  border-left: 3px solid var(--rail, var(--line-2));
+  border-bottom: 1px solid var(--line);
+  animation: lt-seg-in .28s cubic-bezier(.2,.7,.3,1);
+  scroll-margin-top: 12px;
+}
+.lt-seg:last-child { border-bottom: none; }
+@keyframes lt-seg-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.lt-seg.is-hit { background: var(--accent-bg); }
+.lt-seg.is-dim { opacity: .28; }
+
+.lt-seg-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+.lt-seg-lang {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--rail, var(--fg-1));
+}
+.lt-seg-time {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-2);
+}
+.lt-seg-acts { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.lt-seg:hover .lt-seg-acts,
+.lt-seg:focus-within .lt-seg-acts { opacity: 1; }
+.lt-seg-act {
+  width: 26px; height: 26px;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--fg-2);
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.lt-seg-act:hover { background: var(--ink-3); color: var(--accent); }
+
+/* Source text is a machine transcript — set it as one. */
+.lt-seg-original {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+/* The translated line is what the reader is here for: largest,
+   highest contrast, tuned by the A-/A+ control. */
+.lt-seg-translation {
+  font-size: var(--read-size);
+  color: var(--fg-0);
+  line-height: 1.55;
+  font-weight: 600;
+  letter-spacing: -.2px;
+  word-break: break-word;
+}
+.lt-seg-translation.streaming { color: var(--accent-2); }
+.lt-hl { background: var(--accent); color: var(--accent-ink); border-radius: 3px; padding: 0 2px; }
+
+/* streaming cursor */
+.lt-cursor {
+  display: inline-block;
+  width: 2px; height: .95em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 3px;
+  animation: lt-cursor .9s step-end infinite;
+}
+@keyframes lt-cursor { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
+
+/* ── JUMP TO LIVE ── */
+.lt-jump {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%) translateY(10px);
+  display: none;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 15px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  z-index: 5;
+  opacity: 0;
+  transition: opacity .2s, transform .2s;
+}
+.lt-jump.is-shown { display: flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── CAPTION BAR ── */
+.lt-caption-bar {
+  background: var(--ink-1);
+  border-top: 1px solid var(--line);
+  padding: 11px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  min-height: 56px;
+}
+.lt-caption-original {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+  max-width: 32%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+.lt-caption-arrow { color: var(--fg-2); flex-shrink: 0; font-size: 11px; }
+.lt-caption-translated {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg-0);
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  letter-spacing: -.2px;
+}
+
+/* ════════════════ FLOATING POPUP ════════════════ */
+.lt-popup {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 360px;
+  background: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  overflow: hidden;
+  user-select: none;
+  font-family: var(--font-ui);
+  color: var(--fg-0);
+}
+.lt-popup.minimised .lt-popup-body,
+.lt-popup.minimised .lt-popup-status { display: none !important; }
+
+/* ── PiP MODE ──
+   Inside a Document Picture-in-Picture window the panel IS the window: it
+   fills the frame, drops the floating chrome, and gives the translated line
+   the room it deserves since that window is small and read at a glance. */
+.lt-popup--pip {
+  position: static;
+  width: 100%;
+  height: 100vh;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink-0);
+}
+.lt-popup--pip .lt-popup-bar { cursor: default; background: var(--ink-1); }
+/* The OS window supplies its own close and resize affordances. */
+.lt-popup--pip .lt-popup-controls { display: none; }
+.lt-popup--pip .lt-popup-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  gap: 8px;
+}
+.lt-popup--pip .lt-popup-caption-orig { font-size: 12px; }
+.lt-popup--pip .lt-popup-caption-trans {
+  font-size: clamp(17px, 4.4vw, 30px);
+  line-height: 1.35;
+}
+
+.lt-popup-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  background: var(--ink-2);
+  cursor: grab;
+  border-bottom: 1px solid var(--line);
+}
+.lt-popup-bar:active { cursor: grabbing; }
+.lt-popup-brand {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 800;
+}
+.lt-popup-controls { display: flex; gap: 4px; }
+.lt-popup-ctrl {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  color: var(--fg-1);
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.lt-popup-ctrl:hover { background: var(--line-2); color: var(--fg-0); }
+
+.lt-popup-body {
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 64px;
+}
+.lt-popup-caption-orig {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.lt-popup-caption-trans {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -.2px;
+}
+.lt-popup-status {
+  padding: 6px 15px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  border-top: 1px solid var(--line);
+}
+
+/* ════════════════ MODALS ════════════════ */
+.lt-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(7px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  animation: lt-fade .2s ease;
+  font-family: var(--font-ui);
+  color: var(--fg-0);
+}
+@keyframes lt-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.lt-modal {
+  background: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 660px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  animation: lt-modal-in .24s cubic-bezier(.2,.9,.3,1);
+  overflow: hidden;
+}
+@keyframes lt-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985) }
+  to   { opacity: 1; transform: none }
+}
+.lt-modal--wide { max-width: 780px; }
+
+.lt-modal-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.lt-modal-hdr h2 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+  display: flex; align-items: center; gap: 9px;
+  flex: 1; min-width: 0;
+}
+.lt-modal-hdr h2 i { color: var(--accent); font-size: 14px; }
+.lt-modal-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+.lt-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: thin;
+}
+
+.lt-modal-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--ink-1);
+}
+.lt-modal-footer .lt-spacer { flex: 1; }
+
+/* ── SUMMARY ── */
+.lt-summary-meta { display: flex; flex-wrap: wrap; gap: 7px; }
+.lt-meta-chip {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+.lt-meta-chip b { color: var(--fg-0); font-family: var(--font-mono); font-weight: 600; }
+
+.lt-summary-section h4 {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  color: var(--fg-2);
+  margin-bottom: 10px;
+}
+.lt-summary-transcript {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--fg-1);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 15px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.lt-summary-points { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lt-summary-points li {
+  font-size: 13.5px;
+  color: var(--fg-0);
+  line-height: 1.55;
+  padding-left: 20px;
+  position: relative;
+}
+.lt-summary-points li::before {
+  content: '';
+  position: absolute;
+  left: 4px; top: .55em;
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.lt-summary-prose { font-size: 14px; line-height: 1.65; color: var(--fg-0); }
+
+/* ── BUTTONS ── */
+.lt-btn {
+  padding: 9px 15px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.lt-btn--primary { background: var(--accent); color: var(--accent-ink); }
+.lt-btn--primary:hover { background: var(--accent-2); }
+.lt-btn--secondary { background: var(--ink-2); border-color: var(--line-2); color: var(--fg-0); }
+.lt-btn--secondary:hover { background: var(--ink-3); border-color: var(--accent); }
+.lt-btn--danger { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.lt-btn--danger:hover { border-color: var(--danger); }
+.lt-btn--xs { padding: 5px 10px; font-size: 11.5px; gap: 5px; }
+
+/* ════════════════ HISTORY ════════════════ */
+.lt-history-body { gap: 10px; padding: 14px 18px 18px; }
+
+.lt-history-search { position: relative; display: flex; align-items: center; }
+.lt-history-search > i {
+  position: absolute; left: 12px; font-size: 12px; color: var(--fg-2); pointer-events: none;
+}
+.lt-history-search input {
+  width: 100%;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px 9px 32px;
+  color: var(--fg-0);
+  font-size: 13px;
+  outline: none;
+}
+.lt-history-search input:focus { border-color: var(--accent); }
+
+.lt-history-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 15px;
+  transition: border-color .18s, transform .18s;
+}
+.lt-history-card:hover { border-color: var(--line-2); transform: translateY(-1px); }
+.lt-history-card.is-open { border-color: var(--accent); }
+
+.lt-history-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.lt-history-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-0);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: -.2px;
+}
+.lt-history-date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+.lt-history-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11.5px;
+  color: var(--fg-1);
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+}
+.lt-history-stats span { display: flex; align-items: center; gap: 5px; }
+.lt-history-stats i { color: var(--fg-2); font-size: 10px; }
+
+.lt-history-summary {
+  font-size: 13px;
+  color: var(--fg-1);
+  line-height: 1.6;
+  margin-bottom: 11px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lt-history-card.is-open .lt-history-summary { -webkit-line-clamp: unset; line-clamp: unset; }
+
+.lt-history-points {
+  list-style: none;
+  margin: 0 0 11px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.lt-history-points li {
+  font-size: 12.5px;
+  color: var(--fg-0);
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.lt-history-points li::before {
+  content: '';
+  position: absolute; left: 2px; top: .5em;
+  width: 5px; height: 5px; border-radius: 1px;
+  background: var(--accent);
+}
+
+.lt-history-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.lt-history-actions .lt-spacer { flex: 1; }
+
+.lt-history-transcript {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.lt-ht-row { padding-left: 12px; border-left: 2px solid var(--rail, var(--line-2)); }
+.lt-ht-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-2);
+  margin-bottom: 3px;
+  display: flex; gap: 8px;
+}
+.lt-ht-orig { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-2); line-height: 1.55; }
+.lt-ht-trans { font-size: 13.5px; color: var(--fg-0); line-height: 1.55; font-weight: 600; margin-top: 3px; }
+
+.lt-history-empty {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--fg-1);
+}
+.lt-history-empty i { font-size: 30px; margin-bottom: 14px; opacity: .35; display: block; }
+.lt-history-empty p { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--fg-0); }
+.lt-history-empty small { font-size: 12.5px; color: var(--fg-2); }
+
+/* ── SKELETON (loading) ── */
+.lt-skel {
+  height: 92px;
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--ink-2) 25%, var(--ink-3) 37%, var(--ink-2) 63%);
+  background-size: 400% 100%;
+  animation: lt-shimmer 1.3s ease infinite;
+}
+@keyframes lt-shimmer { from { background-position: 100% 0 } to { background-position: 0 0 } }
+
+/* ════════════════ GLOSSARY ════════════════ */
+.lt-modal-note {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-1);
+}
+.lt-modal-note em { color: var(--fg-0); font-style: normal; font-weight: 700; }
+
+.lt-gloss-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+.lt-gloss-form input {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  color: var(--fg-0);
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
+.lt-gloss-form input::placeholder { color: var(--fg-2); }
+.lt-gloss-form input:focus { border-color: var(--accent); }
+
+.lt-gloss-list { display: flex; flex-direction: column; gap: 6px; }
+.lt-gloss-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+.lt-gloss-term {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--fg-0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lt-gloss-hint {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@container ltapp (max-width: 560px) {
+  .lt-gloss-form { grid-template-columns: 1fr; }
+  .lt-gloss-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .lt-gloss-hint { display: none; }
+}
+
+/* ════════════════ SHORTCUTS ════════════════ */
+.lt-keys { display: flex; flex-direction: column; gap: 2px; }
+.lt-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--fg-1);
+}
+.lt-key-row:last-child { border-bottom: none; }
+
+/* ════════════════ TOAST ════════════════ */
+.lt-toast {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%) translateY(14px);
+  background: var(--ink-3);
+  border: 1px solid var(--line-2);
+  color: var(--fg-0);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 18px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 10001;
+  opacity: 0;
+  transition: opacity .22s, transform .22s;
+  pointer-events: none;
+  max-width: min(90vw, 460px);
+}
+.lt-toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ════════════════ SCROLLBAR ════════════════ */
+.lt-app ::-webkit-scrollbar,
+.lt-modal ::-webkit-scrollbar { width: 6px; height: 6px; }
+.lt-app ::-webkit-scrollbar-track,
+.lt-modal ::-webkit-scrollbar-track { background: transparent; }
+.lt-app ::-webkit-scrollbar-thumb,
+.lt-modal ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+
+/* ════════════════ BASE LAYOUT OVERRIDE ════════════════
+   base.html adds navbar + sidebar chrome; .lt-app fills what's left. */
+body.with-sidebar > main:has(.lt-app) {
+  padding: 0 !important;
+  overflow: hidden;
+  /* <main> carries a pale page gradient app-wide; this view is full-bleed. */
+  background: #0e1013;
+}
+[data-lt-theme="light"] body.with-sidebar > main:has(.lt-app) { background: #f5f6f9; }
+
+/* ════════════════ RESPONSIVE ════════════════
+   Keyed off the app container, so these tiers fire whether the window is
+   narrow or the app simply sits in a narrow element. Tested at 1440, 900,
+   600, 420, 360 and 320px.
+═══════════════════════════════════════════════ */
+
+/* ── the lag meter degrades before it disappears ──
+   With the action row labelled, the centre no longer has room for the full
+   widget at every width. Rather than clip the word "Lag" to "AG", drop the
+   word and keep the meter, which is the part carrying the information. */
+@container ltapp (max-width: 1280px) {
+  .lt-lag-label { display: none; }
+  .lt-lag-track { width: 56px; }
+}
+@container ltapp (max-width: 1000px) {
+  .lt-lag { display: none; }
+}
+/* Under ~340px three stats do not fit. Children are stat/divider/stat/
+   divider/stat, so dropping 3 and 4 leaves Words | Elapsed — segment count is
+   the least useful of the three when reading on a phone. */
+@container ltapp (max-width: 340px) {
+  .lt-stats-card { grid-template-columns: 1fr 1px 1fr; }
+  .lt-stats-card > :nth-child(3),
+  .lt-stats-card > :nth-child(4) { display: none; }
+}
+
+/* ── under ~1080px: action labels collapse, icons remain ── */
+@container ltapp (max-width: 1080px) {
+  .lt-act > span { display: none; }
+  .lt-act { padding: 0; width: 40px; justify-content: center; }
+  /* The two session-ending actions keep their labels. An unlabelled trash icon
+     beside an unlabelled save icon is exactly the ambiguity worth avoiding. */
+  .lt-act--primary > span,
+  .lt-act--danger > span { display: inline; }
+  .lt-act--primary,
+  .lt-act--danger { padding: 0 13px; width: auto; }
+}
+
+/* ── under ~860px: sidebar becomes a strip above the transcript ── */
+@container ltapp (max-width: 860px) {
+  .lt-body { flex-direction: column; }
+
+  .lt-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    gap: 10px;
+    overflow: visible;
+  }
+  .lt-mic-wrap { flex-direction: row; padding: 0; gap: 12px; flex: 0 0 auto; }
+  .lt-mic-btn { width: 56px; height: 56px; font-size: 19px; }
+  .lt-level { width: 42px; height: 24px; }
+  .lt-mic-label { text-align: left; }
+
+  .lt-stats-card { flex: 1 1 170px; padding: 8px 4px; }
+  .lt-stat-val { font-size: 18px; }
+  .lt-sidebar .lt-card { flex: 1 1 200px; }
+  .lt-conn { margin-top: 0; flex: 1 1 100%; }
+
+  .lt-caption-original, .lt-caption-arrow { display: none; }
+  .lt-topbar { padding: 0 10px; gap: 10px; }
+  .lt-popup { width: calc(100% - 28px); right: 14px; bottom: 14px; }
+  .lt-toolbar { padding: 8px 12px; }
+}
+
+/* ── under ~720px: actions become a menu ──
+   Every entry is a full-width labelled row, which is a far better target than
+   a 34px icon and finally says what each one does. */
+@container ltapp (max-width: 720px) {
+  .lt-more { display: flex; }
+
+  .lt-actions {
+    display: none;
+    position: absolute;
+    top: calc(var(--topbar-h) - 4px);
+    right: 10px;
+    z-index: 60;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: 224px;
+    padding: 8px;
+    background: var(--ink-2);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+  }
+  .lt-actions.is-open { display: flex; }
+
+  .lt-act,
+  .lt-act--primary {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    justify-content: flex-start;
+    font-size: 14px;
+  }
+  .lt-act > span,
+  .lt-act--primary > span { display: inline; }
+  .lt-act > i { width: 18px; text-align: center; }
+  /* The two session-ending actions sit together at the bottom, separated from
+     the navigation entries above them. */
+  .lt-act--danger { margin-top: 6px; border-top: 1px solid var(--line); border-radius: var(--r-sm); }
+  .lt-act--primary { margin-top: 0; }
+
+  .lt-brand-name { display: none; }
+  .lt-live-pill { margin-left: 2px; }
+}
+
+/* ── under ~560px: trim to essentials ──
+   The control strip stops wrapping and becomes one swipeable row. Stacked, it
+   ate ~300px of a 640px-tall phone and left the transcript 121px — three
+   lines. One row costs ~76px and nothing has to be hidden to get there. */
+@container ltapp (max-width: 560px) {
+  .lt-sidebar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
+  }
+  .lt-sidebar > * { flex: 0 0 auto; }
+  .lt-mic-wrap { gap: 10px; }
+  .lt-stats-card { min-width: 196px; }
+  .lt-sidebar .lt-card { min-width: 186px; max-width: 260px; }
+  .lt-conn { flex: 0 0 auto; min-width: 180px; margin-top: 0; }
+  .lt-mic-label { max-width: 120px; }
+
+  .lt-transcript { padding: 6px 12px 20px; }
+  .lt-seg { padding: 12px 0 12px 12px; }
+  .lt-search { max-width: none; }
+  .lt-toggle > span { display: none; }
+  .lt-toggle { padding: 6px 9px; }
+  .lt-modal-hdr h2 { font-size: 14px; }
+  .lt-history-stats { gap: 10px; font-size: 11px; }
+  .lt-modal-body { padding: 14px; }
+  .lt-modal-footer { padding: 10px 14px; flex-wrap: wrap; }
+  .lt-modal-footer .lt-spacer { display: none; }
+  .lt-btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* ── under ~430px: single column, nothing overflows ── */
+@container ltapp (max-width: 430px) {
+  .lt-topbar { gap: 8px; padding: 0 8px; }
+  .lt-lang-select { max-width: 116px; font-size: 12px; padding: 7px 6px; }
+
+  .lt-sidebar { padding: 8px 10px; gap: 8px; }
+  .lt-mic-btn { width: 50px; height: 50px; font-size: 17px; }
+  .lt-level { display: none; }
+  .lt-mic-label { font-size: 11.5px; }
+  .lt-stats-card { min-width: 172px; }
+  .lt-sidebar .lt-card { min-width: 170px; }
+
+  .lt-seg-translation { font-size: max(15px, calc(var(--read-size) - 3px)); }
+  .lt-caption-bar { padding: 9px 12px; min-height: 48px; }
+  .lt-caption-translated { font-size: 14px; }
+
+  .lt-actions { right: 8px; left: 8px; min-width: 0; }
+  .lt-history-actions { gap: 6px; }
+  .lt-history-hdr { flex-direction: column; gap: 2px; }
+  .lt-summary-meta { gap: 5px; }
+  .lt-meta-chip { font-size: 11px; padding: 3px 9px; }
+}
+
+/* ── under ~340px: last stand, keep it usable ── */
+@container ltapp (max-width: 340px) {
+  .lt-mic-wrap { gap: 8px; }
+  .lt-stats-card { grid-template-columns: 1fr 1px 1fr; padding: 6px 2px; }
+  .lt-stat-val { font-size: 16px; }
+  .lt-stat-key { font-size: 8.5px; letter-spacing: .4px; }
+  .lt-search input { font-size: 12px; padding: 7px 9px 7px 27px; }
+  .lt-seg { padding-left: 10px; }
+  .lt-toolbar { gap: 6px; }
+}
+
+/* Short viewports (landscape phones): stop the strip eating the transcript. */
+@media (max-height: 560px) {
+  .lt-sidebar { padding: 6px 10px; gap: 6px; }
+  .lt-mic-btn { width: 44px; height: 44px; font-size: 15px; }
+  .lt-sidebar .lt-card { display: none; }
+  .lt-conn { display: none; }
+}
+
+/* Touch input: every control gets a 44px target regardless of width. */
+@media (pointer: coarse) {
+  .lt-icon-btn, .lt-more { width: 44px; height: 44px; }
+  .lt-act { height: 44px; }
+  .lt-read-btn { height: 40px; }
+  .lt-seg-act { width: 36px; height: 36px; font-size: 13px; }
+  /* Hover-reveal never works on touch — keep segment actions visible. */
+  .lt-seg-acts { opacity: 1; }
+  .lt-toggle { min-height: 40px; }
+}
+
+/* ── FALLBACK for engines without container queries ──
+   Everything above keys off @container, which needs Chrome 105+/Firefox 110+/
+   Safari 16+. On anything older those tiers never fire and the desktop layout
+   would be served to a phone, so mirror the two collapses that matter. Modern
+   browsers skip this block entirely. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 900px) {
+    .lt-lag { display: none; }
+    .lt-body { flex-direction: column; }
+    .lt-sidebar {
+      width: 100%;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      align-items: center;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      gap: 10px;
+    }
+    .lt-sidebar > * { flex: 0 0 auto; }
+    .lt-mic-wrap { flex-direction: row; padding: 0; gap: 10px; }
+    .lt-mic-btn { width: 52px; height: 52px; font-size: 18px; }
+    .lt-level { display: none; }
+    .lt-conn { margin-top: 0; min-width: 180px; }
+    .lt-caption-original, .lt-caption-arrow { display: none; }
+
+    .lt-more { display: flex; }
+    .lt-actions {
+      display: none;
+      position: absolute;
+      top: calc(var(--topbar-h) - 4px);
+      right: 10px; left: 10px;
+      z-index: 60;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      padding: 8px;
+      background: var(--ink-2);
+      border: 1px solid var(--line-2);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+    }
+    .lt-actions.is-open { display: flex; }
+    .lt-act, .lt-act--primary {
+      width: 100%; height: 44px; padding: 0 12px;
+      justify-content: flex-start; font-size: 14px;
+    }
+    .lt-act > span, .lt-act--primary > span { display: inline; }
+    .lt-brand-name { display: none; }
+  }
+}
+
+/* base.html's navbar is 70px on desktop and 60px below 768px viewport width.
+   That is a property of the window, not of this container, so it stays a media
+   query while everything else above keys off @container. */
+@media (max-width: 768px) {
+  .lt-app { height: calc(100vh - 60px); }
+}
+
+/* ════════════════ REDUCED MOTION ════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .lt-app *, .lt-modal *, .lt-popup *, .lt-toast {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+  .lt-transcript { scroll-behavior: auto; }
+}
+
+/* ════════════════ PRINT ════════════════ */
+@media print {
+  .lt-topbar, .lt-sidebar, .lt-toolbar, .lt-caption-bar,
+  .lt-popup, .lt-jump, .lt-live-bar, .lt-seg-acts { display: none !important; }
+  .lt-app { height: auto; overflow: visible; background: #fff; color: #000; }
+  .lt-transcript { overflow: visible; }
+  .lt-seg-translation { color: #000; }
+  .lt-seg-original { color: #444; }
+}

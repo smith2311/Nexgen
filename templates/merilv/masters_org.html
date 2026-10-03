@@ -1,0 +1,273 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → one structural master, chosen by ?table=. Company, sales org,
+plant, storage location and the two type tables all render through here: they
+share a shape (a code, a label, at most one parent), so they share a template
+and one POST handler (org_save), keyed by the `table` in the URL.
+
+The add/edit modal is shared too — org_save takes an optional `pk`, so the same
+form creates or updates. Edit fills it from the clicked row's data-* attributes.
+{% endcomment %}
+
+{% block mv_title %}{{ spec.title }} — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+{% comment %}
+The real ancestry, not a fixed two-step crumb. Each level links into its OWN
+table scoped to ITS parent, which is what makes the five structural masters
+read as one tree: from a storage list you can step up to "the plants of this
+sales org", not just to "all plants".
+{% endcomment %}
+{% comment %}
+Hierarchy sits directly under Master Data, ahead of the ancestry, because it is
+the root of the chain the ancestry walks — putting it after read as
+"900 > 9100 > 1 > Hierarchy > Storage Location", which reverses the descent.
+{% endcomment %}
+{% if org_chain %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters_org_tree' %}">Hierarchy</a>
+{% endif %}
+{% for step in ancestry %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{{ step.href }}" title="{{ step.label }}{% if step.name %} — {{ step.name }}{% endif %}">{{ step.code }}</a>
+{% endfor %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ spec.title }}</span>
+{% endblock %}
+{% block mv_heading %}{{ spec.title }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">The structural masters a plant, storage location or document type is validated against.</p>{% endblock %}
+
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+{% if org_chain %}
+{% comment %}
+C6 - the four nesting levels as one visible chain, on every one of them. The
+separate "View Hierarchy" page shows the whole tree; this shows where the table
+you are looking at sits in it, which is the part a flat table could never say.
+Billing Type and Sales Type are leaves with no parent, so `org_chain` is empty
+for them and this whole strip is skipped rather than drawn misleadingly.
+{% endcomment %}
+<nav class="mv-levels" aria-label="Organisation levels">
+    {% for step in org_chain %}
+    {% if not forloop.first %}<span class="mv-levels__sep" aria-hidden="true">{% icon "chevron" 12 %}</span>{% endif %}
+    <a href="{{ step.href }}" class="mv-levels__step{% if step.is_active %} is-current{% endif %}"
+       {% if step.is_active %}aria-current="page"{% endif %}>
+        <span class="mv-levels__n">{{ forloop.counter }}</span>{{ step.label }}
+    </a>
+    {% endfor %}
+    <span class="mv-levels__spacer"></span>
+    <a href="{% url 'merilv:masters_org_tree' %}" class="mv-btn mv-btn--sm mv-btn--tint-violet">
+        {% icon "layers" 12 %} View whole hierarchy
+    </a>
+</nav>
+{% endif %}
+
+{% if parent_row %}
+{% comment %}
+A scoped list must say so. Without this banner "the 4 plants of SO-1001" is
+indistinguishable from "the plant master has lost 900 rows", which is the
+worse of the two things a reader could conclude.
+{% endcomment %}
+<div class="mv-alert mv-alert--info mv-scope">
+    {% icon "filter" %}
+    <div class="mv-scope__text">
+        Showing only the {{ spec.title|lower }} under
+        <strong class="mv-mono">{{ parent_code }}</strong>
+        {% if ancestry %}{% with owner=ancestry|last %}{% if owner.name %}— {{ owner.name }}{% endif %}{% endwith %}{% endif %}.
+    </div>
+    <a href="?table={{ table }}" class="mv-btn mv-btn--sm">Show all {{ spec.title|lower }}</a>
+</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-mx-card__head">
+        {% include "merilv/_shell/masters_card_head.html" with title=spec.title icon=spec.icon count=result_count key=table add_modal="mvOrgModal" add_label="Add" add_title="Add "|add:spec.label %}
+    </div>
+
+    <form method="get" class="mv-table-toolbar">
+        <input type="hidden" name="table" value="{{ table }}">
+        {% comment %}Searching inside a branch must not silently widen to the whole master.{% endcomment %}
+        {% if parent_code %}<input type="hidden" name="parent" value="{{ parent_code }}">{% endif %}
+        <div class="mv-search">
+            {% icon "search" %}
+            <input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Search code or name…">
+        </div>
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing <strong class="mv-fg-2">{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong class="mv-fg-2">{{ page_obj.paginator.count }}</strong></span>
+    </form>
+
+    {% if q %}
+    <div class="mv-filterbar">
+        <span class="mv-label" style="margin:0;">Active filters</span>
+        <a href="?table={{ table }}{% if parent_code %}&parent={{ parent_code|urlencode }}{% endif %}"
+           class="mv-filter-chip">{{ q|truncatechars:24 }} {% icon "close" 12 %}</a>
+    </div>
+    {% endif %}
+
+    {% if display_rows %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead>
+            <tr>
+                {% for header in headers %}<th>{{ header }}</th>{% endfor %}
+                {% if child_table %}<th>{{ child_label }}s</th>{% endif %}
+                <th class="mv-col-actions mv-col-actions--pair">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in display_rows %}
+            <tr data-pk="{{ row.pk }}" data-code="{{ row.code }}" data-name="{{ row.name }}" data-parent="{{ row.parent }}">
+                {% if table == "storage" %}
+                <td class="mv-mono">{{ row.parent|default:"—" }}</td>
+                <td class="mv-mono mv-t-strong">{{ row.code }}</td>
+                <td>{{ row.name|default:"—" }}</td>
+                {% else %}
+                <td class="mv-mono mv-t-strong">{{ row.code }}</td>
+                <td>{{ row.name|default:"—" }}</td>
+                {% if spec.parent %}<td class="mv-mono mv-fg-3">{{ row.parent|default:"—" }}</td>{% endif %}
+                {% endif %}
+                {% if child_table %}
+                {% comment %}
+                Drill-down: the step that makes this a tree you can walk rather
+                than a table you can read. Scoped by CODE, because that is what
+                the row already carries and what the child table filters on.
+                {% endcomment %}
+                <td>
+                    <a href="?table={{ child_table }}&parent={{ row.code|urlencode }}"
+                       class="mv-btn mv-btn--sm mv-btn--ghost"
+                       title="Open the {{ child_label|lower }}s under {{ row.code }}">
+                        {% icon "chevron" 12 %} {{ child_label }}s
+                    </a>
+                </td>
+                {% endif %}
+                {% include "merilv/_shell/masters_row_actions.html" with key=table pk=row.pk noun=spec.label|lower label=row.code on_edit="mvEditOrgRow(this.closest('tr'))" %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "search-x" 48 %}
+        <div class="mv-empty__title">No {{ spec.title|lower }} rows{% if q %} match that search{% endif %}</div>
+        <p class="mv-empty__text">
+            {% if q %}Try a different search term.
+            {% else %}Add one by hand, or import a sheet — the template shows the columns it expects.{% endif %}
+        </p>
+        {% if q %}<a href="?table={{ table }}{% if parent_code %}&parent={{ parent_code|urlencode }}{% endif %}"
+                     class="mv-btn mv-empty__action">Clear search</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% include "merilv/_shell/masters_import_modal.html" with key=table label=spec.title|lower match_on="its code" %}
+
+<div class="mv-modal-scrim" id="mvOrgModal">
+    <div class="mv-modal" role="dialog" aria-modal="true" aria-labelledby="mvOrgModalTitle">
+        <form method="post" action="{% url 'merilv:masters_org_save' table %}" id="mvOrgForm">
+            {% csrf_token %}
+            <input type="hidden" name="pk" value="">
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvOrgModalTitle">Add {{ spec.label|lower }}</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+            </div>
+            <div class="mv-modal__body">
+                {% comment %}
+                Labels come from spec.columns (code/name/parent), NOT from
+                `headers`. `headers` is in *export* order, which for storage is
+                plant-first — so indexing into it labelled the storage_code field
+                "Plant Code", the storage_name field "Storage Code", and the plant
+                dropdown "Storage Name". spec.columns is keyed by role, so it
+                cannot drift out of step with the field it labels.
+                {% endcomment %}
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvOrgCode">{{ spec.columns.code.0 }} <span class="mv-req">*</span></label>
+                        <input class="mv-input mv-input--mono" id="mvOrgCode" name="{{ spec.fields.0 }}" required>
+                    </div>
+                    <div class="mv-field" style="flex:2;">
+                        <label class="mv-label" for="mvOrgName">{{ spec.columns.name.0 }}</label>
+                        <input class="mv-input" id="mvOrgName" name="{{ spec.fields.1 }}">
+                    </div>
+                </div>
+                {% if spec.parent %}
+                <div class="mv-field">
+                    <label class="mv-label" for="mvOrgParent">
+                        {{ spec.columns.parent.0 }}{% if table == "storage" %} <span class="mv-req">*</span>{% endif %}
+                    </label>
+                    {% comment %}
+                    Mapping, not navigation - which is the distinction the brief
+                    draws ("drag-or-dropdown mapping between levels"). When the
+                    list is scoped to a branch this preselects that branch, so
+                    adding into the current position does not mean re-finding
+                    the parent among 1,400 of them. `data-mv-default` is what the
+                    Add trigger resets to (see wireModals in js/datatable.js) so
+                    reopening the modal does not fall back to blank.
+                    {% endcomment %}
+                    <select class="mv-select" id="mvOrgParent" name="{{ parent_field }}"
+                            data-mv-default="{{ parent_pk }}" {% if table == "storage" %}required{% endif %}>
+                        <option value="">—</option>
+                        {% for parent in parents %}
+                        <option value="{{ parent.pk }}" {% if parent_pk and parent.pk == parent_pk %}selected{% endif %}>{{ parent }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if table == "storage" %}
+                    <span class="mv-hint">A storage location is unique per plant, so the plant is part of its identity.</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Edit reuses the add modal: fill it from the row's data-* attributes and
+// relabel the heading. The Add button clears it again via data-mv-reset-title
+// (see wireModals in merilv/js/datatable.js).
+function mvEditOrgRow(row) {
+    var form = document.getElementById('mvOrgForm');
+    var code = document.getElementById('mvOrgCode');
+    form.pk.value = row.dataset.pk;
+    code.value = row.dataset.code || '';
+    document.getElementById('mvOrgName').value = row.dataset.name || '';
+    var parent = document.getElementById('mvOrgParent');
+    if (parent) {
+        // The row's data-parent is a CODE; the option values are pks. Match on
+        // the option text, which starts with the code, and fall back to the
+        // scoped default rather than to blank — clearing a plant's sales org
+        // by opening its edit modal is not an edit anyone asked for.
+        var wanted = row.dataset.parent || '';
+        var matched = '';
+        if (wanted) {
+            for (var i = 0; i < parent.options.length; i++) {
+                var opt = parent.options[i];
+                if (opt.value && opt.text.indexOf(wanted) === 0) { matched = opt.value; break; }
+            }
+        }
+        parent.value = matched || parent.dataset.mvDefault || '';
+    }
+    // The code is the primary key, and org_save keys update_or_create on the
+    // submitted code — so letting it be edited here created a second row and
+    // left the original behind instead of renaming. The .mv-input--locked class
+    // is what the Add trigger looks for to unlock it again (see wireModals in
+    // merilv/js/datatable.js).
+    code.readOnly = true;
+    code.classList.add('mv-input--locked');
+    document.getElementById('mvOrgModalTitle').textContent = 'Edit {{ spec.label|lower|escapejs }}';
+    document.getElementById('mvOrgModal').classList.add('is-open');
+}
+</script>
+{% endblock %}

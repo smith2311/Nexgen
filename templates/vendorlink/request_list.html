@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Requests{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% comment %}
+Request history, grouped by the day each request was raised.
+
+Two things here are easy to "fix" wrongly, so they are written down:
+
+1. Date groups other than today's start collapsed — that is deliberate, and
+   it is what keeps a long history readable. But it must not apply while a
+   filter is in force: a search matching only older requests used to render a
+   table whose every row carried `hidden`, so the screen read as "no results"
+   while actually holding the matches. Hence `filters_active` in the expanded
+   test below. Do not drop it.
+
+2. `{% comment %}` and not `{# #}` — a multi-line `{# #}` is not a Django
+   comment (the tag regex is not DOTALL), so the text leaks into the page and
+   becomes an anonymous flex item that squeezes `<main>`.
+{% endcomment %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">Requests</span>
+            </div>
+            <h1 class="vlx-title">{% if is_vendor %}Bid Requests{% else %}Vendor Requests{% endif %}</h1>
+            <p class="vlx-subtitle">
+                {{ request_count }} request{{ request_count|pluralize }}
+                {% if filters_active %}matching{% endif %}
+                {% if is_vendor %}
+                    {% comment %}
+                    Leads with what is actionable. "4 requests" alone does not
+                    tell a vendor whether any of them are waiting on them, which
+                    is the only reason they opened the page.
+                    {% endcomment %}
+                    {% if vendor_todo_count %}
+                        &middot; <strong style="color:var(--vlx-warning);">{{ vendor_todo_count }} awaiting your quote</strong>
+                    {% elif vendor_open_count %}
+                        &middot; {{ vendor_open_count }} open, all quoted
+                    {% endif %}
+                {% else %} &middot; {{ reachable_total }} reachable vendor{{ reachable_total|pluralize }}{% endif %}
+            </p>
+        </div>
+        {% if not is_vendor %}
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:request_create' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-paper-plane"></i> Raise a Request</a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% comment %}
+    Search & filters. `.vlx-toolbar` pins flex-direction: row — components.css
+    sets `form { display:flex; flex-direction:column }` site-wide, so any class
+    applied to a <form> has to override it or the controls stack vertically.
+    {% endcomment %}
+    <form method="get" class="vlx-toolbar" id="vmReqFilterForm">
+        <div class="vlx-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ q }}" placeholder="Search subject, reference, country, verticals, person…" autofocus>
+        </div>
+        <div class="vlx-toolbar__filters">
+            {% comment %}
+            The send status (did the invitation mail leave our server?) is a
+            fact about Meril's own process. Offering it to the vendor asked
+            them to filter on something they cannot see the meaning of, and
+            both values it can take mean "this request exists" from their side.
+            {% endcomment %}
+            {% if not is_vendor %}
+            <select name="status" class="vlx-select" aria-label="Filter by status" onchange="document.getElementById('vmReqFilterForm').submit()">
+                <option value="">All statuses</option>
+                <option value="sent"    {% if status == 'sent' %}selected{% endif %}>Sent</option>
+                <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+            </select>
+            <span class="vlx-vrule"></span>
+            {% endif %}
+            <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-filter"></i> Filter</button>
+            {% if filters_active %}
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--ghost vlx-btn--sm">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if filter_chips %}
+    <div class="vlx-filterchips">
+        <span class="vlx-filterchips__label">Filtered by</span>
+        {% for chip in filter_chips %}
+        <span class="vlx-filterchip">
+            <span class="vlx-filterchip__key">{{ chip.key }}:</span> {{ chip.value }}
+            <a class="vlx-filterchip__x"
+               href="{% url 'vendorlink:request_list' %}{% if chip.remove_query %}?{{ chip.remove_query }}{% endif %}"
+               title="Remove the {{ chip.key|lower }} filter"
+               aria-label="Remove the {{ chip.key|lower }} filter"><i class="fas fa-xmark"></i></a>
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if is_vendor %}
+    {% comment %}
+    The vendor's own view of the same requests.
+
+    Flat and already open, rather than the requester's date-grouped history
+    below. The two audiences ask different questions of one table: a requester
+    browses what they sent and when; a vendor asks "which of these still needs
+    a quote from me, and what did I quote last time". Collapsed date groups
+    answer the first well and the second not at all -- this screen used to open
+    showing nothing but two date headers, and the columns it did have (Raised
+    by, Recipients, internal send Status) are facts about Meril's process that
+    mean nothing to the company being asked to price the work.
+    {% endcomment %}
+    <div class="vlx-card vlx-card--flush">
+        {% if vendor_rows %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table">
+            <thead>
+                <tr>
+                    <th>Request</th>
+                    <th>Bidding</th>
+                    <th>Your bid</th>
+                    <th class="right">Your total</th>
+                    <th class="right">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in vendor_rows %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell__title">
+                            {{ row.request.subject }}
+                            {% if row.request.reference_id %}<button type="button" class="vlx-refcopy" data-ref="{{ row.request.reference_id }}" title="Copy {{ row.request.reference_id }}" style="margin-left:2px;"><span class="vlx-mono" style="font-size:11px;color:var(--vlx-ink-300);">{{ row.request.reference_id }}</span><i class="fas fa-copy" aria-hidden="true"></i><span class="sr-only">Copy reference number</span></button>{% endif %}
+                        </div>
+                        <div class="vlx-cell__sub">
+                            <i class="fas fa-location-dot" style="font-size:11px;"></i>
+                            {{ row.request.country }}{% if row.request.product_verticals %} &middot; {{ row.request.product_verticals|truncatechars:40 }}{% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if row.window == "open" %}
+                            {% if row.request.bid_close_at %}
+                            <span class="vlx-pill vlx-pill--yes"><i class="fas fa-door-open"></i> Open</span>
+                            <div class="vlx-cell__sub">closes {{ row.request.bid_close_at|date:"d M Y" }}</div>
+                            {% else %}
+                            <span class="vlx-pill vlx-pill--yes"><i class="fas fa-door-open"></i> Open</span>
+                            {% endif %}
+                        {% elif row.window == "not_started" %}
+                            <span class="vlx-pill vlx-pill--warning"><i class="fas fa-hourglass-start"></i> Not started</span>
+                            {% if row.request.bid_open_at %}<div class="vlx-cell__sub">opens {{ row.request.bid_open_at|date:"d M Y" }}</div>{% endif %}
+                        {% else %}
+                            <span class="vlx-pill vlx-pill--draft"><i class="fas fa-door-closed"></i> Closed</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% comment %}
+                        Gold marks a win, never green -- green is "approved /
+                        active" across this design system and amber is "needs
+                        attention". See the token comment on --vlx-gold.
+                        {% endcomment %}
+                        {% if row.is_awarded_to_me %}
+                        <span class="vlx-pill" style="background:var(--vlx-gold-tint);color:var(--vlx-gold);"><i class="fas fa-trophy"></i> Awarded to you</span>
+                        {% elif row.bid_count %}
+                        <span class="vlx-pill vlx-pill--info"><i class="fas fa-check"></i> {{ row.bid_count }} bid{{ row.bid_count|pluralize }} sent</span>
+                        {% elif row.window == "open" %}
+                        <span class="vlx-pill vlx-pill--warning"><i class="fas fa-pen"></i> Not quoted yet</span>
+                        {% else %}
+                        <span class="vlx-muted" style="font-size:12px;">Not quoted</span>
+                        {% endif %}
+                    </td>
+                    <td class="right num">
+                        {% if row.latest_bid.total_cost %}
+                        <span style="font-size:11px;color:var(--vlx-ink-300);font-weight:600;">{{ row.latest_bid.currency }}</span>
+                        {{ row.latest_bid.total_cost|floatformat:"2g" }}
+                        {% if row.bid_count > 1 %}<div class="vlx-cell__sub">latest of {{ row.bid_count }}</div>{% endif %}
+                        {% else %}<span class="vlx-muted">&mdash;</span>{% endif %}
+                    </td>
+                    <td class="right">
+                        <a href="{% url 'vendorlink:request_detail' row.request.pk %}"
+                           class="vlx-btn vlx-btn--sm {% if row.window == 'open' and not row.bid_count %}vlx-btn--primary{% else %}vlx-btn--outline{% endif %}">
+                            {% if row.window == "open" and not row.bid_count %}Submit a quote{% elif row.window == "open" %}Update quote{% else %}View{% endif %}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-paper-plane"></i></div>
+            {% if filters_active %}
+            <h3>No results found</h3>
+            <p>Try adjusting your search or filters.</p>
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--outline" style="margin-top:14px;"><i class="fas fa-xmark"></i> Clear filters</a>
+            {% else %}
+            <h3>No open requests yet</h3>
+            {% comment %}
+            Names the country the account is filed under and the joining window.
+            "Nothing here" is indistinguishable from "we have you in the wrong
+            country" and from "everything was raised before you joined" — which
+            are three different problems with three different fixes, and a
+            vendor could not tell which one they had.
+            {% endcomment %}
+            {% if vendor_country %}
+            <p>Requests raised for <strong>{{ vendor_country }}</strong> will appear here as
+               soon as Meril raises them, and you can submit your quotation against each one.</p>
+            <p class="vlx-muted" style="font-size:13px;">
+               You can also see requests raised up to {{ vendor_grace_hours }} hour{{ vendor_grace_hours|pluralize }}
+               before your account was created, plus any request emailed to you directly.
+               If your country looks wrong, contact scm.digitalsupport@merillife.com.</p>
+            {% else %}
+            <p>Your login is not linked to a vendor record yet, so there is nothing to show.
+               Contact scm.digitalsupport@merillife.com to have your registration completed.</p>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <div class="vlx-card vlx-card--flush">
+        {% if grouped_requests %}
+
+        {% if grouped_requests|length > 1 %}
+        <div class="vlx-table-toolbar" style="display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 0;">
+            <button type="button" class="vlx-btn vlx-btn--ghost vlx-btn--sm" onclick="vmToggleAllGroups(true)">
+                <i class="fas fa-chevron-down"></i> Expand all
+            </button>
+            <button type="button" class="vlx-btn vlx-btn--ghost vlx-btn--sm" onclick="vmToggleAllGroups(false)">
+                <i class="fas fa-chevron-up"></i> Collapse all
+            </button>
+        </div>
+        {% endif %}
+
+        <div class="vlx-table-wrap">
+        <table class="vlx-table">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Raised by</th>
+                    <th>Recipients</th>
+                    <th>Status</th>
+                    <th>Time</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in grouped_requests %}
+
+                <tr class="vlx-date-row">
+                    <td colspan="6">
+                        <button type="button" class="vlx-date-toggle"
+                                onclick="vmToggleGroup({{ forloop.counter }})"
+                                aria-expanded="{% if group.is_today or filters_active %}true{% else %}false{% endif %}">
+                            <i class="fas fa-chevron-down vlx-date-chevron {% if group.is_today or filters_active %}open{% endif %}" id="chev-{{ forloop.counter }}"></i>
+                            <span class="vlx-date-label {% if group.is_today %}vlx-date-today{% endif %}">
+                                {% if group.is_today %}
+                                    <i class="fas fa-circle-dot" style="font-size:8px;vertical-align:middle;margin-right:4px;color:var(--vlx-secondary);"></i>Today &mdash; {{ group.date|date:"d M Y" }}
+                                {% else %}
+                                    {{ group.date|date:"l, d M Y" }}
+                                {% endif %}
+                            </span>
+                            <span class="vlx-date-badge"><i class="fas fa-inbox"></i> {{ group.count }} request{{ group.count|pluralize }}</span>
+                        </button>
+                    </td>
+                </tr>
+
+                {% with gid=forloop.counter %}
+                {% for r in group.requests %}
+                <tr class="vlx-req-row {% if not group.is_today and not filters_active %}hidden{% endif %}" data-group="{{ gid }}">
+                    <td>
+                        <div class="vlx-cell__title">
+                            {{ r.subject }}
+                            {% if r.reference_id %}<button type="button" class="vlx-refcopy" data-ref="{{ r.reference_id }}" title="Copy {{ r.reference_id }}" style="margin-left:2px;"><span class="vlx-mono" style="font-size:11px;color:var(--vlx-ink-300);">{{ r.reference_id }}</span><i class="fas fa-copy" aria-hidden="true"></i><span class="sr-only">Copy reference number</span></button>{% endif %}
+                        </div>
+                        <div class="vlx-cell__sub">
+                            <i class="fas fa-location-dot" style="font-size:11px;"></i>
+                            {{ r.country }}{% if r.product_verticals %} &middot; {{ r.product_verticals|truncatechars:40 }}{% endif %}
+                        </div>
+                    </td>
+                    <td>{{ r.raised_by.get_full_name|default:r.raised_by.username|default:"—" }}</td>
+                    <td><span class="vlx-cap-count"><i class="fas fa-envelope"></i> {{ r.recipient_count }}</span></td>
+                    <td>
+                        {% if r.status == 'sent' %}
+                        <span class="vlx-pill vlx-pill--yes"><i class="fas fa-circle-check"></i> Sent</span>
+                        {% else %}
+                        <span class="vlx-pill vlx-pill--draft"><i class="fas fa-clock"></i> Pending</span>
+                        {% endif %}
+                    </td>
+                    <td class="vlx-muted" style="white-space:nowrap;font-size:13px;">{{ r.created_at|date:"H:i" }}</td>
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            <a href="{% url 'vendorlink:request_detail' r.pk %}" class="vlx-iconbtn" title="View {{ r.subject }}" aria-label="View {{ r.subject }}"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endwith %}
+
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-paper-plane"></i></div>
+            {% if filters_active %}
+            <h3>No results found</h3>
+            <p>Try adjusting your search or filters.</p>
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--outline" style="margin-top:14px;"><i class="fas fa-xmark"></i> Clear filters</a>
+            {% else %}
+            {% comment %}
+            Requester copy only -- a vendor never reaches this branch now, they
+            get their own table and their own empty state above. The vendor
+            wording that used to live here (country filed under, joining grace
+            window) moved with them rather than being dropped.
+            {% endcomment %}
+            <h3>No requests yet</h3>
+            <p>Raise your first request and it will be emailed to all active vendors of the selected country.</p>
+            <a href="{% url 'vendorlink:request_create' %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-paper-plane"></i> Raise a Request</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}{# /is_vendor #}
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-refcopy.js' %}"></script>
+<script>
+function vmSetGroup(gid, expand) {
+    var rows   = document.querySelectorAll('[data-group="' + gid + '"]');
+    var chev   = document.getElementById('chev-' + gid);
+    rows.forEach(function (r) { r.classList.toggle('hidden', !expand); });
+    if (chev) {
+        chev.classList.toggle('open', expand);
+        // The chevron lives inside the toggle button, so the ARIA state
+        // belongs on the button rather than on the icon.
+        var btn = chev.closest('.vlx-date-toggle');
+        if (btn) btn.setAttribute('aria-expanded', expand ? 'true' : 'false');
+    }
+}
+
+function vmToggleGroup(gid) {
+    var chev = document.getElementById('chev-' + gid);
+    vmSetGroup(gid, !(chev && chev.classList.contains('open')));
+}
+
+function vmToggleAllGroups(expand) {
+    document.querySelectorAll('.vlx-date-chevron').forEach(function (chev) {
+        vmSetGroup(chev.id.replace('chev-', ''), expand);
+    });
+}
+</script>
+{% endblock %}

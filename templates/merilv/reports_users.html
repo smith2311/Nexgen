@@ -1,0 +1,263 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Reports → User Activity — the all-users dashboard. Admin-only.
+
+Charts are Highcharts, vendored at static/lib/highcharts/ and already used by
+the billing and material-rework dashboards, so this screen inherits the
+platform's chart language rather than inventing one. Nothing here is a CSS
+progress bar: next to a real chart, a bar reads as a chart that failed to load.
+
+Series are built in merilv/useractivity.py and handed over as one JSON blob —
+no per-chart template loops, and no chance of the markup and the numbers
+disagreeing. Every value in it is a primitive; a date or Decimal leaking in
+would be a 500 at render time.
+
+Two things this screen says out loud because both are easy to over-read:
+  * "Active window" is first-to-last action per day, summed — an engagement
+    span, not attendance. There is no login/logout tracking in this module.
+  * A user with zero actions is still listed. "Has a role, never used it" is a
+    finding, and a query over activity tables alone could never show it.
+{% endcomment %}
+
+{% block mv_title %}User Activity — Reports{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:reports' %}">Reports</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">User Activity</span>
+{% endblock %}
+{% block mv_heading %}User Activity{% endblock %}
+{% block mv_sub %}
+<p class="mv-page-header__sub">
+    All users · {{ since|date:"d M Y" }} to {{ until|date:"d M Y" }}
+</p>
+{% endblock %}
+
+{% block mv_actions %}
+{% comment %}
+One GET form for both controls. The `user` select posts a pk and the view
+redirects to that person's own URL, so the individual view stays bookmarkable
+instead of being a query-string branch on this page.
+{% endcomment %}
+<form method="get" class="mv-row">
+    <select class="mv-select mv-userpick" name="user" onchange="this.form.submit()"
+            aria-label="Track a specific user">
+        <option value="">All users ({{ rows|length }})</option>
+        {% for row in rows %}
+        <option value="{{ row.id }}">
+            {{ row.name }}{% if row.role %} — {{ row.role }}{% endif %} · {{ row.total }}
+        </option>
+        {% endfor %}
+    </select>
+    <select class="mv-select" name="days" onchange="this.form.submit()" aria-label="Reporting window">
+        {% for value, label in windows %}
+        <option value="{{ value }}" {% if days == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+<a href="{% url 'merilv:user_activity_export' %}?days={{ days }}" class="mv-btn">
+    {% icon "download" %} Export
+</a>
+{% endblock %}
+
+{% block mv_body %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi mv-kpi--active">
+        <span class="mv-kpi__icon">{% icon "users" %}</span>
+        <span class="mv-kpi__label">Users Active</span>
+        <span class="mv-kpi__value">{{ totals.users_active }}</span>
+        <span class="mv-kpi__sub">{% icon "users" 12 %} of {{ totals.users_total }} with access</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "activity" %}</span>
+        <span class="mv-kpi__label">Total Actions</span>
+        <span class="mv-kpi__value">{{ totals.actions }}</span>
+        <span class="mv-kpi__sub">{% icon "activity" 12 %} every logged action</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "scan" %}</span>
+        <span class="mv-kpi__label">Items Scanned</span>
+        <span class="mv-kpi__value">{{ totals.scans }}</span>
+        <span class="mv-kpi__sub">{% icon "scan" 12 %} across all consoles</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "clock" %}</span>
+        <span class="mv-kpi__label">Active Window</span>
+        <span class="mv-kpi__value">{{ totals.active_seconds|duration }}</span>
+        {# Spelled out on the tile: the number looks like a timesheet and isn't. #}
+        <span class="mv-kpi__sub">{% icon "clock" 12 %} first→last action per day</span>
+    </div>
+    <div class="mv-kpi{% if totals.users_idle %} mv-kpi--warn{% endif %}">
+        <span class="mv-kpi__icon">{% icon "alert" %}</span>
+        <span class="mv-kpi__label">Idle Accounts</span>
+        <span class="mv-kpi__value">{{ totals.users_idle }}</span>
+        <span class="mv-kpi__sub">{% icon "alert" 12 %} role granted, nothing done</span>
+    </div>
+</div>
+
+{% if totals.actions %}
+
+<div class="mv-chartgrid mv-chartgrid--full">
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "activity" %} Activity over time</h2>
+            <span class="mv-t-caption mv-fg-3">Stacked by work type · whole window, quiet days included</span>
+        </div>
+        <div id="chartTrend" class="mv-chart mv-chart--tall"></div>
+    </div>
+</div>
+
+<div class="mv-chartgrid">
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "chart" %} Busiest users</h2>
+            <span class="mv-t-caption mv-fg-3">Click a bar to open that user</span>
+        </div>
+        <div id="chartTopUsers" class="mv-chart mv-chart--tall"></div>
+    </div>
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "layers" %} Work mix</h2>
+        <div id="chartMix" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "clock" %} When the team works</h2>
+        <div id="chartHours" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "key" %} Actions by role</h2>
+        <div id="chartRoles" class="mv-chart"></div>
+    </div>
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "history" %} Weekday pattern</h2>
+            <span class="mv-t-caption mv-fg-3">Average per occurrence of that weekday</span>
+        </div>
+        <div id="chartWeekdays" class="mv-chart"></div>
+    </div>
+</div>
+
+{% else %}
+<div class="mv-empty" style="margin-top:var(--mv-4);">
+    {% icon "search-x" 48 %}
+    <div class="mv-empty__title">Nothing logged in this window</div>
+    <p class="mv-empty__text">
+        No Meril-V activity between {{ since|date:"d M Y" }} and {{ until|date:"d M Y" }}. Try a longer window.
+    </p>
+</div>
+{% endif %}
+
+{# ── Roster ──────────────────────────────────────────────────────────────── #}
+<div class="mv-card" style="margin-top:var(--mv-4);">
+    <div class="mv-card__head">
+        <h2 class="mv-card__title">{% icon "users" %} Every user</h2>
+        <span class="mv-t-caption mv-fg-3">{{ rows|length }} with access · busiest first</span>
+    </div>
+    {% if rows %}
+    <div class="mv-table-wrap">
+        <table class="mv-table mv-table--zebra mv-table--dense">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th class="mv-num">Actions</th>
+                    <th class="mv-num">Scans</th>
+                    <th class="mv-num">Active days</th>
+                    <th class="mv-num">Per day</th>
+                    <th class="mv-num">Active window</th>
+                    <th class="mv-num">Session time</th>
+                    <th>Last action</th>
+                    <th class="mv-col-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>
+                        <span class="mv-inline">
+                            <span class="mv-avatar{% if not row.total %} mv-avatar--idle{% endif %}">{{ row.name|initials }}</span>
+                            <span>
+                                {{ row.name }}
+                                {% if not row.is_active %}
+                                <span class="mv-badge mv-badge--danger">Disabled</span>
+                                {% endif %}
+                                <div class="mv-t-caption mv-fg-3">{{ row.username }}</div>
+                            </span>
+                        </span>
+                    </td>
+                    <td>
+                        {% if row.role %}<span class="mv-tier {{ row.role|role_tier_class }}">{{ row.role }}</span>
+                        {% else %}<span class="mv-fg-3">—</span>{% endif %}
+                    </td>
+                    <td class="mv-num mv-mono mv-t-strong">{{ row.total }}</td>
+                    <td class="mv-num mv-mono">{{ row.by_kind.scan }}</td>
+                    <td class="mv-num mv-mono">{{ row.active_days }}</td>
+                    <td class="mv-num mv-mono">{% if row.total %}{{ row.per_active_day }}{% else %}—{% endif %}</td>
+                    <td class="mv-num mv-mono">{{ row.active_seconds|duration }}</td>
+                    <td class="mv-num mv-mono">{{ row.session_seconds|duration }}</td>
+                    <td class="mv-t-caption">
+                        {% if row.last_seen %}{{ row.last_seen|date:"d M, H:i" }}
+                        {% else %}<span class="mv-fg-3">Never</span>{% endif %}
+                    </td>
+                    <td class="mv-col-actions">
+                        <a href="{% url 'merilv:user_activity_detail' row.id %}?days={{ days }}"
+                           class="mv-btn mv-btn--sm">Track {% icon "arrow-right" 14 %}</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "users" 48 %}
+        <div class="mv-empty__title">No users to report on</div>
+        <p class="mv-empty__text">Nobody holds a Meril-V role and nothing has been logged.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mv-card" style="margin-top:var(--mv-4);">
+    <h2 class="mv-card__title">{% icon "info" %} How to read this</h2>
+    <dl class="mv-dl">
+        <dt>Actions</dt>
+        <dd>Every row this person created across all 15 tracked tables — scans, sessions, uploads, closures and master-data edits. Not just the activity log, which only covers admin edits.</dd>
+        <dt>Active window</dt>
+        <dd>First to last action each day, summed. An engagement span, <strong>not</strong> a timesheet — breaks inside a day are counted. No login/logout tracking exists in this module.</dd>
+        <dt>Session time</dt>
+        <dd>Real open-to-last-write duration of console sessions. Narrower but truer; an upload or a master-data edit has no duration at all.</dd>
+        <dt>Idle accounts</dt>
+        <dd>Hold a Meril-V role but logged nothing in this window.</dd>
+    </dl>
+</div>
+
+{{ charts|json_script:"uaData" }}
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'merilv/js/user_activity.js' %}"></script>
+<script>
+(function () {
+    if (!window.mvUserActivity) { return; }
+    var data = window.mvUserActivity.readPayload('uaData');
+    if (!data || !data.has_data) { return; }
+    var ua = window.mvUserActivity;
+    ua.applyTheme();
+
+    ua.stackedTrend('chartTrend', data.trend);
+
+    // Clicking a bar opens that user — the ids ride alongside the values so the
+    // handler never has to match a name back to a pk.
+    ua.rankedBar('chartTopUsers', data.top_users.names, data.top_users.values, {
+        urls: data.top_users.urls
+    });
+
+    ua.donut('chartMix', data.mix);
+    ua.hourColumn('chartHours', data.hours);
+    ua.donut('chartRoles', data.roles);
+    ua.weekdayColumn('chartWeekdays', data.weekdays);
+})();
+</script>
+{% endblock %}

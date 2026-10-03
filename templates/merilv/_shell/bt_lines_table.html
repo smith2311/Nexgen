@@ -1,0 +1,41 @@
+{% load merilv_ui %}
+{% comment %}
+Per-SKU transfer lines with the recommended/overridden batch — the client's
+"Ask material" batch assignment (Row 4.1). Included for the first paint;
+branch_transfer.js rebuilds this same markup after every scan, auto-assign
+run and manual override (see renderBtLines).
+{% endcomment %}
+{% if lines %}
+<table class="mv-table mv-table--dense mv-table--zebra">
+    <thead><tr>
+        <th>SKU</th><th>Supply Node</th><th>Receiving Node</th><th>Storage</th>
+        <th class="mv-num">Required</th><th class="mv-num">Picked</th><th class="mv-num">Pending</th>
+        <th>Assigned batch</th>
+    </tr></thead>
+    <tbody>
+        {% for l in lines %}
+        <tr class="{% if l.pending_qty <= 0 %}mv-fg-3{% endif %}" data-mv-bt-line="{{ l.pk }}">
+            <td class="mv-mono mv-t-strong">{{ l.sku_code }}</td>
+            <td class="mv-mono">{{ l.supply_node_code|default:"—" }}</td>
+            <td class="mv-mono">{{ l.receiving_node_code|default:"—" }}</td>
+            <td class="mv-mono">{{ l.storage_location|default:"—" }}</td>
+            <td class="mv-num">{{ l.quantity|floatformat:0 }}</td>
+            <td class="mv-num">{{ l.picked_qty|floatformat:0 }}</td>
+            <td class="mv-num">{% if l.pending_qty > 0 %}<span class="mv-fg-warn">{{ l.pending_qty|floatformat:0 }}</span>{% else %}0{% endif %}</td>
+            <td>
+                {% if l.picked_qty > 0 %}
+                <span class="mv-mono">{{ l.assigned_batch|default:"—" }}</span>
+                <span class="mv-t-caption">(locked — already picked)</span>
+                {% else %}
+                <input type="text" class="mv-input mv-input--sm mv-mono" style="width:110px;"
+                       data-mv-bt-batch-input="{{ l.pk }}" value="{{ l.assigned_batch }}" placeholder="Auto">
+                {% if l.batch_overridden %}<span class="mv-badge mv-badge--warn" style="margin-left:4px;">Manual</span>{% endif %}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="mv-empty">{% icon "transfer" 48 %}<div class="mv-empty__title">This plan has no lines</div></div>
+{% endif %}

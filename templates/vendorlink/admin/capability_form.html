@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit {{ capability.label }} — Capability Master{% endblock %}
+{% block page_title %}Edit Capability{% endblock %}
+
+{% block extra_css %}
+{% comment %}
+data_table.css first: it owns the :root design tokens every var(--…) below
+resolves against, and the .btn family. This page was loading only the other two,
+so the buttons fell back to browser defaults and every token in vendorlink-ui.css
+was undefined here — see that file's own header note.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_capabilities' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Capability Master
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas {{ capability.icon }}"></i> {{ capability.label }}</h1>
+          <p>Held by {{ vendor_count }} active vendor{{ vendor_count|pluralize }}.
+             {% if not capability.is_active %}Currently retired — off the forms and filters.{% endif %}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="vl-panel" style="max-width:820px;">
+      {% csrf_token %}
+      <div class="vl-panel-hdr"><i class="fas fa-pen"></i> Edit capability</div>
+      <div class="vl-panel-body">
+        <div class="vl-formgrid">
+          <label class="vl-field">
+            <span class="vl-field__label">Capability name <span class="vl-field__req">*</span></span>
+            {{ form.label }}
+            <span class="vl-field__hint">
+              Renaming is safe — the identifier behind saved filter links and the
+              Excel columns was fixed when this capability was created and does
+              not move.
+            </span>
+            {% for e in form.label.errors %}<span class="vl-field__err">{{ e }}</span>{% endfor %}
+          </label>
+          {% include "vendorlink/admin/_capability_icon_picker.html" %}
+        </div>
+        {% for e in form.non_field_errors %}<div class="vl-field__err">{{ e }}</div>{% endfor %}
+        <div class="vl-formfoot">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save changes</button>
+          <a href="{% url 'vendorlink:admin_capabilities' %}" class="btn btn-ghost btn-sm">Cancel</a>
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-icon-picker.js' %}"></script>
+{% endblock %}

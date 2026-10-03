@@ -1,0 +1,146 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ req.subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#0076c8 0%,#00b5e2 100%);border-radius:12px 12px 0 0;padding:30px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:50%;width:58px;height:58px;line-height:58px;text-align:center;margin-bottom:12px;">
+              <span style="font-size:24px;color:#ffffff;">&#9993;</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:21px;font-weight:800;letter-spacing:-0.3px;word-break:break-word;">{{ req.subject }}</h1>
+          </td>
+        </tr>
+
+        <!-- Greeting + intro -->
+        {% if req.intro_message or req.header_message %}
+        <tr>
+          <td style="background:#ffffff;padding:26px 36px 0;">
+            {% if req.intro_message %}
+            <div style="color:#374151;font-size:14px;line-height:1.7;margin-bottom:14px;">{{ req.intro_message|safe }}</div>
+            {% endif %}
+            {% if req.header_message %}
+            <div style="color:#374151;font-size:14px;line-height:1.7;">{{ req.header_message|safe }}</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td style="background:#ffffff;padding:26px 36px 0;">
+            <p style="margin:0 0 14px;color:#1f2937;font-size:15px;">Dear <strong>{{ vendor.vendor_name }}</strong>,</p>
+          </td>
+        </tr>
+        {% endif %}
+
+        <!-- Requirements table -->
+        {% if req.warehouse_space_range or req.storage_temp_range or req.monthly_shipment_range or req.inbound_range or req.outbound_range or req.product_verticals or req.scope_of_work %}
+        <tr>
+          <td style="background:#ffffff;padding:20px 36px 4px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;font-size:14px;">
+              <tr><td colspan="2" style="background:#f8fbff;padding:12px 16px;color:#0076c8;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e5e7eb;">Requirement Summary</td></tr>
+              {% if req.warehouse_space_range %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;width:48%;">Warehouse space required</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.warehouse_space_range }}</td></tr>{% endif %}
+              {% if req.storage_temp_range %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;">Storage temperature</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.storage_temp_range }}</td></tr>{% endif %}
+              {% if req.monthly_shipment_range %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;">Monthly shipment</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.monthly_shipment_range }}</td></tr>{% endif %}
+              {% if req.inbound_range %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;">Inbound</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.inbound_range }}</td></tr>{% endif %}
+              {% if req.outbound_range %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;">Outbound</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.outbound_range }}</td></tr>{% endif %}
+              {% if req.product_verticals %}<tr><td style="padding:11px 16px;color:#6b7280;border-bottom:1px solid #f1f5f9;">Product verticals</td><td style="padding:11px 16px;color:#111827;font-weight:600;border-bottom:1px solid #f1f5f9;">{{ req.product_verticals }}</td></tr>{% endif %}
+              {% if req.scope_of_work %}<tr><td style="padding:11px 16px;color:#6b7280;vertical-align:top;">Scope of work</td><td style="padding:11px 16px;color:#111827;line-height:1.7;">{{ req.scope_of_work|safe }}</td></tr>{% endif %}
+            </table>
+          </td>
+        </tr>
+        {% endif %}
+
+        <!-- Call to action -->
+        <tr>
+          <td style="background:#ffffff;padding:26px 36px 6px;text-align:center;">
+            <a href="{{ site_url }}{% url 'vendorlink:request_detail' req.pk %}"
+               style="display:inline-block;background:linear-gradient(135deg,#0076c8 0%,#00b5e2 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:9px;box-shadow:0 4px 14px rgba(0,118,200,.28);">
+              View Request &amp; Submit Your Bid &rarr;
+            </a>
+            {% if req.bid_close_at %}
+            <p style="margin:12px 0 0;color:#6b7280;font-size:12.5px;">Bidding closes {{ req.bid_close_at|date:"d M Y, H:i" }}</p>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Footer message -->
+        {% if req.footer_message %}
+        <tr>
+          <td style="background:#ffffff;padding:20px 36px 0;">
+            <div style="color:#374151;font-size:14px;line-height:1.7;">{{ req.footer_message|safe }}</div>
+          </td>
+        </tr>
+        {% endif %}
+
+        <!-- Signature -->
+        <tr>
+          <td style="background:#ffffff;padding:22px 36px 28px;">
+            <p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+              Kind regards,<br>
+              <strong style="color:#1f2937;">{{ raised_by_name }}</strong><br>
+              {% if raised_by_email %}<a href="mailto:{{ raised_by_email }}" style="color:#0076c8;text-decoration:none;">{{ raised_by_email }}</a><br>{% endif %}
+              Meril Life Sciences — Global SCM
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 12px 12px;padding:26px 36px 24px;text-align:center;">
+            {% comment %}
+            The logo is a cid: reference to an image attached to the message,
+            not a URL: Gmail, Outlook and Apple Mail block remote images by
+            default, so a hosted logo shows as a broken placeholder on first
+            open. vendorlink/mailer.py attaches it and sets brand_logo_cid;
+            without it this falls back to a wordmark rather than rendering a
+            dead image.
+            {% endcomment %}
+            {% if brand_logo_cid %}
+            {% comment %}
+            The logo sits in a white chip on purpose. The only Meril artwork in
+            the repo is JPEG, which has no alpha, so the image carries its own
+            white background — dropped straight onto the navy footer it reads
+            as a rendering fault. A rounded panel makes the same pixels read as
+            a deliberate badge. Replace with a transparent PNG and this wrapper
+            can go.
+            Centred with an auto-margin table, not flexbox: Outlook renders
+            through Word and supports neither flex nor margin:auto on a div.
+            {% endcomment %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from Meril VendorLink.
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

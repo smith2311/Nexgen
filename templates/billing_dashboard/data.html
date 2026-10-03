@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Billing Data{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/billing_dashboard/billing.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="bd-wrap">
+
+  <header class="bd-hero">
+    <div class="bd-hero-text">
+      <div class="bd-hero-eyebrow">Order Management · Export Billing</div>
+      <h1 class="bd-hero-title"><i class="fas fa-table"></i> Billing Data</h1>
+      <p class="bd-hero-sub">{{ total }} line item(s){% if view != 'all' %} · <b>{{ view }}</b> view{% endif %}.
+        {% if selected_upload %}Snapshot: <b>{{ selected_upload.original_name }}</b>.{% endif %}
+      </p>
+    </div>
+    <div class="bd-hero-actions">
+      <a href="{% url 'billing:dashboard' %}{% if selected_upload %}?upload={{ selected_upload.pk }}{% endif %}" class="bd-btn"><i class="fas fa-chart-line"></i> Dashboard</a>
+      <a href="{% url 'billing:export' %}?{{ page_query }}" class="bd-btn bd-btn-primary"><i class="fas fa-file-excel"></i> Export ({{ total }})</a>
+    </div>
+  </header>
+
+  {% if uploads %}
+  <form method="get" class="bd-filters bd-snapshot-picker">
+    <span class="bd-snap-lbl"><i class="fas fa-camera-retro"></i> Snapshot</span>
+    <select name="upload" aria-label="Snapshot" title="Browsing one upload's snapshot" onchange="this.form.submit()">
+      {% for u in uploads %}
+      <option value="{{ u.pk }}" {% if selected_upload and selected_upload.pk == u.pk %}selected{% endif %}>
+        {{ u.original_name }} — {{ u.created_at|date:"d M Y H:i" }}{% if u.total_rows %} ({{ u.total_rows }} rows){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+
+  <div class="bd-tabs">
+    <a href="?{{ tab_query }}" class="bd-tab {% if view == 'all' %}active{% endif %}"><i class="fas fa-list"></i> All</a>
+    <a href="?{{ tab_query }}{% if tab_query %}&{% endif %}view=exceptions" class="bd-tab {% if view == 'exceptions' %}active{% endif %}"><i class="fas fa-triangle-exclamation"></i> Exceptions</a>
+    <a href="?{{ tab_query }}{% if tab_query %}&{% endif %}view=reversals" class="bd-tab {% if view == 'reversals' %}active{% endif %}"><i class="fas fa-rotate-left"></i> Reversals</a>
+    <a href="?{{ tab_query }}{% if tab_query %}&{% endif %}view=pending" class="bd-tab {% if view == 'pending' %}active{% endif %}"><i class="fas fa-hourglass-half"></i> Pending</a>
+  </div>
+
+  <form method="get" class="bd-filters">
+    {% if view and view != 'all' %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
+    {% if selected_upload %}<input type="hidden" name="upload" value="{{ selected_upload.pk }}">{% endif %}
+
+    <span class="bd-search-wrap">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Search doc / material / customer…" class="bd-search" aria-label="Search billing rows">
+    </span>
+    <button class="bd-btn bd-btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
+
+    <div class="bd-filterbar" style="margin:0">
+      <button type="button" class="bd-btn bd-filter-toggle" id="bdFilterToggle"
+              aria-expanded="false" aria-controls="bdFilterPanel" aria-haspopup="true">
+        <i class="fas fa-sliders-h"></i> Filters
+        {% if active_filter_count %}<span class="bd-filter-count">{{ active_filter_count }}</span>{% endif %}
+        <i class="fas fa-chevron-down bd-filter-caret"></i>
+      </button>
+
+      <div class="bd-filter-backdrop" id="bdFilterBackdrop" hidden></div>
+
+      <div class="bd-filter-panel" id="bdFilterPanel" hidden>
+        <div class="bd-filter-panel-head">
+          <span><i class="fas fa-filter"></i> Filters</span>
+          <button type="button" class="bd-filter-x" id="bdFilterClose" aria-label="Close filters">&times;</button>
+        </div>
+        <div class="bd-filter-grid">
+          <label class="bd-field">
+            <span class="bd-field-lbl">Customers</span>
+            <select name="scope">
+              <option value="">All customers</option>
+              <option value="subsidiary" {% if params.scope == 'subsidiary' %}selected{% endif %}>Subsidiary</option>
+              <option value="non_subsidiary" {% if params.scope == 'non_subsidiary' %}selected{% endif %}>Non-Subsidiary</option>
+            </select>
+          </label>
+          <label class="bd-field">
+            <span class="bd-field-lbl">Financial year</span>
+            <select name="fin_year"><option value="">All years</option>{% for y in options.fin_years %}<option value="{{ y }}" {% if params.fin_year == y %}selected{% endif %}>FY {{ y }}</option>{% endfor %}</select>
+          </label>
+          <label class="bd-field">
+            <span class="bd-field-lbl">Region</span>
+            <select name="region"><option value="">All regions</option>{% for r in options.regions %}<option value="{{ r }}" {% if params.region == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select>
+          </label>
+          <label class="bd-field">
+            <span class="bd-field-lbl">Line of business</span>
+            <select name="lob"><option value="">All LOB</option>{% for l in options.lobs %}<option value="{{ l }}" {% if params.lob == l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+          </label>
+          <label class="bd-field">
+            <span class="bd-field-lbl">Document type</span>
+            <select name="billing_type"><option value="">All doc types</option>{% for d in options.doc_types %}<option value="{{ d }}" {% if params.billing_type == d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+          </label>
+        </div>
+        <div class="bd-filter-actions">
+          <a href="{% url 'billing:data_grid' %}?{% if selected_upload %}upload={{ selected_upload.pk }}{% endif %}{% if view and view != 'all' %}&view={{ view }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}" class="bd-btn bd-btn-sm">Clear all</a>
+          <button type="submit" class="bd-btn bd-btn-sm bd-btn-primary"><i class="fas fa-check"></i> Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <a href="{% url 'billing:data_grid' %}{% if selected_upload %}?upload={{ selected_upload.pk }}{% endif %}" class="bd-btn"><i class="fas fa-rotate"></i> Reset</a>
+  </form>
+
+  <div class="bd-card">
+    <div class="bd-table-scroll bd-table-scroll--cards">
+      <table class="bd-table bd-table-sm bd-table-cards">
+        <thead>
+          <tr>
+            <th>Billing Doc</th><th>Item</th><th>Material</th><th>Description</th><th>Type</th>
+            <th>Date</th><th>Country</th><th>Region</th><th>Sub?</th><th>LOB</th>
+            <th>Sold-to</th><th class="num">Inv Value (LC)</th><th class="num">₹ L</th><th>Flags</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in page %}
+          <tr>
+            <td class="bd-card-head" data-label="Doc">{{ r.billing_doc }}</td>
+            <td data-label="Item" class="num">{{ r.item }}</td>
+            <td data-label="Material">{{ r.material }}</td>
+            <td class="bd-trunc" data-label="Description" title="{{ r.description }}">{{ r.description|default:"—" }}</td>
+            <td data-label="Type">{{ r.billing_type|default:"—" }}</td>
+            <td data-label="Date">{{ r.billing_date|date:"d M y"|default:"—" }}</td>
+            <td data-label="Country">{{ r.country|default:"—" }}</td>
+            <td data-label="Region">{{ r.region|default:"—" }}</td>
+            <td data-label="Subsidiary">{% if r.is_subsidiary %}<span class="bd-badge bd-badge-completed">Yes</span>{% else %}No{% endif %}</td>
+            <td data-label="LOB">{{ r.lob|default:"—" }}</td>
+            <td class="bd-trunc" data-label="Sold-to" title="{{ r.sold_to_name }}">{{ r.sold_to_name|default:"—" }}</td>
+            <td class="num" data-label="Inv Value (LC)">{{ r.invoice_value_lc }}</td>
+            <td class="num" data-label="₹ Lakhs">{{ r.value_lakhs }}</td>
+            <td class="bd-flags" data-label="Flags">
+              {% if r.is_reversal %}<span class="bd-chip bd-chip-rev" title="Reversal / negative">R</span>{% endif %}
+              {% if r.is_pending %}<span class="bd-chip bd-chip-pend" title="Pending">P</span>{% endif %}
+              {% if r.is_excluded %}<span class="bd-chip bd-chip-exc" title="Excluded (F5)">X</span>{% endif %}
+              {% if r.mapping_status != 'OK' %}<span class="bd-chip bd-chip-unmap" title="{{ r.get_mapping_status_display }}">!</span>{% endif %}
+              {% if not r.is_reversal and not r.is_pending and not r.is_excluded and r.mapping_status == 'OK' %}<span class="bd-muted-num">—</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="14" class="bd-empty">No rows match.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page.paginator.num_pages > 1 %}
+    <div class="bd-pager">
+      {% if page.has_previous %}<a href="?{{ page_query }}{% if page_query %}&{% endif %}page={{ page.previous_page_number }}" class="bd-btn bd-btn-sm"><i class="fas fa-chevron-left"></i> Prev</a>{% endif %}
+      <span class="bd-pager-info">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?{{ page_query }}{% if page_query %}&{% endif %}page={{ page.next_page_number }}" class="bd-btn bd-btn-sm">Next <i class="fas fa-chevron-right"></i></a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/billing_dashboard/billing.js' %}"></script>
+{% endblock %}

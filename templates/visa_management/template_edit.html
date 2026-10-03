@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load static visa_filters %}
+{% block title %}{% if tpl %}Edit Template{% else %}New Template{% endif %} — Visa Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+<style>
+.var-ref { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 4px; }
+.var-tag {
+  font-family: monospace; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--blue-lt); color: var(--blue); cursor: pointer;
+  border: 1px solid rgba(0,118,200,0.25);
+  transition: background 0.15s, color 0.15s;
+}
+.var-tag:hover { background: var(--blue); color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-alt"></i> {% if tpl %}Edit Template — {{ tpl.company.code }} / {{ tpl.country.name }}{% else %}New Letter Template{% endif %}</h1>
+          <p>Define the invitation letter body with variable placeholders</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner error"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" action="">
+      {% csrf_token %}
+
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-cog"></i> Template Settings</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field span-2" style="grid-column:1/-1">
+              <label class="form-label">Default Template</label>
+              <label class="vm-radio-opt" style="width:fit-content">
+                <input type="checkbox" name="is_default" id="isDefaultChk" {% if tpl and tpl.is_default %}checked{% endif %} onchange="toggleDefault()">
+                Use as fallback when no company + country specific template matches
+              </label>
+            </div>
+
+            <div class="form-field" id="companyField">
+              <label class="form-label">Company <span class="req">*</span></label>
+              <select class="form-select" name="company" id="companySelect" required>
+                <option value="">— Select —</option>
+                {% for c in companies %}
+                <option value="{{ c.pk }}" {% if tpl and tpl.company_id == c.pk %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-field" id="countryField">
+              <label class="form-label">Country <span class="req">*</span></label>
+              <select class="form-select" name="country" id="countrySelect" required>
+                <option value="">— Select —</option>
+                {% for c in countries %}
+                <option value="{{ c.pk }}" {% if tpl and tpl.country_id == c.pk %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Entry Type</label>
+              <select class="form-select" name="entry_type">
+                <option value="both" {% if not tpl or tpl.entry_type == 'both' %}selected{% endif %}>Both (Single &amp; Multiple)</option>
+                <option value="single" {% if tpl and tpl.entry_type == 'single' %}selected{% endif %}>Single Entry only</option>
+                <option value="multiple" {% if tpl and tpl.entry_type == 'multiple' %}selected{% endif %}>Multiple Entry only</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Active</label>
+              <label class="vm-radio-opt" style="width:fit-content">
+                <input type="checkbox" name="is_active" {% if not tpl or tpl.is_active %}checked{% endif %}> Template is active
+              </label>
+            </div>
+
+            <div class="form-field span-2" style="grid-column:1/-1">
+              <label class="form-label">Subject Line <span class="req">*</span></label>
+              <input class="form-input" type="text" name="subject_line" required
+                value="{{ tpl.subject_line|default:'' }}"
+                placeholder="e.g. Request for Multiple Entry China Business Visa">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-file-alt"></i> Letter Body</div>
+        <div class="form-block-body">
+          <div style="margin-bottom:10px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">
+              Click any variable to insert at cursor:
+            </div>
+            <div class="var-ref">
+              {% for v in "employee_name,designation,joining_date,he_she,his_her,him_her,visit_start_date,visit_end_date,host_company_name,host_company_address,passport_name,passport_number,date_of_birth,passport_issue_date,passport_expiry_date,place_of_issue,nationality,current_date,company_name,company_description,entry_type_text,country_name,embassy_name,embassy_city,signatory_name,signatory_title,ref_no,purpose_of_visit"|split:"," %}
+              <span class="var-tag" data-var="{{ v }}">{% templatetag openvariable %}{{ v }}{% templatetag closevariable %}</span>
+              {% endfor %}
+            </div>
+          </div>
+          <textarea class="vm-letter-editor" name="letter_body" id="letterBodyTpl"
+            style="min-height:400px">{{ tpl.letter_body|default:'' }}</textarea>
+        </div>
+      </div>
+
+      <div class="vm-form-actions vm-no-print">
+        <button type="submit" class="btn btn-green">
+          <i class="fas fa-save"></i> Save Template
+        </button>
+        <a href="{% url 'visa:template_list' %}" class="btn btn-ghost" style="margin-left:auto">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+<script>
+// Django scans this whole file for {{...}}, including inside <script>, so the
+// placeholder braces must never appear literally here. Written as '{{' + name +
+// '}}', Django reads {{' + varName + '}} as one variable tag whose contents are
+// the valid string constant ' + varName + ', renders it literally, and the
+// editor ends up inserting "+ varName +" instead of the placeholder.
+var VAR_OPEN  = '{% templatetag openvariable %}';
+var VAR_CLOSE = '{% templatetag closevariable %}';
+
+function insertVar(varName) {
+  var ta = document.getElementById('letterBodyTpl');
+  var pos = ta.selectionStart;
+  var before = ta.value.substring(0, pos);
+  var after = ta.value.substring(pos);
+  var snippet = VAR_OPEN + varName + VAR_CLOSE;
+  ta.value = before + snippet + after;
+  ta.selectionStart = ta.selectionEnd = pos + snippet.length;
+  ta.focus();
+}
+
+document.querySelectorAll('.var-tag').forEach(function (tag) {
+  tag.addEventListener('click', function () {
+    insertVar(tag.dataset.var);
+  });
+});
+
+function toggleDefault() {
+  var isDefault = document.getElementById('isDefaultChk').checked;
+  var companyField = document.getElementById('companyField');
+  var countryField = document.getElementById('countryField');
+  var companySelect = document.getElementById('companySelect');
+  var countrySelect = document.getElementById('countrySelect');
+  companyField.style.display = isDefault ? 'none' : '';
+  countryField.style.display = isDefault ? 'none' : '';
+  companySelect.required = !isDefault;
+  countrySelect.required = !isDefault;
+  if (isDefault) {
+    companySelect.value = '';
+    countrySelect.value = '';
+  }
+}
+toggleDefault();
+</script>
+{% endblock %}

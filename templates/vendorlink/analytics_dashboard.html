@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 2.1 — Bid Analytics Dashboard.
+
+The parent of the two Tier 1 screens: KPI strip → chart row → request table,
+each row deep-linking to that request's heatmap and AI evaluation.
+
+Wireframe
+    breadcrumb / title / [Requests]
+    ┌ KPI strip: requests · bids · avg bid · cheapest · spread % · evaluated ┐
+    ┌ bids per vendor (bar) ┐┌ capability coverage (donut) ┐┌ bids over time ┐
+    ┌ requests table: subject · country · bids · evaluation · raised · → ────┐
+
+One rule runs through the whole screen: **money is never summed across
+currencies.** The tiles report a single currency — whichever carries the most
+bids — and say so, because an "average bid" mixing INR and EUR is a number
+that looks authoritative and means nothing.
+
+States: loading (server-rendered, so none), empty first-time, empty filtered
+(the table's own), error (none — read-only), partial (mixed-currency banner).
+{% endcomment %}
+
+{% block title %}Bid Analytics — VendorLink{% endblock %}
+
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">Bid Analytics</span>
+            </nav>
+            <h1 class="vl-title">Bid analytics</h1>
+            <p class="vl-subtitle">
+                See all bids, who is cheapest, and whether the AI has checked them.
+            </p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn" href="{% url 'vendorlink:request_list' %}">All requests</a>
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:request_create' %}">Raise a request</a>
+        </div>
+    </div>
+
+    {% if mixed_currency %}
+    <div class="vl-banner vl-banner--warn" style="margin-bottom:var(--vl-3);">
+        <div class="vl-banner__body">
+            <div class="vl-banner__title">Bids span {{ currencies|join:", " }}</div>
+            <div>
+                The value tiles and the vendor chart below cover {{ main_currency }} only — the
+                currency most bids are quoted in. Totals are never added across currencies.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── KPI strip ─────────────────────────────────────────────── #}
+    <div class="vl-kpis" style="margin-bottom:var(--vl-4);">
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Requests</div>
+            <div class="vl-kpi__value">{{ request_count }}</div>
+            <div class="vl-kpi__delta">all requests</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Total bids</div>
+            <div class="vl-kpi__value">{{ bid_count }}</div>
+            <div class="vl-kpi__delta">from {{ vendor_count }} vendor{{ vendor_count|pluralize }}</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Average quote</div>
+            <div class="vl-kpi__value">{% if avg_bid %}{{ avg_bid|floatformat:0 }}{% else %}—{% endif %}</div>
+            <div class="vl-kpi__delta">{{ main_currency|default:"no bids yet" }}</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Lowest quote</div>
+            <div class="vl-kpi__value">{% if cheapest_bid %}{{ cheapest_bid|floatformat:0 }}{% else %}—{% endif %}</div>
+            <div class="vl-kpi__delta">{{ main_currency }}</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">Price gap</div>
+            <div class="vl-kpi__value">{% if spread_pct %}{{ spread_pct }}%{% else %}—{% endif %}</div>
+            <div class="vl-kpi__delta">top to low</div>
+        </div>
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">AI review</div>
+            <div class="vl-kpi__value">{{ evaluated_count }}</div>
+            <div class="vl-kpi__delta">of {{ request_count }} request{{ request_count|pluralize }}</div>
+        </div>
+    </div>
+
+    {# ── Chart row ─────────────────────────────────────────────── #}
+    {% if bid_count %}
+    <div style="display:grid;gap:var(--vl-3);grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-bottom:var(--vl-4);">
+        <div class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">How much each vendor quoted</h2>
+                <span class="vl-meta">{{ main_currency }}</span></div>
+            <div class="vl-card__body"><canvas id="vlChartVendors" height="200"></canvas></div>
+        </div>
+        <div class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">What each vendor offers</h2>
+                <span class="vl-meta">coverage</span></div>
+            <div class="vl-card__body">
+                {% if coverage_labels %}
+                <canvas id="vlChartCoverage" height="200"></canvas>
+                {% else %}
+                <div class="vl-empty">
+                    <div class="vl-empty__title">No capability data</div>
+                    <div class="vl-empty__hint">Bids are not linked to vendor records yet.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">When bids came in</h2>
+                <span class="vl-meta">timeline</span></div>
+            <div class="vl-card__body"><canvas id="vlChartTimeline" height="200"></canvas></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Requests table ────────────────────────────────────────── #}
+    <div class="vl-card" style="padding:0;">
+        <div class="vl-card__head">
+            <h2 class="vl-card__title">Requests</h2>
+            <span class="vl-meta">{{ request_count }} total</span>
+        </div>
+        {% if requests %}
+        <div class="vl-tablewrap" style="border:none;border-radius:0;">
+            <table class="vl-table">
+                <thead>
+                    <tr>
+                        <th>Request</th>
+                        <th>Country</th>
+                        <th class="num">Bids</th>
+                        <th>Open period</th>
+                        <th>AI review</th>
+                        <th>Raised</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in requests %}
+                    <tr>
+                        <td>
+                            <a class="vl-link" href="{% url 'vendorlink:request_detail' r.pk %}"
+                               style="font-weight:600;color:var(--vl-ink);text-decoration:none;">{{ r.subject }}</a>
+                            <div class="vl-meta">RFI #{{ r.pk }}</div>
+                        </td>
+                        <td>{{ r.country|default:"—" }}</td>
+                        <td class="num">{{ r.bid_count }}</td>
+                        <td>
+                            {% if r.bid_window_status == "open" %}<span class="vl-chip vl-chip--approved">Open</span>
+                            {% elif r.bid_window_status == "closed" %}<span class="vl-chip vl-chip--expired">Closed</span>
+                            {% else %}<span class="vl-chip vl-chip--pending">Not started</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if r.evaluation %}
+                            <span class="vl-chip vl-chip--{{ r.evaluation.status }}">{{ r.evaluation.get_status_display }}</span>
+                            {% else %}
+                            <span class="vl-chip vl-chip--pending">Not run</span>
+                            {% endif %}
+                        </td>
+                        <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ r.created_at|date:"d M Y" }}</td>
+                        <td style="text-align:right;white-space:nowrap;">
+                            {% comment %}
+                            Both Tier 1 screens are reachable from the row, since
+                            "compare the prices" and "what did the AI say" are two
+                            different questions people arrive with.
+                            {% endcomment %}
+                            {% if r.bid_count %}
+                            <a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:bid_heatmap' r.pk %}">Compare</a>
+                            <a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:evaluation_detail' r.pk %}">Evaluation</a>
+                            {% else %}
+                            <span class="vl-meta">no bids</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="vl-empty">
+            <div class="vl-empty__title">No requests raised yet</div>
+            <div class="vl-empty__hint">Raise one and vendors in that country can start bidding.</div>
+            <div class="vl-empty__cta">
+                <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:request_create' %}">Raise a request</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% include "vendorlink/_vl_chat.html" with ctx_chips=chat_chips suggestions=chat_suggestions %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+{% if bid_count %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    if (!window.Chart) { return; }
+    // Read the palette off the tokens rather than restating hex here, so the
+    // charts follow the design system if it changes.
+    var css = getComputedStyle(document.querySelector('.vl'));
+    var accent = css.getPropertyValue('--vl-accent').trim() || '#4338CA';
+    var ink3 = css.getPropertyValue('--vl-ink-3').trim() || '#71717A';
+    var border = css.getPropertyValue('--vl-border').trim() || '#E5E5E5';
+    var mono = css.getPropertyValue('--vl-mono').trim() || 'monospace';
+
+    Chart.defaults.font.family = css.getPropertyValue('--vl-font').trim() || 'Inter, sans-serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = ink3;
+
+    var grid = { color: border, drawBorder: false };
+    var bare = { legend: { display: false }, tooltip: { bodyFont: { family: mono } } };
+
+    var vendors = document.getElementById('vlChartVendors');
+    if (vendors) {
+        new Chart(vendors, {
+            type: 'bar',
+            data: {
+                labels: {{ vendor_chart_labels|safe }},
+                datasets: [{ data: {{ vendor_chart_values|safe }}, backgroundColor: accent, borderRadius: 3 }]
+            },
+            options: {
+                indexAxis: 'y', maintainAspectRatio: false, plugins: bare,
+                scales: { x: { grid: grid, ticks: { font: { family: mono } } }, y: { grid: { display: false } } }
+            }
+        });
+    }
+
+    var coverage = document.getElementById('vlChartCoverage');
+    if (coverage) {
+        // Sequential tints of the one accent, not a rainbow — the slices are
+        // one measure, so hue would imply a distinction that is not there.
+        var labels = {{ coverage_labels|safe }};
+        var shades = labels.map(function (_l, i) {
+            return 'hsl(243 55% ' + (34 + (i * 46 / Math.max(labels.length - 1, 1))) + '%)';
+        });
+        new Chart(coverage, {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: {{ coverage_values|safe }}, backgroundColor: shades, borderWidth: 0 }] },
+            options: {
+                maintainAspectRatio: false, cutout: '58%',
+                plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 8 } } }
+            }
+        });
+    }
+
+    var timeline = document.getElementById('vlChartTimeline');
+    if (timeline) {
+        new Chart(timeline, {
+            type: 'line',
+            data: {
+                labels: {{ timeline_labels|safe }},
+                datasets: [{
+                    data: {{ timeline_values|safe }},
+                    borderColor: accent, backgroundColor: 'transparent',
+                    tension: .3, pointRadius: 2, borderWidth: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false, plugins: bare,
+                scales: { x: { grid: { display: false } }, y: { grid: grid, beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+}());
+</script>
+{% endif %}
+{% endblock %}

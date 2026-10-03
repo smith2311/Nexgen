@@ -1,0 +1,374 @@
+/* ================================================================
+   DataTables — Premium theme for NexGen Stock Audit
+   Industry-grade responsive styling with glassmorphism accents
+   ================================================================ */
+
+/* ── Wrapper layout ─────────────────────────────────────────────── */
+.dataTables_wrapper {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    color: #374151;
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+/* ── Top controls bar ───────────────────────────────────────────── */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+    padding: 0 0 16px 0;
+}
+
+.dataTables_wrapper .dataTables_length {
+    float: left;
+}
+.dataTables_wrapper .dataTables_filter {
+    float: right;
+}
+
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    padding: 8px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #374151;
+    background: #f9fafb;
+    outline: none;
+    transition: all .25s ease;
+}
+.dataTables_wrapper .dataTables_length select:focus,
+.dataTables_wrapper .dataTables_filter input:focus {
+    border-color: #0076c8;
+    box-shadow: 0 0 0 3px rgba(0, 118, 200, 0.10);
+    background: #fff;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    min-width: 240px;
+}
+
+@media (max-width: 640px) {
+    .dataTables_wrapper { padding: 14px 12px; border-radius: 14px; }
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        float: none;
+        text-align: left;
+        padding: 0 0 10px 0;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 0;
+        width: 100%;
+        margin-top: 4px;
+    }
+}
+
+/* ── Table base ─────────────────────────────────────────────────── */
+table.dataTable {
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+table.dataTable thead th {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    color: #475569;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 12px 10px;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background .15s;
+}
+table.dataTable thead th.sorting:hover {
+    background: #eef2ff;
+}
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc {
+    background: #eef2ff;
+    color: #0076c8;
+}
+
+table.dataTable tbody td {
+    padding: 10px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+    font-size: 13px;
+    color: #374151;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+
+table.dataTable tbody tr {
+    transition: background .12s ease;
+}
+table.dataTable tbody tr:hover {
+    background: rgba(0, 118, 200, 0.04) !important;
+}
+
+table.dataTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Striped rows */
+table.dataTable tbody tr:nth-child(odd) {
+    background: #fafbfc;
+}
+table.dataTable tbody tr:nth-child(even) {
+    background: #fff;
+}
+
+/* ── Expired row highlight ──────────────────────────────────────── */
+table.dataTable tbody tr[style*="background:#fef2f2"],
+table.dataTable tbody tr.expired-unack {
+    background: #fef2f2 !important;
+    border-left: 3px solid #ef4444;
+}
+table.dataTable tbody tr[style*="background:#fef2f2"]:hover,
+table.dataTable tbody tr.expired-unack:hover {
+    background: #fee2e2 !important;
+}
+
+/* ── Ack Button — compact responsive ────────────────────────────── */
+.btn-ack {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    white-space: nowrap;
+    min-height: 32px;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+    letter-spacing: 0.02em;
+}
+.btn-ack:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+.btn-ack:active {
+    transform: scale(0.96);
+}
+.ack-done {
+    color: #22c55e;
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+/* ── Info bar ───────────────────────────────────────────────────── */
+.dataTables_wrapper .dataTables_info {
+    font-size: 12px;
+    color: #9ca3af;
+    float: left;
+    padding: 14px 0 0;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────── */
+.dataTables_wrapper .dataTables_paginate {
+    float: right;
+    padding: 14px 0 0;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    margin: 0 2px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+    transition: all .15s ease;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: #eef2ff;
+    border-color: #0076c8;
+    color: #0076c8;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: linear-gradient(135deg, #0076c8, #005fa3);
+    color: #fff;
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 118, 200, 0.3);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: .35;
+    cursor: default;
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        float: none;
+        text-align: center;
+        padding: 10px 0 0;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        min-width: 36px;
+        height: 36px;
+        padding: 0 8px;
+        font-size: 13px;
+    }
+}
+
+/* ── Empty state ────────────────────────────────────────────────── */
+table.dataTable .dataTables_empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* ── Responsive: table scroll container ─────────────────────────── */
+.table-responsive-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -20px;
+    padding: 0 20px;
+}
+@media (max-width: 640px) {
+    .table-responsive-wrap {
+        margin: 0 -12px;
+        padding: 0 12px;
+    }
+}
+
+/* ── Mobile: compact table cells ────────────────────────────────── */
+@media (max-width: 768px) {
+    table.dataTable thead th {
+        padding: 10px 8px;
+        font-size: 10px;
+        letter-spacing: .3px;
+    }
+    table.dataTable tbody td {
+        padding: 8px 6px;
+        font-size: 12px;
+        max-width: 120px;
+    }
+    .btn-ack {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+}
+
+/* ── Monospace cells ────────────────────────────────────────────── */
+.cell-mono {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+    font-size: 0.85em;
+    background: #f8fafc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Severity chips ─────────────────────────────────────────────── */
+.chip-expired {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fef2f2;
+    color: #dc2626;
+    white-space: nowrap;
+}
+.chip-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #fffbeb;
+    color: #d97706;
+    white-space: nowrap;
+}
+.chip-ok {
+    color: #16a34a;
+    font-weight: 500;
+}
+
+/* ── Mobile: hide columns marked dt-hide-mobile ─────────────────── */
+@media (max-width: 768px) {
+    table.dataTable th.dt-hide-mobile,
+    table.dataTable td.dt-hide-mobile {
+        display: none;
+    }
+}
+
+/* ── Center alignment ───────────────────────────────────────────── */
+table.dataTable th.dt-center,
+table.dataTable td.dt-center {
+    text-align: center;
+}
+
+/* ── DataTable scrollX fix ──────────────────────────────────────── */
+.dataTables_wrapper .dataTables_scroll {
+    overflow: visible;
+}
+.dataTables_wrapper .dataTables_scrollBody {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Table header sort icons ────────────────────────────────────── */
+table.dataTable thead .sorting::after,
+table.dataTable thead .sorting_asc::after,
+table.dataTable thead .sorting_desc::after {
+    opacity: 0.5;
+    font-size: 10px;
+}
+table.dataTable thead .sorting_asc::after { opacity: 1; }
+table.dataTable thead .sorting_desc::after { opacity: 1; }

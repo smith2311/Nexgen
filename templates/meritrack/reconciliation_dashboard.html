@@ -1,0 +1,74 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Reconciliations — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<style>
+.recon-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:18px; }
+.stat-label { font-size:.82rem; color:var(--mt-gray-600); margin-top:2px; }
+.trend-wrap { display:flex; align-items:flex-end; gap:6px; height:120px; padding:10px 0; }
+.trend-bar { flex:1; min-width:8px; border-radius:4px 4px 0 0; position:relative; transition:opacity .15s; }
+.trend-bar:hover { opacity:.85; }
+.trend-bar .tip { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+  background:var(--mt-gray-800); color:#fff; font-size:.7rem; padding:3px 6px; border-radius:4px; white-space:nowrap; margin-bottom:4px; }
+.trend-bar:hover .tip { display:block; }
+.recon-empty { text-align:center; padding:40px; color:var(--mt-gray-400); }
+.recon-empty i { font-size:2rem; display:block; margin-bottom:10px; }
+.btn-mt-primary { background:var(--mt-primary); color:#fff; border:none; }
+.recon-table { width:100%; border-collapse:collapse; }
+.recon-table th, .recon-table td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--mt-gray-100); font-size:.86rem; }
+.recon-table th { color:var(--mt-gray-700); font-weight:600; background:var(--mt-gray-50); }
+</style>
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-clipboard-check"></i> Inventory Reconciliations</h1>
+<p>Auto-generated when audit sessions complete — scanned vs expected consignment stock</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+  <a href="{% url 'meritrack:reconciliation_export' %}" class="hero-btn"><i class="fas fa-download"></i> CSV Export</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+  <div class="recon-stats">
+    <div class="stat-card"><div class="stat-value" id="totalRecons">—</div><div class="stat-label">Total</div></div>
+    <div class="stat-card"><div class="stat-value" id="completedRecons" style="color:var(--mt-success)">—</div><div class="stat-label">Completed</div></div>
+    <div class="stat-card"><div class="stat-value" id="inProgressRecons" style="color:var(--mt-warning)">—</div><div class="stat-label">In Progress</div></div>
+    <div class="stat-card"><div class="stat-value" id="avgAccuracy">—</div><div class="stat-label">Avg Accuracy</div></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 4px;font-size:.95rem;color:var(--mt-gray-800)">Accuracy trend (last 12)</h3>
+    <div class="trend-wrap" id="accuracyTrend">
+      <div class="mt-sk" style="flex:1;height:38%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:62%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:48%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:78%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:55%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:70%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:42%;border-radius:4px 4px 0 0;"></div>
+      <div class="mt-sk" style="flex:1;height:66%;border-radius:4px 4px 0 0;"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="table-responsive-wrap wide">
+      <table class="recon-table" data-stack>
+        <thead><tr>
+          <th>#</th><th>Hospital</th><th>Type</th><th>Status</th>
+          <th>Expected / Scanned</th><th>Accuracy</th><th>Date</th><th></th>
+        </tr></thead>
+        <tbody id="reconTableBody">{% include 'meritrack/_sk_rows.html' with cols=8 rows="12345" %}</tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>const csrfToken = "{{ csrf_token }}";</script>
+<script src="{% static 'meritrack/js/reconciliation_dashboard.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% comment %}
+Print layout for the single-vendor rate card PDF, rendered by xhtml2pdf.
+
+Standalone (no {% extends %}) and styled with plain, old-fashioned CSS on
+purpose: xhtml2pdf supports only a narrow subset — no flexbox, no grid, no CSS
+variables — so the site's design system cannot be reused here. Tables do the
+layout work, which is what that renderer handles reliably.
+{% endcomment %}<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Rate Card — {{ card.vendor.vendor_name }}</title>
+    <style>
+        @page { size: A4; margin: 1.5cm 1.4cm 1.8cm 1.4cm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a2233; }
+        .hdr { border-bottom: 2.5pt solid #0076c8; padding-bottom: 8pt; margin-bottom: 14pt; }
+        .hdr .brand { font-size: 8pt; letter-spacing: 1.2pt; color: #0076c8; font-weight: bold; }
+        .hdr h1 { font-size: 17pt; margin: 3pt 0 2pt; color: #0b1733; }
+        .hdr .meta { font-size: 8.5pt; color: #64748b; }
+        h2 { font-size: 10.5pt; color: #0076c8; margin: 16pt 0 6pt; padding-bottom: 3pt; border-bottom: 0.6pt solid #d6dee8; }
+        table { width: 100%; border-collapse: collapse; }
+        .costs td { border: 0.6pt solid #dbe3ec; padding: 6pt 8pt; }
+        .costs .lbl { font-size: 7.6pt; color: #64748b; text-transform: uppercase; letter-spacing: .4pt; }
+        .costs .val { font-size: 11pt; font-weight: bold; color: #0b1733; }
+        .costs .none { color: #b9c4d2; font-weight: normal; }
+        .terms td { padding: 4.5pt 0; vertical-align: top; }
+        .terms .k { width: 32%; color: #64748b; font-weight: bold; font-size: 8.6pt; }
+        .prose { font-size: 9pt; color: #334155; line-height: 1.5; }
+        .pill { padding: 2.5pt 7pt; font-size: 8pt; font-weight: bold; border-radius: 8pt; }
+        .pill-expired { background: #fee2e2; color: #991b1b; }
+        .pill-soon { background: #fef3c7; color: #92400e; }
+        .pill-ok { background: #dcfce7; color: #166534; }
+        .pill-none { background: #f1f5f9; color: #64748b; }
+        .warn { border: 0.8pt solid #fecaca; background: #fef2f2; color: #991b1b;
+                padding: 7pt 10pt; font-size: 8.8pt; font-weight: bold; margin-bottom: 12pt; }
+        .foot { position: fixed; bottom: -1.1cm; left: 0; right: 0;
+                font-size: 7.5pt; color: #94a3b8; border-top: 0.5pt solid #e2e8f0; padding-top: 4pt; }
+        .muted { color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<div class="hdr">
+    <div class="brand">MERIL LIFE SCIENCES &nbsp;·&nbsp; VENDORLINK &nbsp;·&nbsp; COMMERCIAL DATABASE</div>
+    <h1>{{ card.vendor.vendor_name }}</h1>
+    <div class="meta">
+        Rate card &nbsp;·&nbsp; {{ card.vendor.country }}{% if card.vendor.city %}, {{ card.vendor.city }}{% endif %}
+        &nbsp;·&nbsp; All figures in <b>{{ card.currency }}</b>
+    </div>
+</div>
+
+{% if card.expiry_state == "expired" %}
+<div class="warn">EXPIRED {{ card.expiry_date|date:"d M Y" }} — confirm current pricing with the vendor before quoting from this card.</div>
+{% elif card.expiry_state == "soon" %}
+<div class="warn" style="border-color:#fde68a;background:#fffbeb;color:#92400e;">
+    EXPIRES IN {{ card.days_to_expiry }} DAY{{ card.days_to_expiry|pluralize|upper }} — {{ card.expiry_date|date:"d M Y" }}.
+</div>
+{% endif %}
+
+<h2>Cost Lines</h2>
+<table class="costs">
+    {% for label, value in card.cost_fields %}
+        {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+        <td width="50%">
+            <div class="lbl">{{ label }}</div>
+            {% if value is not None %}
+            <div class="val">{{ value }} <span class="lbl">{{ card.currency }}</span></div>
+            {% else %}
+            <div class="val none">Not offered</div>
+            {% endif %}
+        </td>
+        {% if forloop.counter|divisibleby:2 or forloop.last %}</tr>{% endif %}
+    {% endfor %}
+</table>
+
+{% if card.total_cost is not None %}
+<p class="muted" style="font-size:8.2pt;margin-top:5pt;">
+    Quoted lines total {{ card.total_cost }} {{ card.currency }} — indicative only; lines are charged in different units.
+</p>
+{% endif %}
+
+<h2>Contract &amp; Validity</h2>
+<table class="terms">
+    <tr><td class="k">Contract duration</td><td>{{ card.contract_duration|default:"—" }}</td></tr>
+    <tr><td class="k">Price validity</td><td>{{ card.price_validity|date:"d M Y"|default:"—" }}</td></tr>
+    <tr>
+        <td class="k">Status</td>
+        <td>
+            {% if card.expiry_state == "expired" %}<span class="pill pill-expired">EXPIRED</span>
+            {% elif card.expiry_state == "soon" %}<span class="pill pill-soon">{{ card.days_to_expiry }} DAYS LEFT</span>
+            {% elif card.expiry_state == "ok" %}<span class="pill pill-ok">ACTIVE</span>
+            {% else %}<span class="pill pill-none">NO DATES SET</span>{% endif %}
+        </td>
+    </tr>
+    <tr><td class="k">Insurance</td><td>{{ card.insurance|default:"—" }}</td></tr>
+</table>
+
+<h2>Additional Charges</h2>
+<p class="prose">{{ card.additional_charges|default:"None recorded."|linebreaksbr }}</p>
+
+<h2>Vendor Contact</h2>
+<table class="terms">
+    <tr><td class="k">Contact person</td><td>{{ card.vendor.contact_person|default:"—" }}</td></tr>
+    <tr><td class="k">Email</td><td>{{ card.vendor.email|default:"—" }}</td></tr>
+    <tr><td class="k">Mobile</td><td>{{ card.vendor.mobile|default:"—" }}</td></tr>
+    <tr><td class="k">Warehouse</td><td>{{ card.vendor.warehouse_location|default:"—" }}</td></tr>
+</table>
+
+{% comment %}
+Internal notes are deliberately NOT printed — this PDF is the artefact that gets
+emailed outside the SCM team, and the notes field is where negotiation history
+and internal opinions live.
+{% endcomment %}
+
+<div class="foot">
+    Generated {{ generated_at|date:"d M Y, H:i" }} by {{ generated_by }} &nbsp;·&nbsp;
+    VendorLink Commercial Database &nbsp;·&nbsp; Meril Life Sciences — Internal &amp; Confidential
+</div>
+
+</body>
+</html>

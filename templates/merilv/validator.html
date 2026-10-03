@@ -1,0 +1,158 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Stock Validator landing — upload a SAP stock dump + a physical scan file,
+reconcile them, and land on validation_detail. A plain POST form; validator_run
+does the parsing/reconciliation and redirects, so no fetch() is involved here.
+{% endcomment %}
+
+{% block mv_title %}Stock Validator{% endblock %}
+
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Stock Validator</span>
+{% endblock %}
+
+{% block mv_heading %}Stock Validator{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Reconcile a physical scan file against a SAP stock dump, line by line.</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:validation_history' %}" class="mv-btn">{% icon "history" %} All runs</a>
+{% endblock %}
+
+{% block mv_body %}
+
+{% if rules_missing %}
+{% comment %}
+{{ entity.code }} is configured to parse barcodes by fixed positions but has no
+rules stored, so that parse step silently does nothing and barcodes needing it
+fall through to the raw fallback. The rules were admin-entered configuration in
+the legacy tool and were never migrated — see
+entities.positional_rules_misconfigured.
+{% endcomment %}
+<div class="mv-alert mv-alert--warn" style="margin-bottom:var(--mv-4);">
+    {% icon "alert" %}
+    <div>
+        <strong>{{ entity.code }} has positional parsing switched on but no rules configured.</strong>
+        Barcodes that rely on fixed-position parsing will not match until the rules are entered.
+        Add them under <a href="{% url 'merilv:masters_entity_edit' entity.pk %}">Entity Rules → Parse rules</a>
+        (format: <code class="mv-mono">length,materialStart,materialLen,batchStart,batchLen[,mfgStart,mfgLen,expStart,expLen]</code>).
+    </div>
+</div>
+{% endif %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "clipboard" %}</span><span class="mv-kpi__label">Validation runs</span><span class="mv-kpi__value">{{ dashboard.runs|default:0 }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scanned</span><span class="mv-kpi__value">{{ dashboard.scanned|default:0|floatformat:0 }}</span></div>
+    <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Exact matched</span><span class="mv-kpi__value">{{ dashboard.matched|default:0|floatformat:0 }}</span></div>
+    <div class="mv-kpi{% if dashboard.variance %} mv-kpi--danger{% endif %}"><span class="mv-kpi__icon">{% icon "chart" %}</span><span class="mv-kpi__label">Variance</span><span class="mv-kpi__value">{{ dashboard.variance|default:0|floatformat:0 }}</span></div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "clipboard" %} New validation</h2>
+    <form method="post" action="{% url 'merilv:validator_run' %}" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Running validation"
+          data-mv-loading-message="Reconciling the uploaded files and saving the result.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvEntity">Entity <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvEntity" name="entity" required>
+                    {% for e in entities %}
+                    <option value="{{ e.code }}" {% if entity and e.code == entity.code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>
+                    {% endfor %}
+                </select>
+                <span class="mv-hint">Decides how barcodes are parsed and how matches are scored.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvName">Run name</label>
+                <input class="mv-input" type="text" id="mvName" name="name" maxlength="200" placeholder="e.g. WGJ1 cycle count — week 31">
+                <span class="mv-hint">Optional. Left blank, the run is listed by its number.</span>
+            </div>
+        </div>
+
+        <div class="mv-field-row" style="margin-top:var(--mv-5);">
+            <div class="mv-field">
+                <label class="mv-label">SAP stock dump <span class="mv-req">*</span></label>
+                <label class="mv-dropzone">
+                    <input type="file" name="system_file" accept=".xlsx,.xls,.csv" required>
+                    {% icon "file" 40 %}
+                    <span class="mv-dropzone__label">Choose the system file</span>
+                    <span class="mv-t-caption">.xlsx, .xls or .csv</span>
+                </label>
+                <span class="mv-hint">
+                    What SAP believes is on hand — one row per material / batch / serial with plant, storage
+                    location, expiry and quantity. This is the side that is treated as the truth.
+                </span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label">Physical scan file <span class="mv-req">*</span></label>
+                <label class="mv-dropzone">
+                    <input type="file" name="scan_file" accept=".xlsx,.xls,.csv,.txt" required>
+                    {% icon "barcode" 40 %}
+                    <span class="mv-dropzone__label">Choose the scan file</span>
+                    <span class="mv-t-caption">.xlsx, .xls, .csv or .txt</span>
+                </label>
+                <span class="mv-hint">
+                    What was actually counted on the floor — the raw barcode strings exported from the scanner
+                    gun, optionally with a quantity column.
+                </span>
+            </div>
+        </div>
+
+        <div class="mv-card__footer">
+            <a href="{% url 'merilv:index' %}" class="mv-btn">Cancel</a>
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Run validation</button>
+        </div>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "history" %} Recent runs</h2>
+        <a href="{% url 'merilv:validation_history' %}" class="mv-link-btn mv-t-caption">View all {% icon "arrow-right" 12 %}</a>
+    </div>
+    {% if recent %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead>
+            <tr>
+                <th>Run</th>
+                <th>Entity</th>
+                <th class="mv-num">Scanned</th>
+                <th class="mv-num">In SAP</th>
+                <th class="mv-num">Variance</th>
+                <th class="mv-num">Reconciled</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in recent %}
+            <tr data-mv-href="{% url 'merilv:validation_detail' run.pk %}" class="mv-row-link">
+                <td>
+                    <a href="{% url 'merilv:validation_detail' run.pk %}" class="mv-t-strong">{{ run }}</a>
+                    <div class="mv-t-caption">{{ run.scan_filename|default:"—" }}</div>
+                </td>
+                <td><span class="mv-badge mv-badge--neutral">{{ run.entity.code }}</span></td>
+                <td class="mv-num">{{ run.total_scanned|floatformat:0 }}</td>
+                <td class="mv-num">{{ run.total_system|floatformat:0 }}</td>
+                <td class="mv-num">{{ run.variance_qty|floatformat:0 }}</td>
+                <td class="mv-num">
+                    <span class="mv-badge {% if run.reconciliation_pct >= 95 %}mv-badge--ok{% elif run.reconciliation_pct >= 80 %}mv-badge--warn{% else %}mv-badge--danger{% endif %}">
+                        {{ run.reconciliation_pct|pct }}
+                    </span>
+                </td>
+                <td class="mv-t-caption">{{ run.created_at|date:"d M" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "clipboard" 48 %}
+        <div class="mv-empty__title">No validations yet</div>
+        <p class="mv-empty__text">Upload a stock dump and a scan file above to run the first reconciliation.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

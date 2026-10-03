@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink.css' %}">
+{% block vl_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="vl-page">
+    <div class="vl-header">
+        <div class="vl-header-inner">
+            <div class="vl-header-brand">
+                <a href="{% url 'vendorlink:index' %}" class="vl-brand-link">
+                    <span class="vl-brand-icon"><i class="bi bi-building"></i></span>
+                    <span class="vl-brand-text">VendorLink</span>
+                </a>
+                {% block breadcrumb %}{% endblock %}
+            </div>
+            <div class="vl-header-actions">
+                {% block header_actions %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <div class="vl-content">
+        {% if messages %}
+        <div class="vl-messages">
+            {% for msg in messages %}
+            <div class="vl-alert vl-alert--{{ msg.tags }}">
+                <i class="bi {% if 'success' in msg.tags %}bi-check-circle{% elif 'error' in msg.tags %}bi-x-circle{% elif 'warning' in msg.tags %}bi-exclamation-triangle{% else %}bi-info-circle{% endif %}"></i>
+                {{ msg }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block vl_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% block vl_extra_js %}{% endblock %}
+{% endblock %}

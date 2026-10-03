@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Warehouse Inspection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+.wi-module-page {
+    padding: 32px;
+}
+
+.wi-module-header {
+    margin-bottom: 28px;
+}
+
+.wi-module-header h1 {
+    color: #06152b;
+    font-size: 2.4rem;
+    font-weight: 800;
+    margin: 0 0 8px;
+}
+
+.wi-module-header p {
+    color: #5f6c7d;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.wi-submodule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: 22px;
+    max-width: 980px;
+}
+
+.wi-submodule-card {
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #dce3ec;
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(15, 35, 58, 0.08);
+    color: #06152b;
+    display: flex;
+    gap: 18px;
+    min-height: 138px;
+    padding: 24px;
+    text-decoration: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.wi-submodule-card:hover {
+    border-color: #0076c8;
+    box-shadow: 0 18px 36px rgba(0, 118, 200, 0.16);
+    transform: translateY(-2px);
+    text-decoration: none;
+}
+
+.wi-submodule-icon {
+    align-items: center;
+    background: #0076c8;
+    border-radius: 8px;
+    color: #ffffff;
+    display: inline-flex;
+    flex: 0 0 58px;
+    font-size: 1.55rem;
+    height: 58px;
+    justify-content: center;
+    width: 58px;
+}
+
+.wi-submodule-content h2 {
+    color: #06152b;
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0 0 7px;
+}
+
+.wi-submodule-content p {
+    color: #5f6c7d;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    margin: 0;
+}
+
+@media (max-width: 840px) {
+    .wi-module-page {
+        padding: 22px;
+    }
+
+    .wi-submodule-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wi-module-page">
+    <div class="wi-module-header">
+        <h1><i class="fas fa-warehouse"></i> Warehouse Inspection</h1>
+        <p>Select the area you want to work on.</p>
+    </div>
+
+    <div class="wi-submodule-grid">
+        {% if is_admin %}
+        <a href="{% url 'warehouse_inspection:conditions' %}" class="wi-submodule-card">
+            <span class="wi-submodule-icon">
+                <i class="fas fa-tools"></i>
+            </span>
+            <span class="wi-submodule-content">
+                <h2>Warehouse Inspection Admin</h2>
+                <p>Manage buildings, floors, conditions, checklist items, and email mappings.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        <a href="{% url 'warehouse_inspection:inspection_form' %}" class="wi-submodule-card">
+            <span class="wi-submodule-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </span>
+            <span class="wi-submodule-content">
+                <h2>Inspection</h2>
+                <p>Open the inspection checklist and submit building-wise floor responses.</p>
+            </span>
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3PL Capability Assessment — Meril Life Sciences</title>
+    <link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/assessment_external.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+</head>
+<body class="vl-ext-body">
+
+<header class="vl-ext-header">
+    <div class="vl-ext-header-inner">
+        <div class="vl-ext-brand">
+            <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril" class="vl-ext-logo">
+            <span class="vl-ext-brand-text">3PL Capability Assessment</span>
+        </div>
+        <div class="vl-ext-progress">
+            <div class="vl-progress-bar">
+                <div class="vl-progress-fill" id="formProgress" style="width:0%"></div>
+            </div>
+            <span class="vl-progress-label" id="progressLabel">0% filled</span>
+        </div>
+    </div>
+</header>
+
+<main class="vl-ext-main">
+    <div class="vl-ext-intro">
+        <h1>3PL Capabilities Assessment Form</h1>
+        <p>Please fill in your company's capabilities across all sections. You can <strong>save your progress</strong> at any time and return using this same link. When ready, click <strong>Submit</strong>.</p>
+        {% if assessment.token_expires_at %}
+        <div class="vl-ext-expiry">
+            <i class="bi bi-clock"></i> This form expires on {{ assessment.token_expires_at|date:"d M Y" }}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if form.errors %}
+    <div class="vl-alert vl-alert--error">
+        <i class="bi bi-x-circle"></i> Please correct the errors below before submitting.
+    </div>
+    {% elif just_saved %}
+    <div class="vl-alert vl-alert--success">
+        <i class="bi bi-check-circle"></i> Progress saved — you can come back and finish later using this same link.
+    </div>
+    {% endif %}
+
+    <form method="post" id="assessmentForm" class="vl-ext-form">
+        {% csrf_token %}
+
+        <div class="vl-ext-section" id="s1">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">1</span>
+                <h2>Company &amp; Network</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.company_name hint="Your official registered company name" required=True %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.warehouse_location_desc hint="Full warehouse address including city, country and postal code" required=True %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.medtech_experience hint="Years of MedTech experience and key customers served" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.client_base hint="Top 5 most relevant customers" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.last_mile_delivery_desc hint="Do you offer last mile delivery? Describe capabilities and coverage area" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.cha_services hint="Do you offer CHA services? Describe capabilities" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.wms_name hint="WMS system name and version (if applicable)" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-section" id="s2">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">2</span>
+                <h2>Operational Capability</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.warehouse_size_sqm hint="Available warehouse space in square metres" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.operating_hours hint="e.g. Monday–Friday 08:00–18:00" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.order_cutoff_time hint="Last order receipt time for same-day processing" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.warehouse_cutoff_time hint="Last dispatch time from warehouse" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.emergency_delivery_cutoff hint="Emergency same-day delivery cut-off time and coverage area" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.returns_handling hint="Describe your returns handling process" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.temperature_controlled_storage hint="Temperature range available and monitoring method. 15°C–25°C capability required." %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.consignment_handling hint="Experience managing hospital consignment inventory, replenishment and reporting" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.order_to_cash_service hint="Can you support order processing, invoicing and order-to-cash services?" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.batch_lot_tracking hint="Is batch/lot tracking available? Describe" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.serial_number_tracking hint="Is serial number tracking available? Describe" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-section" id="s3">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">3</span>
+                <h2>Compliance &amp; Quality</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.iso_9001_certified hint="Certificate number and validity date" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.iso_13485_experience hint="Experience / details of ISO 13485 compliance" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.gdp_compliance hint="Current GDP compliance status and certificate details" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.regulatory_support_desc hint="Describe regulatory support capabilities" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.insurance_coverage hint="Coverage: Warehouse, Goods in Transit, Coverage Limit (EUR/USD)" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-section" id="s4">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">4</span>
+                <h2>Technology &amp; Integration</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.wms_platform hint="WMS platform name and version" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.real_time_inventory_visibility hint="Real-time inventory visibility for warehouse and consignment stock?" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.dashboard_reporting hint="Can you provide weekly/monthly reports and custom reports on request?" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.order_tracking_visibility hint="Describe order tracking and visibility capabilities" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-section" id="s5">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">5</span>
+                <h2>Strategic Fit</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.why_choose_us hint="Key advantages and differentiators" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.cons hint="Honest assessment of limitations or challenges" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.local_presence hint="Local office/warehouse locations and support" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.global_presence hint="Global locations and support network" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.dedicated_account_manager hint="Yes/No. If available, provide name and role" %}
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.implementation_timeline hint="Expected project go-live timeline if engaged" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-section" id="s6">
+            <div class="vl-ext-section-header">
+                <span class="vl-ext-section-num">6</span>
+                <h2>Additional Notes</h2>
+            </div>
+            <div class="vl-ext-fields">
+                {% include "vendorlink/assessment/_ext_field.html" with field=form.remarks hint="Any additional information you'd like to share" %}
+            </div>
+        </div>
+
+        <div class="vl-ext-actions">
+            <button type="submit" name="_action" value="save" class="vl-btn vl-btn--outline vl-btn--lg">
+                <i class="bi bi-floppy"></i> Save Progress
+            </button>
+            <button type="submit" name="_action" value="submit" class="vl-btn vl-btn--primary vl-btn--lg"
+                    data-confirm="Submit this assessment? You will not be able to edit it after submission."
+                    data-confirm-action="Submit assessment">
+                <i class="bi bi-send-check"></i> Submit Assessment
+            </button>
+        </div>
+    </form>
+</main>
+
+<script>
+(function () {
+    var inputs = document.querySelectorAll('#assessmentForm input, #assessmentForm textarea, #assessmentForm select');
+    var bar = document.getElementById('formProgress');
+    var label = document.getElementById('progressLabel');
+
+    function updateProgress() {
+        var total = inputs.length;
+        var filled = 0;
+        inputs.forEach(function (el) { if (el.value && el.value.trim()) filled++; });
+        var pct = total ? Math.round(filled / total * 100) : 0;
+        bar.style.width = pct + '%';
+        label.textContent = pct + '% filled';
+    }
+
+    inputs.forEach(function (el) { el.addEventListener('input', updateProgress); });
+    updateProgress();
+})();
+</script>
+</body>
+</html>
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+{% endblock %}

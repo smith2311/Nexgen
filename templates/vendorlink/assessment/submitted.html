@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment Submitted — Meril Life Sciences</title>
+    <link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink.css' %}">
+    <link rel="stylesheet" href="{% static 'vendorlink/css/assessment_external.css' %}">
+</head>
+<body class="vl-ext-body">
+<header class="vl-ext-header">
+    <div class="vl-ext-header-inner">
+        <div class="vl-ext-brand">
+            <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril" class="vl-ext-logo">
+            <span class="vl-ext-brand-text">3PL Capability Assessment</span>
+        </div>
+    </div>
+</header>
+<main class="vl-ext-main">
+    <div class="vl-success-card">
+        <div class="vl-success-icon"><i class="bi bi-check-circle-fill"></i></div>
+        <h1>Assessment Submitted!</h1>
+        <p>Thank you, <strong>{{ assessment.company_name|default:assessment.vendor_email }}</strong>. Your 3PL Capability Assessment has been successfully submitted to the Meril Global SCM team.</p>
+        <p class="vl-hint">Our team will review your submission and get back to you. No further action is needed on your end.</p>
+    </div>
+</main>
+</body>
+</html>

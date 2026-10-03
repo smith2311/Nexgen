@@ -1,0 +1,648 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Raise a Request{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-geoselect.css' %}">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:request_list' %}">Requests</a>
+        <span class="sep">/</span>
+        <span class="current">New Request</span>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="vm-form-card" novalidate id="reqForm">
+        {% csrf_token %}
+
+        <div class="vlx-card">
+            <div class="vlx-card__head">
+                <div>
+                    <h2 class="vlx-section-title" style="font-size:18px;"><i class="fas fa-paper-plane"></i> Raise a Request</h2>
+                    <p class="vlx-subtitle" style="margin-top:4px;">Compose a structured RFI, pick a country, then choose exactly which of its vendors receive it.</p>
+                </div>
+            </div>
+
+            <div class="vlx-card__body">
+
+                {% if form.non_field_errors %}
+                <div class="vlx-alert vlx-alert--error" style="margin-bottom:20px;"><i class="fas fa-circle-exclamation"></i><div>{{ form.non_field_errors }}</div></div>
+                {% endif %}
+
+                <!-- 1. Request Details -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-tag"></i> Request Details</legend>
+                    <div class="vlx-grid-2" style="grid-template-columns: 2fr 1fr 1fr;">
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_subject">Subject <span class="vlx-req">*</span></label>
+                            {{ form.subject }}
+                            {{ form.subject.errors }}
+                        </div>
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_continent">Continent</label>
+                            {{ form.continent }}
+                            {{ form.continent.errors }}
+                            <span class="vlx-hint">Narrows the country list.</span>
+                        </div>
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_country">Country <span class="vlx-req">*</span></label>
+                            {{ form.country }}
+                            {{ form.country.errors }}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Reach Banner (updates dynamically) -->
+                <div id="reachBanner" class="vlx-alert vlx-alert--info" style="margin-bottom:24px;">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <div>Select a country above to see how many vendors will receive this request.</div>
+                </div>
+
+                {% comment %}
+                Recipient picker. Hidden until a country is chosen, because the
+                vendor list it offers is entirely a function of that country.
+                The marker input below is what lets the view tell an empty
+                selection apart from a client that never rendered a picker —
+                see the recipient block in views.request_create.
+                {% endcomment %}
+                <div class="vlx-field" id="recipientField" style="margin-bottom:24px;display:none;">
+                    <label class="vlx-label">Recipients <span class="vlx-req">*</span></label>
+                    <input type="hidden" name="recipient_selection" value="1">
+                    <div class="vlx-rcp" id="rcpRoot">
+                        <button type="button" class="vlx-rcp__toggle" id="rcpToggle" aria-expanded="false">
+                            <span class="vlx-rcp__summary" id="rcpSummary">No recipients selected</span>
+                            <i class="fas fa-chevron-down vlx-rcp__caret"></i>
+                        </button>
+                        <div class="vlx-rcp__panel" id="rcpPanel" hidden>
+                            <div class="vlx-rcp__search">
+                                <i class="fas fa-magnifying-glass"></i>
+                                <input type="text" id="rcpSearch" placeholder="Search vendor name or email…"
+                                       autocomplete="off">
+                            </div>
+                            <div class="vlx-rcp__bulk">
+                                <button type="button" id="rcpAll">Select all</button>
+                                <span class="vlx-rcp__sep">·</span>
+                                <button type="button" id="rcpNone">Clear</button>
+                                <span class="vlx-rcp__tally" id="rcpTally"></span>
+                            </div>
+                            <div class="vlx-rcp__list" id="rcpList"></div>
+                        </div>
+                    </div>
+                    <p class="vlx-hint">Only ticked vendors receive this request.</p>
+                </div>
+
+                <!-- 2. Header / Address -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-location-dot"></i> Header Message</legend>
+                    <div class="vlx-field">
+                        <label class="vlx-label" for="id_header_message">Opening lines, address, or any context for the vendor</label>
+                        <div class="vlx-quill-wrap" id="wrap_header_message">{{ form.header_message }}</div>
+                        {{ form.header_message.errors }}
+                    </div>
+                </fieldset>
+
+                <!-- Operational Requirements -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-boxes-stacked"></i> Operational Requirements</legend>
+                    <div class="vlx-req-grid">
+
+                        <div class="vlx-field">
+                            <label class="vlx-label">Warehouse Space Required (sqm)</label>
+                            <div class="vlx-range-row">
+                                {{ form.warehouse_space_from }}
+                                <span class="vlx-range-sep">—</span>
+                                {{ form.warehouse_space_to }}
+                                <span class="vlx-range-unit">sqm</span>
+                            </div>
+                            {{ form.warehouse_space_from.errors }}{{ form.warehouse_space_to.errors }}
+                        </div>
+
+                        <div class="vlx-field">
+                            <label class="vlx-label">Storage Temperature (°C)</label>
+                            <div class="vlx-range-row">
+                                {{ form.storage_temp_from }}
+                                <span class="vlx-range-sep">—</span>
+                                {{ form.storage_temp_to }}
+                                <span class="vlx-range-unit">°C</span>
+                            </div>
+                            {{ form.storage_temp_from.errors }}{{ form.storage_temp_to.errors }}
+                        </div>
+
+                        <div class="vlx-field">
+                            <label class="vlx-label">Monthly Shipment Volume</label>
+                            <div class="vlx-range-row">
+                                {{ form.monthly_shipment_from }}
+                                <span class="vlx-range-sep">—</span>
+                                {{ form.monthly_shipment_to }}
+                            </div>
+                            {{ form.monthly_shipment_from.errors }}{{ form.monthly_shipment_to.errors }}
+                        </div>
+
+                        <div class="vlx-field">
+                            <label class="vlx-label">Inbound Volume</label>
+                            <div class="vlx-range-row">
+                                {{ form.inbound_from }}
+                                <span class="vlx-range-sep">—</span>
+                                {{ form.inbound_to }}
+                            </div>
+                            {{ form.inbound_from.errors }}{{ form.inbound_to.errors }}
+                        </div>
+
+                        <div class="vlx-field">
+                            <label class="vlx-label">Outbound Volume</label>
+                            <div class="vlx-range-row">
+                                {{ form.outbound_from }}
+                                <span class="vlx-range-sep">—</span>
+                                {{ form.outbound_to }}
+                            </div>
+                            {{ form.outbound_from.errors }}{{ form.outbound_to.errors }}
+                        </div>
+
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_product_verticals">Product Verticals</label>
+                            {{ form.product_verticals }}
+                            {{ form.product_verticals.errors }}
+                        </div>
+
+                    </div>
+                </fieldset>
+
+                <!-- Scope of Work -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-list-check"></i> Scope of Work</legend>
+                    <div class="vlx-field">
+                        <label class="vlx-label" for="id_scope_of_work">Describe the full scope — bullets, commas, and special characters are all supported</label>
+                        <div class="vlx-quill-wrap" id="wrap_scope_of_work">{{ form.scope_of_work }}</div>
+                        {{ form.scope_of_work.errors }}
+                    </div>
+                </fieldset>
+
+                <!-- Closing Message -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-signature"></i> Closing Message</legend>
+                    <div class="vlx-field">
+                        <label class="vlx-label" for="id_footer_message">Closing remarks, call-to-action, or next steps</label>
+                        <div class="vlx-quill-wrap" id="wrap_footer_message">{{ form.footer_message }}</div>
+                        {{ form.footer_message.errors }}
+                    </div>
+                </fieldset>
+
+                <!-- Bid Window -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-clock"></i> Bid Window <span class="vlx-hint" style="margin-left:6px;font-weight:400;">optional — leave blank for always-open</span></legend>
+                    <div class="vlx-grid-2">
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_bid_open_at">Bidding opens at</label>
+                            {{ form.bid_open_at }}
+                            {{ form.bid_open_at.errors }}
+                        </div>
+                        <div class="vlx-field">
+                            <label class="vlx-label" for="id_bid_close_at">Bidding closes at</label>
+                            {{ form.bid_close_at }}
+                            {{ form.bid_close_at.errors }}
+                        </div>
+                    </div>
+                    <p class="vlx-hint" style="margin:8px 0 0;"><i class="fas fa-circle-info"></i> Vendors can only submit bids within this window. If not set, bidding is open until you close it manually.</p>
+                </fieldset>
+
+                <!-- Attachments -->
+                <fieldset class="vlx-fieldset">
+                    <legend class="vlx-legend"><i class="fas fa-paperclip"></i> Attachments <span class="vlx-hint" style="margin-left:6px;font-weight:400;">optional</span></legend>
+                    <div class="vlx-upload-zone" id="uploadZone">
+                        <input type="file" name="attachments" id="attachmentsInput" multiple
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                        <div class="vlx-upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                        <div class="vlx-upload-label">Click to browse or drag &amp; drop files here</div>
+                        <div class="vlx-upload-hint">Supported: PDF, Word (.doc/.docx), Excel (.xls/.xlsx), JPG / PNG</div>
+                    </div>
+                    <div class="vlx-file-list" id="fileList"></div>
+                </fieldset>
+
+            </div>
+        </div>
+
+        <div class="vlx-formfoot" style="margin-top:24px;border-radius:var(--vlx-r-lg);border-top:none;box-shadow:var(--vlx-sh-1);">
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--outline">
+                <i class="fas fa-xmark"></i> Cancel
+            </a>
+            <button type="submit" class="vlx-btn vlx-btn--primary" id="sendBtn">
+                <i class="fas fa-paper-plane"></i> Send to vendors
+            </button>
+        </div>
+
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+<script src="{% static 'vendorlink/js/vl-geoselect.js' %}"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+(function () {
+    /* ── Searchable country select ───────────────────────────────────── */
+    new VlCountrySelect(
+        document.getElementById('id_country'),
+        {{ country_iso_map|safe }},
+        null  /* no city field on this form */
+    );
+}());
+
+(function () {
+    /* ── Reach banner + recipient picker ─────────────────────────────────
+       The banner reports the country's reach; the picker narrows it. They are
+       driven together because the send count the banner promises has to be the
+       number of ticked boxes, not the size of the country. */
+    const countrySelect = document.getElementById('id_country');
+    const reachBanner   = document.getElementById('reachBanner');
+    const sendBtn       = document.getElementById('sendBtn');
+
+    const field   = document.getElementById('recipientField');
+    const toggle  = document.getElementById('rcpToggle');
+    const panel   = document.getElementById('rcpPanel');
+    const summary = document.getElementById('rcpSummary');
+    const tally   = document.getElementById('rcpTally');
+    const list    = document.getElementById('rcpList');
+    const search  = document.getElementById('rcpSearch');
+
+    let vendors = [];        // the country's emailable vendors
+    let picked  = new Set(); // vendor ids currently ticked
+    let reqSeq  = 0;         // guards against out-of-order fetch responses
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+
+    function setBanner(kind, html) {
+        reachBanner.className = 'vlx-alert vlx-alert--' + kind;
+        reachBanner.innerHTML = html;
+    }
+
+    function setSendEnabled(on) {
+        sendBtn.disabled      = !on;
+        sendBtn.style.opacity = on ? '' : '.45';
+        sendBtn.style.cursor  = on ? '' : 'not-allowed';
+    }
+
+    /* Renders the checkbox rows, honouring the search filter. Only ticked
+       boxes carry a name attribute, so the POST contains exactly the
+       selection — no need to reconcile unchecked values server-side. */
+    function renderList() {
+        const q = (search.value || '').trim().toLowerCase();
+        const shown = q
+            ? vendors.filter((v) => (v.name + ' ' + v.email).toLowerCase().includes(q))
+            : vendors;
+
+        if (!shown.length) {
+            list.innerHTML = '<p class="vlx-rcp__empty">'
+                + (vendors.length ? 'No vendor matches that search.' : 'No emailable vendors in this country.')
+                + '</p>';
+            return;
+        }
+
+        list.innerHTML = shown.map((v) => {
+            const on = picked.has(v.id);
+            return '<label class="vlx-rcp__row' + (on ? ' is-on' : '') + '">'
+                 + '<input type="checkbox" name="recipient_ids" value="' + v.id + '"'
+                 + (on ? ' checked' : '') + ' data-vid="' + v.id + '">'
+                 + '<span class="vlx-rcp__meta">'
+                 + '<span class="vlx-rcp__name">' + esc(v.name)
+                 + (v.city ? ' <em>· ' + esc(v.city) + '</em>' : '') + '</span>'
+                 + '<span class="vlx-rcp__mail">' + esc(v.email) + '</span>'
+                 + '</span></label>';
+        }).join('');
+    }
+
+    function syncSummary() {
+        const n = picked.size;
+        const total = vendors.length;
+        const country = countrySelect.value;
+
+        summary.textContent = n === 0
+            ? 'No recipients selected'
+            : (n === total ? 'All ' + n + ' vendor' + (n !== 1 ? 's' : '') + ' selected'
+                           : n + ' of ' + total + ' vendors selected');
+        tally.textContent = n + ' / ' + total + ' selected';
+
+        if (!total) {
+            setBanner('warning', '<i class="fas fa-triangle-exclamation"></i><div>No active vendors in <strong>'
+                + esc(country) + '</strong> have an email address on file — add vendor emails before sending.</div>');
+            setSendEnabled(false);
+        } else if (n === 0) {
+            setBanner('warning', '<i class="fas fa-user-slash"></i><div>No recipients ticked — pick at least one vendor in <strong>'
+                + esc(country) + '</strong> to send this request.</div>');
+            setSendEnabled(false);
+        } else {
+            setBanner('info', '<i class="fas fa-envelope-open-text"></i><div>This request will be sent to <strong style="margin:0 4px;">'
+                + n + '</strong> of <strong style="margin:0 4px;">' + total + '</strong> vendor'
+                + (total !== 1 ? 's' : '') + ' in <strong style="margin:0 4px;">' + esc(country) + '</strong>.</div>');
+            setSendEnabled(true);
+        }
+    }
+
+    async function loadCountry() {
+        const country = countrySelect.value;
+
+        if (!country) {
+            field.style.display = 'none';
+            panel.hidden = true;
+            toggle.setAttribute('aria-expanded', 'false');
+            vendors = []; picked = new Set();
+            setBanner('info', '<i class="fas fa-envelope-open-text"></i><div>Select a country above to see how many vendors will receive this request.</div>');
+            setSendEnabled(true);   // let the form's own required-field errors speak
+            return;
+        }
+
+        const seq = ++reqSeq;
+        field.style.display = '';
+        setBanner('info', '<i class="fas fa-spinner fa-spin"></i><div>Loading vendors in <strong>' + esc(country) + '</strong>…</div>');
+        setSendEnabled(false);
+
+        let data = { vendors: [] };
+        try {
+            const res = await fetch('{% url "vendorlink:api_vendors_by_country" %}?country='
+                                    + encodeURIComponent(country), { credentials: 'same-origin' });
+            if (res.ok) { data = await res.json(); }
+        } catch (e) { /* fall through to the empty state below */ }
+
+        if (seq !== reqSeq) { return; }  // a newer country change already won
+
+        vendors = data.vendors || [];
+        // Default to everyone: the old behaviour was "send to the whole
+        // country", so that stays the starting point and the picker is how you
+        // narrow it — not an extra step before you can send at all.
+        picked = new Set(vendors.map((v) => v.id));
+        search.value = '';
+        renderList();
+        syncSummary();
+    }
+
+    /* Delegated so it survives every re-render from search filtering. */
+    list.addEventListener('change', (ev) => {
+        const box = ev.target.closest('input[type="checkbox"]');
+        if (!box) { return; }
+        const id = parseInt(box.dataset.vid, 10);
+        if (box.checked) { picked.add(id); } else { picked.delete(id); }
+        box.closest('.vlx-rcp__row').classList.toggle('is-on', box.checked);
+        syncSummary();
+    });
+
+    search.addEventListener('input', renderList);
+
+    document.getElementById('rcpAll').addEventListener('click', () => {
+        picked = new Set(vendors.map((v) => v.id));
+        renderList(); syncSummary();
+    });
+    document.getElementById('rcpNone').addEventListener('click', () => {
+        picked.clear();
+        renderList(); syncSummary();
+    });
+
+    toggle.addEventListener('click', () => {
+        const open = panel.hidden;
+        panel.hidden = !open;
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open) { search.focus(); }
+    });
+    document.addEventListener('click', (ev) => {
+        if (!panel.hidden && !document.getElementById('rcpRoot').contains(ev.target)) {
+            panel.hidden = true;
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    countrySelect.addEventListener('change', loadCountry);
+    loadCountry();
+
+    /* ── Quill rich-text editors ──────────────────────────────────────── */
+    const RICH_FIELDS = [
+        { id: 'header_message', placeholder: 'Address / opening lines…' },
+        { id: 'scope_of_work',  placeholder: 'List scope points — bullets, commas, special characters all supported…' },
+        { id: 'footer_message', placeholder: 'Closing remarks / sign-off…' },
+    ];
+    const TOOLBAR = [
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ indent: '-1' }, { indent: '+1' }],
+        ['clean'],
+    ];
+
+    const editors = {};
+
+    for (const cfg of RICH_FIELDS) {
+        const ta   = document.getElementById('id_' + cfg.id);
+        const wrap = document.getElementById('wrap_' + cfg.id);
+        if (!ta || !wrap) continue;
+
+        // Replace the textarea with a Quill div inside the wrap.
+        ta.style.display = 'none';
+        const qdiv = document.createElement('div');
+        wrap.insertBefore(qdiv, ta);
+
+        const quill = new Quill(qdiv, {
+            theme: 'snow',
+            placeholder: cfg.placeholder,
+            modules: { toolbar: TOOLBAR },
+        });
+
+        // Seed content from Django-rendered textarea value (handles re-render on error).
+        const initial = (ta.value || '').trim();
+        if (initial) {
+            quill.clipboard.dangerouslyPasteHTML(initial);
+        }
+
+        editors[cfg.id] = { quill, ta };
+    }
+
+    /* ── Validation helpers ───────────────────────────────────────────── */
+    function vlShowErr(el, msg) {
+        el.classList.add('vl-error'); el.classList.remove('vl-ok');
+        const id = 'vlerr_' + el.id;
+        let e = document.getElementById(id);
+        if (!e) { e = document.createElement('div'); e.className = 'vl-err-msg'; e.id = id; el.parentNode.insertBefore(e, el.nextSibling); }
+        e.textContent = '⚠ ' + msg; e.style.display = 'flex';
+    }
+    function vlClearErr(el) {
+        el.classList.remove('vl-error'); el.classList.add('vl-ok');
+        const e = document.getElementById('vlerr_' + el.id);
+        if (e) e.style.display = 'none';
+    }
+    function vlReset(el) {
+        el.classList.remove('vl-error', 'vl-ok');
+        const e = document.getElementById('vlerr_' + el.id);
+        if (e) e.style.display = 'none';
+    }
+
+    /* ── Character counters ───────────────────────────────────────────── */
+    [{ id: 'id_subject', max: 200 }, { id: 'id_product_verticals', max: 300 }].forEach(cfg => {
+        const el = document.getElementById(cfg.id);
+        if (!el) return;
+        const ctr = document.createElement('div');
+        ctr.className = 'vl-char-counter';
+        el.parentNode.appendChild(ctr);
+        const upd = () => {
+            const rem = cfg.max - el.value.length;
+            ctr.textContent = el.value.length + ' / ' + cfg.max;
+            ctr.className = 'vl-char-counter' + (rem <= 0 ? ' vl-over' : rem <= Math.ceil(cfg.max * 0.1) ? ' vl-near' : '');
+        };
+        el.addEventListener('input', upd); upd();
+    });
+
+    /* ── Field rules ──────────────────────────────────────────────────── */
+    const FIELD_RULES = {
+        id_subject: v => { if (!v.trim()) return 'Subject is required.'; if (v.length > 200) return 'Subject must be 200 characters or fewer.'; },
+        id_country: v => { if (!v) return 'Please select a country.'; },
+        id_product_verticals: v => { if (v.length > 300) return 'Product verticals must be 300 characters or fewer.'; },
+    };
+
+    function validateField(el) {
+        const rule = FIELD_RULES[el.id];
+        if (!rule) { vlReset(el); return true; }
+        const err = rule(el.value);
+        if (err) { vlShowErr(el, err); return false; }
+        vlClearErr(el); return true;
+    }
+
+    Object.keys(FIELD_RULES).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('blur', () => validateField(el));
+        el.addEventListener('input', () => { if (el.classList.contains('vl-error')) validateField(el); });
+    });
+
+    /* ── Range pair validation ────────────────────────────────────────── */
+    const RANGE_PAIRS = [
+        { from: 'id_warehouse_space_from', to: 'id_warehouse_space_to', label: 'Warehouse space', allowNeg: false },
+        { from: 'id_storage_temp_from',    to: 'id_storage_temp_to',    label: 'Storage temp',    allowNeg: true  },
+        { from: 'id_monthly_shipment_from',to: 'id_monthly_shipment_to',label: 'Monthly shipment',allowNeg: false },
+        { from: 'id_inbound_from',         to: 'id_inbound_to',         label: 'Inbound',         allowNeg: false },
+        { from: 'id_outbound_from',        to: 'id_outbound_to',        label: 'Outbound',        allowNeg: false },
+    ];
+
+    function validateRangePair(pair) {
+        const fEl = document.getElementById(pair.from);
+        const tEl = document.getElementById(pair.to);
+        if (!fEl || !tEl) return true;
+        let ok = true;
+
+        [fEl, tEl].forEach((el, i) => {
+            const v = el.value.trim();
+            if (!v) { vlReset(el); return; }
+            const n = parseFloat(v);
+            if (isNaN(n)) {
+                vlShowErr(el, pair.label + ' must be a number.'); ok = false;
+            } else if (!pair.allowNeg && n < 0) {
+                vlShowErr(el, pair.label + ' cannot be negative.'); ok = false;
+            } else {
+                vlClearErr(el);
+            }
+        });
+
+        if (ok) {
+            const fv = fEl.value.trim(), tv = tEl.value.trim();
+            if (fv && tv && parseFloat(tv) < parseFloat(fv)) {
+                vlShowErr(tEl, pair.label + ': "To" must be ≥ "From" (' + fv + ').'); ok = false;
+            }
+        }
+        return ok;
+    }
+
+    RANGE_PAIRS.forEach(pair => {
+        [pair.from, pair.to].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.addEventListener('blur', () => validateRangePair(pair)); el.addEventListener('input', () => validateRangePair(pair)); }
+        });
+    });
+
+    /* ── File upload preview + validation ────────────────────────────── */
+    const ALLOWED_EXTS  = new Set(['pdf','doc','docx','xls','xlsx','jpg','jpeg','png']);
+    const MAX_FILES     = 10;
+    const MAX_FILE_MB   = 10;
+    const zone      = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('attachmentsInput');
+    const fileList  = document.getElementById('fileList');
+
+    function renderFiles(files) {
+        fileList.innerHTML = '';
+        const icons = { pdf:'fa-file-pdf', doc:'fa-file-word', docx:'fa-file-word', xls:'fa-file-excel', xlsx:'fa-file-excel', jpg:'fa-file-image', jpeg:'fa-file-image', png:'fa-file-image' };
+        let countWarn = files.length > MAX_FILES;
+
+        Array.from(files).forEach(f => {
+            const ext   = f.name.split('.').pop().toLowerCase();
+            const icon  = icons[ext] || 'fa-file';
+            const kb    = (f.size / 1024).toFixed(1);
+            const tooBig  = f.size > MAX_FILE_MB * 1024 * 1024;
+            const badExt  = !ALLOWED_EXTS.has(ext);
+            const item  = document.createElement('div');
+            item.className = 'vlx-file-item' + (tooBig || badExt ? ' vl-file-warn' : '');
+            let warn = tooBig ? ` ⚠ Exceeds ${MAX_FILE_MB} MB` : badExt ? ' ⚠ Unsupported type' : '';
+            item.innerHTML = `<i class="fas ${icon}"></i><span>${f.name}${warn}</span><span class="vlx-file-size">${kb} KB</span>`;
+            fileList.appendChild(item);
+        });
+
+        if (countWarn) {
+            const w = document.createElement('div');
+            w.className = 'vlx-alert vlx-alert--warning'; w.style.marginTop = '8px';
+            w.innerHTML = `<i class="fas fa-triangle-exclamation"></i><div>Maximum ${MAX_FILES} files allowed — remove some before sending.</div>`;
+            fileList.appendChild(w);
+        }
+    }
+
+    fileInput.addEventListener('change', function () { renderFiles(this.files); });
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        fileInput.files = e.dataTransfer.files; renderFiles(e.dataTransfer.files);
+    });
+
+    /* ── Form submit — flush Quill + run all validations ─────────────── */
+    document.getElementById('reqForm').addEventListener('submit', function (e) {
+        // Flush Quill editors to hidden textareas.
+        for (const { quill, ta } of Object.values(editors)) {
+            const html = quill.root.innerHTML;
+            ta.value = (html === '<p><br></p>') ? '' : html;
+        }
+
+        // Run all validations.
+        let ok = true;
+        Object.keys(FIELD_RULES).forEach(id => {
+            const el = document.getElementById(id); if (el && !validateField(el)) ok = false;
+        });
+        RANGE_PAIRS.forEach(pair => { if (!validateRangePair(pair)) ok = false; });
+
+        // File count check.
+        if (fileInput.files.length > MAX_FILES) {
+            ok = false;
+            let w = document.getElementById('vl_file_count_err');
+            if (!w) { w = document.createElement('div'); w.id = 'vl_file_count_err'; w.className = 'vlx-alert vlx-alert--error'; w.style.marginTop = '8px'; fileList.parentNode.appendChild(w); }
+            w.innerHTML = `<i class="fas fa-circle-exclamation"></i><div>Too many files — maximum ${MAX_FILES} attachments allowed.</div>`;
+        }
+
+        if (!ok) {
+            e.preventDefault();
+            const first = document.querySelector('#reqForm .vl-error');
+            if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+})();
+</script>
+{% endblock %}

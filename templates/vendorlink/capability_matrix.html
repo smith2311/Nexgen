@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static vm_extras %}
+
+{% block title %}Capability Matrix{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:vm_home' %}">Vendor Master</a>
+                <span class="sep">/</span>
+                <span class="current">Capability Matrix</span>
+            </div>
+            <h1 class="vlx-title">Capability Matrix</h1>
+            <p class="vlx-subtitle">
+                Every active vendor against the {{ capability_total }} capability
+                dimension{{ capability_total|pluralize }} on the master. This view is read-only —
+                set a vendor's capabilities on its own edit screen, add a column on the
+                Capability Master, or do many at once with Bulk import.
+            </p>
+        </div>
+        {% comment %}
+        This grid is READ-ONLY — it renders what the vendors hold, it is not an
+        editor. It had only an Export button, so anyone landing here looking for
+        somewhere to put the data had no route out. The three ways data actually
+        gets in are linked from here now, in the order you would reach for them.
+        {% endcomment %}
+        <div class="vlx-actions">
+            {% if is_vm_admin %}
+            <a href="{% url 'vendorlink:admin_capabilities' %}" class="vlx-btn vlx-btn--outline"
+               title="Add, rename or retire the capability columns themselves">
+                <i class="fas fa-shield-halved"></i> Capability Master
+            </a>
+            <a href="{% url 'vendorlink:vendor_list' %}?import=1" class="vlx-btn vlx-btn--outline"
+               title="Set capabilities for many vendors at once from Excel">
+                <i class="fas fa-upload"></i> Bulk import
+            </a>
+            {% endif %}
+            <a href="{% url 'vendorlink:export_excel' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-download"></i> Export</a>
+        </div>
+    </div>
+
+    <!-- Adoption summary -->
+    <div class="vlx-kpis">
+        {% for s in summary %}
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__top">
+                <span class="vlx-kpi__label">{{ s.label }}</span>
+                <span class="vlx-kpi__icon"><i class="fas {{ s.icon }}"></i></span>
+            </div>
+            <div class="vlx-kpi__value">{{ s.count }}</div>
+            <div class="vlx-progress" style="margin-top:12px;"><div class="vlx-progress__fill" data-pct="{{ s.pct }}" style="width:0;"></div></div>
+            <div class="vlx-kpi__delta" style="margin-top:8px;">{{ s.pct }}% of vendors</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Matrix -->
+    <div class="vlx-card vlx-card--flush">
+        {% if vendors %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Country</th>
+                    {% for field, label, icon in capability_fields %}
+                    <th title="{{ label }}" class="center"><i class="fas {{ icon }}"></i></th>
+                    {% endfor %}
+                    <th class="center">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vendors %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ v.vendor_name|first|upper }}</span>
+                            <a href="{% url 'vendorlink:vendor_detail' v.pk %}" class="vlx-link">{{ v.vendor_name }}</a>
+                        </div>
+                    </td>
+                    <td><span class="vlx-loc"><i class="fas fa-location-dot"></i> {{ v.country }}</span></td>
+                    {% for field, label, icon in capability_fields %}
+                    <td class="center">
+                        {% if v|attr:field %}<i class="fas fa-circle-check" style="color:var(--vlx-success);"></i>{% else %}<i class="fas fa-minus" style="color:var(--vlx-ink-300);"></i>{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="center"><span class="vlx-cap-count">{{ v.capability_count }}/{{ capability_total }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-table-cells"></i></div>
+            <h3>No vendors to compare</h3>
+            <p>Add vendors to see the capability matrix come to life.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Animate adoption bars when scrolled into view
+(function () {
+    const bars = document.querySelectorAll('.vlx-progress__fill[data-pct]');
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) { e.target.style.width = e.target.dataset.pct + '%'; io.unobserve(e.target); }
+        });
+    }, { threshold: 0.3 });
+    bars.forEach(b => io.observe(b));
+})();
+</script>
+{% endblock %}

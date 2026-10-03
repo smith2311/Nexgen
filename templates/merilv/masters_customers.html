@@ -1,0 +1,446 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Master Data → Customers. Ship-to parties and their default couriers.{% endcomment %}
+
+{% block mv_title %}Customers — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Customers</span>
+{% endblock %}
+{% block mv_heading %}Customers{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Ship-to / sold-to parties and their default couriers.</p>{% endblock %}
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+{% comment %}
+Shared by the edit modal's Default-courier field. One element for the page, not
+one per row. Each option carries its Courier Master number, which the modal
+fills into Courier number when a name is chosen — the same thing the Add
+Customer form does from its dropdown.
+{% endcomment %}
+<datalist id="mvCourierNames">
+    {% for courier in courier_options %}<option value="{{ courier.name }}" data-number="{{ courier.number }}" data-numbers="{{ courier.numbers }}"></option>{% endfor %}
+</datalist>
+
+{% if courier_filter %}
+<div class="mv-alert mv-alert--info mv-scope">
+    {% icon "filter" %}
+    <div class="mv-scope__text">
+        Showing only the customers whose default courier is
+        <strong>{{ courier_filter }}</strong>.
+    </div>
+    <a href="{% url 'merilv:masters_customers' %}" class="mv-btn mv-btn--sm">Show all customers</a>
+</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-mx-card__head">
+        {% url 'merilv:masters_customer_create' as mv_add_url %}
+        {% include "merilv/_shell/masters_card_head.html" with title="Customer Master" icon="users" count=result_count key="customers" add_url=mv_add_url add_label="Add Customer" %}
+    </div>
+
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search">{% icon "search" %}<input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Code, name, city or GSTIN…"></div>
+        {% comment %}
+        Plant is how the warehouse decides which courier serves whom, so it is
+        the slice a bulk courier assignment is actually made through. Only
+        plants that have customers are offered — an empty option is a dead end.
+        {% endcomment %}
+        {% comment %}
+        Each picker is offered only when the data has that field, so a column
+        nobody populates renders nothing rather than an empty dropdown. On the
+        current master that means State and Entity appear and Plant does not —
+        plant is empty on all 7,480 rows, state is 100% populated across 41
+        values, and couriers are chosen by region.
+        {% endcomment %}
+        {% if state_options %}
+        <select class="mv-select mv-select--sm" name="state" style="width:auto;min-width:130px;">
+            <option value="">All states</option>
+            {% for value in state_options %}
+            <option value="{{ value }}" {% if value == state_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% if entity_options %}
+        <select class="mv-select mv-select--sm" name="entity" style="width:auto;min-width:100px;">
+            <option value="">All entities</option>
+            {% for value in entity_options %}
+            <option value="{{ value }}" {% if value == entity_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% if plant_options %}
+        <select class="mv-select mv-select--sm" name="plant" style="width:auto;min-width:120px;">
+            <option value="">All plants</option>
+            {% for value in plant_options %}
+            <option value="{{ value }}" {% if value == plant_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% comment %}Carried through so filtering by plant does not silently drop a courier drill-down.{% endcomment %}
+        {% if courier_filter %}<input type="hidden" name="courier" value="{{ courier_filter }}">{% endif %}
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing <strong class="mv-fg-2">{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong class="mv-fg-2">{{ page_obj.paginator.count }}</strong></span>
+    </form>
+{% comment %}
+Each chip clears only itself and keeps the rest, so narrowing down is not a
+one-way trip. The `mv_customer_chip` blocks below spell the other filters out
+rather than looping, because each one's "everything except me" link differs.
+{% endcomment %}
+    {% if q or plant_filter or state_filter or entity_filter %}
+    <div class="mv-filterbar">
+        <span class="mv-label" style="margin:0;">Active filters</span>
+        {% if q %}
+        <a href="?{% if state_filter %}state={{ state_filter|urlencode }}&amp;{% endif %}{% if entity_filter %}entity={{ entity_filter|urlencode }}&amp;{% endif %}{% if plant_filter %}plant={{ plant_filter|urlencode }}&amp;{% endif %}{% if courier_filter %}courier={{ courier_filter|urlencode }}{% endif %}"
+           class="mv-filter-chip">{{ q|truncatechars:24 }} {% icon "close" 12 %}</a>
+        {% endif %}
+        {% if state_filter %}
+        <a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% if entity_filter %}entity={{ entity_filter|urlencode }}&amp;{% endif %}{% if plant_filter %}plant={{ plant_filter|urlencode }}&amp;{% endif %}{% if courier_filter %}courier={{ courier_filter|urlencode }}{% endif %}"
+           class="mv-filter-chip">State {{ state_filter }} {% icon "close" 12 %}</a>
+        {% endif %}
+        {% if entity_filter %}
+        <a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% if state_filter %}state={{ state_filter|urlencode }}&amp;{% endif %}{% if plant_filter %}plant={{ plant_filter|urlencode }}&amp;{% endif %}{% if courier_filter %}courier={{ courier_filter|urlencode }}{% endif %}"
+           class="mv-filter-chip">Entity {{ entity_filter }} {% icon "close" 12 %}</a>
+        {% endif %}
+        {% if plant_filter %}
+        <a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% if state_filter %}state={{ state_filter|urlencode }}&amp;{% endif %}{% if entity_filter %}entity={{ entity_filter|urlencode }}&amp;{% endif %}{% if courier_filter %}courier={{ courier_filter|urlencode }}{% endif %}"
+           class="mv-filter-chip">Plant {{ plant_filter }} {% icon "close" 12 %}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if page_obj.paginator.count %}
+    {% comment %}
+    #18 — bulk courier assignment. The import path has carried "Courier Partner"
+    all along; what was missing was any way to fill it for an existing master,
+    and 7,480 customers through a per-row modal is not one.
+
+    Two scopes. "Selected" is for the ordinary handful. "All N matching" is the
+    one that matters at this scale — the realistic route is "filter to plant
+    PL10, assign Blue Dart to all of them", and that must not mean paging
+    through 36 pages ticking boxes. The count is on the button so nobody applies
+    thousands of rows believing they picked twenty.
+
+    The server re-derives the filter rather than trusting ids from here, so what
+    the button promises and what gets written are the same query.
+    {% endcomment %}
+    <form method="post" action="{% url 'merilv:masters_customer_bulk_courier' %}"
+          class="mv-bulkbar" id="mvBulkCourierForm"
+          data-mv-loading data-mv-loading-title="Updating customers"
+          data-mv-loading-message="Applying the courier change to the selected customers.">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% comment %}The filters the server re-runs for the "all matching" scope.{% endcomment %}
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="courier" value="{{ courier_filter }}">
+        <input type="hidden" name="plant" value="{{ plant_filter }}">
+        <input type="hidden" name="state" value="{{ state_filter }}">
+        <input type="hidden" name="entity" value="{{ entity_filter }}">
+        <input type="hidden" name="scope" id="mvBulkScope" value="selected">
+        <input type="hidden" name="action" id="mvBulkAction" value="assign">
+
+        <span class="mv-label" style="margin:0;">{% icon "truck" 14 %} Assign courier</span>
+        <select class="mv-select mv-select--sm" name="courier_partner" id="mvBulkCourier"
+                style="width:auto;min-width:160px;" aria-label="Courier to assign">
+            <option value="">Choose a courier…</option>
+            {% for courier in courier_options %}<option value="{{ courier.name }}">{{ courier.name }}</option>{% endfor %}
+        </select>
+
+        <button type="button" class="mv-btn mv-btn--sm mv-btn--primary" id="mvBulkSelected"
+                onclick="mvBulkCourier('selected','assign')" disabled>
+            To <span id="mvBulkCount">0</span> selected
+        </button>
+        <button type="button" class="mv-btn mv-btn--sm" id="mvBulkFiltered"
+                onclick="mvBulkCourier('filtered','assign')">
+            To all {{ page_obj.paginator.count }} matching
+        </button>
+        <div class="mv-table-toolbar__spacer"></div>
+        {% comment %}Its own action, never the fallback for an empty picker.{% endcomment %}
+        <button type="button" class="mv-btn mv-btn--sm mv-btn--tint-warn" id="mvBulkClear"
+                onclick="mvBulkCourier('selected','clear')" disabled>
+            Clear on <span id="mvBulkCount2">0</span>
+        </button>
+    </form>
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr>
+            <th style="width:32px;"><input type="checkbox" class="mv-chk" id="mvSelectAll"
+                    onchange="mvToggleAllCustomers(this.checked)" aria-label="Select all on this page"></th>
+            <th>Code</th><th>Name</th><th>Entity</th><th>City</th><th>Plant</th><th>Courier</th><th>GSTIN</th>
+            <th class="mv-col-actions mv-col-actions--pair">Actions</th>
+        </tr></thead>
+        <tbody>
+            {% for c in page_obj %}
+            <tr {% if c.is_blocked %}style="opacity:.6;"{% endif %}
+                data-pk="{{ c.pk }}" data-code="{{ c.customer_code }}" data-name="{{ c.customer_name }}"
+                data-entity="{{ c.entity.code|default:'' }}" data-plant="{{ c.plant }}"
+                data-courier="{{ c.courier_partner }}" data-couriernum="{{ c.courier_number }}"
+                data-city="{{ c.city }}" data-state="{{ c.state }}" data-country="{{ c.country }}"
+                data-pincode="{{ c.pincode }}" data-gstin="{{ c.gstin }}" data-email="{{ c.email }}"
+                data-mobile="{{ c.mobile }}" data-contact="{{ c.contact_person }}"
+                data-blocked="{{ c.is_blocked|yesno:'1,0' }}">
+                <td><input type="checkbox" class="mv-chk mv-row-chk" form="mvBulkCourierForm"
+                        name="pks" value="{{ c.pk }}" onchange="mvSyncCustomerCount()"
+                        aria-label="Select {{ c.customer_code }}"></td>
+                <td class="mv-mono mv-t-strong">{{ c.customer_code }}</td>
+                <td>{{ c.customer_name|default:"—"|truncatechars:40 }}{% if c.is_blocked %}<span class="mv-badge mv-badge--danger" style="margin-left:var(--mv-2);">Blocked</span>{% endif %}</td>
+                <td>{% if c.entity %}<span class="mv-badge mv-badge--neutral">{{ c.entity.code }}</span>{% else %}<span class="mv-fg-3">—</span>{% endif %}</td>
+                <td class="mv-fg-3">{{ c.city|default:"—" }}</td>
+                <td class="mv-mono">{{ c.plant|default:"—" }}</td>
+                <td>{{ c.courier_partner|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3">{{ c.gstin|default:"—" }}</td>
+                {% include "merilv/_shell/masters_row_actions.html" with key="customers" pk=c.pk noun="customer" label=c.customer_code on_edit="mvEditCustomer(this.closest('tr'))" %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "users" 48 %}<div class="mv-empty__title">No customers found</div><p class="mv-empty__text">Import a customer master file, or add one by hand.</p></div>
+    {% endif %}
+</div>
+
+{% include "merilv/_shell/masters_import_modal.html" with key="customers" label="customers" match_on="customer code" pick_entity=1 %}
+
+{% comment %}
+Edit only. The customer code is shown read-only: deliveries, scans and courier
+mappings all refer to it by value (CustomerCourierMapping.customer_code is a
+plain char column, not an FK), so renaming it here would orphan them silently.
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvCustomerModal">
+    <div class="mv-modal" role="dialog" aria-modal="true" aria-labelledby="mvCustomerModalTitle">
+        <form method="post" action="{% url 'merilv:masters_customer_save' %}" id="mvCustomerForm">
+            {% csrf_token %}
+            <input type="hidden" name="pk" value="">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvCustomerModalTitle">Edit customer</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+            </div>
+            <div class="mv-modal__body">
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label">Customer code</label>
+                        <input class="mv-input mv-input--mono" id="mvCuCode" disabled>
+                        <span class="mv-hint">Fixed — deliveries reference it by value.</span>
+                    </div>
+                    <div class="mv-field" style="flex:2;">
+                        <label class="mv-label" for="mvCuName">Customer name</label>
+                        <input class="mv-input" id="mvCuName" name="customer_name">
+                    </div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvCuEntity">Entity</label>
+                        <select class="mv-select" id="mvCuEntity" name="entity">
+                            <option value="">—</option>
+                            {% for e in entities %}<option value="{{ e.code }}">{{ e.code }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvCuPlant">Plant</label>
+                        <input class="mv-input mv-input--mono" id="mvCuPlant" name="plant">
+                    </div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvCuCourier">Courier partner</label>
+                        {% comment %}
+                        A datalist, not a select: imported customers legitimately
+                        name couriers that are not in the master yet, and a hard
+                        select would either reject that data or force a bogus
+                        choice. The save handler canonicalises whatever comes
+                        back, so a suggested name is stored in the courier's own
+                        spelling and an unknown one is kept as typed.
+                        {% endcomment %}
+                        <input class="mv-input" id="mvCuCourier" name="courier_partner"
+                               list="mvCourierNames" autocomplete="off">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvCuCourierNum">Courier number</label>
+                        <input class="mv-input mv-input--mono" id="mvCuCourierNum" name="courier_number">
+                    </div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field"><label class="mv-label" for="mvCuCity">City</label><input class="mv-input" id="mvCuCity" name="city"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCuState">State</label><input class="mv-input" id="mvCuState" name="state"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCuCountry">Country</label><input class="mv-input" id="mvCuCountry" name="country"></div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field"><label class="mv-label" for="mvCuPin">Pincode</label><input class="mv-input mv-input--mono" id="mvCuPin" name="pincode"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCuGstin">GSTIN</label><input class="mv-input mv-input--mono" id="mvCuGstin" name="gstin"></div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field"><label class="mv-label" for="mvCuEmail">Email</label><input class="mv-input" type="email" id="mvCuEmail" name="email"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCuMobile">Mobile</label><input class="mv-input mv-input--mono" id="mvCuMobile" name="mobile"></div>
+                    <div class="mv-field"><label class="mv-label" for="mvCuContact">Contact person</label><input class="mv-input" id="mvCuContact" name="contact_person"></div>
+                </div>
+                <label class="mv-check">
+                    <input type="checkbox" name="is_blocked" value="1" id="mvCuBlocked">
+                    <span class="mv-t-body">Blocked — refuse new dispatches to this customer</span>
+                </label>
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function mvEditCustomer(row) {
+    var f = document.getElementById('mvCustomerForm');
+    var d = row.dataset;
+    f.pk.value = d.pk;
+    document.getElementById('mvCuCode').value = d.code || '';
+    document.getElementById('mvCuName').value = d.name || '';
+    document.getElementById('mvCuEntity').value = d.entity || '';
+    document.getElementById('mvCuPlant').value = d.plant || '';
+    document.getElementById('mvCuCourier').value = d.courier || '';
+    document.getElementById('mvCuCourierNum').value = d.couriernum || '';
+    document.getElementById('mvCuCity').value = d.city || '';
+    document.getElementById('mvCuState').value = d.state || '';
+    document.getElementById('mvCuCountry').value = d.country || '';
+    document.getElementById('mvCuPin').value = d.pincode || '';
+    document.getElementById('mvCuGstin').value = d.gstin || '';
+    document.getElementById('mvCuEmail').value = d.email || '';
+    document.getElementById('mvCuMobile').value = d.mobile || '';
+    document.getElementById('mvCuContact').value = d.contact || '';
+    document.getElementById('mvCuBlocked').checked = d.blocked === '1';
+    /* A stored number is the customer's own, not an autofill — tagging it
+       would let the next courier change overwrite what is already recorded. */
+    delete document.getElementById('mvCuCourierNum').dataset.mvAutofilled;
+    document.getElementById('mvCustomerModal').classList.add('is-open');
+}
+
+/* Choosing a courier fills its number, the same rule the Add Customer form
+ * follows: only into a box nobody has typed in, and the number that belongs to
+ * THIS customer's plant.
+ *
+ * The same carrier is held once per plant in Courier Master and may carry a
+ * different account at each, so the name alone does not identify one. Each
+ * option carries the whole plant -> number map (see _active_courier_names) and
+ * the Plant box in this modal chooses from it; the single number is the
+ * fallback for a customer with no plant on file, and is blank when the rows
+ * disagree rather than guessing.
+ *
+ * A datalist offers no "selected" event, so this listens for input and matches
+ * the typed value: somebody who types the name in full expects the same result
+ * as somebody who picks it from the list. It is still a datalist rather than a
+ * dropdown here for the reason spelled out on the field — an imported customer
+ * legitimately names a courier the master has not got yet, and this screen is
+ * where those are edited.
+ */
+(function () {
+    var courier = document.getElementById('mvCuCourier');
+    var number = document.getElementById('mvCuCourierNum');
+    var plant = document.getElementById('mvCuPlant');
+    var list = document.getElementById('mvCourierNames');
+    if (!courier || !number || !list) { return; }
+
+    function numberFor(name) {
+        var wanted = (name || '').trim().toLowerCase();
+        if (!wanted) { return null; }
+        var options = list.querySelectorAll('option');
+        for (var i = 0; i < options.length; i++) {
+            var option = options[i];
+            if ((option.value || '').trim().toLowerCase() !== wanted) { continue; }
+            var atPlant = plant ? (plant.value || '').trim().toLowerCase() : '';
+            if (atPlant) {
+                var map = {};
+                try { map = JSON.parse(option.dataset.numbers || '{}'); } catch (e) { map = {}; }
+                for (var key in map) {
+                    if (Object.prototype.hasOwnProperty.call(map, key) &&
+                        key.trim().toLowerCase() === atPlant) {
+                        return map[key] || '';
+                    }
+                }
+            }
+            return option.dataset.number || '';
+        }
+        return null;  /* not a courier we know — leave the number alone */
+    }
+
+    function apply() {
+        var value = numberFor(courier.value);
+        if (value === null) { return; }
+        if (number.value && number.dataset.mvAutofilled !== '1') { return; }
+        number.value = value;
+        if (value) { number.dataset.mvAutofilled = '1'; }
+        else { delete number.dataset.mvAutofilled; }
+    }
+
+    courier.addEventListener('input', apply);
+    /* Correcting the plant re-resolves the account it implies. */
+    if (plant) { plant.addEventListener('input', apply); }
+    number.addEventListener('input', function () { delete number.dataset.mvAutofilled; });
+})();
+</script>
+
+<script>
+/* #18 — bulk courier assignment.
+   Same select-all / row-checkbox shape Delivery History already uses, rather
+   than a second pattern for the same job. The row inputs carry
+   form="mvBulkCourierForm" so they submit with the bar above them even though
+   they live in a different element — a table cannot sit inside that form
+   without breaking the table markup. */
+function mvSyncCustomerCount() {
+    var boxes = document.querySelectorAll('.mv-row-chk');
+    var checked = 0;
+    for (var i = 0; i < boxes.length; i++) { if (boxes[i].checked) { checked += 1; } }
+    var labels = [document.getElementById('mvBulkCount'), document.getElementById('mvBulkCount2')];
+    for (var j = 0; j < labels.length; j++) { if (labels[j]) { labels[j].textContent = checked; } }
+    var buttons = [document.getElementById('mvBulkSelected'), document.getElementById('mvBulkClear')];
+    for (var k = 0; k < buttons.length; k++) { if (buttons[k]) { buttons[k].disabled = checked === 0; } }
+    var all = document.getElementById('mvSelectAll');
+    if (all) { all.checked = boxes.length > 0 && checked === boxes.length; }
+}
+
+function mvToggleAllCustomers(checked) {
+    var boxes = document.querySelectorAll('.mv-row-chk');
+    for (var i = 0; i < boxes.length; i++) { boxes[i].checked = checked; }
+    mvSyncCustomerCount();
+}
+
+function mvBulkCourier(scope, action) {
+    var form = document.getElementById('mvBulkCourierForm');
+    var courier = document.getElementById('mvBulkCourier');
+    var total = {{ page_obj.paginator.count }};
+    var count = scope === 'filtered' ? total : document.querySelectorAll('.mv-row-chk:checked').length;
+
+    if (action === 'assign' && (!courier || !courier.value)) {
+        if (window.mvUI) {
+            window.mvUI.toast('warn', 'Choose a courier', 'Pick which courier to assign first.');
+        }
+        if (courier) { courier.focus(); }
+        return;
+    }
+    /* Confirmed for anything beyond a handful, and for every clear. This is the
+       one write in Master Data that can touch thousands of rows, and the
+       confirmation states the number rather than asking "are you sure?". */
+    var verb = action === 'clear' ? 'Clear the default courier on' : 'Assign ' + courier.value + ' to';
+    if (action === 'clear' || scope === 'filtered' || count > 25) {
+        if (!window.confirm(verb + ' ' + count + ' customer(s)?')) { return; }
+    }
+    document.getElementById('mvBulkScope').value = scope;
+    document.getElementById('mvBulkAction').value = action;
+    if (form.requestSubmit) {
+        form.requestSubmit();
+    } else {
+        if (window.mvLoadingOverlay && typeof window.mvLoadingOverlay.show === 'function') {
+            window.mvLoadingOverlay.show(form);
+        }
+        form.submit();
+    }
+}
+
+mvSyncCustomerCount();
+</script>
+{% endblock %}

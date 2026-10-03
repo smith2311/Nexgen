@@ -1,0 +1,126 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Invoice Consolidator landing — upload one or more invoice files, flatten them into one run.{% endcomment %}
+
+{% block mv_title %}Invoice Consolidator{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Invoice Consolidator</span>
+{% endblock %}
+{% block mv_heading %}Invoice Consolidator{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Flatten invoice PDFs or spreadsheets into one export.</p>{% endblock %}
+
+{% block mv_body %}
+{% comment %}
+Two source tabs, matching the client's own Export-Consolidator screen. This is
+not decoration: the two paths accept different file types and a run is one or
+the other, never both (see the source_type inference in views.consolidator).
+The single mixed input this replaces had to carry a caption apologising for
+that, which is a sign the UI was hiding a real distinction.
+{% endcomment %}
+<div class="mv-card">
+    <div class="mv-tabs" role="tablist">
+        <button type="button" class="mv-tab is-active" data-mv-src-tab="pdf" role="tab" aria-selected="true">
+            {% icon "file" 14 %}<span>Read PDF Invoices</span>
+        </button>
+        <button type="button" class="mv-tab" data-mv-src-tab="sheet" role="tab" aria-selected="false">
+            {% icon "upload" 14 %}<span>Upload Excel/CSV</span>
+        </button>
+    </div>
+
+    <form method="post" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Processing invoices"
+          data-mv-loading-message="Reading the uploaded files and consolidating the rows.">
+        {% csrf_token %}
+        <div class="mv-field">
+            <label class="mv-label" for="mvRunName">Run name</label>
+            <input class="mv-input" id="mvRunName" name="name" placeholder="Optional">
+        </div>
+
+        <div class="mv-field" data-mv-src-panel="pdf">
+            <label class="mv-label">PDF invoices <span class="mv-req">*</span></label>
+            <label class="mv-dropzone">
+                <input type="file" name="files" accept=".pdf" multiple data-mv-src-input="pdf">
+                {% icon "file" 40 %}
+                <span class="mv-dropzone__label">Upload MLSIPL PDF invoices</span>
+                <span class="mv-t-caption">Export (USD) and domestic (GST) layouts are both recognised automatically</span>
+            </label>
+        </div>
+
+        <div class="mv-field" data-mv-src-panel="sheet" hidden>
+            <label class="mv-label">Excel / CSV files <span class="mv-req">*</span></label>
+            <label class="mv-dropzone">
+                <input type="file" name="files" accept=".xlsx,.xls,.csv" multiple disabled data-mv-src-input="sheet">
+                {% icon "upload" 40 %}
+                <span class="mv-dropzone__label">Upload Excel or CSV invoice extracts</span>
+                <span class="mv-t-caption">.xlsx, .xls or .csv — headers are matched by name, in any column order</span>
+            </label>
+        </div>
+
+        <div class="mv-card__footer">
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "wand" %} Process files</button>
+        </div>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "history" %} Recent runs</h2></div>
+    {% if runs %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Run</th><th>Source</th><th class="mv-num">Files</th><th class="mv-num">Rows</th><th>Created</th></tr></thead>
+        <tbody>
+            {% for run in runs %}
+            <tr data-mv-href="{% url 'merilv:consolidation_detail' run.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ run }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ run.get_source_type_display }}</span></td>
+                <td class="mv-num">{{ run.file_count }}</td>
+                <td class="mv-num">{{ run.row_count }}</td>
+                <td class="mv-t-caption">{{ run.created_at|date:"d M, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "file" 48 %}<div class="mv-empty__title">No consolidations yet</div></div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mv_js %}
+<script>
+// Source tabs. The inactive side's input is `disabled` as well as hidden so the
+// browser leaves it out of the POST entirely — two inputs sharing the name
+// "files" would otherwise both submit and mix the two layouts into one run.
+(function () {
+    'use strict';
+    var tabs = document.querySelectorAll('[data-mv-src-tab]');
+    function select(key) {
+        tabs.forEach(function (tab) {
+            var on = tab.getAttribute('data-mv-src-tab') === key;
+            tab.classList.toggle('is-active', on);
+            tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('[data-mv-src-panel]').forEach(function (panel) {
+            panel.hidden = panel.getAttribute('data-mv-src-panel') !== key;
+        });
+        document.querySelectorAll('[data-mv-src-input]').forEach(function (input) {
+            var on = input.getAttribute('data-mv-src-input') === key;
+            input.disabled = !on;
+            if (!on) {
+                input.value = '';
+                // Clear the accumulated basket too (see wireMultiDropzone in
+                // datatable.js). Setting .value alone empties the FileList but
+                // would leave the basket holding the other tab's files, so the
+                // list on screen would disagree with what gets posted.
+                if (input.mvBasket) { input.mvBasket.clear(); }
+            }
+        });
+    }
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () { select(tab.getAttribute('data-mv-src-tab')); });
+    });
+})();
+</script>
+{% endblock %}

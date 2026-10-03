@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Warehouse Inspection Report</title>
+</head>
+<body style="margin:0; padding:0; background:#eef2f7; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+    Warehouse Inspection Report for {{ submission.building.building_name }}.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%; background:#eef2f7; padding:28px 0;">
+    <tr>
+      <td align="center" style="padding:0 12px;">
+        <table role="presentation" width="760" cellspacing="0" cellpadding="0" style="max-width:760px; width:100%; background:#ffffff; border:1px solid #dbe3ee; border-radius:14px; overflow:hidden; box-shadow:0 14px 32px rgba(15, 23, 42, 0.10);">
+          <tr>
+            <td style="background:#0f766e; padding:26px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 8px 0; font-size:12px; line-height:16px; letter-spacing:0.08em; text-transform:uppercase; color:#ccfbf1; font-weight:700;">Warehouse Inspection</p>
+                    <h1 style="margin:0; font-size:26px; line-height:32px; color:#ffffff; font-weight:700;">Warehouse Inspection Report</h1>
+                  </td>
+                  <td align="right" style="vertical-align:top;">
+                    <span style="display:inline-block; padding:7px 12px; border:1px solid rgba(255,255,255,0.35); border-radius:999px; color:#ffffff; font-size:12px; line-height:16px; font-weight:700;">Submitted</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 28px 10px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate; border-spacing:0; background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px;">
+                <tr>
+                  <td style="padding:16px 18px; border-bottom:1px solid #e5e7eb;">
+                    <p style="margin:0 0 4px 0; font-size:12px; line-height:16px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Submitted By</p>
+                    {% if submission.submitted_by_name %}
+                    <p style="margin:0; font-size:15px; line-height:22px; color:#111827; font-weight:700;">{{ submission.submitted_by_name }}</p>
+                    <p style="margin:2px 0 0 0; font-size:13px; line-height:18px; color:#475569;">{{ submission.submitted_by_email }}</p>
+                    {% else %}
+                    <p style="margin:0; font-size:15px; line-height:22px; color:#111827; font-weight:700;">{{ submission.submitted_by_email }}</p>
+                    {% endif %}
+                  </td>
+                  <td style="padding:16px 18px; border-bottom:1px solid #e5e7eb;">
+                    <p style="margin:0 0 4px 0; font-size:12px; line-height:16px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Submitted At</p>
+                    <p style="margin:0; font-size:15px; line-height:22px; color:#111827; font-weight:700;">{{ submitted_at|date:"Y-m-d H:i" }}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0 0 4px 0; font-size:12px; line-height:16px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Building Name</p>
+                    <p style="margin:0; font-size:15px; line-height:22px; color:#111827; font-weight:700;">{{ submission.building.building_name }}</p>
+                  </td>
+                  <td style="padding:16px 18px;">
+                    <p style="margin:0 0 4px 0; font-size:12px; line-height:16px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Floors Covered</p>
+                    <p style="margin:0; font-size:15px; line-height:22px; color:#111827; font-weight:700;">{{ floor_names|join:", " }}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 28px 28px 28px;">
+              {% for floor_group in floor_groups %}
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate; border-spacing:0; margin-top:18px; border:1px solid #dbe3ee; border-radius:12px; overflow:hidden;">
+                <tr>
+                  <td style="background:#f1f5f9; padding:16px 18px; border-bottom:1px solid #dbe3ee;">
+                    <p style="margin:0 0 6px 0; font-size:13px; line-height:18px; color:#0f766e; font-weight:700;">{{ floor_group.submission.building.building_name }}</p>
+                    <h2 style="margin:0; font-size:18px; line-height:24px; color:#0f172a; font-weight:700;">Floor: {{ floor_group.floor.floor_name }}</h2>
+                    <p style="margin:6px 0 0 0; font-size:14px; line-height:20px; color:#475569;"><strong>Conditions:</strong> {{ floor_group.submission.condition_category.condition_category_name }}</p>
+                    <p style="margin:4px 0 0 0; font-size:13px; line-height:18px; color:#64748b;"><strong>Inspection Attempt:</strong> {{ floor_group.inspection_attempt }}</p>
+                    <p style="margin:8px 0 0 0; font-size:13px; line-height:19px; color:#334155;"><strong>Remarks:</strong> {% if floor_group.submission.notes %}{{ floor_group.submission.notes|linebreaksbr }}{% else %}-{% endif %}</p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%;">
+                      <thead>
+                        <tr>
+                          <th align="left" style="background:#ffffff; padding:12px 14px; border-bottom:1px solid #e5e7eb; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Checkpoints</th>
+                          <th align="center" style="background:#ffffff; padding:12px 10px; border-bottom:1px solid #e5e7eb; width:82px; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">For Yes</th>
+                          <th align="center" style="background:#ffffff; padding:12px 10px; border-bottom:1px solid #e5e7eb; width:82px; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">For No</th>
+                          <th align="center" style="background:#ffffff; padding:12px 10px; border-bottom:1px solid #e5e7eb; width:90px; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Proof</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for response in floor_group.responses %}
+                        <tr>
+                          <td style="padding:13px 14px; border-bottom:1px solid #edf2f7; font-size:14px; line-height:20px; color:#111827;">{{ response.checkpoint.checkpoint_name }}</td>
+                          <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7;">
+                            {% if response.response == "yes" %}
+                            <span style="display:inline-block; width:26px; height:26px; line-height:26px; border-radius:50%; background:#dcfce7; color:#166534; border:1px solid #86efac; font-size:16px; font-weight:700; text-align:center; font-family:Arial, Helvetica, sans-serif;">&#10003;</span>
+                            {% else %}
+                            <span style="display:inline-block; width:26px; height:26px; line-height:26px; border-radius:50%; background:#f8fafc; color:#94a3b8; border:1px solid #e2e8f0; font-size:14px; font-weight:700; text-align:center;">-</span>
+                            {% endif %}
+                          </td>
+                          <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7;">
+                            {% if response.response == "no" %}
+                            <span style="display:inline-block; width:26px; height:26px; line-height:26px; border-radius:50%; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-size:16px; font-weight:700; text-align:center; font-family:Arial, Helvetica, sans-serif;">&#10005;</span>
+                            {% else %}
+                            <span style="display:inline-block; width:26px; height:26px; line-height:26px; border-radius:50%; background:#f8fafc; color:#94a3b8; border:1px solid #e2e8f0; font-size:14px; font-weight:700; text-align:center;">-</span>
+                            {% endif %}
+                          </td>
+                          <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7;">
+                            {% if response.photo %}
+                            <a href="{{ response.photo_absolute_url }}" style="color:#0f766e; font-weight:700; font-size:13px; text-decoration:none;" target="_blank" rel="noopener">View Photo</a>
+                            {% else %}
+                            <span style="color:#94a3b8; font-size:13px;">-</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              {% endfor %}
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:22px 28px 28px 28px; background:#f8fafc; border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 12px 0; font-size:12px; line-height:18px; color:#64748b;">This is an automated warehouse inspection notification. Please review the listed checkpoints for the assigned floor responsibilities.</p>
+              <p style="margin:0 0 18px 0; font-size:13px; line-height:19px; color:#334155;">
+                For any query, please contact us at
+                <a href="mailto:{{ contact_email }}" style="color:#0f766e; font-weight:700; text-decoration:none;">{{ contact_email }}</a>.
+              </p>
+              {% if brand_logo_cid %}
+              <img src="cid:{{ brand_logo_cid }}" alt="Meril" width="120" style="display:block; width:120px; max-width:120px; height:auto; border:0; outline:none; text-decoration:none;">
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

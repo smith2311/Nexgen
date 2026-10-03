@@ -1,0 +1,181 @@
+{% comment %}
+VendorLink page chrome: the full-page navigation loader and the custom
+confirm/alert dialog that replaces window.confirm/alert.
+
+Kept out of base.html itself and included only on /vendorlink/ URLs. Six
+VendorLink templates call window.vlConfirm / window.vlAlert or set
+data-vl-confirm, and five of them extend the global base.html rather than
+vendorlink/base.html, so the chrome has to hang off the global template — but
+every other app would otherwise carry ~5KB of CSS/JS plus a document-wide
+capture-phase submit listener it never uses.
+{% endcomment %}
+    <!-- ── VendorLink page loader ────────────────────────────────── -->
+    <style>
+    #vl-loader {
+        display: none; position: fixed; inset: 0; z-index: 99999;
+        background: rgba(240,244,248,.82); backdrop-filter: blur(6px);
+        align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+    }
+    #vl-loader.active { display: flex; }
+    .vl-spinner {
+        width: 52px; height: 52px; border-radius: 50%;
+        border: 4px solid #e2e8f0;
+        border-top-color: #0076c8;
+        animation: vl-spin .8s linear infinite;
+    }
+    @keyframes vl-spin { to { transform: rotate(360deg); } }
+    .vl-loader-text { font-family: 'Segoe UI', Arial, sans-serif; font-size: 0.88rem; font-weight: 700; color: #0076c8; }
+    @keyframes vr-modal-in { from { transform: scale(.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+    <div id="vl-loader">
+        <div class="vl-spinner"></div>
+        <div class="vl-loader-text">Loading…</div>
+    </div>
+
+    <!-- ── Custom confirm / alert dialog (replaces native alert/confirm) ── -->
+    <style>
+    .vl-dlg-overlay {
+        position: fixed; inset: 0; z-index: 100000; display: flex;
+        align-items: center; justify-content: center; padding: 20px;
+        background: rgba(8,16,38,.46); backdrop-filter: blur(3px);
+        opacity: 0; visibility: hidden; pointer-events: none;
+        transition: opacity .2s ease, visibility .2s ease;
+    }
+    .vl-dlg-overlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+    .vl-dlg {
+        background: #fff; border-radius: 16px; width: 420px; max-width: 100%;
+        padding: 26px 26px 22px; text-align: center;
+        box-shadow: 0 30px 70px rgba(8,16,38,.32);
+        transform: translateY(16px) scale(.96); opacity: 0;
+        transition: transform .28s cubic-bezier(.22,.61,.36,1), opacity .22s ease;
+    }
+    .vl-dlg-overlay.open .vl-dlg { transform: none; opacity: 1; }
+    .vl-dlg-icon {
+        width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 14px;
+        display: grid; place-items: center; font-size: 1.5rem;
+        background: #e0f2fe; color: #0284c7;
+    }
+    .vl-dlg-overlay.vl-dlg-danger .vl-dlg-icon { background: #fee2e2; color: #dc2626; }
+    .vl-dlg h3 { margin: 0 0 8px; font-size: 1.12rem; font-weight: 800; color: #06152b; }
+    .vl-dlg p  { margin: 0 0 20px; font-size: .9rem; color: #5f6c7d; line-height: 1.55; word-break: break-word; }
+    .vl-dlg-actions { display: flex; gap: 10px; justify-content: center; }
+    .vl-dlg-actions button {
+        flex: 1; max-width: 160px; padding: 11px 16px; border-radius: 9px;
+        font-size: .9rem; font-weight: 700; cursor: pointer; border: none;
+        transition: background .16s ease, transform .12s ease, box-shadow .18s ease;
+    }
+    .vl-dlg-actions button:active { transform: scale(.97); }
+    .vl-dlg-cancel { background: #f1f5f9; color: #475569; }
+    .vl-dlg-cancel:hover { background: #e2e8f0; }
+    .vl-dlg-ok { background: #0076c8; color: #fff; }
+    .vl-dlg-ok:hover { background: #005fa3; box-shadow: 0 6px 16px rgba(0,118,200,.3); }
+    .vl-dlg-ok.danger { background: #dc2626; }
+    .vl-dlg-ok.danger:hover { background: #b91c1c; box-shadow: 0 6px 16px rgba(220,38,38,.3); }
+    @media (prefers-reduced-motion: reduce) {
+        .vl-dlg-overlay, .vl-dlg { transition: none !important; }
+    }
+    </style>
+    <div class="vl-dlg-overlay" id="vlDialog" role="dialog" aria-modal="true" aria-labelledby="vlDlgTitle">
+        <div class="vl-dlg">
+            <div class="vl-dlg-icon" id="vlDlgIcon"><i class="fas fa-circle-question"></i></div>
+            <h3 id="vlDlgTitle">Confirm</h3>
+            <p id="vlDlgMsg"></p>
+            <div class="vl-dlg-actions">
+                <button type="button" class="vl-dlg-cancel" id="vlDlgCancel">Cancel</button>
+                <button type="button" class="vl-dlg-ok" id="vlDlgOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var overlay = document.getElementById('vlDialog');
+        if (!overlay) return;
+        var titleEl = document.getElementById('vlDlgTitle');
+        var msgEl   = document.getElementById('vlDlgMsg');
+        var okBtn   = document.getElementById('vlDlgOk');
+        var cancelBtn = document.getElementById('vlDlgCancel');
+        var iconEl  = document.getElementById('vlDlgIcon');
+        var resolver = null;
+
+        function settle(val) {
+            overlay.classList.remove('open');
+            var r = resolver; resolver = null;
+            if (r) r(val);
+        }
+        function open(opts) {
+            return new Promise(function (resolve) {
+                // If a dialog is already open, resolve it as cancelled first.
+                if (resolver) { var prev = resolver; resolver = null; prev(false); }
+                resolver = resolve;
+                titleEl.textContent = opts.title || (opts.alert ? 'Notice' : 'Are you sure?');
+                msgEl.textContent = opts.message || '';
+                okBtn.textContent = opts.confirmText || (opts.alert ? 'OK' : 'Confirm');
+                cancelBtn.style.display = opts.alert ? 'none' : '';
+                cancelBtn.textContent = opts.cancelText || 'Cancel';
+                overlay.classList.toggle('vl-dlg-danger', !!opts.danger);
+                okBtn.className = 'vl-dlg-ok' + (opts.danger ? ' danger' : '');
+                iconEl.innerHTML = '<i class="fas ' +
+                    (opts.danger ? 'fa-triangle-exclamation' : (opts.alert ? 'fa-circle-info' : 'fa-circle-question')) +
+                    '"></i>';
+                overlay.classList.add('open');
+                setTimeout(function () { okBtn.focus(); }, 60);
+            });
+        }
+        okBtn.addEventListener('click', function () { settle(true); });
+        cancelBtn.addEventListener('click', function () { settle(false); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) settle(false); });
+        document.addEventListener('keydown', function (e) {
+            if (!overlay.classList.contains('open')) return;
+            if (e.key === 'Escape') { e.preventDefault(); settle(false); }
+            else if (e.key === 'Enter') { e.preventDefault(); settle(true); }
+        });
+
+        window.vlConfirm = function (message, opts) { opts = opts || {}; opts.message = message; return open(opts); };
+        window.vlAlert   = function (message, opts) { opts = opts || {}; opts.message = message; opts.alert = true; return open(opts); };
+
+        // Delegated handler: any <form data-vl-confirm="message"> asks first, then submits.
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || !form.hasAttribute || !form.hasAttribute('data-vl-confirm')) return;
+            if (form.__vlOk) return;                       // already confirmed → let it through
+            e.preventDefault();
+            window.vlConfirm(form.getAttribute('data-vl-confirm'), {
+                title: form.getAttribute('data-vl-confirm-title') || undefined,
+                confirmText: form.getAttribute('data-vl-confirm-ok') || undefined,
+                danger: form.getAttribute('data-vl-confirm-danger') === '1',
+            }).then(function (ok) {
+                if (!ok) return;                           // cancelled → nothing happens, no spinner
+                form.__vlOk = true;
+                var ld = document.getElementById('vl-loader');
+                if (ld && location.pathname.indexOf('/vendorlink/') === 0) ld.classList.add('active');
+                if (form.requestSubmit) form.requestSubmit(); else form.submit();
+            });
+        }, true); // capture phase → runs before the loader's submit listener
+    })();
+    </script>
+    <script>
+    (function () {
+        if (!window.location.pathname.startsWith('/vendorlink/')) return;
+        var loader = document.getElementById('vl-loader');
+        function show() { loader.classList.add('active'); }
+        // Show on internal link clicks
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a[href]');
+            if (!a) return;
+            var href = a.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript') || a.target === '_blank' || a.download) return;
+            show();
+        });
+        // Show on form submit — but NOT when a confirm dialog cancelled/deferred it.
+        document.addEventListener('submit', function (e) {
+            if (e.defaultPrevented) return;                    // cancelled or awaiting confirm → no spinner
+            if (e.target && e.target.id === 'vr-form') return; // register form handles its own feedback
+            if (e.target && e.target.hasAttribute('data-vl-confirm') && !e.target.__vlOk) return;
+            show();
+        });
+        // Hide if user navigates back (bfcache restore)
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) loader.classList.remove('active');
+        });
+    })();
+    </script>

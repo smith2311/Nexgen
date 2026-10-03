@@ -1,0 +1,140 @@
+/* ================================================================
+   Transfer Dashboard — Premium Edition
+   ================================================================ */
+* { box-sizing: border-box; }
+body {
+    background: var(--sa-bg);
+    font-family: var(--sa-font);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--sa-text);
+}
+.dashboard-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.dashboard-header h1 { font-size: 1.65rem; color: var(--sa-text); margin: 0; display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -0.02em; }
+
+/* Tabs */
+.tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: var(--sa-border);
+    border-radius: var(--sa-radius-sm);
+    cursor: pointer;
+    font-weight: 700;
+    transition: all var(--sa-duration) var(--sa-ease);
+    font-family: var(--sa-font);
+    color: var(--sa-text-secondary);
+}
+.tab-btn.active { background: var(--sa-gradient-warning); color: #fff; box-shadow: 0 4px 14px rgba(249,115,22,0.3); }
+.tab-btn:hover { background: #cbd5e1; }
+.tab-btn.active:hover { background: var(--sa-gradient-warning); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+    background: var(--sa-surface);
+    border-radius: var(--sa-radius-lg);
+    padding: 18px;
+    text-align: center;
+    box-shadow: var(--sa-shadow-sm);
+    border-left: 4px solid var(--sa-orange);
+    border: 1px solid var(--sa-border-light);
+    border-left: 4px solid var(--sa-orange);
+}
+.stat-value { font-size: 2rem; font-weight: 800; color: var(--sa-text); }
+.stat-label { font-size: 0.82rem; color: var(--sa-text-muted); margin-top: 4px; font-weight: 600; }
+
+/* Session Grid */
+.sessions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.session-card {
+    background: var(--sa-surface);
+    border-radius: var(--sa-radius-lg);
+    box-shadow: var(--sa-shadow-sm);
+    border-top: 4px solid var(--sa-orange);
+    overflow: hidden;
+    border: 1px solid var(--sa-border-light);
+    border-top: 4px solid var(--sa-orange);
+    transition: all var(--sa-duration) var(--sa-ease);
+}
+.session-card:hover { box-shadow: var(--sa-shadow-md); transform: translateY(-2px); }
+.session-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--sa-bg-warm); border-bottom: 1px solid var(--sa-border-light); }
+.session-batch { font-weight: 700; color: var(--sa-text); font-size: 0.9rem; }
+.status-badge { padding: 4px 12px; border-radius: var(--sa-radius-full); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.session-info { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.info-item { display: flex; flex-direction: column; }
+.info-label { font-size: 0.73rem; color: var(--sa-text-muted); margin-bottom: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.info-value { font-size: 0.9rem; color: var(--sa-text); font-weight: 600; }
+.session-actions { padding: 12px 16px; border-top: 1px solid var(--sa-border-light); display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn-primary {
+    background: var(--sa-gradient-warning);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: var(--sa-radius-sm);
+    cursor: pointer;
+    font-weight: 700;
+    transition: all var(--sa-duration) var(--sa-ease);
+    font-family: var(--sa-font);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(249,115,22,0.3); }
+.btn-export {
+    padding: 8px 12px;
+    border: 1px solid var(--sa-border);
+    background: var(--sa-surface);
+    border-radius: var(--sa-radius-sm);
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all var(--sa-duration) var(--sa-ease);
+    font-family: var(--sa-font);
+    color: var(--sa-text-secondary);
+}
+.btn-export:hover { background: var(--sa-bg-warm); }
+.btn-new {
+    background: var(--sa-gradient-warning);
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--sa-radius-sm);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: all var(--sa-duration) var(--sa-ease);
+    font-family: var(--sa-font);
+    box-shadow: 0 4px 14px rgba(249,115,22,0.25);
+}
+.btn-new:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(249,115,22,0.35); }
+
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.4; }
+.empty-title { font-size: 1.25rem; color: var(--sa-text); margin-bottom: 8px; font-weight: 700; }
+
+.alert { padding: 13px 16px; border-radius: var(--sa-radius-md); margin-bottom: 12px; font-weight: 500; border-left: 4px solid; box-shadow: var(--sa-shadow-xs); }
+.alert-success { background: var(--sa-success-light); color: #065f46; border-color: var(--sa-success); }
+.alert-error { background: var(--sa-danger-light); color: #991b1b; border-color: var(--sa-danger); }
+
+.spinner { width: 40px; height: 40px; border: 4px solid var(--sa-border); border-top: 4px solid var(--sa-orange); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.route-display { font-weight: 800; color: var(--sa-orange); }
+
+/* Nav Link */
+.nav-link {
+    color: var(--sa-text-secondary);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: var(--sa-radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    transition: all var(--sa-duration) var(--sa-ease);
+}
+.nav-link:hover { background: var(--sa-bg-warm); }

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Letter Templates — Visa Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-alt"></i> Letter Templates</h1>
+          <p>Invitation letter templates by company and country</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ templates|length }}</div>
+            <div class="lm-hstat-lbl">Templates</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner success"><i class="fas fa-check-circle"></i> {{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'visa:template_create' %}" class="btn btn-navy btn-sm">
+          <i class="fas fa-plus"></i> New Template
+        </a>
+        <a href="{% url 'visa:country_list' %}" class="btn btn-ghost btn-sm">
+          <i class="fas fa-globe"></i> Countries
+        </a>
+        <a href="{% url 'visa:company_list' %}" class="btn btn-ghost btn-sm">
+          <i class="fas fa-building"></i> Companies
+        </a>
+      </div>
+      <div class="record-count">{{ templates|length }} template{{ templates|length|pluralize }}</div>
+    </div>
+
+    <div class="tbl-wrap" style="--cols: 1fr 1fr 1fr 2fr 1fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Company</div>
+        <div>Country</div>
+        <div>Entry Type</div>
+        <div>Subject Line</div>
+        <div>Status</div>
+        <div>Updated</div>
+        <div></div>
+      </div>
+      {% for t in templates %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        {% if t.is_default %}
+        <div style="grid-column: span 2"><span class="badge" style="background:var(--blue-lt);color:var(--blue)">Default (fallback)</span></div>
+        {% else %}
+        <div><span class="vm-mono">{{ t.company.code }}</span></div>
+        <div class="tbl-name">{{ t.country.name }}</div>
+        {% endif %}
+        <div>{{ t.get_entry_type_display }}</div>
+        <div class="tbl-desc">{{ t.subject_line }}</div>
+        <div>
+          {% if t.is_active %}
+          <span class="badge badge-green">Active</span>
+          {% else %}
+          <span class="badge badge-muted">Inactive</span>
+          {% endif %}
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ t.updated_at|date:"d M Y" }}</div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:template_edit' t.pk %}" class="tbl-btn edit">Edit</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-file-alt"></i>
+        <p>No templates yet. <a href="{% url 'visa:template_create' %}" style="color:var(--blue)">Create the first one →</a></p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

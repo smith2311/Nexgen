@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Visa Department — Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
+          <p>Manage all visa applications, edit letters, and issue visas</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.total }}</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.pending_hod }}</div>
+            <div class="lm-hstat-lbl">Pending HOD</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.hod_approved }}</div>
+            <div class="lm-hstat-lbl">To Process</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.issued }}</div>
+            <div class="lm-hstat-lbl">Issued</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Filter bar -->
+    <form method="get" action="" class="filter-bar" style="margin-bottom:16px">
+      <span class="filter-label"><i class="fas fa-filter"></i> Filter</span>
+      <select class="form-select" name="status" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select class="form-select" name="company" onchange="this.form.submit()">
+        <option value="">All Companies</option>
+        {% for c in companies %}
+        <option value="{{ c.pk }}" {% if filters.company == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
+        {% endfor %}
+      </select>
+      <select class="form-select" name="country" onchange="this.form.submit()">
+        <option value="">All Countries</option>
+        {% for c in countries %}
+        <option value="{{ c.pk }}" {% if filters.country == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      {% if filters.status or filters.company or filters.country %}
+      <a href="{% url 'visa:admin_dashboard' %}" class="btn btn-ghost btn-sm">
+        <i class="fas fa-times"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        {% if is_superuser %}
+        <a href="{% url 'visa:template_list' %}" class="btn btn-ghost btn-sm">
+          <i class="fas fa-file-alt"></i> Letter Templates
+        </a>
+        {% endif %}
+      </div>
+      <div class="record-count">{{ applications|length }} shown</div>
+    </div>
+
+    <div class="tbl-wrap tbl-scroll" style="--cols: 1.5fr 1.5fr 1fr 1fr 1.5fr 1fr 1fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Ref No</div>
+        <div>Employee</div>
+        <div>Company</div>
+        <div>Country</div>
+        <div>Travel Dates</div>
+        <div>Status</div>
+        <div>Submitted</div>
+        <div></div>
+      </div>
+      {% for a in applications %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols); cursor:pointer"
+           onclick="window.location.href='{% url 'visa:admin_detail' a.pk %}'">
+        <div><span class="vm-mono">{{ a.ref_no }}</span></div>
+        <div>
+          <div class="tbl-name">{{ a.applicant_name }}</div>
+          <div class="tbl-sub">{{ a.designation }}</div>
+        </div>
+        <div>{{ a.company.code }}</div>
+        <div>{{ a.country.name }}</div>
+        <div style="font-size:12px;white-space:nowrap">{{ a.visit_start_date|date:"d M Y" }} — {{ a.visit_end_date|date:"d M Y" }}</div>
+        <div><span class="vm-pill {{ a.status }}">{{ a.status_label }}</span></div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ a.created_at|date:"d M Y" }}</div>
+        <div class="tbl-actions" onclick="event.stopPropagation()">
+          <a href="{% url 'visa:admin_detail' a.pk %}" class="tbl-btn">Open</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-passport"></i>
+        <p>{% if filters.status or filters.company or filters.country %}No applications match these filters{% else %}No visa applications yet{% endif %}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

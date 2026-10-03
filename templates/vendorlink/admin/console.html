@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Console — VendorLink{% endblock %}
+{% block page_title %}VendorLink Admin{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:index' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        VendorLink
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-shield-halved"></i> Admin Console</h1>
+          <p>Platform users and every master dataset, from one place.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.active_vendors }}</div>
+            <div class="lm-hstat-lbl">Active vendors</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.total_users }}</div>
+            <div class="lm-hstat-lbl">Users</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.countries }}</div>
+            <div class="lm-hstat-lbl">Countries</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ stats.bids }}</div>
+            <div class="lm-hstat-lbl">Bids</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if pending_regs %}
+    <a href="{% url 'vendorlink:registration_list' %}?status=pending" class="vl-notice warn" style="text-decoration:none;">
+      <i class="fas fa-user-clock"></i>
+      <div>
+        <h4>{{ pending_regs }} vendor registration{{ pending_regs|pluralize }} awaiting approval</h4>
+        Review and approve or reject the submissions.
+      </div>
+      <i class="fas fa-arrow-right" style="margin-left:auto;align-self:center;"></i>
+    </a>
+    {% endif %}
+
+    <div class="section-hdr" style="margin-top:22px;"><h2><i class="fas fa-grip"></i> Manage</h2></div>
+    <div class="vl-modgrid">
+      <a href="{% url 'vendorlink:admin_insights' %}" class="vl-modcard vl-modcard--teal">
+        <span class="vl-modcard-icon"><i class="fas fa-chart-simple"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Insights</h3>
+          <p>What every user is doing — activity trends, a weekday/hour heatmap and per-user tracking.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:admin_users' %}" class="vl-modcard">
+        <span class="vl-modcard-icon"><i class="fas fa-users-cog"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Users</h3>
+          <p>All vendor portal logins and internal staff. Create admins, reset passwords, manage access.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:vendor_list' %}" class="vl-modcard vl-modcard--teal">
+        <span class="vl-modcard-icon"><i class="fas fa-truck-field"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Vendor Master</h3>
+          <p>Central repository of approved 3PL vendors and their capabilities.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:admin_capabilities' %}" class="vl-modcard vl-modcard--purple">
+        <span class="vl-modcard-icon"><i class="fas fa-shield-halved"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Capability Master</h3>
+          <p>Add, rename or retire the capability dimensions, with live adoption per vendor.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:registration_list' %}" class="vl-modcard vl-modcard--amber">
+        <span class="vl-modcard-icon"><i class="fas fa-user-plus"></i></span>
+        <div class="vl-modcard-body">
+          <h3>
+            Registrations
+            {% if pending_regs %}<span class="badge badge-amber">{{ pending_regs }}</span>{% endif %}
+          </h3>
+          <p>Self-service vendor sign-ups awaiting review and approval.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:request_list' %}" class="vl-modcard vl-modcard--purple">
+        <span class="vl-modcard-icon"><i class="fas fa-paper-plane"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Requests &amp; Bids</h3>
+          <p>RFIs broadcast to vendors and the price bids received back.</p>
+        </div>
+      </a>
+
+      {% comment %}
+      Historical Data replaces both the Year-End Backup screen and the retention
+      purge that preceded it. Nothing deletes a completed year now: the records
+      stay and are read over a date range here, which also covers everything the
+      backup screen exported.
+      {% endcomment %}
+      <a href="{% url 'vendorlink:historical_data' %}" class="vl-modcard vl-modcard--amber">
+        <span class="vl-modcard-icon"><i class="fas fa-clock-rotate-left"></i></span>
+        <div class="vl-modcard-body">
+          <h3>Historical Data</h3>
+          <p>Read and export any date range of requests, bids, awards and evaluations. Nothing is ever deleted.</p>
+        </div>
+      </a>
+
+      <a href="{% url 'vendorlink:bid_analytics' %}" class="vl-modcard">
+        <span class="vl-modcard-icon"><i class="fas fa-gavel"></i></span>
+        <div class="vl-modcard-body">
+          {% comment %}
+          "Bid Analytics", not "Commercial Database". This card and the landing
+          page's Commercial Database card used to carry the same name while
+          pointing at two different screens — the rate card list on one, this
+          bid dashboard on the other — and the only link between them was
+          labelled with a third name again. Same name, two destinations was a
+          large part of why the module read as incoherent.
+          {% endcomment %}
+          <h3>Bid Analytics</h3>
+          <p>Vendor quotes per request, price-premium heatmap and the AI bid evaluator.</p>
+        </div>
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+{% endblock %}

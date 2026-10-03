@@ -1,0 +1,108 @@
+# CI smoke stack — "does this commit actually boot and serve?"
+#
+#   ./scripts/ci-smoke.sh          (podman-compose locally, or docker in CI)
+#
+# DELIBERATELY ISOLATED FROM PRODUCTION. docker-compose.yml and
+# docker-compose.registry.yml both use network_mode: host, container_name
+# django_app, and port 8020 — running either on the prod box replaces the live
+# site. This file shares none of that:
+#
+#   * no container_name       → compose generates project-scoped names
+#   * no network_mode: host   → private bridge network on a fixed subnet
+#   * port ${CI_APP_PORT:-8021} → never binds prod's 8020
+#   * no `env_file: .env`     → .env points DB_HOST at the PROD database
+#                               (10.10.30.160); CI must never touch it
+#   * no `restart:`           → a crashed container stays down so CI sees it
+#   * no `- .:/app` mount     → the code under test comes from the built image,
+#                               which is what actually ships
+#   * logging: k8s-file     → podman's default driver here is journald, and a
+#                               rootless user that cannot read its own journal
+#                               gets EMPTY output from `podman logs` — even for
+#                               a healthy container. On the CI runner that hid
+#                               a Python traceback through three failed
+#                               pipelines. A file-based driver always reads
+#                               back, whoever the job runs as.
+#
+# Run it with a unique project name so concurrent pipelines don't collide:
+#   podman-compose -p nexgen-ci-$$ -f docker-compose.ci.yml up
+
+services:
+  db:
+    # Fully qualified on purpose. `postgres` has no short-name alias in
+    # /etc/containers/registries.conf.d (unlike `python` and `alpine`), and this
+    # host defines no unqualified-search registries — so the bare name resolves
+    # only if the image already happens to be in local storage. On a fresh CI
+    # user it fails with "short-name did not resolve to an alias".
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_DB: ci_db
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+    tmpfs:
+      # Throwaway data — keeps the run fast and leaves no volume behind.
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ci_user -d ci_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # See the note at the top: journald + a rootless user with no journal read
+    # access makes `podman logs` return nothing at all.
+    logging:
+      driver: k8s-file
+    networks:
+      default:
+        # Fixed, so the app can be pointed at an ADDRESS rather than a name.
+        ipv4_address: 10.99.77.10
+
+  web:
+    build: .
+    command: ["sh", "/app/scripts/ci-entrypoint.sh"]
+    logging:
+      driver: k8s-file
+    ports:
+      - "${CI_APP_PORT:-8021}:8020"
+    depends_on:
+      - db
+    environment:
+      # Database — the throwaway `db` service above, never prod.
+      POSTGRES_DB: ci_db
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+      # An ADDRESS, not the `db` alias — see the static ipv4_address above.
+      #
+      # The alias only resolves if the podman network has working DNS, and on
+      # the CI runner it does not: that user's podman resolves to the CNI
+      # backend, and the `dnsname` plugin CNI needs for DNS is not installed,
+      # so `db` never resolves and the web container cannot reach Postgres at
+      # all. Locally the same command works because this user is on netavark,
+      # which has aardvark-dns built in — which is exactly why this passed here
+      # and failed there for four pipelines.
+      #
+      # An address needs no resolver, so the stack no longer cares which
+      # backend the runner happens to pick.
+      DB_HOST: ${CI_DB_HOST:-10.99.77.10}
+      DB_PORT: "5432"
+
+      # Django
+      DJANGO_SETTINGS_MODULE: core.settings
+      SECRET_KEY: ci-smoke-secret-not-for-production
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,web,docker"
+      PYTHONUNBUFFERED: "1"
+
+      # Keep the boot self-contained: no outbound analytics, no real API keys.
+      MATOMO_ENABLED: "False"
+      OPENAI_API_KEY: sk-ci-dummy
+      ZOHO_CLIENT_ID: ci-dummy
+      ZOHO_CLIENT_SECRET: ci-dummy
+      EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
+
+networks:
+  default:
+    ipam:
+      config:
+        # A fixed subnet so db can hold a fixed address. Smoke is serialised by
+        # `resource_group: smoke`, so only one run holds this at a time, and
+        # ci-smoke.sh prunes leftovers before starting.
+        - subnet: 10.99.77.0/24

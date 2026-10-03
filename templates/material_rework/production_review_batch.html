@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Review Batch #{{ batch.id }} — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/production_review_batch.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:production_list' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back to Production List</a>
+    <div class="md-header">
+        <h1><i class="fas fa-industry"></i> Review <span style="font-family:monospace;font-size:1.5rem;">{{ batch.reference_number|default:batch.id }}</span>
+            {% if not can_edit %}
+            <span style="margin-left:10px;background:#dbeafe;color:#1e40af;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:10px;vertical-align:middle;letter-spacing:.04em;">
+                <i class="fas fa-eye"></i> VIEW ONLY
+            </span>
+            {% endif %}
+        </h1>
+        <p>{% if can_edit %}Enter the accepted quantity for each item. Remaining qty will be sent to warehouse as pending.{% else %}You have read-only access. Only Production team members can submit reviews.{% endif %}</p>
+    </div>
+
+    <div class="meta-bar">
+        <span><strong>Ref #:</strong> <span style="font-family:monospace;font-weight:700;color:#1d4ed8;">{{ batch.reference_number|default:batch.id }}</span></span>
+        <span><strong>Vertical:</strong> {{ batch.vertical.name }}</span>
+        <span><strong>Department:</strong> {{ batch.department.name }}</span>
+        {% if batch.requested_by %}<span><strong>Requested By:</strong> {{ batch.requested_by.name }}</span>{% elif batch.source %}<span><strong>Source:</strong> <span class="badge-src {{ batch.source }}">{{ batch.get_source_display }}</span></span>{% endif %}
+        <span><strong>Uploaded by:</strong> {{ batch.uploaded_by_name }}</span>
+        <span><strong>HOD Approved:</strong> {{ batch.hod_reviewed_at|date:"d M Y H:i"|default:"—" }}</span>
+        {% if batch.hod_comments %}<span><strong>HOD Comments:</strong> <em>{{ batch.hod_comments }}</em></span>{% endif %}
+    </div>
+
+    {% if not can_edit %}
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin-bottom:18px;color:#1e40af;font-size:.88rem;">
+        <i class="fas fa-lock"></i> You are viewing this batch in read-only mode. Only members of the Production team can submit a review.
+    </div>
+    {% endif %}
+
+    {% if errors %}
+    <div class="alert-error">
+        <i class="fas fa-exclamation-circle"></i>
+        <ul style="margin:6px 0 0;padding-left:18px;">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% comment %}
+        Slot booking — the rework window production commits to for this batch.
+        Required on submit (server-validated too), because the whole point of
+        the field is that downstream can see when the work is scheduled.
+        {% endcomment %}
+        {% if can_edit %}
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+                <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">
+                    Slot From <span style="color:#dc2626;">*</span>
+                </label>
+                <input type="date" name="slot_from" required value="{{ sel_slot_from|default:'' }}"
+                       style="padding:8px 11px;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;">
+            </div>
+            <div>
+                <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">
+                    Slot To <span style="color:#dc2626;">*</span>
+                </label>
+                <input type="date" name="slot_to" required value="{{ sel_slot_to|default:'' }}"
+                       style="padding:8px 11px;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;">
+            </div>
+            <p style="margin:0;font-size:.78rem;color:#6b7280;max-width:340px;">
+                The date range booked for this rework. Shown to warehouse and on the report.
+            </p>
+        </div>
+        {% elif batch.slot_from %}
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:.85rem;color:#374151;">
+            <strong>Booked slot:</strong> {{ batch.slot_from|date:"d M Y" }} &rarr; {{ batch.slot_to|date:"d M Y" }}
+        </div>
+        {% endif %}
+        <div class="md-table-wrap">
+            <table class="md-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Serial No</th>
+                        <th>Country</th>
+                        <th>From Country</th>
+                        <th>To Country</th>
+                        <th>Code</th>
+                        <th>Batch</th>
+                        <th>Mfg Date</th>
+                        <th>Exp Date</th>
+                        <th>From Storage</th>
+                        <th>To Storage</th>
+                        <th>Total Qty</th>
+                        <th>Box No</th>
+                        <th>Remarks</th>
+                        <th>Uploaded At</th>
+                        <th>Accepted Qty</th>
+                        <th>Send to WH</th>
+                        <th>Production Remark</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.serial_number|default:"—" }}</td>
+                    <td>{{ item.country|default:"—" }}</td>
+                    <td>{{ item.from_country|default:"—" }}</td>
+                    <td>{{ item.to_country|default:"—" }}</td>
+                    <td><strong>{{ item.material }}</strong></td>
+                    <td>{{ item.batch_no|default:"—" }}</td>
+                    <td>{{ item.mfg_date|default:"—" }}</td>
+                    <td>{{ item.exp_date|default:"—" }}</td>
+                    <td>{{ item.from_storage_location|default:"—" }}</td>
+                    <td>{{ item.to_storage_location|default:"—" }}</td>
+                    <td><strong>{{ item.qty|floatformat:0 }}</strong></td>
+                    <td>{{ item.box_no|default:"—" }}</td>
+                    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ item.remark }}">{{ item.remark|default:"—" }}</td>
+                    <td>{{ item.item_date|default:"—" }}</td>
+                    <td>
+                        <input type="number" class="qty-input" name="accepted_{{ item.pk }}"
+                               id="acc_{{ item.pk }}" value="{{ item.qty|floatformat:0 }}"
+                               min="0" max="{{ item.qty|floatformat:0 }}" step="1"
+                               data-total="{{ item.qty|floatformat:0 }}" data-id="{{ item.pk }}"
+                               oninput="calcPending(this)"
+                               {% if not can_edit %}disabled{% endif %}>
+                    </td>
+                    <td>
+                        <span id="pend_{{ item.pk }}" style="color:#8b5cf6;font-weight:700;">0</span>
+                    </td>
+                    <td>
+                        <input type="text" class="remark-input" name="remarks_{{ item.pk }}"
+                               placeholder="{% if can_edit %}Required{% else %}—{% endif %}"
+                               {% if can_edit %}required{% endif %}
+                               {% if not can_edit %}disabled{% endif %}>
+                    </td>
+                    <td>
+                        <button type="button" class="btn-view"
+                            onclick="openItemModal({{ forloop.counter }},'{{ item.material|escapejs }}','{{ item.batch_no|default:''|escapejs }}','{{ item.qty|floatformat:0 }}','{{ item.box_no|default:''|escapejs }}','{{ item.remark|default:''|escapejs }}','{{ item.serial_number|default:''|escapejs }}','{{ item.country|default:''|escapejs }}','{{ item.mfg_date|default:''|escapejs }}','{{ item.exp_date|default:''|escapejs }}','{{ item.from_storage_location|default:''|escapejs }}','{{ item.to_storage_location|default:''|escapejs }}','{{ item.item_date|default:''|escapejs }}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if can_edit %}
+        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Submit Production Review</button>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<div class="overlay" id="itemOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-title"><i class="fas fa-box" style="color:#1d4ed8;"></i> Item Detail</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot">
+            <button type="button" onclick="closeModal()" class="btn-view" style="padding:7px 18px;font-size:.82rem;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Page Loader -->
+<div id="pageLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#10b981;border-radius:50%;animation:spin .85s linear infinite;"></div>
+  <div style="text-align:center;">
+    <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Submitting production review…</p>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/material-rework/production_review_batch.js' %}"></script>
+<script>
+document.querySelector('form[method="post"]').addEventListener('submit', function() {
+  document.getElementById('pageLoader').style.display = 'flex';
+});
+</script>
+{% endblock %}

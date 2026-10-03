@@ -1,0 +1,49 @@
+{% load merilv_ui %}
+{% comment %}
+Plant -> colour-zone dispatch summary. Included for the first paint;
+branch_transfer.js rebuilds this same markup client-side after every scan
+and every 2s poll (see renderBtSummary in static/merilv/js/branch_transfer.js)
+so the two must stay structurally identical.
+{% endcomment %}
+{% if summary.plants %}
+<table class="mv-table mv-table--dense">
+    <thead>
+        <tr><th>Plant</th><th>Colour zone</th><th class="mv-num">Plan</th><th class="mv-num">Dispatched</th><th class="mv-num">Pending</th><th>Progress</th></tr>
+    </thead>
+    <tbody>
+        {% for p in summary.plants %}
+        <tr class="mv-bt-summary__plant-row">
+            <td class="mv-t-strong" rowspan="{{ p.zones|length|add:1 }}">{{ p.plant }}</td>
+            <td colspan="5" class="mv-t-caption">
+                Total: <strong>{{ p.required|floatformat:0 }}</strong> plan ·
+                <strong>{{ p.picked|floatformat:0 }}</strong> dispatched ·
+                <strong>{{ p.pending|floatformat:0 }}</strong> pending · {{ p.percent }}%
+            </td>
+        </tr>
+        {% for z in p.zones %}
+        <tr>
+            <td><span class="mv-badge mv-badge--neutral">{{ z.zone }}</span></td>
+            <td class="mv-num">{{ z.required|floatformat:0 }}</td>
+            <td class="mv-num">{{ z.picked|floatformat:0 }}</td>
+            <td class="mv-num">{% if z.pending > 0 %}<span class="mv-fg-warn">{{ z.pending|floatformat:0 }}</span>{% else %}0{% endif %}</td>
+            <td>
+                <div class="mv-progress"><div class="mv-progress__bar{% if z.percent >= 100 %} mv-progress__bar--ok{% endif %}" style="width:{{ z.percent }}%"></div></div>
+                <span class="mv-t-caption">{{ z.percent }}%</span>
+            </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="mv-t-strong">
+            <td colspan="2">TOTAL</td>
+            <td class="mv-num">{{ summary.grand_total.required|floatformat:0 }}</td>
+            <td class="mv-num">{{ summary.grand_total.picked|floatformat:0 }}</td>
+            <td class="mv-num">{{ summary.grand_total.pending|floatformat:0 }}</td>
+            <td>{{ summary.grand_total.percent }}%</td>
+        </tr>
+    </tfoot>
+</table>
+{% else %}
+<div class="mv-empty">{% icon "chart" 40 %}<div class="mv-empty__title">No plan lines to summarise</div></div>
+{% endif %}

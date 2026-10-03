@@ -1,0 +1,78 @@
+{% comment %}
+One tab panel for a "simple" master — a unique name plus an active flag.
+
+Country, Type of Rework and Location are all that shape, so they share this
+partial and the generic ``_SIMPLE_MASTER_ACTIONS`` handler in views.py rather
+than each getting its own copy of ~120 lines of table + three modals that
+would then drift apart.
+
+Include with:
+  panel_id   slug used for the panel id / data-tab value (e.g. "countries")
+  title      heading text (e.g. "Countries")
+  rows       queryset of objects with .id / .name / .is_active
+  prefix     short unique id prefix for this panel's DOM ids (e.g. "ctry")
+  action     master action stem used by views.py (e.g. "country")
+  field      POST field name carrying the value (e.g. "country_name")
+  icon       Font Awesome class for the empty state (e.g. "fa-globe")
+  hint       optional sentence shown under the panel title
+{% endcomment %}
+<div class="md-panel" id="panel-{{ panel_id }}">
+
+    <div class="panel-bar">
+        <span class="panel-title">
+            {{ title }} <small style="color:#9ca3af;font-weight:400;">({{ rows|length }} total)</small>
+        </span>
+        <div class="panel-actions">
+            <input type="text" class="search-input" placeholder="Search…"
+                   oninput="filterRows('{{ prefix }}Tbody',this.value)">
+            {% if can_manage %}
+            <button type="button" class="btn-primary" onclick="mdOpenModal('add_{{ action }}')">
+                <i class="fas fa-plus"></i> Add
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if hint %}
+    <p style="margin:-4px 0 14px;font-size:.82rem;color:#6b7280;">{{ hint }}</p>
+    {% endif %}
+
+    <div class="md-table-wrap">
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    {% if can_manage %}<th>Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody id="{{ prefix }}Tbody">
+            {% for row in rows %}
+            <tr data-search="{{ row.name|lower }}">
+                <td><strong>{{ row.name }}</strong></td>
+                <td>{% if row.is_active %}<span class="badge-active">Active</span>{% else %}<span class="badge-inactive">Inactive</span>{% endif %}</td>
+                {% if can_manage %}
+                <td>
+                    <button type="button" class="btn-sm btn-edit"
+                        onclick="openEditSimpleMaster('{{ action }}',{{ row.id }},'{{ row.name|escapejs }}',{{ row.is_active|yesno:'true,false' }})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button type="button" class="btn-sm btn-del"
+                        onclick="confirmDel('delete_{{ action }}','del_{{ action }}_id','del_{{ action }}_name','{{ row.name|escapejs }}',{{ row.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{% if can_manage %}3{% else %}2{% endif %}" class="md-empty">
+                    <i class="fas {{ icon }}" style="display:block;font-size:1.6rem;margin-bottom:8px;"></i>
+                    Nothing here yet.
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

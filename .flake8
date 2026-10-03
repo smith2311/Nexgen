@@ -1,0 +1,65 @@
+[flake8]
+max-line-length = 120
+max-doc-length = 120
+
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    staticfiles,
+    static,
+    media,
+    node_modules,
+    .gitea
+
+per-file-ignores =
+    # Migrations: long lines and auto-generated imports are expected
+    */migrations/*.py: E501, F401, E231
+    # Settings: star-imports and long lines are acceptable
+    core/settings.py: E501, W503
+    # Management commands: minor style relaxation
+    */management/commands/*.py: E501
+
+# Rules to ignore globally
+extend-ignore =
+    # Line break before binary operator – the modern PEP 8 preference
+    W503,
+    # Whitespace before ':' in slices – reads better on computed slices
+    E203,
+    # Line too long – max-line-length above governs code; strings/templates are exempt
+    E501,
+    # Module level import not at top of file – common in settings/conftest
+    E402,
+    # Multiple spaces before operator / keyword. This codebase aligns assignment
+    # columns on purpose – model field blocks, TextChoices, settings tables – and
+    # does so in 719 places. That is a deliberate house style, not drift, so
+    # flake8 must not report it as a finding. Note this is also why black is not
+    # run here: it would strip the alignment from 260 files. Pick one or the
+    # other; the codebase picked alignment.
+    E221,
+    E272,
+    # Spaces around a keyword's '=' – the same alignment style applied to
+    # keyword arguments, e.g. an .aggregate() block whose names line up.
+    E251,
+    # Compound statements on one line, and semicolon-separated statements. Used
+    # deliberately for tabular blocks that read as a table – pr_tracker's
+    # "if s('field'): pr.field = s('field')" run being the clearest case.
+    # Expanding them to two lines each doubles the block and destroys exactly
+    # the column alignment E221 above exists to protect.
+    E701,
+    E702,
+    # Continuation-line indentation: closing bracket position, visual indent and
+    # hanging indent. This codebase uses fluent querysets that chain on the
+    # closing bracket, and hanging indents inside list/call literals. Both are
+    # readable and intentional.
+    #
+    # E122 is deliberately NOT ignored: it is the one continuation rule that
+    # catches a genuine accident rather than a preference — a block pasted in at
+    # the wrong indent level, which is exactly what it caught in
+    # logistics_performance/urls.py. The trade-off of silencing E131 is that the
+    # comment-only version of that same accident now goes unreported.
+    E124,
+    E127,
+    E128,
+    E131

@@ -1,0 +1,297 @@
+/* Orders — uses meritrack-core.css design system */
+
+.card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 16px; }
+.card h2 { font-size: 1em; font-weight: 700; margin: 0 0 16px; color: var(--mt-gray-700); }
+
+/* Form */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 0.82em; font-weight: 600; color: var(--mt-gray-700); margin-bottom: 6px; }
+.form-group select, .form-group input { width: 100%; padding: 10px 14px; border: 1px solid var(--mt-gray-300); border-radius: 8px; font-size: 0.9em; box-sizing: border-box; }
+.form-group select:focus, .form-group input:focus { outline: none; border-color: var(--mt-primary); }
+
+/* Order Items */
+.order-items { border: 1px solid var(--mt-gray-200); border-radius: 8px; margin-bottom: 16px; }
+.order-item { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); }
+.order-item:last-child { border-bottom: none; }
+.order-item select { flex: 2; min-width: 0; padding: 8px 10px; border: 1px solid var(--mt-gray-300); border-radius: 6px; font-size: 0.85em; }
+.order-item input { flex: 0 0 60px; width: 60px; padding: 8px 6px; border: 1px solid var(--mt-gray-300); border-radius: 6px; font-size: 0.85em; text-align: center; }
+.remove-item { flex-shrink: 0; border: none; background: none; color: var(--mt-danger); cursor: pointer; font-size: 1.1em; padding: 4px; }
+
+/* Desktop orders table */
+.orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86em; min-width: 540px; }
+th { text-align: left; padding: 10px 12px; background: var(--mt-gray-50); border-bottom: 2px solid var(--mt-gray-200); font-size: 0.78em; text-transform: uppercase; color: var(--mt-gray-600); font-weight: 700; white-space: nowrap; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); }
+tbody tr:hover { background: var(--mt-gray-50); }
+
+/* Mobile card rows — shown only on small screens */
+.order-cards { display: none; }
+.order-card { background: #fff; border: 1px solid var(--mt-gray-200); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.15s; }
+.order-card:hover { box-shadow: 0 4px 12px rgba(0,86,179,0.12); }
+.order-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.order-card-id { font-weight: 700; color: var(--mt-primary); font-size: 0.95em; }
+.order-card-meta { font-size: 0.82em; color: var(--mt-gray-600); margin-bottom: 10px; }
+.order-card-meta span { display: inline-block; margin-right: 10px; }
+.order-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.76em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-orange { background: var(--mt-orange-light); color: var(--mt-orange-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-600); }
+
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.85em; font-weight: 600; border: none; cursor: pointer; text-decoration: none; color: #fff; white-space: nowrap; }
+.btn-primary { background: var(--mt-primary); }
+.btn-success { background: var(--mt-success); }
+.btn-back { background: var(--mt-gray-600); }
+.btn-sm { padding: 6px 12px; font-size: 0.8em; }
+.btn-link { background: none; color: var(--mt-primary); padding: 0; text-decoration: underline; cursor: pointer; font-weight: 600; }
+
+@media (max-width: 640px) {
+    .orders-page { padding: 8px; }
+    .page-header h1 { font-size: 1.05em; }
+    .card { padding: 14px 12px; }
+    .form-row { grid-template-columns: 1fr; gap: 0; }
+    /* Hide desktop table, show card list */
+    .orders-table-wrap { display: none; }
+    .order-cards { display: block; }
+    /* Stack modal footer buttons */
+    .modal-footer-row { flex-direction: column-reverse !important; }
+    .modal-footer-row .btn-mt { width: 100%; justify-content: center; }
+    /* Full-screen modals on mobile */
+    .modal-box { border-radius: 12px 12px 0 0; max-height: 95vh; padding: 20px 16px; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    #statusModal .modal-box { border-radius: 12px 12px 0 0; }
+    /* Detail grid single column */
+    .detail-grid { grid-template-columns: 1fr; gap: 8px; }
+    /* Items table scrollable */
+    #modalItemsWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding-bottom: 2px; }
+    .tab-btn { flex-shrink: 0; }
+    .action-btns { gap: 4px; }
+    .btn-sm { padding: 6px 8px; font-size: 0.75em; }
+}
+
+/* Order Detail Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay.active { display: flex; }
+.modal-box { background: #fff; border-radius: 16px; padding: 28px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.modal-header h2 { font-size: 1.1em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 6px; }
+.modal-close { background: none; border: none; font-size: 1.4em; cursor: pointer; color: var(--mt-gray-400); line-height: 1; padding: 0; }
+.modal-close:hover { color: var(--mt-gray-700); }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin-bottom: 20px; padding: 16px; background: var(--mt-gray-50); border-radius: 10px; }
+.detail-cell label { display: block; font-size: 0.75em; font-weight: 700; text-transform: uppercase; color: var(--mt-gray-400); margin-bottom: 3px; }
+.detail-cell span { font-size: 0.9em; color: var(--mt-gray-800); font-weight: 500; }
+.items-table th { background: var(--mt-primary-lighter); }
+.order-row { cursor: pointer; }
+.order-row:hover { background: var(--mt-primary-lighter) !important; }
+.action-btns { display: flex; gap: 4px; flex-wrap: nowrap; }
+.btn-warning { background: var(--mt-warning); }
+.btn-secondary { background: var(--mt-gray-600); }
+/* Status update modal (smaller) */
+#statusModal .modal-box { max-width: 380px; }
+
+.hidden { display: none !important; }
+
+@media (max-width: 480px) {
+    .order-card { padding: 12px 10px; }
+    .order-card-header { flex-wrap: wrap; gap: 6px; }
+    .order-card-meta { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .action-btns { flex-wrap: wrap; gap: 4px; }
+    .action-btns .btn-mt { flex: 1 1 calc(50% - 4px); justify-content: center; font-size: 0.78em; }
+    .modal-box { padding: 16px 12px; }
+    #statusModal .modal-box { max-width: 100%; border-radius: 12px 12px 0 0; }
+}
+
+/* ── Print: stock order document ─────────────────────────────────────────
+   printOrder() re-parents #printArea to <body> before calling print(), so
+   the rules below can hide every other top-level node outright. The old
+   `visibility: hidden` approach left the app chrome's layout boxes in place
+   (blank leading pages) and pinned the document with position:fixed, which
+   clips everything past page one.
+   ---------------------------------------------------------------------- */
+#printArea { display: none; }
+
+@page {
+    size: A4 portrait;
+    margin: 14mm 12mm;
+}
+
+@media print {
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        background: #fff !important;
+        overflow: visible !important;
+    }
+
+    /* Scoped to the class printOrder sets, so a bare Ctrl+P still prints the
+       page instead of an empty #printArea. */
+    body.mt-print-doc > *:not(#printArea) { display: none !important; }
+    body.mt-print-doc #printArea { display: block !important; }
+
+    /* Print the fills we actually designed instead of leaving them to the
+       browser's "Background graphics" checkbox, which defaults to off. */
+    #printArea, #printArea *, #printArea *::before, #printArea *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    #printArea {
+        position: static !important;
+        font-family: var(--mt-font);
+        /* pt keeps glyph metrics honest at print DPI; px gets rounded badly. */
+        font-size: 10pt;
+        line-height: 1.45;
+        color: #111;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+    }
+
+    /* Letterhead */
+    .print-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12pt;
+        border-bottom: 2pt solid var(--mt-primary);
+        padding-bottom: 6pt;
+        margin-bottom: 10pt;
+    }
+    .print-logo {
+        font-size: 16pt;
+        font-weight: 800;
+        letter-spacing: -0.2pt;
+        color: var(--mt-primary);
+        line-height: 1.1;
+    }
+    .print-logo small {
+        display: block;
+        font-size: 8pt;
+        font-weight: 600;
+        letter-spacing: 1pt;
+        text-transform: uppercase;
+        color: #6c757d;
+    }
+    .print-orderid {
+        font-family: var(--mt-font-mono);
+        font-size: 12pt;
+        font-weight: 700;
+        text-align: right;
+        white-space: nowrap;
+    }
+    .print-orderid small {
+        display: block;
+        font-family: var(--mt-font);
+        font-size: 8pt;
+        font-weight: 600;
+        letter-spacing: 1pt;
+        text-transform: uppercase;
+        color: #6c757d;
+    }
+
+    /* Meta grid — two columns of label/value pairs */
+    .print-meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4pt 18pt;
+        margin: 0 0 10pt;   /* <dl> ships with a 1em block margin */
+        break-inside: avoid;
+    }
+    .print-meta div { display: flex; gap: 6pt; font-size: 9.5pt; }
+    .print-meta dt {
+        flex: 0 0 26%;
+        font-weight: 700;
+        color: #495057;
+    }
+    .print-meta dd { margin: 0; flex: 1 1 auto; }
+
+    .print-notes {
+        border: 0.75pt solid #adb5bd;
+        border-left: 3pt solid var(--mt-primary);
+        background: #f1f3f5;
+        padding: 6pt 8pt;
+        margin-bottom: 10pt;
+        font-size: 9.5pt;
+        break-inside: avoid;
+    }
+    .print-notes strong { display: block; margin-bottom: 2pt; color: #495057; }
+
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4pt;
+        font-size: 9.5pt;
+    }
+    /* Repeat the header on every page of a long order. */
+    .print-table thead { display: table-header-group; }
+    .print-table tfoot { display: table-footer-group; }
+    .print-table tr { break-inside: avoid; page-break-inside: avoid; }
+    .print-table th,
+    .print-table td {
+        border: 0.75pt solid #868e96;
+        padding: 4.5pt 6pt;
+        vertical-align: top;
+    }
+    .print-table th {
+        background: var(--mt-primary);
+        color: #fff;
+        font-weight: 700;
+        font-size: 8.5pt;
+        letter-spacing: 0.4pt;
+        text-transform: uppercase;
+        text-align: left;
+    }
+    /* Zebra striping survives now that colour-adjust is forced on. */
+    .print-table tbody tr:nth-child(even) td { background: #f1f3f5; }
+    .print-table tfoot td {
+        background: #dee2e6;
+        font-weight: 700;
+        border-top: 1.5pt solid #495057;
+    }
+    .print-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .print-code { font-family: var(--mt-font-mono); font-size: 9pt; }
+
+    .print-sign {
+        display: flex;
+        justify-content: space-between;
+        gap: 24pt;
+        margin-top: 24pt;
+        break-inside: avoid;
+    }
+    .print-sign div {
+        flex: 1 1 0;
+        border-top: 0.75pt solid #495057;
+        padding-top: 4pt;
+        font-size: 8.5pt;
+        color: #495057;
+    }
+
+    .print-foot {
+        margin-top: 14pt;
+        padding-top: 5pt;
+        border-top: 0.5pt solid #ced4da;
+        font-size: 7.5pt;
+        color: #868e96;
+        display: flex;
+        justify-content: space-between;
+    }
+}
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab-btn { padding: 8px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--mt-gray-200); border-bottom: none; background: var(--mt-gray-50); font-size: 0.85em; font-weight: 600; cursor: pointer; color: var(--mt-gray-600); }
+.tab-btn.active { background: #fff; color: var(--mt-primary); border-bottom: 2px solid #fff; margin-bottom: -1px; }
+
+/* Pending approval highlight */
+tr.order-pending-approval td { background: var(--mt-warning-light); }
+tr.order-pending-approval:hover td { background: var(--mt-warning-light); }
+.order-card.order-pending-approval { border-left: 3px solid var(--mt-warning); background: var(--mt-warning-light); }
+
+/* Approve button */
+.btn-success { background: var(--mt-success); color: #fff; }
+.btn-success:hover { background: var(--mt-success-dark); }

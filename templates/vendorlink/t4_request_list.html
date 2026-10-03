@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 4.1a — Vendor Requests / RFI list.
+
+Wireframe
+    breadcrumb / title / [Raise a request]
+    ┌ toolbar: search · country · window state · clear ─────────────┐
+    ┌ table: subject · country · recipients · bids · window · raised ┐
+
+Window state is filtered in Python because bid_window_status is a model
+property derived from two datetimes, not a column — filtering it in SQL would
+mean restating the rule and letting the two definitions drift.
+
+States: empty first-time, empty filtered, permission (raise gated on can_edit).
+{% endcomment %}
+
+{% block title %}Requests — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">Requests</span>
+            </nav>
+            <h1 class="vl-title">Requests</h1>
+            <p class="vl-subtitle">{{ total }} RFI{{ total|pluralize }} raised · {{ open_count }} with the bid window open.</p>
+        </div>
+        {% if can_edit %}
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:request_create' %}">Raise a request</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="get" class="vl-filterbar">
+        <span class="vl-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="vl-input" type="text" name="q" value="{{ q }}" placeholder="Subject or product vertical…">
+        </span>
+        <select class="vl-select" name="country">
+            <option value="">Any country</option>
+            {% for c in countries %}<option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+        <select class="vl-select" name="state">
+            <option value="">Any window</option>
+            <option value="open" {% if state == "open" %}selected{% endif %}>Open</option>
+            <option value="closed" {% if state == "closed" %}selected{% endif %}>Closed</option>
+            <option value="not_started" {% if state == "not_started" %}selected{% endif %}>Not started</option>
+        </select>
+        <button class="vl-btn vl-btn--primary">Filter</button>
+        {% if filtered %}<a class="vl-btn vl-btn--ghost" href="{% url 'vendorlink:t4_request_list' %}">Clear</a>{% endif %}
+        <span class="vl-meta" style="margin-left:auto;">{{ result_count }} of {{ total }}</span>
+    </form>
+
+    {% if rows %}
+    <div class="vl-tablewrap">
+        <table class="vl-table">
+            <thead>
+                <tr><th>Request</th><th>Country</th><th class="num">Recipients</th>
+                    <th class="num">Bids</th><th>Window</th><th>Raised</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>
+                        <a href="{% url 'vendorlink:t4_request_detail' r.pk %}"
+                           style="font-weight:600;color:var(--vl-ink);text-decoration:none;">{{ r.subject }}</a>
+                        <div class="vl-meta">RFI #{{ r.pk }}</div>
+                    </td>
+                    <td>{{ r.country|default:"—" }}</td>
+                    <td class="num">{{ r.recipient_count|default:"—" }}</td>
+                    <td class="num">{{ r.bid_count }}</td>
+                    <td>
+                        {% if r.bid_window_status == "open" %}<span class="vl-chip vl-chip--approved">Open</span>
+                        {% elif r.bid_window_status == "closed" %}<span class="vl-chip vl-chip--expired">Closed</span>
+                        {% else %}<span class="vl-chip vl-chip--pending">Not started</span>{% endif %}
+                    </td>
+                    <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ r.created_at|date:"d M Y" }}</td>
+                    <td style="text-align:right;white-space:nowrap;">
+                        {% if r.bid_count %}
+                        <a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:bid_heatmap' r.pk %}">Compare</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif filtered %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No requests match your filters</div>
+        <div class="vl-empty__hint">{{ total }} raised overall.</div>
+        <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:t4_request_list' %}">Clear filters</a></div>
+    </div></div>
+    {% else %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No requests raised yet</div>
+        <div class="vl-empty__hint">Raise one and every active vendor in that country is invited to bid.</div>
+        {% if can_edit %}
+        <div class="vl-empty__cta"><a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:request_create' %}">Raise a request</a></div>
+        {% endif %}
+    </div></div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

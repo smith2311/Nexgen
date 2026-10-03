@@ -1,0 +1,72 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Branch Transfer landing — upload a BT plan (+ optional stock file), or resume one.{% endcomment %}
+
+{% block mv_title %}Branch Transfer{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Branch Transfer</span>
+{% endblock %}
+{% block mv_heading %}Branch Transfer{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Pick stock against an inter-branch transfer plan or SAP/YVL06 transfer dump. Matching is on material only — batch guides stock selection, not plan eligibility.</p>{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="branch_transfer" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "upload" %} Load a transfer plan</h2>
+    <form method="post" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Loading transfer plan"
+          data-mv-loading-message="Parsing the plan and preparing the picking session.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field"><label class="mv-label" for="mvEntity">Entity <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvEntity" name="entity" required>
+                    {% for e in entities %}<option value="{{ e.code }}" {% if entity and e.code == entity.code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="mv-field"><label class="mv-label" for="mvName">Plan name</label><input class="mv-input" id="mvName" name="name" placeholder="Defaults to the filename"></div>
+        </div>
+        <div class="mv-field-row" style="margin-top:var(--mv-5);">
+            <div class="mv-field">
+                <label class="mv-label">Transfer plan <span class="mv-req">*</span></label>
+                <label class="mv-dropzone">
+                    <input type="file" name="plan_file" accept=".xlsx,.xls,.csv" required>
+                    {% icon "transfer" 40 %}<span class="mv-dropzone__label">Choose the BT plan</span><span class="mv-t-caption">BT template or YVL06 · .xlsx, .xls or .csv</span>
+                </label>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label">Stock file (optional)</label>
+                <label class="mv-dropzone">
+                    <input type="file" name="stock_file" accept=".xlsx,.xls,.csv">
+                    {% icon "file" 40 %}<span class="mv-dropzone__label">Choose a stock reference</span><span class="mv-t-caption">Used to guide picking — not required</span>
+                </label>
+            </div>
+        </div>
+        <div class="mv-card__footer"><button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Load plan</button></div>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "list" %} Recent plans</h2></div>
+    {% if plans %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Plan</th><th>Entity</th><th>Loaded</th><th class="mv-col-actions"></th></tr></thead>
+        <tbody>
+            {% for p in plans %}
+            <tr data-mv-href="{% url 'merilv:branch_transfer_plan' p.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ p.name }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ p.entity.code }}</span></td>
+                <td class="mv-t-caption">{{ p.created_at|date:"d M, H:i" }}</td>
+                <td class="mv-col-actions">{% icon "chevron" 16 %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "transfer" 48 %}<div class="mv-empty__title">No transfer plans yet</div></div>
+    {% endif %}
+</div>
+{% endblock %}

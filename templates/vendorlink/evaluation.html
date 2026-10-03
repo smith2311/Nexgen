@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 1.2 — AI Bid Evaluation.
+
+Two columns (request context rail + results) with the MerilGPT drawer as the
+third, docked rather than inline so it can be closed without losing the page.
+
+States covered, all five from the brief plus partial data:
+  not run    → single "Run AI Evaluation" CTA card
+  processing → skeleton rows + the steps the evaluator actually goes through
+  failed     → red banner carrying the real error, with retry
+  completed  → recommended-vendor hero + ranked list
+  partial    → amber banner naming the vendors whose bids carry no costs
+  no bids    → empty state, since there is nothing to evaluate
+{% endcomment %}
+
+{% block title %}AI Evaluation — {{ vendor_request.subject }}{% endblock %}
+
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:bid_analytics' %}">Bid Analytics</a>
+                <span class="sep">/</span>
+                <span class="current">AI Evaluation</span>
+            </nav>
+            <h1 class="vl-title">{{ vendor_request.subject }}</h1>
+            <p class="vl-subtitle">
+                AI ranking of every bid on this request, against the services the request actually needs.
+            </p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <a class="vl-btn" href="{% url 'vendorlink:bid_heatmap' vendor_request.pk %}">Compare bids</a>
+            <a class="vl-btn" href="{% url 'vendorlink:request_detail' vendor_request.pk %}">Open request</a>
+            {% if is_vm_admin and bid_count %}
+            <form method="post" action="{% url 'vendorlink:request_evaluate' vendor_request.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="vl-btn vl-btn--primary" {% if evaluation and evaluation.status == "processing" %}disabled{% endif %}>
+                    {% if evaluation %}Re-run evaluation{% else %}Run AI Evaluation{% endif %}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vl-3col">
+        {# ── Left rail: what the model was given ──────────────────── #}
+        <aside class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">Request</h2></div>
+            <div class="vl-card__body">
+                <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:var(--vl-2) var(--vl-3);font-size:var(--vl-t-sm);">
+                    <dt class="vl-meta">COUNTRY</dt><dd style="margin:0;">{{ vendor_request.country|default:"—" }}</dd>
+                    <dt class="vl-meta">RAISED</dt><dd style="margin:0;" class="vl-mono">{{ vendor_request.created_at|date:"d M Y H:i" }}</dd>
+                    <dt class="vl-meta">BIDS</dt><dd style="margin:0;" class="vl-mono">{{ bid_count }}</dd>
+                    <dt class="vl-meta">WINDOW</dt>
+                    <dd style="margin:0;">
+                        {% if vendor_request.bid_window_status == "open" %}<span class="vl-chip vl-chip--approved">Open</span>
+                        {% elif vendor_request.bid_window_status == "closed" %}<span class="vl-chip vl-chip--expired">Closed</span>
+                        {% else %}<span class="vl-chip vl-chip--pending">Not started</span>{% endif %}
+                    </dd>
+                    <dt class="vl-meta">STATUS</dt>
+                    <dd style="margin:0;">
+                        {% if evaluation %}<span class="vl-chip vl-chip--{{ evaluation.status }}">{{ evaluation.get_status_display }}</span>
+                        {% else %}<span class="vl-chip vl-chip--pending">Not run</span>{% endif %}
+                    </dd>
+                </dl>
+
+                {% if evaluation.required_services %}
+                <h3 style="font-size:var(--vl-t-sm);margin:var(--vl-4) 0 var(--vl-2);">Required services</h3>
+                <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:var(--vl-1);">
+                    {% for service in evaluation.required_services %}
+                    <li style="font-size:var(--vl-t-sm);display:flex;gap:var(--vl-2);align-items:flex-start;">
+                        <span style="color:var(--vl-green);">✓</span><span>{{ service }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                {% if evaluation.decision_points %}
+                <h3 style="font-size:var(--vl-t-sm);margin:var(--vl-4) 0 var(--vl-2);">Decision points</h3>
+                <ul style="margin:0;padding-left:16px;font-size:var(--vl-t-sm);color:var(--vl-ink-2);">
+                    {% for point in evaluation.decision_points %}<li>{{ point }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </aside>
+
+        {# ── Centre: the result, in whichever state it is in ───────── #}
+        <div>
+            {% if not bid_count %}
+            <div class="vl-card"><div class="vl-empty">
+                <div class="vl-empty__title">No bids submitted yet</div>
+                <div class="vl-empty__hint">There is nothing to evaluate until a vendor responds to this request.</div>
+                <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:request_detail' vendor_request.pk %}">Open request</a></div>
+            </div></div>
+
+            {% elif not evaluation %}
+            <div class="vl-card"><div class="vl-card__body" style="text-align:center;padding:var(--vl-8);">
+                <h2 class="vl-display" style="font-size:22px;margin:0 0 var(--vl-2);">Evaluate these {{ bid_count }} bids</h2>
+                <p style="color:var(--vl-ink-3);font-size:var(--vl-t-sm);max-width:52ch;margin:0 auto var(--vl-4);">
+                    MerilGPT reads every bid against the services this request needs and ranks the vendors,
+                    recommending the cheapest that can actually deliver all of them.
+                </p>
+                {% if is_vm_admin %}
+                <form method="post" action="{% url 'vendorlink:request_evaluate' vendor_request.pk %}" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="vl-btn vl-btn--primary">Run AI Evaluation</button>
+                </form>
+                {% else %}
+                <p class="vl-meta">Only a VendorLink admin can start an evaluation.</p>
+                {% endif %}
+            </div></div>
+
+            {% elif evaluation.status == "processing" %}
+            <div class="vl-card" id="vlEvalProcessing">
+                <div class="vl-card__head">
+                    <h2 class="vl-card__title">Evaluating…</h2>
+                    <span class="vl-chip vl-chip--processing">Processing</span>
+                </div>
+                <div class="vl-card__body">
+                    <ol class="vl-meta" style="margin:0 0 var(--vl-4);padding-left:18px;">
+                        <li>Reading {{ bid_count }} bid{{ bid_count|pluralize }}</li>
+                        <li>Inferring the services this request requires</li>
+                        <li>Scoring cost against eligibility</li>
+                        <li>Ranking vendors</li>
+                    </ol>
+                    <div class="vl-skel vl-skel--row"></div>
+                    <div class="vl-skel vl-skel--row"></div>
+                    <div class="vl-skel vl-skel--row"></div>
+                </div>
+            </div>
+
+            {% elif evaluation.status == "failed" %}
+            <div class="vl-banner vl-banner--error" style="margin-bottom:var(--vl-3);">
+                <div class="vl-banner__body">
+                    <div class="vl-banner__title">Evaluation failed</div>
+                    <div>{{ evaluation.error_message|default:"The evaluator did not return a result." }}</div>
+                </div>
+                {% if is_vm_admin %}
+                <form method="post" action="{% url 'vendorlink:request_evaluate' vendor_request.pk %}" style="margin:0;">
+                    {% csrf_token %}<button type="submit" class="vl-btn vl-btn--sm">Retry</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% else %}
+            {% if incomplete_vendors %}
+            <div class="vl-banner vl-banner--warn" style="margin-bottom:var(--vl-3);">
+                <div class="vl-banner__body">
+                    <div class="vl-banner__title">Some bids carry no costs</div>
+                    <div>
+                        {{ incomplete_vendors|join:", " }} — ranked on services alone, so their position is
+                        not a price comparison.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if evaluation.recommended_vendor_name %}
+            <div class="vl-hero" style="margin-bottom:var(--vl-4);">
+                <div class="vl-hero__label">Recommended</div>
+                <div class="vl-hero__name">{{ evaluation.recommended_vendor_name }}</div>
+                <p class="vl-hero__why" style="margin:0 0 var(--vl-3);">{{ evaluation.reasoning }}</p>
+                <a class="vl-btn" href="{% url 'vendorlink:bid_heatmap' vendor_request.pk %}">View bid</a>
+            </div>
+            {% endif %}
+
+            <div class="vl-card">
+                <div class="vl-card__head">
+                    <h2 class="vl-card__title">Ranked vendors</h2>
+                    <span class="vl-meta">{{ ranked|length }} evaluated</span>
+                </div>
+                <div class="vl-card__body">
+                    {% if ranked %}
+                    <div class="vl-rank">
+                        {% for v in ranked %}
+                        <div class="vl-rank__row">
+                            <button type="button" class="vl-rank__head" aria-expanded="false"
+                                    data-vl-toggle="vlRank{{ forloop.counter }}">
+                                <span class="vl-rank__n">{{ forloop.counter }}</span>
+                                <span class="vl-rank__name">{{ v.name|default:"Unnamed vendor" }}</span>
+                                {% if v.eligible is False %}<span class="vl-chip vl-chip--rejected">Ineligible</span>{% endif %}
+                                {% if v.score is not None %}
+                                <span class="vl-rank__bar" aria-hidden="true"><span style="width:{% widthratio v.score top_score 100 %}%"></span></span>
+                                <span class="vl-rank__delta">{{ v.score }}</span>
+                                {% endif %}
+                            </button>
+                            <div class="vl-rank__body" id="vlRank{{ forloop.counter }}" hidden>
+                                {% if v.reasoning %}<p style="margin:0 0 var(--vl-2);">{{ v.reasoning }}</p>{% endif %}
+                                {% if v.missing_services %}
+                                <p class="vl-meta" style="margin:0;">MISSING: {{ v.missing_services|join:", " }}</p>
+                                {% endif %}
+                                {% if v.points %}
+                                <ul style="margin:var(--vl-2) 0 0;padding-left:16px;">
+                                    {% for point in v.points %}<li>{{ point }}</li>{% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="vl-empty">
+                        <div class="vl-empty__title">The evaluation returned no ranking</div>
+                        <div class="vl-empty__hint">Re-running usually resolves this.</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% include "vendorlink/_vl_chat.html" with ctx_chips=chat_chips suggestions=chat_suggestions %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    // Expand/collapse a ranked row's reasoning.
+    document.querySelectorAll('[data-vl-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var body = document.getElementById(btn.dataset.vlToggle);
+            if (!body) { return; }
+            var open = !body.hidden;
+            body.hidden = open;
+            btn.setAttribute('aria-expanded', String(!open));
+        });
+    });
+
+    // While an evaluation is running, poll the existing status endpoint and
+    // reload once it lands — the page has no other way to know, and leaving a
+    // stale "Processing" on screen is what made people re-click Evaluate.
+    var processing = document.getElementById('vlEvalProcessing');
+    if (processing) {
+        var poll = window.setInterval(function () {
+            fetch('{% url "vendorlink:api_evaluation_status" vendor_request.pk %}')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status && data.status !== 'processing') {
+                        window.clearInterval(poll);
+                        window.location.reload();
+                    }
+                })
+                .catch(function () { /* transient — keep polling */ });
+        }, 4000);
+    }
+}());
+</script>
+{% endblock %}

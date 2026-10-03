@@ -1,0 +1,115 @@
+{% extends "visa_management/email/base_email.html" %}
+{% block title %}HOD Approved — {{ app.ref_no }}{% endblock %}
+{% block content %}
+
+<tr>
+  <td style="background:#ffffff;padding:28px 36px 0;">
+    <p style="margin:0 0 6px;color:#0f172a;font-size:16px;font-weight:600;">Visa Department Team,</p>
+    <p style="margin:0;color:#5f6c7d;font-size:14px;line-height:1.6;">
+      <strong style="color:#0f172a;">{{ app.applicant_name }}</strong>{% if app.designation %} ({{ app.designation }}){% endif %}
+      has requested a {{ app.get_entry_type_display|default:"business" }} visa for
+      <strong style="color:#0f172a;">{{ app.country.name }}</strong>, and the request has been
+      approved by their reporting head
+      <strong style="color:#0f172a;">{{ app.hod_name|default:"(name not recorded)" }}</strong>.
+      It is now ready for the Visa Department to process.
+    </p>
+  </td>
+</tr>
+
+<tr>
+  <td style="background:#ffffff;padding:20px 36px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      <tr>
+        <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="50%" style="vertical-align:top;padding-right:12px;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Ref No</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.ref_no }}</p>
+              </td>
+              <td width="50%" style="vertical-align:top;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Employee</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.applicant_name }}</p>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b;">{{ app.designation }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="50%" style="vertical-align:top;padding-right:12px;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Company</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.company.name }}</p>
+              </td>
+              <td width="50%" style="vertical-align:top;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Country</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.country.name }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:top;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Travel Dates</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.visit_start_date|date:"d M Y" }} – {{ app.visit_end_date|date:"d M Y" }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:top;">
+                <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Approved By (HOD)</p>
+                <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">{{ app.hod_name }}</p>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b;">{{ app.hod_email }}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+{% if app.applicant_remark or app.hod_remark %}
+<!-- Remarks carried forward from the earlier stages -->
+<tr>
+  <td style="background:#ffffff;padding:16px 36px 0;">
+    {% if app.applicant_remark %}
+    <div style="border-left:3px solid #0076c8;background:#f8fafc;border-radius:6px;padding:12px 16px;margin-bottom:10px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Applicant Remark — {{ app.applicant_name }}</p>
+      <p style="margin:0;font-size:13px;color:#0f172a;line-height:1.6;white-space:pre-line;">{{ app.applicant_remark }}</p>
+    </div>
+    {% endif %}
+    {% if app.hod_remark %}
+    <div style="border-left:3px solid #10b981;background:#f8fafc;border-radius:6px;padding:12px 16px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">HOD Remark — {{ app.hod_name }}</p>
+      <p style="margin:0;font-size:13px;color:#0f172a;line-height:1.6;white-space:pre-line;">{{ app.hod_remark }}</p>
+    </div>
+    {% endif %}
+  </td>
+</tr>
+{% endif %}
+
+<tr>
+  <td style="background:#ffffff;padding:24px 36px 32px;text-align:center;">
+    <a href="{{ review_url }}"
+       style="display:inline-block;background:linear-gradient(135deg,#0076c8,#005fa3);color:#ffffff;text-decoration:none;
+              font-size:15px;font-weight:700;padding:14px 36px;border-radius:8px;
+              letter-spacing:0.02em;box-shadow:0 4px 14px rgba(0,118,200,0.35);">
+      Review &amp; Process
+    </a>
+  </td>
+</tr>
+
+{% endblock %}

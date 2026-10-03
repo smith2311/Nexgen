@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Assign PRs{% endblock %}
+{% block page_title %}PR Tracker — Assign PRs{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pr_tracker/pr.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'pr_tracker:pr_dashboard' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Dashboard
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-import"></i> Assign PRs</h1>
+          <p>Manually assign a PR or bulk upload via Excel.</p>
+        </div>
+      </div>
+
+      <div class="lm-tabs">
+        <button class="lm-tab-btn {% if not upload_results %}active{% endif %}"
+                data-tab="tab-manual" onclick="switchPrTab('tab-manual')">
+          <i class="fas fa-keyboard"></i> Manual Assign
+        </button>
+        <button class="lm-tab-btn {% if upload_results %}active{% endif %}"
+                data-tab="tab-excel" onclick="switchPrTab('tab-excel')">
+          <i class="fas fa-file-excel"></i> Upload Excel
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="prt-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Manual tab -->
+    <div class="lm-tab-content {% if not upload_results %}active{% endif %}" id="tab-manual">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="manual">
+
+        <div class="prt-form-section">
+          <div class="prt-form-section-hdr">
+            <i class="fas fa-pen section-icon"></i>
+            <h3>Assign a PR</h3>
+          </div>
+          <div class="prt-form-body">
+            <div class="prt-form-grid cols-2">
+
+              <div class="prt-field">
+                <label class="prt-label">PR Number <span class="req">*</span></label>
+                <input class="prt-input" type="text" name="pr_number" placeholder="e.g. PR-2024-001" required>
+              </div>
+
+              <div class="prt-field"><!-- spacer --></div>
+
+              <div class="prt-field">
+                <label class="prt-label">Responsible Person</label>
+                <select class="prt-select" name="responsible_person">
+                  <option value="">— Select —</option>
+                  {% for u in responsible_users %}
+                  <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="prt-field">
+                <label class="prt-label">Assigned Person</label>
+                <select class="prt-select" name="assigned_person">
+                  <option value="">— Select —</option>
+                  {% for u in assigned_users %}
+                  <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+                  {% endfor %}
+                </select>
+                <span class="prt-hint">Both people are emailed — one as the assignee, one as the responsible person.</span>
+              </div>
+
+              <div class="prt-field full">
+                <label class="prt-label">Supporting Documents</label>
+                <div class="prt-doc-zone" id="docZone"
+                     onclick="document.getElementById('prDocs').click()">
+                  <div class="upload-icon"><i class="fas fa-paperclip"></i></div>
+                  <p id="docLabel">Click or drag &amp; drop — you can select several files</p>
+                  <span>PDF, Word, Excel, images, ZIP · up to 15 MB each · 10 files max</span>
+                  <input type="file" id="prDocs" name="documents" multiple style="display:none"
+                         accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.png,.jpg,.jpeg,.gif,.webp,.zip,.msg,.eml">
+                </div>
+                <ul class="prt-doc-list" id="docList"></ul>
+                <span class="prt-hint">
+                  Attached to both emails when the total is under 10 MB; above that
+                  the emails carry download links instead.
+                </span>
+              </div>
+
+            </div>
+          </div>
+          <div class="prt-form-actions">
+            <button type="submit" class="prt-btn prt-btn-navy">
+              <i class="fas fa-paper-plane"></i> Assign &amp; Notify
+            </button>
+            <a href="{% url 'pr_tracker:pr_dashboard' %}" class="prt-btn prt-btn-ghost">Cancel</a>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Excel tab -->
+    <div class="lm-tab-content {% if upload_results %}active{% endif %}" id="tab-excel">
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-file-excel section-icon"></i>
+          <h3>Bulk Upload via Excel</h3>
+        </div>
+        <div class="prt-form-body">
+
+          <div class="prt-alert warning" style="margin-bottom:16px;">
+            <i class="fas fa-circle-info"></i>
+            <div>
+              Sheet must have 3 columns: <strong>PR Number</strong>, <strong>Responsible Person</strong>, <strong>Assigned Person</strong>.
+              Person values can be email, username, or full name.
+              <a href="{% url 'pr_tracker:admin_template_download' %}" class="prt-btn prt-btn-ghost prt-btn-sm" style="margin-left:10px;">
+                <i class="fas fa-download"></i> Download Template
+              </a>
+            </div>
+          </div>
+
+          <form method="post" enctype="multipart/form-data" id="excelUploadForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+
+            <div class="prt-upload-zone" id="uploadZone" onclick="document.getElementById('excelFile').click()">
+              <div class="upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+              <p id="uploadLabel">Click or drag &amp; drop your Excel file here</p>
+              <span>.xlsx only</span>
+              <input type="file" id="excelFile" name="excel_file" accept=".xlsx" style="display:none"
+                     onchange="document.getElementById('uploadLabel').textContent=this.files[0]?.name||'Choose file'">
+            </div>
+
+            <div style="margin-top:14px;">
+              <button type="submit" class="prt-btn prt-btn-teal">
+                <i class="fas fa-upload"></i> Upload &amp; Process
+              </button>
+            </div>
+          </form>
+
+          {% if upload_results %}
+          <div style="margin-top:20px;">
+            <h4 style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 10px;">Upload Results ({{ upload_results|length }} rows)</h4>
+            <div class="prt-tbl-wrap">
+              <table class="prt-tbl">
+                <thead>
+                  <tr><th>Row</th><th>PR Number</th><th>Result</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  {% for r in upload_results %}
+                  <tr>
+                    <td class="prt-mono" style="color:var(--text-muted)">{{ r.row }}</td>
+                    <td class="prt-mono"><strong>{{ r.pr }}</strong></td>
+                    <td>
+                      {% if r.status == 'error' %}
+                        <span style="color:var(--red);font-weight:600;"><i class="fas fa-xmark"></i> Error</span>
+                      {% elif r.status == 'Created' %}
+                        <span style="color:var(--green);font-weight:600;"><i class="fas fa-plus"></i> Created</span>
+                      {% else %}
+                        <span style="color:var(--blue);font-weight:600;"><i class="fas fa-check"></i> Updated</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-size:12.5px;color:var(--text-muted)">{{ r.msg|default:"—" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pr_tracker/pr.js' %}"></script>
+{% include 'pr_tracker/_document_viewer.html' %}
+<script>
+/* Supporting documents.
+
+   Three jobs: show what is selected, let one be taken back out before the
+   form is sent, and say up front when the set has grown past the size the
+   emails can attach.
+
+   Removal is why this keeps its own array. A file input's FileList is
+   read-only, so "remove this one" cannot be done by editing it in place —
+   the selection is held here, and the input is rebuilt from it through a
+   DataTransfer after every change. The input stays the thing that is
+   actually submitted, so nothing here has to be re-implemented on the
+   server; it just never holds a file the user has taken out. */
+(function () {
+  var input = document.getElementById('prDocs');
+  var list  = document.getElementById('docList');
+  var label = document.getElementById('docLabel');
+  var zone  = document.getElementById('docZone');
+  if (!input || !list) return;
+
+  var ATTACH_LIMIT = 10 * 1024 * 1024;   // matches MAX_ATTACH_TOTAL_BYTES
+  var MAX_FILES    = 10;                 // matches PR_DOC_MAX_COUNT
+  var MAX_BYTES    = 15 * 1024 * 1024;   // matches PR_DOC_MAX_BYTES
+
+  var chosen = [];        // the real selection; the input mirrors it
+  var previews = [];      // object URLs, revoked when their rows go
+
+  function size(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function iconFor(name) {
+    var ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf')                                 return 'fa-file-pdf';
+    if (['doc', 'docx'].indexOf(ext) >= 0)             return 'fa-file-word';
+    if (['xls', 'xlsx', 'csv'].indexOf(ext) >= 0)      return 'fa-file-excel';
+    if (['ppt', 'pptx'].indexOf(ext) >= 0)             return 'fa-file-powerpoint';
+    if (ext === 'zip')                                 return 'fa-file-zipper';
+    if (['msg', 'eml'].indexOf(ext) >= 0)              return 'fa-envelope';
+    if (ext === 'txt')                                 return 'fa-file-lines';
+    return 'fa-file';
+  }
+
+  var PREVIEWABLE = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt'];
+
+  function extensionOf(name) {
+    return name.indexOf('.') >= 0
+      ? '.' + name.split('.').pop().toLowerCase()
+      : '';
+  }
+
+  function isImage(file) {
+    return ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+      .indexOf(extensionOf(file.name)) >= 0;
+  }
+
+  function canPreview(file) {
+    return PREVIEWABLE.indexOf(extensionOf(file.name)) >= 0;
+  }
+
+  /* Push `chosen` back into the input, so the form submits exactly what the
+     list shows. DataTransfer is how a FileList is built by hand. */
+  function syncInput() {
+    try {
+      var dt = new DataTransfer();
+      chosen.forEach(function (f) { dt.items.add(f); });
+      input.files = dt.files;
+    } catch (e) {
+      /* Very old browsers have no DataTransfer constructor. The selection
+         then stays as the browser made it — removal is the feature lost,
+         not the upload. */
+    }
+  }
+
+  function clearPreviews() {
+    previews.forEach(function (url) { URL.revokeObjectURL(url); });
+    previews = [];
+  }
+
+  function render() {
+    clearPreviews();
+
+    if (!chosen.length) {
+      list.innerHTML = '';
+      label.textContent = 'Click or drag & drop — you can select several files';
+      return;
+    }
+
+    var total = chosen.reduce(function (n, f) { return n + f.size; }, 0);
+    label.textContent = chosen.length + ' file' + (chosen.length === 1 ? '' : 's')
+      + ' selected — ' + size(total) + ' in total';
+
+    list.innerHTML = '';
+    chosen.forEach(function (file, index) {
+      var row = document.createElement('li');
+      var oversize = file.size > MAX_BYTES;
+      if (oversize) row.className = 'is-bad';
+
+      var thumb = document.createElement('span');
+      thumb.className = 'prt-doc-thumb';
+      if (isImage(file)) {
+        var url = URL.createObjectURL(file);
+        previews.push(url);
+        var img = document.createElement('img');
+        img.src = url;
+        img.alt = '';
+        thumb.appendChild(img);
+      } else {
+        thumb.innerHTML = '<i class="fas ' + iconFor(file.name) + '"></i>';
+      }
+
+      /* textContent, not innerHTML: the name comes from whoever picked the
+         file and lands on a manager's screen. */
+      var name = document.createElement('span');
+      name.className = 'prt-doc-name';
+      name.textContent = file.name;
+      name.title = file.name;
+
+      var meta = document.createElement('em');
+      meta.textContent = oversize
+        ? size(file.size) + ' — over 15 MB, will be refused'
+        : size(file.size);
+
+      /* Look at it before sending it. The file is not uploaded yet, so the
+         source is an object URL over the File the browser is holding — the
+         overlay revokes it on close. Nothing is offered for a .docx: no
+         browser draws one, exactly as on the PR screens. */
+      var peek = document.createElement('button');
+      peek.type = 'button';
+      if (canPreview(file)) {
+        peek.className = 'prt-doc-act js-doc-peek';
+        peek.innerHTML = '<i class="fas fa-eye"></i>';
+        peek.title = 'Preview ' + file.name;
+        peek.setAttribute('aria-label', 'Preview ' + file.name);
+        peek.addEventListener('click', function () {
+          window.prtDocViewer.open({
+            name:    file.name,
+            url:     URL.createObjectURL(file),
+            isImage: isImage(file),
+            revoke:  true,            /* ours to clean up */
+            opener:  peek,
+          });
+        });
+      } else {
+        peek.className = 'prt-doc-act is-off';
+        peek.disabled = true;
+        peek.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        peek.title = extensionOf(file.name)
+          + ' files cannot be previewed in the browser';
+      }
+
+      /* The cross. type=button matters: a bare <button> inside a form
+         defaults to type=submit, so removing a file would send the form. */
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'prt-doc-remove';
+      remove.innerHTML = '<i class="fas fa-xmark"></i>';
+      remove.title = 'Remove ' + file.name;
+      remove.setAttribute('aria-label', 'Remove ' + file.name);
+      remove.addEventListener('click', function () {
+        chosen.splice(index, 1);
+        syncInput();
+        render();
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(name);
+      row.appendChild(meta);
+      row.appendChild(peek);
+      row.appendChild(remove);
+      list.appendChild(row);
+    });
+
+    var note = null;
+    if (chosen.length > MAX_FILES) {
+      note = document.createElement('li');
+      note.className = 'over';
+      note.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>Only the first '
+        + MAX_FILES + ' files will be saved — remove '
+        + (chosen.length - MAX_FILES) + ' to choose which.</span>';
+    } else if (total > ATTACH_LIMIT) {
+      note = document.createElement('li');
+      note.className = 'over';
+      note.innerHTML = '<i class="fas fa-circle-info"></i><span>Over 10 MB in total — '
+        + 'the assignee&rsquo;s email will carry download links instead of '
+        + 'attachments.</span>';
+    }
+    if (note) list.appendChild(note);
+  }
+
+  /* Added, not replaced: picking a second time should extend the set, which
+     is what "add the quotation, now add the spec" expects. The same file
+     twice is ignored rather than uploaded twice. */
+  function add(files) {
+    Array.prototype.slice.call(files || []).forEach(function (f) {
+      var already = chosen.some(function (c) {
+        return c.name === f.name && c.size === f.size
+            && c.lastModified === f.lastModified;
+      });
+      if (!already) chosen.push(f);
+    });
+    syncInput();
+    render();
+  }
+
+  input.addEventListener('change', function () {
+    /* The input holds only what this pick produced; fold it into `chosen`. */
+    add(input.files);
+  });
+
+  if (zone) {
+    ['dragenter', 'dragover'].forEach(function (name) {
+      zone.addEventListener(name, function (e) {
+        e.preventDefault();
+        zone.classList.add('is-over');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (name) {
+      zone.addEventListener(name, function (e) {
+        e.preventDefault();
+        zone.classList.remove('is-over');
+      });
+    });
+    zone.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length) add(e.dataTransfer.files);
+    });
+  }
+
+  window.addEventListener('pagehide', clearPreviews);
+})();
+</script>
+{% endblock %}

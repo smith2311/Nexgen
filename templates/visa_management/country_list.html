@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Country Master — Visa Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-globe"></i> Country Master</h1>
+          <p>Manage destination countries and embassy details</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ countries|length }}</div>
+            <div class="lm-hstat-lbl">Countries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'visa:country_create' %}" class="btn btn-navy btn-sm">
+          <i class="fas fa-plus"></i> Add Country
+        </a>
+      </div>
+      <div class="record-count">{{ countries|length }} countr{{ countries|length|pluralize:"y,ies" }}</div>
+    </div>
+
+    <div class="tbl-wrap" style="--cols: 1fr 80px 1fr 1fr 1fr 80px auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Country Name</div>
+        <div>Code</div>
+        <div>Default Entry</div>
+        <div>Embassy Addressee</div>
+        <div>Embassy City</div>
+        <div>Status</div>
+        <div></div>
+      </div>
+      {% for c in countries %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        <div class="tbl-name">{{ c.name }}</div>
+        <div><span class="vm-mono">{{ c.code }}</span></div>
+        <div>{{ c.get_default_entry_type_display }}</div>
+        <div class="tbl-desc">
+          <div>{{ c.addressee_line1 }}</div>
+          {% if c.addressee_line2 %}<div style="color:var(--text-muted);font-size:11.5px">{{ c.addressee_line2 }}</div>{% endif %}
+        </div>
+        <div style="font-size:12.5px">{{ c.embassy_city|default:"—" }}</div>
+        <div>
+          {% if c.is_active %}
+          <span class="badge badge-green">Active</span>
+          {% else %}
+          <span class="badge badge-muted">Inactive</span>
+          {% endif %}
+        </div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:country_edit' c.pk %}" class="tbl-btn edit">Edit</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-globe"></i>
+        <p>No countries yet. <a href="{% url 'visa:country_create' %}" style="color:var(--blue)">Add the first country →</a></p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

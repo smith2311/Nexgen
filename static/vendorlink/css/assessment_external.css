@@ -1,0 +1,126 @@
+/* External Assessment Form — standalone page (no base.html).
+   Palette aligned to the vlx-* design system (navy #000618 / blue #0061a6)
+   used everywhere else in VendorLink, so a vendor's link and Meril's own
+   screens read as the same product even though this page ships its own
+   stylesheet (it must work with zero session/auth, before any app chrome). */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body.vl-ext-body {
+    margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: #F1F5F9; color: #0b1c30;
+}
+
+.vl-ext-header {
+    background: #000618; padding: 0 24px; height: 60px;
+    display: flex; align-items: center; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.vl-ext-header-inner {
+    width: 100%; max-width: 860px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+.vl-ext-brand { display: flex; align-items: center; gap: 12px; }
+.vl-ext-logo  { height: 32px; border-radius: 4px; }
+.vl-ext-brand-text { color: #fff; font-weight: 700; font-size: 1rem; }
+.vl-ext-progress { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 300px; }
+.vl-ext-progress .vl-progress-bar { flex: 1; height: 8px; }
+.vl-ext-progress .vl-progress-label { color: rgba(255,255,255,.7); font-size: .8rem; white-space: nowrap; }
+
+.vl-ext-main { max-width: 860px; margin: 32px auto; padding: 0 20px 60px; }
+
+.vl-ext-intro {
+    background: #fff; border-radius: 14px; padding: 28px;
+    border-left: 4px solid #0061a6; margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(15,23,42,.08);
+}
+.vl-ext-intro h1 { font-size: 1.5rem; margin: 0 0 10px; }
+.vl-ext-intro p  { color: #475569; margin: 0 0 10px; line-height: 1.6; }
+.vl-ext-expiry   { font-size: .85rem; color: #D97706; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+
+.vl-ext-section {
+    background: #fff; border-radius: 14px; overflow: hidden;
+    margin-bottom: 20px; box-shadow: 0 2px 12px rgba(15,23,42,.08);
+}
+.vl-ext-section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 24px; background: #000618; color: #fff;
+}
+.vl-ext-section-header h2 { font-size: 1.05rem; font-weight: 700; margin: 0; }
+.vl-ext-section-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,.15); display: flex;
+    align-items: center; justify-content: center;
+    font-size: .9rem; font-weight: 800; flex-shrink: 0;
+}
+.vl-ext-fields { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.vl-ext-field { display: flex; flex-direction: column; gap: 5px; }
+.vl-ext-label { font-size: .875rem; font-weight: 600; color: #1E293B; }
+.vl-ext-hint  { font-size: .8rem; color: #64748B; margin: 0; line-height: 1.4; }
+.vl-required  { color: #DC2626; }
+
+/* Inputs — previously unstyled, so every field rendered as a bare browser
+   control. This is the one part of the page a vendor actually interacts
+   with, so it gets the same focus treatment as the rest of the platform. */
+.vl-ext-input, .vl-ext-textarea {
+    width: 100%; box-sizing: border-box; padding: 10px 12px;
+    border: 1px solid #d1d5db; border-radius: 8px; font-size: .9rem;
+    font-family: inherit; background: #fff; color: #0b1c30;
+    transition: border-color .16s, box-shadow .18s;
+}
+.vl-ext-textarea { resize: vertical; min-height: 74px; }
+.vl-ext-input:focus, .vl-ext-textarea:focus {
+    outline: none; border-color: #0061a6; box-shadow: 0 0 0 3px rgba(0,97,166,.14);
+}
+.vl-ext-field.vl-ext-field--err .vl-ext-input,
+.vl-ext-field.vl-ext-field--err .vl-ext-textarea { border-color: #DC2626; }
+.vl-error { display: block; margin-top: 4px; font-size: .78rem; color: #DC2626; font-weight: 600; }
+
+.vl-alert {
+    display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+    border-radius: 10px; margin-bottom: 20px; font-size: .88rem; font-weight: 600;
+    border: 1px solid transparent;
+}
+.vl-alert--error   { background: #FEE2E2; color: #7f1d1d; border-color: rgba(220,38,38,.3); }
+.vl-alert--success { background: #DCFCE7; color: #14532d; border-color: rgba(22,163,74,.3); }
+
+.vl-progress-bar { background: rgba(255,255,255,.2); border-radius: 99px; overflow: hidden; }
+.vl-progress-fill { height: 100%; background: #58aaff; border-radius: 99px; transition: width .2s; }
+.vl-ext-intro .vl-progress-bar { background: #eef1f6; }
+.vl-ext-intro .vl-progress-fill { background: #0061a6; }
+
+.vl-btn {
+    display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent;
+    border-radius: 9px; font-weight: 700; font-size: .88rem; cursor: pointer;
+    text-decoration: none; padding: 0 18px; height: 40px;
+}
+.vl-btn--lg { height: 46px; padding: 0 26px; font-size: .95rem; }
+.vl-btn--primary { background: #000618; color: #fff; }
+.vl-btn--primary:hover { background: #0f1f3a; }
+.vl-btn--outline { background: #fff; color: #000618; border-color: #cbd5e1; }
+.vl-btn--outline:hover { background: #f8fafc; }
+
+.vl-ext-actions {
+    display: flex; gap: 14px; justify-content: flex-end;
+    padding: 24px; background: #fff; border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(15,23,42,.08); margin-top: 24px;
+}
+
+/* Success / Error pages */
+.vl-success-card, .vl-error-card {
+    max-width: 500px; margin: 60px auto; background: #fff;
+    border-radius: 16px; padding: 48px 40px; text-align: center;
+    box-shadow: 0 8px 32px rgba(15,23,42,.12);
+}
+.vl-success-icon { font-size: 3.5rem; color: #16A34A; margin-bottom: 16px; }
+.vl-error-icon   { font-size: 3.5rem; color: #D97706; margin-bottom: 16px; }
+.vl-success-card h1, .vl-error-card h1 { font-size: 1.6rem; margin: 0 0 14px; }
+.vl-success-card p, .vl-error-card p   { color: #475569; line-height: 1.6; }
+.vl-hint { color: #94a3b8; font-size: .82rem; }
+
+@media (max-width: 600px) {
+    .vl-ext-section-header { padding: 14px 16px; }
+    .vl-ext-fields { padding: 16px; }
+    .vl-ext-actions { flex-direction: column; }
+}

@@ -1,0 +1,240 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Barcode Extractor landing. Three ways in: paste/upload barcodes for an instant
+one-off parse (extractor_parse, async, no session created), or open a
+live-scan/live-validate session (scan_session_create) to keep a running record.
+{% endcomment %}
+
+{% block mv_title %}Barcode Extractor{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Barcode Extractor</span>
+{% endblock %}
+{% block mv_heading %}Barcode Extractor{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Parse barcodes, run live scans and live validation.</p>{% endblock %}
+{% block mv_actions %}<a href="{% url 'merilv:scan_history' %}" class="mv-btn">{% icon "history" %} Scan history</a>{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="extractor" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "wand" %} Extract mode — instant, no session</h2>
+    {% comment %}
+    A real form, submitted natively to extractor_export, so Export is a plain
+    browser download — no blob juggling, and the filename comes from the
+    server's Content-Disposition. Extract itself stays a fetch (the button is
+    type="button"), so the on-screen table still fills in without a reload.
+    The inputs carry name= as well as id= for that reason: the ids feed the
+    fetch, the names feed the native POST.
+    {% endcomment %}
+    <form id="mvExtractForm" method="post" action="{% url 'merilv:extractor_export' %}" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Preparing export"
+          data-mv-loading-message="Reading the uploaded file and building the workbook.">
+    {% csrf_token %}
+    <div class="mv-field">
+        <label class="mv-label" for="mvBarcodes">Paste barcodes, one per line</label>
+        <textarea class="mv-textarea mv-textarea--mono" id="mvBarcodes" name="barcodes" rows="6" placeholder="(01)0850..."></textarea>
+    </div>
+    <div class="mv-field-row" style="align-items:flex-end;">
+        <div class="mv-field">
+            <label class="mv-label">or upload a file</label>
+            <label class="mv-dropzone" style="min-height:80px;">
+                <input type="file" id="mvExtractFile" name="file" accept=".xlsx,.xls,.csv,.txt">
+                {% icon "file" 28 %}<span class="mv-dropzone__label">Choose a file</span>
+            </label>
+        </div>
+        <button type="button" class="mv-btn mv-btn--primary" id="mvExtractGo">{% icon "wand" %} Extract</button>
+    </div>
+    <div id="mvExtractResults" hidden style="margin-top:var(--mv-6);">
+        <div class="mv-kpis" style="margin-bottom:var(--mv-4);">
+            <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "barcode" %}</span><span class="mv-kpi__label">Parsed</span><span class="mv-kpi__value" id="mvExtractCount">0</span></div>
+            <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Valid (Found)</span><span class="mv-kpi__value" id="mvExtractValid">0</span></div>
+            {% comment %}
+            Duplicate and Not Found complete the three counts the change
+            request asks for. Extract mode showed only Parsed and Valid, so a
+            paste containing repeats or unreadable codes gave no count of
+            either — you had to read the table to find out.
+            {% endcomment %}
+            <div class="mv-kpi mv-kpi--warn"><span class="mv-kpi__icon">{% icon "layers" %}</span><span class="mv-kpi__label">Duplicate</span><span class="mv-kpi__value" id="mvExtractDup">0</span></div>
+            <div class="mv-kpi mv-kpi--danger"><span class="mv-kpi__icon">{% icon "x-circle" %}</span><span class="mv-kpi__label">Not Found (Invalid)</span><span class="mv-kpi__value" id="mvExtractInvalid">0</span></div>
+        </div>
+        <div class="mv-toolbar" style="justify-content:flex-end;margin-bottom:var(--mv-3);gap:var(--mv-2);">
+            {# Column picker — same manager scan_history and Material Master use. #}
+            <div data-mv-layout-manager data-screen-key="extractor" data-table="#mvExtractTable" style="display:inline-block;"></div>
+            <button type="submit" class="mv-btn" id="mvExtractExport">{% icon "download" %} Export to Excel</button>
+        </div>
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense" id="mvExtractTable">
+            <thead><tr>
+                <th data-col="raw">Raw</th><th data-col="material">Material</th>
+                <th data-col="batch">Batch</th><th data-col="serial">Serial</th>
+                <th data-col="mfg">MFG</th><th data-col="expiry">Expiry</th>
+                {% comment %}Row 17 — from the material master, not the barcode. Hidden until toggled on; see _EXTRACTOR_COLUMNS in layouts.py for why.{% endcomment %}
+                <th data-col="group">Material Group</th><th data-col="ph">PH Level</th>
+                <th data-col="valid">Valid</th>
+            </tr></thead>
+            <tbody id="mvExtractBody"></tbody>
+        </table>
+        </div>
+    </div>
+    </form>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "scan" %} Open a tracked session</h2>
+    <form method="post" action="{% url 'merilv:scan_session_create' %}" enctype="multipart/form-data" class="mv-field-row" style="align-items:flex-end;"
+          data-mv-loading data-mv-loading-title="Opening scan session"
+          data-mv-loading-message="Creating the session and loading any attached dump file.">
+        {% csrf_token %}
+        <input type="hidden" name="entity" value="{{ entity.code }}">
+        <div class="mv-field"><label class="mv-label">Mode</label>
+            <select class="mv-select" name="mode">
+                <option value="live_scan">Live Scan</option>
+                <option value="live_validate">Live Validate</option>
+            </select>
+        </div>
+        <div class="mv-field"><label class="mv-label">Name</label><input class="mv-input" name="name" placeholder="Optional"></div>
+        <div class="mv-field"><label class="mv-label">Condition</label><input class="mv-input" name="condition" placeholder="e.g. Good"></div>
+        <div class="mv-field"><label class="mv-label">Box no.</label><input class="mv-input mv-input--mono" name="box_no"></div>
+        <div class="mv-field"><label class="mv-label">Dump file (Live Validate)</label><input class="mv-input" type="file" name="dump_file" style="padding:6px;"></div>
+        <button type="submit" class="mv-btn mv-btn--primary">{% icon "plus" %} Open session</button>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "list" %} Recent sessions</h2>
+        <a href="{% url 'merilv:scan_history' %}" class="mv-link-btn mv-t-caption">View all {% icon "arrow-right" 12 %}</a>
+    </div>
+    {% if sessions %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>Session</th><th>Mode</th><th>Entity</th><th class="mv-num">Found</th><th class="mv-num">Total</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            {% for s in sessions %}
+            <tr data-mv-href="{% url 'merilv:scan_session' s.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ s }}</td>
+                <td class="mv-fg-3">{{ s.get_mode_display }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ s.entity.code }}</span></td>
+                <td class="mv-num">{{ s.found_count }}</td>
+                <td class="mv-num">{{ s.total_count }}</td>
+                <td>{% if s.is_finished %}<span class="mv-badge mv-badge--ok">Finished</span>{% else %}<span class="mv-badge mv-badge--warn">Open</span>{% endif %}</td>
+                <td class="mv-col-actions">{% icon "chevron" 16 %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "scan" 48 %}<div class="mv-empty__title">No sessions yet</div></div>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    var EXPIRY_TITLES = {
+        expired: 'Expired — this stock is past its date.',
+        near_expiry: 'Near expiry — inside the entity’s near-expiry window.',
+        short_expiry: 'Short expiry — inside the entity’s short-expiry window.',
+        damage: 'Marked damaged.'
+    };
+    var btn = document.getElementById('mvExtractGo');
+    var results = document.getElementById('mvExtractResults');
+    var body = document.getElementById('mvExtractBody');
+    if (!btn) { return; }
+    btn.addEventListener('click', function () {
+        var fd = new FormData();
+        fd.append('barcodes', document.getElementById('mvBarcodes').value);
+        var fileInput = document.getElementById('mvExtractFile');
+        if (fileInput.files.length) { fd.append('file', fileInput.files[0]); }
+        btn.disabled = true;
+        if (window.mvLoadingOverlay && typeof window.mvLoadingOverlay.show === 'function') {
+            window.mvLoadingOverlay.show(document.getElementById('mvExtractForm'));
+        }
+        fetch('{% url "merilv:extractor_parse" %}', { method: 'POST', headers: window.mvUI ? window.mvUI.csrfHeaders() : {}, body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                btn.disabled = false;
+                if (!data.ok) {
+                    if (window.mvLoadingOverlay && typeof window.mvLoadingOverlay.hide === 'function') {
+                        window.mvLoadingOverlay.hide();
+                    }
+                    if (window.mvUI) { window.mvUI.toast('danger', 'Extract failed', data.message); }
+                    return;
+                }
+                document.getElementById('mvExtractCount').textContent = data.count;
+                document.getElementById('mvExtractValid').textContent = data.valid;
+                document.getElementById('mvExtractInvalid').textContent = data.count - data.valid;
+                /* Duplicate = the same identity parsed more than once in this
+                   paste. Keyed on serial when there is one, else material+batch
+                   — a repeated batch is normal stock, a repeated serial is not,
+                   which is the distinction the change request calls out. */
+                var seen = Object.create(null), dupes = 0;
+                data.rows.forEach(function (row) {
+                    var key = row.serial && row.serial !== 'Unknown'
+                        ? 'S:' + row.serial
+                        : 'M:' + (row.material || '') + '|' + (row.batch || '');
+                    if (key === 'M:|') { return; }
+                    if (seen[key]) { dupes += 1; } else { seen[key] = true; }
+                });
+                document.getElementById('mvExtractDup').textContent = dupes;
+                body.innerHTML = '';
+                data.rows.forEach(function (row) {
+                    var tr = document.createElement('tr');
+                    function cell(v, mono, col) {
+                        var td = document.createElement('td');
+                        if (mono) { td.className = 'mv-mono'; }
+                        // Tagged so the layout manager can hide this cell with
+                        // its header; an untagged cell would survive the toggle
+                        // and shift every column after it.
+                        if (col) { td.setAttribute('data-col', col); }
+                        td.textContent = v == null ? '—' : v;
+                        return td;
+                    }
+                    tr.appendChild(cell(row.raw, true, 'raw'));
+                    tr.appendChild(cell(row.material, true, 'material'));
+                    tr.appendChild(cell(row.batch, true, 'batch'));
+                    tr.appendChild(cell(row.serial, true, 'serial'));
+                    tr.appendChild(cell(row.mfg, true, 'mfg'));
+                    /* Row 3.9 — band the expiry rather than printing six bare
+                       digits. The band is computed server-side from the
+                       entity's own thresholds (MHPL and MLSIPL invert near and
+                       short), so the browser only paints what it is told. */
+                    var expTd = cell(row.expiry, true, 'expiry');
+                    expTd.classList.add('mv-cell-expiry');
+                    if (row.expiry_state && row.expiry_state !== 'good' && row.expiry_state !== 'no_expiry') {
+                        expTd.classList.add('mv-cell-expiry--' + row.expiry_state);
+                        expTd.title = EXPIRY_TITLES[row.expiry_state] || row.expiry_state;
+                    }
+                    tr.appendChild(expTd);
+                    /* Row 17 — the master's answer for this material. Blank
+                       rather than an em-dash when the master has no value, so a
+                       material that IS in the master but has no group reads
+                       differently from one that is not in the master at all. */
+                    tr.appendChild(cell(row.material_group || '', false, 'group'));
+                    tr.appendChild(cell(row.ph_level || '', false, 'ph'));
+                    var badgeTd = document.createElement('td');
+                    badgeTd.setAttribute('data-col', 'valid');
+                    badgeTd.innerHTML = row.is_valid
+                        ? '<span class="mv-badge mv-badge--ok">Valid</span>'
+                        : '<span class="mv-badge mv-badge--danger">Invalid</span>';
+                    tr.appendChild(badgeTd);
+                    body.appendChild(tr);
+                });
+                results.hidden = false;
+                if (window.mvLoadingOverlay && typeof window.mvLoadingOverlay.hide === 'function') {
+                    window.mvLoadingOverlay.hide();
+                }
+            })
+            .catch(function () {
+                btn.disabled = false;
+                if (window.mvLoadingOverlay && typeof window.mvLoadingOverlay.hide === 'function') {
+                    window.mvLoadingOverlay.hide();
+                }
+                if (window.mvUI) { window.mvUI.toast('danger', 'Extract failed', 'Network error.'); }
+            });
+    });
+})();
+</script>
+{% endblock %}

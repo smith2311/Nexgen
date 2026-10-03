@@ -1,0 +1,113 @@
+{% load merilv_ui %}
+{% comment %}
+The one import dialog, shared by every master. It always offers the matching
+blank template next to the file picker — an importer that only accepts a shape
+it never shows you is the reason these sheets came back malformed.
+
+Params
+    key           MASTER_SHEETS key (the POST target and the template link)
+    label         plural noun for the copy, e.g. "materials"
+    match_on      what an existing row is matched on, e.g. "scan code"
+    needs_entity  entity picker is required (materials)
+    pick_entity   entity picker is offered but optional (customers)
+    allow_replace offer the "replace existing rows first" checkbox
+    entity        currently filtered entity code, preselected in the picker
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvImportModal">
+    <div class="mv-modal" role="dialog" aria-modal="true" aria-labelledby="mvImportTitle">
+        <form method="post" action="{% url 'merilv:masters_import' key %}" enctype="multipart/form-data"
+              data-mv-loading data-mv-loading-title="Importing {{ label }}"
+              data-mv-loading-message="Reading the spreadsheet and updating the master data.">
+            {% csrf_token %}
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvImportTitle">Import {{ label }}</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+            </div>
+            <div class="mv-modal__body">
+                {% if needs_entity or pick_entity %}
+                <div class="mv-field">
+                    <label class="mv-label" for="mvImportEntity">
+                        Entity {% if needs_entity %}<span class="mv-req">*</span>{% endif %}
+                    </label>
+                    <select class="mv-select" id="mvImportEntity" name="entity" {% if needs_entity %}required{% endif %}>
+                        {% if not needs_entity %}<option value="">Keep whatever the file specifies</option>{% endif %}
+                        {% for e in entities %}
+                        <option value="{{ e.code }}" {% if e.code == entity %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if needs_entity %}
+                    <span class="mv-hint">Stored per entity — the same scan code can map differently in each unit.</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="mv-field">
+                    <label class="mv-label">File <span class="mv-req">*</span></label>
+                    <label class="mv-dropzone">
+                        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+                        {% icon "file" 40 %}
+                        <span class="mv-dropzone__label">Choose a {{ label }} file</span>
+                        <span class="mv-t-caption">.xlsx, .xls or .csv</span>
+                    </label>
+                    <span class="mv-hint">
+                        Existing rows are matched on {{ match_on }} and updated; new ones are added.
+                        <a href="{% url 'merilv:masters_template' key %}" target="_blank">Get the template</a>
+                        to see the columns this expects.
+                    </span>
+                </div>
+
+                {% if allow_replace %}
+                <div class="mv-danger-callout">
+                    {% icon "alert" %}
+                    <div>
+                        <label class="mv-check">
+                            <input type="checkbox" name="replace" value="1" id="mvReplaceRows">
+                            <span class="mv-danger-callout__title">Replace existing records first</span>
+                        </label>
+                        <div class="mv-danger-callout__note">
+                            Deletes {% if needs_entity %}every existing row for the selected entity{% else %}every existing row{% endif %}
+                            before importing. Anything missing from the file is lost.
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary" id="mvImportSubmit"
+                        data-mv-confirm="Existing rows matching this file are updated in place."
+                        data-mv-confirm-title="Import {{ label }}?"
+                        data-mv-confirm-ok="Import">
+                    {% icon "upload" %} Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if allow_replace %}
+<script>
+// The typed-confirmation demand only makes sense once "Replace" is actually
+// ticked — without it this is an ordinary additive upsert.
+(function () {
+    var cb = document.getElementById('mvReplaceRows');
+    var btn = document.getElementById('mvImportSubmit');
+    var entity = document.getElementById('mvImportEntity');
+    if (!cb || !btn) { return; }
+    function sync() {
+        var scope = entity && entity.value ? entity.value : '';
+        if (cb.checked) {
+            btn.dataset.mvConfirmType = scope || 'REPLACE';
+            btn.dataset.mvConfirm = 'This deletes every existing row'
+                + (scope ? ' for ' + scope : '') + ' before importing. This cannot be undone.';
+        } else {
+            delete btn.dataset.mvConfirmType;
+            btn.dataset.mvConfirm = 'Existing rows matching this file are updated in place.';
+        }
+    }
+    cb.addEventListener('change', sync);
+    if (entity) { entity.addEventListener('change', sync); }
+    sync();
+})();
+</script>
+{% endif %}

@@ -1,0 +1,1173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Logistics Performance Upload — Logistics Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logistics_performance/logistics_performance_upload.css' %}?v=2">
+<style>
+.lp-back{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;border-radius:99px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.7);font-size:12.5px;font-weight:500;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .2s cubic-bezier(.4,0,.2,1);margin-bottom:16px;width:fit-content}
+.lp-back:hover{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.28);color:#fff;text-decoration:none;transform:translateX(-4px)}
+.lp-back-icon{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.11);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;transition:background .2s,transform .2s}
+.lp-back:hover .lp-back-icon{background:rgba(255,255,255,0.22);transform:translateX(-2px)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- CONFIG for JS -->
+<script>
+const LPU_CONFIG = {
+  urls: {
+    list:                 "{% url 'logistics:lp_list_api' %}",
+    detail:               "{% url 'logistics:lp_detail_page' 0 %}".replace('/0/', '/'),
+    create:               "{% url 'logistics:lp_create_api' %}",
+    update:               "{% url 'logistics:lp_update_api' 0 %}".replace('/0/', '/'),
+    delete:               "{% url 'logistics:lp_delete_api' 0 %}".replace('/0/', '/'),
+    bulkDelete:           "{% url 'logistics:lp_bulk_delete_api' %}",
+    upload:               "{% url 'logistics:lp_upload_api' %}",
+    preview:              "{% url 'logistics:lp_preview_api' %}",
+    confirm:              "{% url 'logistics:lp_confirm_api' %}",
+    pending:              "{% url 'logistics:lp_pending_api' %}",
+    pendingExport:        "{% url 'logistics:lp_pending_export_api' %}",
+    pendingUpdateUpload:  "{% url 'logistics:lp_pending_update_upload_api' %}",
+    pendingUpdateConfirm: "{% url 'logistics:lp_pending_update_confirm_api' %}",
+  }
+};
+</script>
+
+<div class="lpu-page">
+
+  <!-- ═══ PAGE HEADER ═══ -->
+  <div class="lpu-header">
+    <div class="lpu-header-inner">
+      <a href="{% url 'logistics:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Logistics Performance
+      </a>
+      <div class="lpu-header-top">
+
+        <div class="lpu-header-title">
+          <h1><i class="fas fa-shipping-fast"></i> Logistics Performance</h1>
+          <p>Manage and track shipment performance with auto-calculated delivery metrics</p>
+        </div>
+
+        <div class="lpu-header-stats">
+          <div class="lpu-hstat">
+            <div class="lpu-hstat-val" id="statTotal">—</div>
+            <div class="lpu-hstat-lbl">Total</div>
+          </div>
+          <div class="lpu-hstat">
+            <div class="lpu-hstat-val" id="statDivisions">—</div>
+            <div class="lpu-hstat-lbl">Divisions</div>
+          </div>
+          <div class="lpu-hstat">
+            <div class="lpu-hstat-val" id="statWithEdd">—</div>
+            <div class="lpu-hstat-lbl">With EDD</div>
+          </div>
+          <div class="lpu-hstat">
+            <div class="lpu-hstat-val" id="statDelivered">—</div>
+            <div class="lpu-hstat-lbl">Delivered</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="lpu-tabs">
+        <button class="lpu-tab-btn active" data-tab="tab-list" onclick="switchLpuTab('tab-list')">
+          <i class="fas fa-list"></i> All Records
+        </button>
+        <button class="lpu-tab-btn" data-tab="tab-upload" onclick="switchLpuTab('tab-upload')">
+          <i class="fas fa-upload"></i> Bulk Upload
+        </button>
+<button class="lpu-tab-btn" data-tab="tab-preview" onclick="switchLpuTab('tab-preview')">
+  <i class="fas fa-eye"></i> Import Preview
+</button>
+<button class="lpu-tab-btn" data-tab="tab-pending" onclick="switchLpuTab('tab-pending')">
+  <i class="fas fa-clock"></i> Pending
+  <span class="lpu-pending-badge" id="pendingBadgeCount" style="display:none"></span>
+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB CONTENT AREA ═══ -->
+  <div class="lpu-inner">
+
+
+    <!-- ─────────────────────────────────────
+         TAB 1 — ALL RECORDS (LIST)
+    ───────────────────────────────────────── -->
+    <div class="lpu-tab-content active" id="tab-list">
+
+      <!-- Legend -->
+      <div class="legend-strip fi fi-1">
+        <div class="legend-item">
+          <div class="legend-dot blue"></div>
+          <span>Standard columns from upload</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot purple"></div>
+          <span>Auto-calculated from Location Master TAT</span>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar fi fi-1" style="margin-top:0">
+        <button class="filter-pill active" data-division="" onclick="setDivisionFilter('', this)">All Divisions</button>
+        {% for d in lp_divisions %}
+        <button class="filter-pill" data-division="{{ d.code }}" onclick="setDivisionFilter('{{ d.code }}', this)">{{ d.label }}</button>
+        {% endfor %}
+        <div class="search-wrap" id="lpuSearchWrap">
+          <i class="fas fa-search"></i>
+          <input type="text" id="listSearch" placeholder="Search division, location, docket, shipto…">
+          <button class="btn btn-navy btn-sm" onclick="triggerListSearch()" style="margin-left:6px">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </div>
+      <!-- Advanced filter chips -->
+      <div id="lpuAdvChips" class="af-chips"></div>
+
+      <!-- Actions bar -->
+      <div class="actions-bar fi fi-2">
+        <div class="actions-left">
+          <button class="btn btn-red btn-sm" id="bulkDeleteBtn" onclick="bulkDelete(this)" style="display:none">
+            <i class="fas fa-trash"></i> Delete Selected (<span id="bulkDeleteCount">0</span>)
+          </button>
+          <button class="btn btn-green btn-sm" onclick="switchLpuTab('tab-upload')">
+            <i class="fas fa-upload"></i> Bulk Upload
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="loadList()">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadSample()">
+            <i class="fas fa-download"></i> Sample CSV
+          </button>
+          <button class="btn btn-navy btn-sm" onclick="openEdit(null)">
+            <i class="fas fa-plus"></i> New Record
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select id="perPageSelect" onchange="onPerPageChange(this.value)"
+                  style="padding:5px 10px;font-size:12px;font-family:var(--font);border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-secondary);cursor:pointer;">
+            <option value="15">15 / page</option>
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="75">75 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+          <div class="record-count" id="recordCountBadge">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      <div class="loading-overlay" id="listLoading" style="display:none">
+        <span class="loading-spinner"></span> Loading logistics records…
+      </div>
+
+      <!-- Table -->
+      <div class="tbl-wrap fi fi-3">
+        <div class="tbl-scroll">
+          <div class="tbl-head">
+            <div class="tbl-sel"><input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this.checked)"></div>
+            <div>#</div>
+            <div>ID</div>
+            <div>View</div>
+            <div>Division</div>
+            <div>Location</div>
+            <div>Plant</div>
+            <div>Billing Doc</div>
+            <div>Bill Date</div>
+            <div>Inv Value</div>
+            <div>Doc Type</div>
+            <div>Shipto Name</div>
+            <div>Shipto City</div>
+            <div>Pincode</div>
+            <div>Mode</div>
+            <div>Docket No</div>
+            <div>Courier</div>
+            <div>Dispatch Date</div>
+            <div>Delivery Date</div>
+            <div>TAT (Master)</div>
+            <div class="col-calc">Expected Del. Date</div>
+            <div class="col-calc">Dispatch vs EDD TAT</div>
+            <div class="col-calc">Dispatch vs Del. TAT</div>
+            <div>Logistics Cost</div>
+            <div class="col-calc">Actual Cost</div>
+            <div>Remarks</div>
+            <div>Creator</div>
+            <div>Cost Center</div>
+            <div>Actions</div>
+          </div>
+          <div id="tblBody">
+            <div class="loading-overlay">
+              <span class="loading-spinner"></span> Loading…
+            </div>
+          </div>
+        </div>
+        <div class="pagi">
+  <div class="pagi-info" id="pagiInfo">—</div>
+  <div class="pagi-btns" id="pagiBtns"></div>
+</div>
+      </div>
+
+    </div><!-- /tab-list -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 2 — BULK UPLOAD
+    ───────────────────────────────────────── -->
+    <div class="lpu-tab-content" id="tab-upload">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Bulk Upload — Logistics Performance Data</h2>
+      </div>
+
+      <!-- Info banner about auto-calculation -->
+      <div class="alert-banner fi fi-1" style="border-left-color:var(--purple)">
+        <i class="fas fa-magic" style="color:var(--purple)"></i>
+        <span>
+          <strong>Auto-calculated fields:</strong> After upload, the system will automatically look up TAT from Location Master using <em>Courier Code + Mode</em>. Expected Delivery Date, Dispatch vs EDD TAT, and Dispatch vs Delivery TAT will be calculated automatically. If no TAT is found, those fields will default to <em>null</em> and will be updated automatically when the Location Master entry is added later.
+        </span>
+      </div>
+
+      <div class="upload-layout">
+
+        <!-- Left: drop zone + schema -->
+        <div>
+
+          <div id="fileSelectedRow" class="file-selected" style="display:none">
+            <i class="fas fa-file-excel"></i>
+            <div>
+              <div class="file-selected-name" id="fileSelectedName">file.xlsx</div>
+              <div class="file-selected-size" id="fileSelectedSize">—</div>
+            </div>
+            <button class="file-selected-clear" onclick="clearFile()" title="Remove file">×</button>
+          </div>
+          <div id="uploadFileRef" style="display:none"></div>
+
+          <div class="upload-zone fi fi-1" id="dropZone">
+            <div class="upload-icon">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-title">Drop your file here</div>
+            <div class="upload-sub">or click to browse from your computer</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">.csv</span>
+              <span class="fmt-chip">.xlsx</span>
+              <span class="fmt-chip">.xls</span>
+            </div>
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls"
+                   style="display:none" onchange="onFileInput(this)">
+          </div>
+
+          <!-- Schema reference -->
+          <div class="schema-table fi fi-2">
+            <div class="schema-hdr">Column Format Reference</div>
+            <div class="schema-row" style="background:var(--bg);font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted)">
+              <div>Column Name</div><div>Type</div><div>Description</div>
+            </div>
+
+            <!-- Upload columns -->
+            <div class="schema-row">
+              <div class="schema-col">Division</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Must match Division Master</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Location</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Dispatch origin location</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Plant-Name</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Plant name</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Billing Doc</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">SAP billing document number</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Billing Date</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Date YYYY-MM-DD or DD-MM-YYYY</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Inv Value</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Invoice value in INR (positive or negative)</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Doc. Type</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">SAP document type e.g. ZCFU</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Billed Qty</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Whole number — defaults to 1 if blank</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Shipto-Party</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Ship-to party code</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Shipto-Name</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Ship-to party name</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Shipto-City</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Destination city</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Pincode</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Exactly 6 digits (numbers only)</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Docket No</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Courier docket / AWB number</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Mode(Surface/Air/Train)</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Must match Mode Master</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Boxes</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Number of boxes (whole number)</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">CH Weight</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Chargeable weight (number)</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Dispatch Date</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Date of dispatch — base for EDD calculation</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Zone</div>
+              <div><span class="badge badge-red" style="font-size:10px">Required</span></div>
+              <div class="schema-desc">Must match Zone Master</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Currier No</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Courier number</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Currier Partner Code</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Courier code — used for TAT lookup</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Currier Name</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Courier name</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Delivery Date</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Actual delivery date (if delivered)</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Basic Logistics Cost</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Base freight charge in INR</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Other Charges</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Additional charges in INR</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Remarks/Delay Reason</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Notes or delay reason</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Cost Center</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">SAP cost center code</div>
+            </div>
+            <div class="schema-row">
+              <div class="schema-col">Shipto-Region</div>
+              <div><span class="badge badge-muted" style="font-size:10px">Optional</span></div>
+              <div class="schema-desc">Ship-to region</div>
+            </div>
+
+            <!-- Calculated columns (purple) -->
+            <div class="schema-row calc-row">
+              <div class="schema-col calc">TAT (from Master)</div>
+              <div><span class="badge badge-purple" style="font-size:10px">Auto</span></div>
+              <div class="schema-desc">Looked up from Location Master via Courier Code + Mode</div>
+            </div>
+            <div class="schema-row calc-row">
+              <div class="schema-col calc">Expected Delivery Date</div>
+              <div><span class="badge badge-purple" style="font-size:10px">Auto</span></div>
+              <div class="schema-desc">Dispatch Date + TAT (Sundays skipped automatically)</div>
+            </div>
+            <div class="schema-row calc-row">
+              <div class="schema-col calc">Dispatch vs EDD TAT</div>
+              <div><span class="badge badge-purple" style="font-size:10px">Auto</span></div>
+              <div class="schema-desc">Expected Delivery Date − Dispatch Date (in days)</div>
+            </div>
+            <div class="schema-row calc-row">
+              <div class="schema-col calc">Dispatch vs Delivery TAT</div>
+              <div><span class="badge badge-purple" style="font-size:10px">Auto</span></div>
+              <div class="schema-desc">Actual Delivery Date − Dispatch Date (in days); null if not delivered</div>
+            </div>
+          </div>
+
+        </div><!-- /left -->
+
+        <!-- Right: actions + sample -->
+        <div class="upload-side">
+
+          <div class="form-submit-block fi fi-2">
+            <button class="btn btn-navy btn-lg" onclick="submitUpload(this)">
+              <i class="fas fa-upload"></i> Upload File
+            </button>
+            <button class="btn btn-green" onclick="downloadSample()">
+              <i class="fas fa-download"></i> Download Sample CSV
+            </button>
+            <button class="btn btn-ghost" onclick="switchLpuTab('tab-list')">
+              <i class="fas fa-arrow-left"></i> Cancel
+            </button>
+          </div>
+
+          <div class="form-block fi fi-3">
+            <div class="form-block-hdr"><i class="fas fa-code"></i> Sample CSV (first row)</div>
+            <div class="csv-preview"><span class="csv-hdr">Division,Location,Plant-Name,Billing Doc,...</span>
+MHPL,Ahmedabad,AHM Plant,9124280001,
+2024-06-01,150000,ZCFU,2,
+2101001,Apollo Hospitals,
+Ahmedabad,380001,DTDC001,DTDC,
+DKT12345,Surface,3,1200,
+2024-06-01,2024-06-04,
+850,,No delay,30060001,
+25-Gujarat,West,Direct Sale,admin</div>
+          </div>
+
+          <div class="form-help fi fi-3" style="background:var(--purple-lt);border-color:rgba(139,92,246,0.2)">
+            <h4 style="color:var(--purple)">⚡ EDD Calculation Logic</h4>
+            <ul>
+              <li>TAT is fetched from Location Master using <strong>Courier Code + Mode</strong></li>
+              <li>EDD = Dispatch Date + TAT days</li>
+              <li>Sundays between dispatch and EDD are skipped (+1 day per Sunday)</li>
+              <li>If TAT not found → EDD = null (updated automatically when TAT is added to Location Master)</li>
+            </ul>
+          </div>
+
+          <div class="form-help fi fi-4">
+            <h4>📋 Upload Notes</h4>
+            <ul>
+              <li>Max file size: 10 MB</li>
+              <li>First row must be column headers</li>
+              <li>Duplicate docket numbers flagged</li>
+              <li>Review preview before confirming</li>
+              <li>Error rows are skipped on import</li>
+            </ul>
+          </div>
+
+        </div><!-- /right -->
+
+      </div><!-- /upload-layout -->
+
+    </div><!-- /tab-upload -->
+
+<!-- ─────────────────────────────────────
+     TAB — ADD / EDIT
+───────────────────────────────────────── -->
+<div class="lpu-tab-content" id="tab-edit">
+
+  <div class="section-hdr fi fi-1">
+    <h2 id="lpuFormTitle">Edit Record</h2>
+    <p id="lpuFormSubtitle" style="font-size:13px;color:var(--text-muted)">Update logistics performance entry</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 260px;gap:16px">
+
+    <!-- MAIN FIELDS -->
+    <div>
+
+      <!-- Shipment Info -->
+      <div class="form-block fi fi-2">
+        <div class="form-block-hdr"><i class="fas fa-truck"></i> Shipment Info</div>
+        <div class="form-block-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Division</label>
+              <select id="lpuField_division" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+                <option value="">—</option>
+                {% for d in lp_divisions %}<option value="{{ d.code }}">{{ d.label }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Location</label>
+              <input id="lpuField_location" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Plant Name</label>
+              <input id="lpuField_plant_name" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Billing Doc</label>
+              <input id="lpuField_billing_doc" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Billing Date</label>
+              <input id="lpuField_billing_date" type="date" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Invoice Value (₹)</label>
+              <input id="lpuField_inv_value" type="number" step="0.01" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Doc Type</label>
+              <input id="lpuField_doc_type" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Zone</label>
+              <input id="lpuField_zone" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Ship-to Details -->
+      <div class="form-block fi fi-3">
+        <div class="form-block-hdr"><i class="fas fa-map-marker-alt"></i> Ship-to Details</div>
+        <div class="form-block-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Shipto Name</label>
+              <input id="lpuField_shipto_name" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Shipto City</label>
+              <input id="lpuField_shipto_city" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Shipto Region</label>
+              <input id="lpuField_shipto_region" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Pincode</label>
+              <input id="lpuField_pincode" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Courier & Delivery -->
+      <div class="form-block fi fi-3">
+        <div class="form-block-hdr"><i class="fas fa-shipping-fast"></i> Courier & Delivery</div>
+        <div class="form-block-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Docket No</label>
+              <input id="lpuField_docket_no" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Courier Name</label>
+              <input id="lpuField_courier_name" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Mode</label>
+              <select id="lpuField_mode" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font)">
+                <option value="">—</option>
+                <option>Surface</option><option>Air</option><option>Train</option>
+              </select>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Dispatch Date</label>
+              <input id="lpuField_dispatch_date" type="date" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Delivery Date</label>
+              <input id="lpuField_delivery_date" type="date" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Logistics Cost (₹)</label>
+              <input id="lpuField_basic_logistics_cost" type="number" step="0.01" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Cost Center</label>
+              <input id="lpuField_cost_center" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Creator</label>
+              <input id="lpuField_creator" type="text" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px;grid-column:span 2">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Remarks</label>
+              <textarea id="lpuField_remarks" rows="2" style="padding:8px 12px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%;resize:vertical"></textarea>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculated fields notice -->
+      <div style="padding:12px 16px;background:var(--purple-lt);border:1px solid rgba(139,92,246,0.2);border-radius:var(--radius-md);font-size:12px;color:#5b21b6">
+        <i class="fas fa-magic"></i> <strong>Auto-calculated fields</strong> — TAT, Expected Delivery Date, Dispatch vs EDD and Dispatch vs Delivery TAT will be recalculated automatically on save.
+      </div>
+
+    </div>
+
+    <!-- SIDEBAR -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <div class="form-submit-block fi fi-2">
+        <button class="btn btn-navy btn-lg" onclick="submitLpuEdit(this)">
+          <i class="fas fa-save"></i>
+          <span id="lpuSubmitBtnText">Save Changes</span>
+        </button>
+        <button class="btn btn-ghost" onclick="cancelLpuEdit()" style="width:100%;justify-content:center">
+          <i class="fas fa-times"></i> Cancel Edit
+        </button>
+        <button class="btn btn-ghost" onclick="switchLpuTab('tab-list')" style="width:100%;justify-content:center">
+          <i class="fas fa-arrow-left"></i> Back to List
+        </button>
+      </div>
+
+      <div class="form-help fi fi-3">
+        <h4>💡 Tips</h4>
+        <ul>
+          <li>Dispatch Date is required for EDD recalculation</li>
+          <li>Courier code + Mode determines TAT lookup</li>
+          <li>Leave Delivery Date blank if not yet delivered</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+</div><!-- /tab-edit -->
+    <!-- ─────────────────────────────────────
+         TAB 3 — IMPORT PREVIEW
+    ───────────────────────────────────────── -->
+    <div class="lpu-tab-content" id="tab-preview">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Review Before Import</h2>
+        <button class="btn btn-ghost btn-sm" onclick="switchLpuTab('tab-upload')">
+          <i class="fas fa-arrow-left"></i> Back to Upload
+        </button>
+      </div>
+
+      <!-- Info banner -->
+      <div class="alert-banner fi fi-1" style="border-left-color:var(--purple)">
+        <i class="fas fa-info-circle" style="color:var(--purple)"></i>
+        <span>
+          Columns highlighted in <strong style="color:var(--purple)">purple</strong> are auto-calculated from Location Master.
+          Rows showing <em>"No TAT"</em> will import with null values and auto-fill once Location Master TAT is configured.
+        </span>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="preview-summary fi fi-1">
+        <div class="prev-stat total">
+          <div class="prev-icon"><i class="fas fa-list"></i></div>
+          <div>
+            <div class="prev-val" id="prevTotal">—</div>
+            <div class="prev-lbl">Total rows</div>
+          </div>
+        </div>
+        <div class="prev-stat ok">
+          <div class="prev-icon"><i class="fas fa-check-circle"></i></div>
+          <div>
+            <div class="prev-val" id="prevOk">—</div>
+            <div class="prev-lbl">Ready to import</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div>
+            <div class="prev-val" id="prevWarn">—</div>
+            <div class="prev-lbl">Issues / duplicates</div>
+          </div>
+        </div>
+        <div class="prev-stat calc">
+          <div class="prev-icon"><i class="fas fa-magic"></i></div>
+          <div>
+            <div class="prev-val" id="prevCalc">—</div>
+            <div class="prev-lbl">With EDD Calculated</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview table (rendered by LogiTable.createDataTable) -->
+      <div id="previewBody" class="fi fi-2">
+        <div class="empty-state">
+          <i class="fas fa-file-upload"></i>
+          <p>Upload a file first to see the preview.</p>
+        </div>
+      </div>
+
+      <!-- Confirm bar -->
+      <div class="confirm-bar fi fi-3">
+        <div class="confirm-info" id="confirmInfo">
+          Upload a file to see import summary.
+        </div>
+        <div class="confirm-btns">
+          <button class="btn btn-navy btn-lg" onclick="confirmImport(this)">
+            <i class="fas fa-check"></i> Confirm Import
+          </button>
+          <button class="btn btn-ghost" onclick="cancelImport()">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /tab-preview -->
+
+
+
+    <!-- ─────────────────────────────────────
+         TAB — PENDING RECORDS
+    ───────────────────────────────────────── -->
+    <div class="lpu-tab-content" id="tab-pending">
+
+      <div class="section-hdr fi fi-1" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2><i class="fas fa-clock" style="color:var(--amber)"></i> Pending Records</h2>
+          <p style="font-size:13px;color:var(--text-muted)">Records missing Dispatch Date, Delivery Date, or Logistics Cost</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="loadPendingList()">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+          <button class="btn btn-green btn-sm" id="btnDownloadPending" onclick="downloadPendingExcel()">
+            <i class="fas fa-file-excel"></i> Download Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="preview-summary fi fi-1">
+        <div class="prev-stat total">
+          <div class="prev-icon"><i class="fas fa-list"></i></div>
+          <div>
+            <div class="prev-val" id="pendingStatTotal">—</div>
+            <div class="prev-lbl">Total Pending</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-calendar-times"></i></div>
+          <div>
+            <div class="prev-val" id="pendingStatNoDispatch">—</div>
+            <div class="prev-lbl">No Dispatch Date</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-truck"></i></div>
+          <div>
+            <div class="prev-val" id="pendingStatNoDelivery">—</div>
+            <div class="prev-lbl">No Delivery Date</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-rupee-sign"></i></div>
+          <div>
+            <div class="prev-val" id="pendingStatNoCost">—</div>
+            <div class="prev-lbl">No Logistics Cost</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending table -->
+      <div class="tbl-wrap fi fi-2">
+        <div class="tbl-scroll" style="min-width:1000px">
+          <div class="tbl-head" style="grid-template-columns:60px 90px 120px 100px 110px 110px 110px 130px 120px 1fr">
+            <div>ID</div>
+            <div>Division</div>
+            <div>Location</div>
+            <div>Billing Doc</div>
+            <div>Docket No</div>
+            <div>Dispatch Date</div>
+            <div>Delivery Date</div>
+            <div>Logistics Cost</div>
+            <div>Missing Fields</div>
+            <div>Shipto / Mode</div>
+          </div>
+          <div id="pendingTblBody">
+            <div class="empty-state">
+              <i class="fas fa-clock"></i>
+              <p>Click Refresh or switch to this tab to load pending records.</p>
+            </div>
+          </div>
+        </div>
+        <div class="pagi">
+          <div class="pagi-info" id="pendingPagiInfo">—</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="pendingPerPageSelect" onchange="onPendingPerPageChange(this.value)"
+                    style="padding:5px 10px;font-size:12px;font-family:var(--font);border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-secondary);cursor:pointer;">
+              <option value="25">25 / page</option>
+              <option value="50">50 / page</option>
+              <option value="100">100 / page</option>
+            </select>
+            <div class="pagi-btns" id="pendingPagiBtns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Upload section -->
+      <div class="form-block fi fi-3" style="margin-top:20px">
+        <div class="form-block-hdr"><i class="fas fa-upload"></i> Upload Filled Excel to Update Records</div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+
+          <div class="alert-banner" style="border-left-color:var(--amber);margin:0">
+            <i class="fas fa-info-circle" style="color:var(--amber)"></i>
+            <span>
+              Download the Excel above, fill in the missing fields (highlighted in yellow), then upload it back here.
+              The <strong>ID column is required</strong> — records are matched by ID and only non-empty values are updated.
+            </span>
+          </div>
+
+          <!-- Drop zone -->
+          <div id="pendingFileSelectedRow" class="file-selected" style="display:none">
+            <i class="fas fa-file-excel"></i>
+            <div>
+              <div class="file-selected-name" id="pendingFileSelectedName">file.xlsx</div>
+              <div class="file-selected-size" id="pendingFileSelectedSize">—</div>
+            </div>
+            <button class="file-selected-clear" onclick="clearPendingFile()" title="Remove file">×</button>
+          </div>
+
+          <div class="upload-zone" id="pendingDropZone" style="padding:24px">
+            <div class="upload-icon"><i class="fas fa-file-upload"></i></div>
+            <div class="upload-title" style="font-size:14px">Drop filled Excel here or click to browse</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">.xlsx</span>
+              <span class="fmt-chip">.xls</span>
+              <span class="fmt-chip">.csv</span>
+            </div>
+            <input type="file" id="pendingFileInput" accept=".csv,.xlsx,.xls"
+                   style="display:none" onchange="onPendingFileInput(this)">
+          </div>
+
+          <button class="btn btn-navy" style="align-self:flex-start" onclick="submitPendingUpdate(this)">
+            <i class="fas fa-upload"></i> Preview Updates
+          </button>
+        </div>
+      </div>
+
+      <!-- Update preview table (hidden until upload) -->
+      <div id="pendingUpdatePreviewWrap" style="display:none">
+        <div class="section-hdr fi fi-1" style="margin-top:0">
+          <h3><i class="fas fa-eye"></i> Preview: Records to be Updated</h3>
+        </div>
+
+        <div class="preview-summary fi fi-1">
+          <div class="prev-stat ok">
+            <div class="prev-icon"><i class="fas fa-check-circle"></i></div>
+            <div>
+              <div class="prev-val" id="puPrevOk">—</div>
+              <div class="prev-lbl">Will Update</div>
+            </div>
+          </div>
+          <div class="prev-stat warn">
+            <div class="prev-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+              <div class="prev-val" id="puPrevWarn">—</div>
+              <div class="prev-lbl">Errors / Skipped</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="prev-tbl-wrap fi fi-2">
+          <div class="prev-tbl-scroll">
+            <div class="prev-tbl-hdr" style="grid-template-columns:50px 80px 110px 110px 110px 1fr 1fr 1fr 120px">
+              <div>#</div>
+              <div>ID</div>
+              <div>Division</div>
+              <div>Location</div>
+              <div>Docket No</div>
+              <div>Dispatch Date</div>
+              <div>Delivery Date</div>
+              <div>Logistics Cost</div>
+              <div>Status</div>
+            </div>
+            <div id="pendingUpdatePreviewBody"></div>
+          </div>
+        </div>
+
+        <div class="confirm-bar fi fi-3">
+          <div class="confirm-info" id="pendingUpdateConfirmInfo">—</div>
+          <div class="confirm-btns">
+            <button class="btn btn-navy btn-lg" onclick="confirmPendingUpdate(this)">
+              <i class="fas fa-check"></i> Confirm Updates
+            </button>
+            <button class="btn btn-ghost" onclick="cancelPendingUpdate()">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-pending -->
+
+  </div><!-- /lpu-inner -->
+</div><!-- /lpu-page -->
+
+<!-- ═══ EDIT MODAL ═══ -->
+<div class="lmodal-overlay" id="editModalOverlay">
+  <div class="lmodal" style="max-width:680px">
+    <div class="lmodal-hdr" style="background:var(--blue-lt)">
+      <div class="lmodal-icon" style="background:var(--blue)"><i class="fas fa-pencil-alt"></i></div>
+      <div>
+        <h3 style="color:var(--blue)" id="editModalTitle">Edit Record</h3>
+        <p style="color:var(--navy)" id="editModalSubtitle">Update logistics performance entry</p>
+      </div>
+      <button onclick="closeEditModal()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+
+    <div class="lmodal-body" style="max-height:65vh;overflow-y:auto">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Division</label>
+          <select id="editField_division" class="form-input" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font)">
+            <option value="">—</option>
+            {% for d in lp_divisions %}<option value="{{ d.code }}">{{ d.label }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Location</label>
+          <input id="editField_location" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Plant Name</label>
+          <input id="editField_plant_name" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Billing Doc</label>
+          <input id="editField_billing_doc" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Billing Date</label>
+          <input id="editField_billing_date" type="date" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Invoice Value (₹)</label>
+          <input id="editField_inv_value" type="number" step="0.01" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Doc Type</label>
+          <input id="editField_doc_type" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Shipto Name</label>
+          <input id="editField_shipto_name" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Shipto City</label>
+          <input id="editField_shipto_city" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Shipto Region</label>
+          <input id="editField_shipto_region" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Pincode</label>
+          <input id="editField_pincode" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Mode</label>
+          <select id="editField_mode" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font)">
+            <option value="">—</option>
+            <option>Surface</option><option>Air</option><option>Train</option>
+          </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Docket No</label>
+          <input id="editField_docket_no" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Courier Name</label>
+          <input id="editField_courier_name" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Dispatch Date</label>
+          <input id="editField_dispatch_date" type="date" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Delivery Date</label>
+          <input id="editField_delivery_date" type="date" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Logistics Cost (₹)</label>
+          <input id="editField_basic_logistics_cost" type="number" step="0.01" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Cost Center</label>
+          <input id="editField_cost_center" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Zone</label>
+          <input id="editField_zone" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Creator</label>
+          <input id="editField_creator" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Shipto Party</label>
+          <input id="editField_shipto_party" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Billed Qty</label>
+          <input id="editField_billed_qty" type="number" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Courier No</label>
+          <input id="editField_courier_no" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Courier Code</label>
+          <input id="editField_courier_code" type="text" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Boxes</label>
+          <input id="editField_boxes" type="number" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Chargeable Weight</label>
+          <input id="editField_ch_weight" type="number" step="0.01" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Other Charges (₹)</label>
+          <input id="editField_other_charges" type="number" step="0.01" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:span 2">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Remarks</label>
+          <textarea id="editField_remarks" rows="2" style="padding:7px 10px;font-size:13px;border:1px solid var(--border-md);border-radius:var(--radius-sm);background:var(--bg);font-family:var(--font);width:100%;resize:vertical"></textarea>
+        </div>
+
+      </div>
+
+      <!-- Read-only calculated fields notice -->
+      <div style="margin-top:14px;padding:10px 14px;background:var(--purple-lt);border-radius:var(--radius-md);font-size:12px;color:#5b21b6">
+        <i class="fas fa-magic"></i> <strong>Auto-calculated fields</strong> (TAT, EDD, Dispatch vs EDD, Dispatch vs Delivery) will be recalculated automatically on save.
+      </div>
+    </div>
+
+    <div class="lmodal-footer">
+      <button class="btn btn-ghost" onclick="closeEditModal()">
+        <i class="fas fa-times"></i> Cancel
+      </button>
+      <button class="btn btn-blue" onclick="submitEdit(this)">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ═══ DELETE MODAL ═══ -->
+<div class="lmodal-overlay" id="deleteModalOverlay">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-trash"></i></div>
+      <div>
+        <h3>Confirm Deletion</h3>
+        <p>This action is permanent and cannot be undone</p>
+      </div>
+    </div>
+    <div class="lmodal-body">
+      <div class="alert-banner warn" style="margin-bottom:0">
+        <i class="fas fa-exclamation-triangle" style="color:var(--amber)"></i>
+        <span>This logistics performance record will be permanently deleted.</span>
+      </div>
+      <div class="lmodal-record">
+        <div style="padding:10px 14px;background:var(--bg);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">
+          Record to be deleted
+        </div>
+        <div id="deleteModalRows"></div>
+      </div>
+    </div>
+    <div class="lmodal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">
+        <i class="fas fa-arrow-left"></i> Cancel
+      </button>
+      <button class="btn btn-red" onclick="confirmDelete(this)">
+        <i class="fas fa-trash"></i> Delete Permanently
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ TOAST ═══ -->
+<div class="lpu-toast" id="lpuToast">
+  <i class="fas fa-check-circle"></i>
+  <span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/logistics_performance/logistics_performance_upload.js' %}?v=2"></script>
+{% endblock %}

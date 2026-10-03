@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reconciliation Export — MeriTrack{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-core.css' %}">
+<style>
+.recon-page { max-width:700px; margin:40px auto; padding:0 20px 80px; }
+.recon-card {
+  background:#fff; border:1.5px solid var(--mt-gray-200); border-radius:14px;
+  padding:32px 36px;
+}
+.recon-card h2 { margin:0 0 6px; font-size:1.3rem; color:var(--mt-gray-800); }
+.recon-card p  { margin:0 0 24px; font-size:.9rem; color:var(--mt-gray-600); }
+.recon-form-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+.recon-field { flex:1; min-width:160px; }
+.recon-field label { display:block; font-size:.82rem; font-weight:600; color:var(--mt-gray-700); margin-bottom:5px; }
+.recon-field input[type="date"] {
+  width:100%; padding:.5rem .75rem; border:1.5px solid var(--mt-gray-300); border-radius:8px;
+  font-size:.9rem; color:var(--mt-gray-800); background:#fff;
+}
+.recon-field input[type="date"]:focus { outline:none; border-color:var(--mt-primary); }
+.recon-info {
+  background:var(--mt-primary-lighter); border-left:4px solid var(--mt-info); border-radius:0 8px 8px 0;
+  padding:12px 16px; font-size:.85rem; color:var(--mt-primary-dark); margin-bottom:20px;
+}
+.recon-info strong { display:block; margin-bottom:3px; }
+.btn-export-big {
+  width:100%; padding:.75rem; background:var(--mt-primary); color:#fff; border:none;
+  border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer;
+  transition:background .18s;
+}
+.btn-export-big:hover { background:var(--mt-primary-dark); }
+.btn-export-big:disabled { background:var(--mt-gray-400); cursor:not-allowed; }
+.recon-back { display:inline-block; margin-top:20px; color:var(--mt-gray-600); font-size:.85rem; text-decoration:none; }
+.recon-back:hover { color:var(--mt-primary); }
+
+@media (max-width: 640px) {
+  .recon-page { margin:18px auto; padding:0 13px 40px; }
+  .recon-card { padding:20px 16px; border-radius:12px; }
+  .recon-card h2 { font-size:1.1rem; }
+  .recon-card p  { font-size:.85rem; margin-bottom:18px; }
+  .recon-form-row { flex-direction:column; gap:12px; }
+  .recon-field { min-width:0; width:100%; }
+  .recon-field input[type="date"] { font-size:16px; min-height:44px; }
+  .btn-export-big { min-height:48px; }
+  .recon-info { font-size:.82rem; padding:11px 13px; }
+  .recon-back { min-height:42px; display:inline-flex; align-items:center; }
+}
+</style>
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-motion.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-responsive.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="recon-page">
+    {% include "meritrack/_nav.html" %}
+  <div class="recon-card">
+    <h2>📊 Reconciliation Export</h2>
+    <p>Download scan logs as CSV for SAP reconciliation. Select a date range (max 62 days).</p>
+
+    <div class="recon-info">
+      <strong>What's included</strong>
+      Serial No, GTIN, Lot/Batch, Product Name, Material Code, Session ID, Hospital, SAP Code, Session Type, Action, Expiry Date, Prod. Date, Qty, Scanned By, Scanned Date.
+      Internal placeholder serials (NSN-*) are excluded.
+    </div>
+
+    <div class="recon-form-row">
+      <div class="recon-field">
+        <label for="dateFrom">From Date</label>
+        <input type="date" id="dateFrom">
+      </div>
+      <div class="recon-field">
+        <label for="dateTo">To Date</label>
+        <input type="date" id="dateTo">
+      </div>
+    </div>
+
+    <div id="dateError" style="display:none;color:var(--mt-danger);font-size:.85rem;margin-bottom:12px;"></div>
+
+    <button class="btn-export-big" id="exportBtn" onclick="doExport()">⬇ Download CSV</button>
+  </div>
+
+  <a href="{% url 'meritrack:dashboard' %}" class="recon-back">← Back to Dashboard</a>
+</div>
+
+<script>
+// Pre-fill: last 30 days
+(function() {
+    const today = new Date();
+    const from  = new Date(today); from.setDate(today.getDate() - 30);
+    document.getElementById('dateTo').value   = today.toISOString().slice(0,10);
+    document.getElementById('dateFrom').value = from.toISOString().slice(0,10);
+})();
+
+function doExport() {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    const errEl = document.getElementById('dateError');
+    errEl.style.display = 'none';
+
+    if (!from || !to) { errEl.textContent = 'Please select both dates.'; errEl.style.display = 'block'; return; }
+    if (from > to)    { errEl.textContent = 'From date must be before To date.'; errEl.style.display = 'block'; return; }
+
+    const days = Math.round((new Date(to) - new Date(from)) / 86400000);
+    if (days > 62)    { errEl.textContent = 'Date range cannot exceed 62 days.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true; btn.textContent = '⏳ Preparing…';
+
+    const url = `/meritrack/api/sessions/export_csv/?date_from=${from}&date_to=${to}`;
+    const a = document.createElement('a');
+    a.href = url; a.download = `meritrack_reconciliation_${from}_${to}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+    setTimeout(() => { btn.disabled = false; btn.textContent = '⬇ Download CSV'; }, 2000);
+}
+</script>
+<script src="{% static 'meritrack/js/meritrack-ui.js' %}" defer></script>
+{% endblock %}

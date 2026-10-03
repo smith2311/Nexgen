@@ -1,0 +1,365 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Design Tokens &amp; UI Kit — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<style>
+/* ── UI-kit page chrome ────────────────────────────────────────────────────
+   Deliberately thin: every specimen below must be painted by the real tokens
+   and component classes from meritrack-core.css, so this page can only lay
+   things out — it must never restate a colour, size or shadow.
+   ─────────────────────────────────────────────────────────────────────── */
+.uik-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+.uik-card {
+    background: var(--mt-surface);
+    border: 1px solid var(--mt-gray-200);
+    border-radius: var(--mt-radius-lg);
+    box-shadow: var(--mt-elevation-low);
+    padding: 20px;
+    min-width: 0;
+}
+.uik-card > h2 {
+    margin: 0 0 16px;
+    font-size: var(--mt-text-h4);
+    font-weight: var(--mt-weight-subhead);
+    color: var(--mt-gray-900);
+}
+.uik-sub {
+    margin: 20px 0 10px;
+    font-size: var(--mt-text-small);
+    font-weight: 600;
+    color: var(--mt-gray-600);
+}
+.uik-sub:first-of-type { margin-top: 0; }
+
+/* Colour swatches — the chip is painted with var(), the hex is read back out
+   of the computed style by the script at the bottom of the page. */
+.uik-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.uik-swatch { min-width: 0; }
+.uik-chip {
+    height: 62px;
+    border-radius: var(--mt-radius-sm);
+    border: 1px solid var(--mt-gray-200);
+    box-shadow: var(--mt-shadow-xs);
+}
+.uik-chip-label { display: block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--mt-gray-700); }
+.uik-chip-hex {
+    display: block;
+    font-family: var(--mt-font-mono);
+    font-size: 11px;
+    color: var(--mt-gray-500);
+    text-transform: uppercase;
+}
+.uik-ramp { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.uik-ramp .uik-chip { height: 48px; }
+.uik-ramp .uik-chip-label,
+.uik-ramp .uik-chip-hex { font-size: 10px; text-align: center; }
+
+/* Type scale */
+.uik-type-row {
+    display: grid;
+    grid-template-columns: minmax(96px, 132px) minmax(0, 1fr);
+    gap: 14px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--mt-gray-100);
+}
+.uik-type-row:last-child { border-bottom: none; }
+.uik-type-meta { font-size: 12px; color: var(--mt-gray-500); font-family: var(--mt-font-mono); }
+
+/* Button state matrix */
+.uik-btn-matrix { display: grid; grid-template-columns: minmax(96px, auto) repeat(3, minmax(0, 1fr)); gap: 10px 12px; align-items: center; }
+.uik-btn-matrix > .uik-col-head {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mt-gray-500);
+    text-align: center;
+}
+.uik-btn-matrix > .uik-row-head { font-size: var(--mt-text-small); font-weight: 600; color: var(--mt-gray-700); }
+.uik-btn-cell { display: flex; justify-content: center; }
+/* `.is-active` pins the pressed look so all three states are visible at rest;
+   :hover / :active still work on the Default column. */
+
+.uik-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* Elevation */
+.uik-elev { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 16px; text-align: center; }
+.uik-elev-box {
+    height: 74px;
+    background: var(--mt-surface);
+    border-radius: var(--mt-radius-md);
+    border: 1px solid var(--mt-gray-100);
+}
+.uik-elev-label { display: block; margin-top: 10px; font-size: 12px; color: var(--mt-gray-600); }
+
+/* Form specimens */
+.uik-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.uik-field { min-width: 0; }
+.uik-field > label { display: block; margin-bottom: 6px; font-size: var(--mt-text-small); font-weight: 600; color: var(--mt-gray-700); }
+.uik-field input,
+.uik-field select {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: var(--mt-text-small);
+    color: var(--mt-gray-800);
+    background: var(--mt-surface);
+    border: 1px solid var(--mt-gray-300);
+    border-radius: var(--mt-radius-sm);
+    box-sizing: border-box;
+}
+.uik-field input:focus,
+.uik-field select:focus { outline: none; border-color: var(--mt-primary); box-shadow: 0 0 0 3px var(--mt-primary-glow); }
+.uik-field input.is-focus, .uik-field select.is-focus { border-color: var(--mt-primary); box-shadow: 0 0 0 3px var(--mt-primary-glow); }
+.uik-field input:disabled,
+.uik-field select:disabled { background: var(--mt-gray-100); color: var(--mt-gray-400); cursor: not-allowed; }
+.uik-check { display: flex; align-items: center; gap: 9px; font-size: var(--mt-text-small); color: var(--mt-gray-800); margin-bottom: 10px; }
+.uik-check input { width: 17px; height: 17px; accent-color: var(--mt-primary); }
+.uik-check.is-off { color: var(--mt-gray-400); }
+
+.uik-note {
+    margin: 0 0 22px;
+    font-size: var(--mt-text-small);
+    color: var(--mt-gray-600);
+    line-height: 1.6;
+}
+.uik-note code {
+    font-family: var(--mt-font-mono);
+    font-size: 0.92em;
+    background: var(--mt-gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--mt-gray-800);
+}
+</style>
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-swatchbook"></i> Design Tokens &amp; UI Kit</h1>
+<p>Live reference — rendered from the real tokens in meritrack-core.css</p>
+{% endblock %}
+
+{% block page_content %}
+<p class="uik-note">
+    Every specimen on this page is painted by the shipped design tokens and component
+    classes, and the hex under each swatch is read back from the live stylesheet at
+    render time. If a value here looks wrong, fix <code>:root</code> in
+    <code>static/meritrack/css/meritrack-core.css</code> — not this page.
+</p>
+
+<div class="uik-grid">
+
+    {# ── Colour ──────────────────────────────────────────────────────────── #}
+    <section class="uik-card" style="grid-column: 1 / -1;">
+        <h2>Colour Palette</h2>
+        {% for group in palette %}
+        <h3 class="uik-sub">{{ group.group }}</h3>
+        <div class="uik-swatches">
+            {% for var_name, label in group.swatches %}
+            <div class="uik-swatch">
+                <div class="uik-chip" style="background: var({{ var_name }});" data-token="{{ var_name }}"></div>
+                <span class="uik-chip-label">{{ label }}</span>
+                <span class="uik-chip-hex" data-hex-for="{{ var_name }}">…</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <h3 class="uik-sub">Grayscale Levels</h3>
+        <div class="uik-ramp">
+            {% for var_name, label in grays %}
+            <div class="uik-swatch">
+                <div class="uik-chip" style="background: var({{ var_name }});" data-token="{{ var_name }}"></div>
+                <span class="uik-chip-label">{{ label }}</span>
+                <span class="uik-chip-hex" data-hex-for="{{ var_name }}">…</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Typography ──────────────────────────────────────────────────────── #}
+    <section class="uik-card">
+        <h2>Typography</h2>
+        {% for cls, label, weight, size_var in type_scale %}
+        <div class="uik-type-row">
+            <div>
+                <div class="{{ cls }}">{{ label }}</div>
+                <span class="uik-type-meta" data-hex-for="{{ size_var }}">…</span>
+            </div>
+            <div class="{{ cls }}">Poppins, {{ weight }}</div>
+        </div>
+        {% endfor %}
+    </section>
+
+    {# ── Button states ───────────────────────────────────────────────────── #}
+    <section class="uik-card">
+        <h2>Button States</h2>
+        <div class="uik-btn-matrix">
+            <span></span>
+            <span class="uik-col-head">Default</span>
+            <span class="uik-col-head">Hover</span>
+            <span class="uik-col-head">Active</span>
+
+            {% for label, cls in buttons %}
+            <span class="uik-row-head">{{ label }}</span>
+            <span class="uik-btn-cell"><button type="button" class="{{ cls }}">Default</button></span>
+            <span class="uik-btn-cell"><button type="button" class="{{ cls }} is-hover">Hover</button></span>
+            <span class="uik-btn-cell"><button type="button" class="{{ cls }} is-active">Active</button></span>
+            {% endfor %}
+
+            <span class="uik-row-head">Icon-only</span>
+            <span class="uik-btn-cell"><button type="button" class="btn-mt btn-mt-icon" aria-label="Profile"><i class="fas fa-user"></i></button></span>
+            <span class="uik-btn-cell"><button type="button" class="btn-mt btn-mt-icon is-hover" aria-label="Call"><i class="fas fa-phone"></i></button></span>
+            <span class="uik-btn-cell"><button type="button" class="btn-mt btn-mt-icon is-active" aria-label="Call"><i class="fas fa-phone"></i></button></span>
+
+            <span class="uik-row-head">Disabled</span>
+            <span class="uik-btn-cell"><button type="button" class="btn-mt btn-mt-primary" disabled>Disabled</button></span>
+            <span class="uik-btn-cell"></span>
+            <span class="uik-btn-cell"></span>
+        </div>
+        <p class="uik-note" style="margin: 16px 0 0;">
+            The Hover and Active columns pin their state with
+            <code>.is-hover</code> / <code>.is-active</code>, which the component
+            CSS matches alongside <code>:hover</code> / <code>:active</code>. The
+            Default column still responds to a real pointer.
+        </p>
+    </section>
+
+    {# ── Status badges ───────────────────────────────────────────────────── #}
+    <section class="uik-card">
+        <h2>Status Badges</h2>
+        <h3 class="uik-sub">Solid — <code style="font-family:var(--mt-font-mono);font-size:.9em;">.mt-status-pill</code></h3>
+        <div class="uik-row">
+            <span class="mt-status-pill in-stock">In Stock</span>
+            <span class="mt-status-pill low">Low</span>
+            <span class="mt-status-pill critical">Critical</span>
+            <span class="mt-status-pill info">Pending</span>
+            <span class="mt-status-pill neutral">Archived</span>
+        </div>
+        <h3 class="uik-sub">Tinted — <code style="font-family:var(--mt-font-mono);font-size:.9em;">.badge</code></h3>
+        <div class="uik-row">
+            <span class="badge badge-green">Verified</span>
+            <span class="badge badge-yellow">Expiring</span>
+            <span class="badge badge-red">Expired</span>
+            <span class="badge badge-blue">Audit</span>
+            <span class="badge badge-purple">Transfer</span>
+            <span class="badge badge-gray">Draft</span>
+        </div>
+    </section>
+
+    {# ── Elevation ───────────────────────────────────────────────────────── #}
+    <section class="uik-card">
+        <h2>Elevation / Shadow</h2>
+        <div class="uik-elev">
+            {% for label, var_name in elevation %}
+            <div>
+                <div class="uik-elev-box" style="box-shadow: var({{ var_name }});"></div>
+                <span class="uik-elev-label">{{ label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Form elements ───────────────────────────────────────────────────── #}
+    <section class="uik-card" style="grid-column: 1 / -1;">
+        <h2>Form Elements</h2>
+        <div class="uik-form-grid">
+            <div class="uik-field">
+                <label for="uikEmailDefault">Input — default</label>
+                <input type="email" id="uikEmailDefault" placeholder="Email Address">
+            </div>
+            <div class="uik-field">
+                <label for="uikEmailFocus">Input — focus</label>
+                <input type="email" id="uikEmailFocus" class="is-focus" placeholder="Email Address">
+            </div>
+            <div class="uik-field">
+                <label for="uikEmailDisabled">Input — disabled</label>
+                <input type="email" id="uikEmailDisabled" placeholder="Disabled" disabled>
+            </div>
+            <div class="uik-field">
+                <label for="uikRoleDefault">Dropdown — default</label>
+                <select id="uikRoleDefault">
+                    <option>Select Role</option>
+                    <option>MT Rep</option>
+                    <option>MT Manager</option>
+                </select>
+            </div>
+            <div class="uik-field">
+                <label for="uikRoleFocus">Dropdown — focus</label>
+                <select id="uikRoleFocus" class="is-focus">
+                    <option>Select Role</option>
+                </select>
+            </div>
+            <div class="uik-field">
+                <label for="uikRoleDisabled">Dropdown — disabled</label>
+                <select id="uikRoleDisabled" disabled>
+                    <option>Disabled</option>
+                </select>
+            </div>
+            <div class="uik-field">
+                <span style="display:block;margin-bottom:6px;font-size:var(--mt-text-small);font-weight:600;color:var(--mt-gray-700);">Checkbox</span>
+                <label class="uik-check"><input type="checkbox" checked> Remember Me</label>
+                <label class="uik-check is-off"><input type="checkbox"> Unchecked</label>
+            </div>
+        </div>
+    </section>
+
+    {# ── Table header ────────────────────────────────────────────────────── #}
+    <section class="uik-card" style="grid-column: 1 / -1;">
+        <h2>Table</h2>
+        <div style="overflow-x:auto;">
+            <table class="mt-table">
+                <thead>
+                    <tr><th>Product</th><th>Batch</th><th>Expiry</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Nitrile Gloves (Large)</td><td>GL-L-100</td><td>2027-04-30</td><td><span class="mt-status-pill in-stock">In Stock</span></td></tr>
+                    <tr><td>Surgical Masks</td><td>MK-95</td><td>2026-11-12</td><td><span class="mt-status-pill low">Low</span></td></tr>
+                    <tr><td>Saline Solution 500ml</td><td>SS-500</td><td>2026-08-21</td><td><span class="mt-status-pill critical">Critical</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block extra_js_base %}
+<script>
+(function () {
+    'use strict';
+
+    /* Read each token's resolved value out of the live stylesheet, so the page
+       reports what the CSS actually ships rather than a copy that can drift. */
+    var rootStyle = getComputedStyle(document.documentElement);
+
+    function toHex(value) {
+        var m = value.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+        if (!m) return value;                       // already a hex, or a keyword
+        return '#' + [1, 2, 3].map(function (i) {
+            return ('0' + parseInt(m[i], 10).toString(16)).slice(-2);
+        }).join('');
+    }
+
+    document.querySelectorAll('[data-hex-for]').forEach(function (el) {
+        var token = el.getAttribute('data-hex-for');
+        var raw = rootStyle.getPropertyValue(token).trim();
+        el.textContent = raw ? toHex(raw) : '—';
+    });
+
+    /* Swatch chips resolve var() themselves; pull the painted colour back so a
+       token that silently fails to resolve shows up as a mismatch. */
+    document.querySelectorAll('.uik-chip[data-token]').forEach(function (chip) {
+        var painted = getComputedStyle(chip).backgroundColor;
+        chip.title = chip.getAttribute('data-token') + ' → ' + toHex(painted);
+    });
+
+})();
+</script>
+{% endblock %}

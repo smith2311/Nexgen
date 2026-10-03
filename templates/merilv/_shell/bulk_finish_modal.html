@@ -1,0 +1,59 @@
+{% load merilv_ui %}{% comment %}
+Bulk Finish modal — Row 2.4's parity with the legacy screen's "Finish &
+Export Selected" bar. Unlike the single-delivery finish_modal.html, this
+submits via fetch() to outbound_bulk_finish (which returns JSON, not a
+redirect), so the console never navigates away and the selection/state stay
+in sync with what scanner.js already tracks.
+
+The delivery numbers themselves are never typed here — scanner.js fills a
+hidden input from whatever the Table view's checkboxes currently hold right
+before submit.
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvBulkFinishModal">
+    <div class="mv-modal mv-modal--wide" role="dialog" aria-modal="true" aria-labelledby="mvBulkFinishTitle">
+        <div class="mv-modal__head">
+            <h2 class="mv-t-h2" id="mvBulkFinishTitle">Finish selected deliveries</h2>
+            <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal aria-label="Close">
+                {% icon "close" %}
+            </button>
+        </div>
+        <div class="mv-modal__body">
+            <p class="mv-t-body" style="margin:0 0 var(--mv-4);">
+                <strong data-mv="bulk-finish-modal-count">0</strong> delivery(s) selected. The same courier and
+                packaging details below apply to all of them — a batch finished together normally ships together.
+            </p>
+
+            <div class="mv-field-row">
+                <div class="mv-field">
+                    <label class="mv-label" for="mvBulkFinishCourier">Courier</label>
+                    <input class="mv-input" id="mvBulkFinishCourier" placeholder="Leave blank to auto-resolve per delivery">
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvBulkFinishCourierNo">Courier Number</label>
+                    <input class="mv-input mv-input--mono" id="mvBulkFinishCourierNo">
+                </div>
+            </div>
+
+            <div class="mv-field-row">
+                <div class="mv-field">
+                    <label class="mv-label" for="mvBulkFinishDocket">Docket Number</label>
+                    <input class="mv-input mv-input--mono" id="mvBulkFinishDocket">
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvBulkFinishVehicle">Vehicle Number</label>
+                    <input class="mv-input mv-input--mono" id="mvBulkFinishVehicle">
+                </div>
+            </div>
+
+            <label class="mv-check">
+                <input type="checkbox" id="mvBulkFinishProceed">
+                <span class="mv-t-caption">Force through any selected delivery that is still short, recording it as a partial dispatch.</span>
+            </label>
+            <p class="mv-t-caption" style="margin-top:var(--mv-3);">Short deliveries are skipped (not silently shipped) unless you tick the box above.</p>
+        </div>
+        <div class="mv-modal__foot">
+            <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+            <button type="button" class="mv-btn mv-btn--primary" id="mvBulkFinishSubmit">Finish selected</button>
+        </div>
+    </div>
+</div>

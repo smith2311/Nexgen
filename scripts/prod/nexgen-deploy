@@ -1,0 +1,202 @@
+#!/bin/sh
+# nexgen-deploy — the ONLY thing CI is allowed to run as root on production.
+#
+# Install on the production host as:
+#   sudo install -o root -g root -m 755 nexgen-deploy /usr/local/bin/nexgen-deploy
+#
+# and grant exactly this, nothing wider:
+#   vramani ALL=(root) NOPASSWD: /usr/local/bin/nexgen-deploy
+#
+# Why it exists: prod runs ~28 containers (Jenkins, OpenProject, Metabase,
+# several databases). A blanket `NOPASSWD: /bin/sh` would hand full root over
+# all of them to whoever holds the CI SSH key. This narrows that to "redeploy
+# nexgen, and nothing else" — every path, image and container name below is
+# fixed here rather than supplied by the caller.
+#
+# The caller controls exactly one value, the image tag, and it is validated.
+set -eu
+
+APP_DIR="/home/vramani/nexgen.e-meril.in"
+# Derived rather than hardcoded a second time — see as_owner() below.
+APP_USER=$(stat -c %U "$APP_DIR" 2>/dev/null || echo root)
+COMPOSE_FILE="docker-compose.registry.yml"
+IMAGE="registry-gitlab.e-meril.in/nexgen-it/nexgen.e-meril.in/app"
+CONTAINER="django_app"
+# Checked from ON the prod host: this tests the container itself, isolated from
+# the proxy, DNS and TLS. The public URL is verified separately by CI.
+HEALTH_URL="http://localhost:8020/"
+# Django validates Host against ALLOWED_HOSTS and answers 400 (DisallowedHost)
+# otherwise. curl would send "localhost", which prod does not allow — so we
+# would be testing host validation instead of the app.
+HEALTH_HOST="nexgen.e-meril.in"
+
+usage() {
+    echo "usage: nexgen-deploy {current-tag|pull <tag>|restart <tag>|sync-source <tag>|health|logs}" >&2
+    exit 2
+}
+
+# Run a command as the owner of $APP_DIR.
+#
+# Two reasons not to just run git as root: the checkout belongs to a human, and
+# writing to it as root leaves root-owned objects that their next git command
+# cannot touch; and the remote is HTTPS, so a fetch needs *that user's* stored
+# credentials, which root does not have.
+#
+# `sudo -n` only when we are actually root and actually someone else. Invoked
+# with PROD_USE_SUDO=0 this wrapper already runs as the owner, and calling sudo
+# then would fail for password — the sudoers grant covers this wrapper alone.
+as_owner() {
+    if [ "$(id -u)" = 0 ] && [ "$(id -un)" != "$APP_USER" ]; then
+        sudo -n -u "$APP_USER" "$@"
+    else
+        "$@"
+    fi
+}
+
+# Tags are commit SHAs or version strings. Anything else — shell metacharacters,
+# path traversal, whitespace — is refused outright.
+require_tag() {
+    case "${1:-}" in
+        '')                     echo "nexgen-deploy: tag required" >&2; exit 2 ;;
+        *[!A-Za-z0-9._-]*)      echo "nexgen-deploy: illegal tag" >&2; exit 2 ;;
+        -*|*..*)                echo "nexgen-deploy: illegal tag" >&2; exit 2 ;;
+    esac
+}
+
+case "${1:-}" in
+    current-tag)
+        # Printed alone so the caller can read it back reliably.
+        grep -E '^APP_TAG=' "$APP_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- || true
+        ;;
+
+    pull)
+        require_tag "${2:-}"
+        # Deliberately separate from restart: pulling first means a bad or
+        # missing image costs nothing, because the running container is
+        # untouched until `restart`.
+        podman pull "${IMAGE}:${2}"
+        ;;
+
+    restart)
+        require_tag "${2:-}"
+        cd "$APP_DIR"
+        if grep -q '^APP_TAG=' .env 2>/dev/null; then
+            sed -i "s|^APP_TAG=.*|APP_TAG=${2}|" .env
+        else
+            printf 'APP_TAG=%s\n' "${2}" >> .env
+        fi
+        APP_TAG="${2}" podman-compose -f "$COMPOSE_FILE" up -d
+        ;;
+
+    sync-source)
+        require_tag "${2:-}"
+        # $APP_DIR is NOT what serves traffic — the code comes from the image
+        # (docker-compose.registry.yml mounts only media/, logs/ and the static
+        # volume over it). This directory supplies the compose file, .env and
+        # those mount points, and nothing in a deploy used to update it. So it
+        # drifted: an app deleted in git stayed on disk here indefinitely, which
+        # reads to anyone who looks as "the deploy did not remove the code".
+        # This pins it to the commit that was just deployed.
+        #
+        # WARN-ONLY, ALWAYS. Serving traffic does not depend on this checkout's
+        # git state, and the caller runs this only after the health gate has
+        # passed, so a failure here must never mark a good deploy as failed.
+        # Every path below exits 0.
+        if ! as_owner git -C "$APP_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+            echo "! $APP_DIR is not a git checkout — nothing to sync"
+            exit 0
+        fi
+
+        # Non-fatal: the commit may already be present from an earlier fetch,
+        # and rev-parse below is the real test of whether we can proceed.
+        as_owner git -C "$APP_DIR" fetch --quiet --tags origin 2>&1 \
+            || echo "! git fetch failed (credentials? network?) — trying local objects"
+
+        # ^{commit} resolves both a version tag and a raw SHA, and refuses a tag
+        # that points at anything other than a commit.
+        sha=$(as_owner git -C "$APP_DIR" rev-parse --verify --quiet "${2}^{commit}" 2>/dev/null) || sha=""
+        if [ -z "$sha" ]; then
+            echo "! ${2} is not a known commit in $APP_DIR — checkout left alone." >&2
+            echo "  The deployed image is unaffected; this directory still shows" >&2
+            echo "  older source. Fix with: git -C $APP_DIR fetch --tags origin" >&2
+            exit 0
+        fi
+
+        # Live logs must not be collateral. logs/*.log used to be tracked, and
+        # `reset --hard` onto a commit where a formerly-tracked file is absent
+        # DELETES the working copy — which is the running daphne's open file.
+        # Its writes would then go to an unlinked inode and disappear until the
+        # next restart. Copy the directory aside and put back only what the
+        # reset removed (`cp -n` never overwrites a live file). Once the commit
+        # that untracks them is what prod runs, this is a no-op both ways.
+        keep=$(as_owner mktemp -d 2>/dev/null || echo "")
+        if [ -n "$keep" ] && [ -d "$APP_DIR/logs" ]; then
+            as_owner cp -a "$APP_DIR/logs/." "$keep/" 2>/dev/null || true
+        fi
+
+        if ! as_owner git -C "$APP_DIR" reset --hard --quiet "$sha"; then
+            echo "! git reset failed — checkout left as it was" >&2
+            # An `[ -n ... ] && rm` one-liner would be the last command in an
+            # AND-list, so under `set -e` an empty $keep would exit non-zero and
+            # report a cosmetic step as a deploy-script failure.
+            if [ -n "$keep" ]; then rm -rf "$keep"; fi
+            exit 0
+        fi
+
+        if [ -n "$keep" ]; then
+            as_owner mkdir -p "$APP_DIR/logs"
+            as_owner cp -an "$keep/." "$APP_DIR/logs/" 2>/dev/null || true
+            rm -rf "$keep"
+        fi
+
+        # Deliberately NOT `git clean`. The reset above is the safe half: it
+        # only ever touches files git tracks. A blanket clean on a production
+        # directory is not safe — everything untracked or ignored there is also
+        # irreplaceable: .env, media/ (user uploads), logs/*.log, hand-taken
+        # *.sql dumps, any venv/ built on the box. `-fd` deletes the untracked
+        # ones (logs/*.log among them) and `-fdx` deletes the rest.
+        #
+        # What actually keeps a deleted app visible on disk is narrower than
+        # that. .gitignore covers __pycache__/ and *.pyc, so after the app's
+        # tracked source is removed its compiled remains are still there,
+        # holding the directory open — and no pull or clean-without-x will ever
+        # remove them. Those are regenerated on next import, so this is free.
+        as_owner find "$APP_DIR" \
+            \( -name .git -o -name media -o -name staticfiles \
+               -o -name venv -o -name .venv \) -prune -o \
+            \( -name __pycache__ -prune -exec rm -rf {} + \) -o \
+            \( -name '*.py[co]' -exec rm -f {} + \) \
+            2>/dev/null || true
+
+        # The app's own directory is now empty but still present. rmdir, not
+        # rm -r: it succeeds only on an already-empty directory, so it cannot
+        # take media/, logs/ or a stray dump down with it. Top level only,
+        # which is where Django apps live, and only where git tracks nothing.
+        for d in "$APP_DIR"/*/; do
+            [ -d "$d" ] || continue
+            name=$(basename "$d")
+            if [ -n "$(as_owner git -C "$APP_DIR" ls-files "$name" 2>/dev/null | head -1)" ]; then
+                continue
+            fi
+            if as_owner rmdir "$d" 2>/dev/null; then
+                echo "removed now-empty $name/ (no longer in git)"
+            fi
+        done
+
+        echo "source synced to $(as_owner git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo '?')"
+        ;;
+
+    health)
+        # X-Forwarded-Proto defeats SECURE_SSL_REDIRECT so a real view runs.
+        curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+             -H "Host: $HEALTH_HOST" \
+             -H 'X-Forwarded-Proto: https' "$HEALTH_URL" || printf '000'
+        printf '\n'
+        ;;
+
+    logs)
+        podman logs --tail 60 "$CONTAINER" 2>&1 || true
+        ;;
+
+    *)  usage ;;
+esac

@@ -1,0 +1,906 @@
+/* ============================================================================
+   VendorLink — Geo Command Centre ("Midnight UI")
+   ============================================================================
+
+   A dark, glass command panel dropped into a light page.
+
+   EVERYTHING IS SCOPED UNDER .vlgeo, WITHOUT EXCEPTION
+   ----------------------------------------------------
+   This section sits on the VendorLink launcher, which is a light .vlx page,
+   and Leaflet ships its own global stylesheet. So every rule here — including
+   the Leaflet overrides — is written under .vlgeo. One unscoped `.leaflet-*`
+   rule would repaint the continent picker on the registration form; one
+   unscoped `h3` would repaint the module cards below this one.
+
+   No variable here starts with --vlx- or --vl-. The launcher carries the .vlx
+   token scope and other screens carry .vl, and a third name would eventually
+   be redefined by whichever loads last. --gc-* belongs to this folder alone.
+   ========================================================================= */
+
+.vlgeo {
+    /* ── Palette ─────────────────────────────────────────────────────────
+       Light is the default. Dark is an opt-in variant switched by JS.
+       Accents are used only on data: the blue is sales, the emerald is
+       warehouses, and nothing decorative wears either. */
+    --gc-bg:          #F7FAFC;
+    --gc-bg-2:        #FFFFFF;
+    --gc-glass:       rgba(255, 255, 255, .82);
+    --gc-glass-hover: rgba(255, 255, 255, .96);
+    --gc-line:        rgba(148, 163, 184, .22);
+    --gc-line-strong: rgba(100, 116, 139, .34);
+
+    --gc-ink:         #0F172A;
+    --gc-ink-2:       #475569;
+    --gc-ink-3:       #64748B;
+
+    --gc-surface:     rgba(255, 255, 255, .72);
+    --gc-surface-2:   rgba(248, 250, 252, .92);
+    --gc-map-bg:      linear-gradient(180deg, #EEF4FB, #EAF0F7);
+    --gc-panel-bg:    linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(241, 245, 249, .96));
+    --gc-select-bg:   rgba(255, 255, 255, .96);
+    --gc-select-opt:  #FFFFFF;
+    --gc-row-bg:      rgba(255, 255, 255, .80);
+    --gc-row-hover:   rgba(248, 250, 252, .98);
+    --gc-row-active:  rgba(59, 130, 246, .10);
+    --gc-row-bar:     rgba(148, 163, 184, .16);
+    --gc-tooltip-bg:  rgba(255, 255, 255, .98);
+    --gc-tooltip-border: rgba(148, 163, 184, .26);
+    --gc-tip-head:    linear-gradient(180deg, rgba(59, 130, 246, .10), rgba(59, 130, 246, 0));
+    --gc-tip-divider: rgba(148, 163, 184, .14);
+    --gc-leaflet-control-bg: rgba(255, 255, 255, .92);
+    --gc-leaflet-control-hover: rgba(255, 255, 255, 1);
+    --gc-attrib-bg:   rgba(255, 255, 255, .82);
+    --gc-scrollbar:   rgba(148, 163, 184, .34);
+    --gc-veil:        rgba(255, 255, 255, .58);
+    --gc-theme-btn-bg: rgba(255, 255, 255, .94);
+    --gc-theme-btn-hover: rgba(248, 250, 252, 1);
+    --gc-theme-btn-ink: #0F172A;
+
+    --gc-sales:       #3B82F6;
+    --gc-warehouse:   #10B981;
+    --gc-capacity:    #A855F7;
+    --gc-ontime:      #F59E0B;
+
+    --gc-r:           16px;
+    --gc-r-sm:        10px;
+    --gc-shadow:      0 24px 60px rgba(2, 6, 23, .45), 0 2px 8px rgba(2, 6, 23, .35);
+    --gc-ease:        cubic-bezier(.22, 1, .36, 1);
+
+    position: relative;
+    margin: 24px 0;
+    border-radius: var(--gc-r);
+    border: 1px solid var(--gc-line);
+    background:
+        radial-gradient(1200px 400px at 15% -10%, rgba(59, 130, 246, .12), transparent 60%),
+        radial-gradient(900px 380px at 100% 0%, rgba(16, 185, 129, .08), transparent 55%),
+        var(--gc-bg);
+    box-shadow: var(--gc-shadow);
+    overflow: hidden;
+    color: var(--gc-ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color-scheme: light;
+}
+
+.vlgeo[data-vlgeo-theme="dark"] {
+    --gc-bg:          #0B0F19;
+    --gc-bg-2:        #111827;
+    --gc-glass:       rgba(255, 255, 255, .04);
+    --gc-glass-hover: rgba(255, 255, 255, .07);
+    --gc-line:        rgba(255, 255, 255, .08);
+    --gc-line-strong: rgba(255, 255, 255, .16);
+
+    --gc-ink:         #F8FAFC;
+    --gc-ink-2:       #94A3B8;
+    --gc-ink-3:       #64748B;
+
+    --gc-surface:     rgba(255, 255, 255, .04);
+    --gc-surface-2:   rgba(255, 255, 255, .06);
+    --gc-map-bg:      linear-gradient(180deg, rgba(15, 23, 42, .94), rgba(2, 6, 23, .98));
+    --gc-panel-bg:    linear-gradient(180deg, rgba(17, 24, 39, .55), rgba(11, 15, 25, .9));
+    --gc-select-bg:   rgba(255, 255, 255, .04);
+    --gc-select-opt:  #111827;
+    --gc-row-bg:      rgba(255, 255, 255, .025);
+    --gc-row-hover:   rgba(255, 255, 255, .07);
+    --gc-row-active:  rgba(59, 130, 246, .10);
+    --gc-row-bar:     rgba(255, 255, 255, .06);
+    --gc-tooltip-bg:  rgba(17, 24, 39, .88);
+    --gc-tooltip-border: rgba(255, 255, 255, .16);
+    --gc-tip-head:    linear-gradient(180deg, rgba(59, 130, 246, .16), rgba(59, 130, 246, 0));
+    --gc-tip-divider: rgba(255, 255, 255, .06);
+    --gc-leaflet-control-bg: rgba(17, 24, 39, .7);
+    --gc-leaflet-control-hover: rgba(31, 41, 55, .9);
+    --gc-attrib-bg:   rgba(11, 15, 25, .72);
+    --gc-scrollbar:   rgba(255, 255, 255, .12);
+    --gc-veil:        rgba(11, 15, 25, .55);
+    --gc-theme-btn-bg: rgba(255, 255, 255, .08);
+    --gc-theme-btn-hover: rgba(255, 255, 255, .14);
+    --gc-theme-btn-ink: #F8FAFC;
+    color-scheme: dark;
+}
+
+.vlgeo *, .vlgeo *::before, .vlgeo *::after { box-sizing: border-box; }
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.vlgeo__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--gc-line);
+}
+
+.vlgeo__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.vlgeo__title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    color: var(--gc-ink);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.vlgeo__title-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--gc-warehouse);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, .16);
+}
+
+.vlgeo__sub {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--gc-ink-2);
+}
+
+/* Breadcrumb — the trail is also the tier indicator, so there is never a
+   question of which level is on screen. */
+.vlgeo__trail {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+
+.vlgeo__theme {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--gc-line);
+    background: var(--gc-theme-btn-bg);
+    color: var(--gc-theme-btn-ink);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 160ms var(--gc-ease), background 160ms ease, border-color 160ms ease;
+}
+.vlgeo__theme:hover {
+    background: var(--gc-theme-btn-hover);
+    border-color: var(--gc-line-strong);
+    transform: translateY(-1px);
+}
+.vlgeo__theme:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
+}
+.vlgeo__theme svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.vlgeo__crumb {
+    appearance: none;
+    border: 1px solid transparent;
+    background: none;
+    color: var(--gc-ink-2);
+    font: inherit;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background var(--gc-fast, 140ms) ease, color 140ms ease;
+}
+.vlgeo__crumb:hover { background: var(--gc-glass); color: var(--gc-ink); }
+.vlgeo__crumb[aria-current="true"] {
+    background: var(--gc-glass);
+    border-color: var(--gc-line);
+    color: var(--gc-ink);
+    cursor: default;
+    font-weight: 600;
+}
+.vlgeo__crumb-sep { color: var(--gc-ink-3); }
+
+/* ── The four dependent selects ───────────────────────────────────────── */
+
+/* A band between the header and the map, full width, so the four read as one
+   control over the whole section rather than as four fields in the sidebar.
+   They wrap to two rows before they shrink: a truncated "New South Wales" is
+   worse than a second line. */
+.vlgeo__filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px 20px 14px;
+    border-bottom: 1px solid var(--gc-line);
+    background: var(--gc-surface);
+}
+
+.vlgeo__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.vlgeo__filter-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gc-ink-3);
+}
+
+.vlgeo__select {
+    width: 100%;
+    height: 34px;
+    padding: 0 30px 0 11px;
+    border-radius: var(--gc-r-sm);
+    border: 1px solid var(--gc-line);
+    background-color: var(--gc-select-bg);
+    color: var(--gc-ink);
+    font: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    /* The caret is a background image rather than a pseudo-element: a <select>
+       cannot carry one, and wrapping it in a div to fake one loses the native
+       dropdown on mobile. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2394A3B8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    transition: border-color 140ms ease, background-color 140ms ease;
+    text-overflow: ellipsis;
+}
+.vlgeo__select:hover:not(:disabled) {
+    border-color: var(--gc-line-strong);
+    background-color: var(--gc-glass-hover);
+}
+.vlgeo__select:focus-visible {
+    outline: none;
+    border-color: var(--gc-sales);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .22);
+}
+.vlgeo__select:disabled { opacity: .45; cursor: not-allowed; }
+
+/* The list itself is drawn by the OS, which does not inherit the page's dark
+   surface — these two make the options legible instead of white-on-white. */
+.vlgeo__select option { background: var(--gc-select-opt); color: var(--gc-ink); }
+.vlgeo__select { color-scheme: inherit; }
+
+/* ── Body: 70 / 30 command-centre split ───────────────────────────────── */
+
+.vlgeo__body {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    min-height: 520px;
+}
+
+.vlgeo__stage {
+    position: relative;
+    min-height: 520px;
+    border-right: 1px solid var(--gc-line);
+}
+
+.vlgeo__map {
+    position: absolute;
+    inset: 0;
+    background: var(--gc-bg);
+}
+
+/* ── Map overlays ─────────────────────────────────────────────────────── */
+
+.vlgeo__overlay {
+    position: absolute;
+    z-index: 620;                 /* above Leaflet panes, below its popups */
+    pointer-events: none;
+}
+.vlgeo__overlay > * { pointer-events: auto; }
+
+.vlgeo__overlay--tl { top: 14px; left: 14px; display: flex; gap: 8px; align-items: center; }
+.vlgeo__overlay--bl { bottom: 14px; left: 14px; }
+
+.vlgeo-glass {
+    background: var(--gc-glass);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid var(--gc-line);
+    border-radius: var(--gc-r-sm);
+    box-shadow: 0 8px 24px rgba(2, 6, 23, .35);
+}
+
+.vlgeo__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 13px 8px 10px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 560;
+    color: var(--gc-ink);
+    cursor: pointer;
+    transition: transform 160ms var(--gc-ease), background 160ms ease, opacity 160ms ease;
+}
+.vlgeo__back:hover { background: var(--gc-glass-hover); transform: translateX(-2px); }
+.vlgeo__back svg { width: 14px; height: 14px; }
+/* Hidden at tier 1 rather than removed: the button keeps its slot, so the
+   tier badge beside it does not jump sideways on every drill. */
+.vlgeo__back[hidden] { display: none; }
+
+.vlgeo__tier {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gc-ink-2);
+}
+.vlgeo__tier b { color: var(--gc-ink); font-weight: 650; }
+
+.vlgeo__legend {
+    padding: 10px 12px;
+    font-size: 11.5px;
+    color: var(--gc-ink-2);
+    display: grid;
+    gap: 6px;
+}
+.vlgeo__legend-row { display: flex; align-items: center; gap: 8px; }
+.vlgeo__legend-sw {
+    width: 10px; height: 10px; border-radius: 3px;
+    background: var(--gc-sales);
+    box-shadow: 0 0 10px rgba(59, 130, 246, .6);
+}
+.vlgeo__legend-sw--approx { border-radius: 50%; background: var(--gc-ontime); box-shadow: 0 0 10px rgba(245, 158, 11, .6); }
+.vlgeo__legend-sw--scope { background: rgba(148, 163, 184, .34); box-shadow: none; }
+.vlgeo__legend-sw--pin { border-radius: 50%; background: var(--gc-warehouse); box-shadow: 0 0 10px rgba(16, 185, 129, .7); }
+
+/* ── Analytics panel ──────────────────────────────────────────────────── */
+
+.vlgeo__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    background: var(--gc-panel-bg);
+    min-width: 0;
+}
+
+.vlgeo__panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.vlgeo__scope {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
+.vlgeo__scope-kind {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--gc-ink-3);
+}
+
+.vlgeo__kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.vlgeo-kpi {
+    position: relative;
+    padding: 13px 13px 12px;
+    background: var(--gc-glass);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--gc-line);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 200ms ease, transform 200ms var(--gc-ease);
+}
+.vlgeo-kpi:hover { border-color: var(--gc-line-strong); transform: translateY(-1px); }
+
+/* The accent is a 2px rail on the left edge, not a coloured number: the
+   figure has to stay white to be read at a glance, and the rail is what
+   ties the tile to its colour on the map. */
+.vlgeo-kpi::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--gc-kpi, var(--gc-sales));
+    box-shadow: 0 0 12px var(--gc-kpi, var(--gc-sales));
+}
+.vlgeo-kpi[data-accent="sales"]     { --gc-kpi: var(--gc-sales); }
+.vlgeo-kpi[data-accent="warehouse"] { --gc-kpi: var(--gc-warehouse); }
+.vlgeo-kpi[data-accent="capacity"]  { --gc-kpi: var(--gc-capacity); }
+.vlgeo-kpi[data-accent="ontime"]    { --gc-kpi: var(--gc-ontime); }
+
+.vlgeo-kpi__label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--gc-ink-3);
+}
+.vlgeo-kpi__value {
+    display: block;
+    margin-top: 5px;
+    font-size: 24px;
+    font-weight: 660;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--gc-ink);
+}
+.vlgeo-kpi__sub {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--gc-ink-2);
+}
+.vlgeo-kpi__meter {
+    margin-top: 9px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .07);
+    overflow: hidden;
+}
+.vlgeo-kpi__meter i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: var(--gc-kpi);
+    box-shadow: 0 0 10px var(--gc-kpi);
+    transition: width 900ms var(--gc-ease);
+}
+
+/* A value that changed on the last drill flashes once — the panel is at the
+   edge of vision while the eye is on the map, and a silent swap is missed. */
+@keyframes vlgeo-bump {
+    0%   { transform: translateY(4px); opacity: .35; }
+    100% { transform: translateY(0);   opacity: 1; }
+}
+.vlgeo-kpi--changed .vlgeo-kpi__value { animation: vlgeo-bump 420ms var(--gc-ease); }
+
+/* ── Ranked list — the panel's other half ─────────────────────────────── */
+
+.vlgeo__list-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--gc-ink-3);
+}
+
+.vlgeo__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    overflow-y: auto;
+    /* Bounded so the panel cannot grow past the map beside it; the scrollbar
+       is styled below because the default light one is jarring on charcoal. */
+    max-height: 246px;
+    padding-right: 4px;
+}
+
+.vlgeo__row {
+    position: relative;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+    align-items: center;
+    padding: 9px 11px;
+    border: 1px solid transparent;
+    border-radius: var(--gc-r-sm);
+    background: var(--gc-row-bg);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms var(--gc-ease);
+}
+.vlgeo__row:hover, .vlgeo__row:focus-visible {
+    background: var(--gc-row-hover);
+    border-color: var(--gc-line);
+    transform: translateX(2px);
+    outline: none;
+}
+.vlgeo__row.is-active { border-color: rgba(59, 130, 246, .5); background: var(--gc-row-active); }
+.vlgeo__row[data-leaf="1"] { cursor: default; }
+.vlgeo__row[data-leaf="1"]:hover { transform: none; }
+
+.vlgeo__row-name { font-size: 12.5px; font-weight: 560; color: var(--gc-ink); }
+.vlgeo__row-val  { font-size: 12.5px; font-weight: 620; font-variant-numeric: tabular-nums; color: var(--gc-ink); }
+.vlgeo__row-meta { grid-column: 1 / -1; font-size: 11px; color: var(--gc-ink-2); display: flex; gap: 10px; }
+.vlgeo__row-bar  { grid-column: 1 / -1; height: 2px; border-radius: 999px; background: var(--gc-row-bar); overflow: hidden; margin-top: 2px; }
+.vlgeo__row-bar i { display: block; height: 100%; background: var(--gc-sales); box-shadow: 0 0 8px rgba(59, 130, 246, .8); }
+
+.vlgeo__list::-webkit-scrollbar { width: 6px; }
+.vlgeo__list::-webkit-scrollbar-track { background: transparent; }
+.vlgeo__list::-webkit-scrollbar-thumb { background: var(--gc-scrollbar); border-radius: 999px; }
+
+.vlgeo__hint {
+    font-size: 11px;
+    color: var(--gc-ink-3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+/* ── City pins ────────────────────────────────────────────────────────── */
+
+/* A teardrop, not a dot. The marker is anchored at its tip (see iconAnchor in
+   geo-command.js) so the point sits on the coordinate, which is how a map pin
+   is read — a dot centred on the coordinate looks right until two of them are
+   near each other and neither says which is which.
+
+   The glyph is one inline SVG rather than a background image: it inherits
+   currentColor, so the approximate and hover states are a colour change and
+   not a second asset. */
+.vlgeo-pin {
+    position: relative;
+    width: 24px;
+    height: 32px;
+    color: var(--gc-warehouse);
+    transition: transform 180ms var(--gc-ease), color 180ms ease;
+    transform-origin: 50% 100%;      /* grow from the tip, which must not move */
+}
+
+.vlgeo-pin__glyph {
+    position: absolute;
+    inset: 0;
+    width: 24px;
+    height: 32px;
+    fill: currentColor;
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, .55))
+            drop-shadow(0 3px 5px rgba(2, 6, 23, .55));
+    stroke: rgba(255, 255, 255, .9);
+    stroke-width: 1;
+    z-index: 2;
+}
+.vlgeo-pin__eye { fill: rgba(11, 15, 25, .92); stroke: none; }
+
+/* The pulse sits under the tip, on the ground, rather than around the whole
+   pin — a ring around a teardrop reads as a halo, a ring at the tip reads as
+   a position. */
+.vlgeo-pin__pulse {
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .45;
+    animation: vlgeo-pulse 2.6s cubic-bezier(.25, .6, .35, 1) infinite;
+    z-index: 1;
+}
+
+@keyframes vlgeo-pulse {
+    0%   { transform: scale(.6); opacity: .55; }
+    70%  { transform: scale(2.8); opacity: 0; }
+    100% { transform: scale(2.8); opacity: 0; }
+}
+
+.vlgeo-pin:hover { transform: scale(1.18); }
+
+/* A pin the master could not place sits on the country centroid, so it says
+   so: amber, hollow centre, no pulse. Claiming street-level precision for a
+   guess is the one thing this map must not do. */
+.vlgeo-pin--approx { color: var(--gc-ontime); }
+.vlgeo-pin--approx .vlgeo-pin__glyph {
+    filter: drop-shadow(0 3px 5px rgba(2, 6, 23, .55));
+    opacity: .9;
+    stroke-dasharray: 2.5 2.5;
+}
+.vlgeo-pin--approx .vlgeo-pin__pulse { display: none; }
+
+/* More than one vendor at the same coordinate: the badge is the only way the
+   reader knows the others are under there. */
+.vlgeo-pin__count {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--gc-bg-2);
+    border: 1px solid var(--gc-line-strong);
+    color: var(--gc-ink);
+    font-size: 10px;
+    font-weight: 650;
+    line-height: 14px;
+    text-align: center;
+    z-index: 3;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────── */
+
+/* Leaflet's own tooltip chrome is stripped back to nothing and rebuilt, which
+   is cheaper than fighting its border, arrow and white background one
+   !important at a time. */
+.vlgeo .leaflet-tooltip.vlgeo-tip {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    white-space: normal;
+    /* Leaflet fades tooltips with its own opacity transition; this overrides
+       it so the card slides up as it arrives. */
+    animation: vlgeo-tip-in 200ms var(--gc-ease) both;
+}
+.vlgeo .leaflet-tooltip.vlgeo-tip::before { display: none; }   /* the arrow */
+
+@keyframes vlgeo-tip-in {
+    from { opacity: 0; transform: translateY(8px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.vlgeo-tip__card {
+    min-width: 236px;
+    max-width: 320px;
+    padding: 0;
+    border-radius: 12px;
+    background: var(--gc-tooltip-bg);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--gc-tooltip-border);
+    box-shadow: 0 18px 40px rgba(2, 6, 23, .6);
+    color: var(--gc-ink);
+    overflow: hidden;
+}
+
+/* ── Where this is ── */
+
+/* The place header reads the way the question was asked: continent, country,
+   then the state and city in the size that says which of the four you are
+   looking at. */
+.vlgeo-tip__place {
+    padding: 11px 13px 10px;
+    background: var(--gc-tip-head);
+    border-bottom: 1px solid var(--gc-line);
+}
+.vlgeo-tip__crumbs {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--gc-ink-3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.vlgeo-tip__crumbs i { font-style: normal; color: var(--gc-ink-3); opacity: .7; }
+.vlgeo-tip__city {
+    margin-top: 3px;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
+.vlgeo-tip__state { font-size: 11.5px; color: var(--gc-ink-2); }
+.vlgeo-tip__state em { font-style: normal; color: var(--gc-ontime); }
+
+/* ── Who is there ── */
+
+.vlgeo-tip__vendors { padding: 4px 13px 11px; }
+
+.vlgeo-tip__vendor {
+    padding: 9px 0 2px;
+    border-top: 1px solid var(--gc-tip-divider);
+}
+.vlgeo-tip__vendor:first-child { border-top: 0; }
+
+.vlgeo-tip__vname {
+    font-size: 12.5px;
+    font-weight: 620;
+    color: var(--gc-ink);
+    margin-bottom: 5px;
+}
+
+/* Label and value on one line, label fixed-width, so three rows of contact
+   details line up into a block the eye can scan rather than read. */
+.vlgeo-tip__row {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 8px;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.vlgeo-tip__rk { color: var(--gc-ink-3); }
+.vlgeo-tip__rv { color: var(--gc-ink-2); word-break: break-word; }
+.vlgeo-tip__link { color: #93C5FD; text-decoration: none; }
+
+.vlgeo-tip__addr {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 7px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--gc-surface-2);
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--gc-ink-2);
+}
+.vlgeo-tip__addr svg {
+    width: 13px;
+    height: 13px;
+    flex: none;
+    margin-top: 1px;
+    color: var(--gc-warehouse);
+}
+
+.vlgeo-tip__caps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 7px;
+}
+.vlgeo-tip__cap {
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--gc-line);
+    background: var(--gc-surface-2);
+    font-size: 9.5px;
+    letter-spacing: .02em;
+    color: var(--gc-ink-2);
+}
+
+.vlgeo-tip__more {
+    margin-top: 9px;
+    padding-top: 8px;
+    border-top: 1px solid var(--gc-line);
+    font-size: 10.5px;
+    color: var(--gc-ink-3);
+}
+
+/* ── Leaflet, restyled for charcoal ───────────────────────────────────── */
+
+.vlgeo .leaflet-container {
+    background: var(--gc-map-bg);
+    font-family: inherit;
+    outline: none;
+}
+
+.vlgeo .leaflet-control-zoom { border: 0 !important; margin: 14px !important; }
+.vlgeo .leaflet-control-zoom a {
+    width: 30px; height: 30px; line-height: 29px;
+    background: var(--gc-leaflet-control-bg);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--gc-line);
+    color: var(--gc-ink-2);
+    transition: background 140ms ease, color 140ms ease;
+}
+.vlgeo .leaflet-control-zoom a:first-child { border-radius: 8px 8px 0 0; }
+.vlgeo .leaflet-control-zoom a:last-child  { border-radius: 0 0 8px 8px; border-top: 0; }
+.vlgeo .leaflet-control-zoom a:hover { background: var(--gc-leaflet-control-hover); color: var(--gc-ink); }
+
+.vlgeo .leaflet-control-attribution {
+    background: var(--gc-attrib-bg);
+    color: var(--gc-ink-3);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 6px 0 0 0;
+}
+.vlgeo .leaflet-control-attribution a { color: var(--gc-ink-2); }
+
+.vlgeo .leaflet-interactive:focus { outline: none; }
+
+/* ── Loading & error states ───────────────────────────────────────────── */
+
+.vlgeo__veil {
+    position: absolute;
+    inset: 0;
+    z-index: 700;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    background: var(--gc-veil);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    transition: opacity 260ms ease, visibility 260ms;
+}
+.vlgeo__veil[hidden] { display: none; }
+.vlgeo__spinner {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .12);
+    border-top-color: var(--gc-sales);
+    animation: vlgeo-spin 700ms linear infinite;
+}
+@keyframes vlgeo-spin { to { transform: rotate(360deg); } }
+
+.vlgeo__error {
+    margin: 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #FCA5A5;
+    background: rgba(185, 28, 28, .14);
+    border-top: 1px solid rgba(248, 113, 113, .25);
+}
+.vlgeo__error[hidden] { display: none; }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+    .vlgeo__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .vlgeo-kpi__value { font-size: 21px; }
+}
+
+/* Below this the 30% column is too narrow for a KPI pair, so the panel goes
+   under the map and the map takes the full width it was always short of. */
+@media (max-width: 900px) {
+    .vlgeo__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .vlgeo__body { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+    .vlgeo__stage { min-height: 420px; border-right: 0; border-bottom: 1px solid var(--gc-line); }
+    .vlgeo__list { max-height: 300px; }
+}
+
+@media (max-width: 560px) {
+    .vlgeo { margin: 18px 0; border-radius: 12px; }
+    .vlgeo__filters { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; }
+    .vlgeo__head { padding: 14px 14px 12px; }
+    .vlgeo__stage { min-height: 340px; }
+    .vlgeo__panel { padding: 14px; }
+    .vlgeo__kpis { grid-template-columns: minmax(0, 1fr); }
+    .vlgeo__overlay--bl { display: none; }   /* the legend costs more than it gives here */
+}
+
+/* ── Motion preferences ───────────────────────────────────────────────── */
+
+/* The pulse is the one animation that is purely decorative and runs forever;
+   it is the first thing to go. flyTo is stopped in JS, which reads the same
+   media query — see PREFERS_STILL in geo-command.js. */
+@media (prefers-reduced-motion: reduce) {
+    .vlgeo *, .vlgeo *::before, .vlgeo *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+    }
+    .vlgeo-pin__pulse { display: none; }
+}

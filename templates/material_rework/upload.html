@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Data — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/upload.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-upload"></i> Upload Rework Data</h1>
+        <p>Select Vertical &amp; Department, then upload your Excel file.</p>
+    </div>
+
+    {% comment %}
+    error_title lets the country check announce itself as a country problem
+    rather than a generic "please fix the following" — the row-by-row list
+    underneath is much easier to act on when it is labelled.
+    {% endcomment %}
+    {% if errors %}
+    <div class="alert-error">
+        <strong>{{ error_title|default:"Please fix the following:" }}</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% for msg in messages %}
+    <div class="alert-success"><i class="fas fa-check-circle"></i> {{ msg }}</div>
+    {% endfor %}
+
+
+    {% if has_draft %}
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 16px;margin-bottom:16px;color:#92400e;font-size:.87rem;display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-history"></i>
+        <span><strong>Draft restored.</strong> Your previous selections have been reloaded. You can clear them by <a href="#" onclick="clearDraft(event)" style="color:#b45309;font-weight:700;">discarding the draft</a>.</span>
+    </div>
+    {% endif %}
+
+    <!-- Download Template button -->
+    <div style="margin-bottom:16px;">
+        <a href="{% url 'material_rework:upload_template' %}"
+           style="display:inline-flex;align-items:center;gap:8px;padding:9px 18px;background:#fff;color:#0076c8;border:1.5px solid #0076c8;border-radius:7px;font-size:.85rem;font-weight:700;text-decoration:none;transition:background .15s,color .15s;"
+           onmouseover="this.style.background='#0076c8';this.style.color='#fff';"
+           onmouseout="this.style.background='#fff';this.style.color='#0076c8';">
+            <i class="fas fa-file-download"></i> Download Upload Template
+        </a>
+        <span style="font-size:.78rem;color:#94a3b8;margin-left:10px;">Get the pre-formatted Excel file with the correct column structure.</span>
+    </div>
+
+    <div class="md-card-form">
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+
+            <p class="section-label"><i class="fas fa-layer-group"></i> &nbsp;Vertical &amp; Department</p>
+
+            <div class="form-group">
+                <label>Vertical <span class="req">*</span></label>
+                <select name="vertical" id="verticalSelect" required>
+                    <option value="">— Select Vertical —</option>
+                    {% for v in verticals %}
+                    <option value="{{ v.id }}" {% if sel_vertical == v.id|stringformat:"s" %}selected{% endif %}>{{ v.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Department <span class="req">*</span></label>
+                <select name="department" id="deptSelect" required>
+                    <option value="">— Select Department —</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Requested By <span class="req">*</span></label>
+                <select name="requested_by" id="requestedBySelect" required>
+                    <option value="">— Select —</option>
+                    {% for opt in requested_by_opts %}
+                    <option value="{{ opt.id }}" {% if sel_requested_by == opt.id|stringformat:"s" %}selected{% endif %}>{{ opt.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Type of Rework <span class="req">*</span></label>
+                <select name="rework_type" id="reworkTypeSelect" required>
+                    <option value="">— Select —</option>
+                    {% for opt in rework_type_opts %}
+                    <option value="{{ opt.id }}" {% if sel_rework_type == opt.id|stringformat:"s" %}selected{% endif %}>{{ opt.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if not rework_type_opts %}
+                <p class="file-hint">No types configured yet — an administrator adds these under Masters.</p>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Location <span class="req">*</span></label>
+                <select name="location" id="locationSelect" required>
+                    <option value="">— Select —</option>
+                    {% for opt in location_opts %}
+                    <option value="{{ opt.id }}" {% if sel_location == opt.id|stringformat:"s" %}selected{% endif %}>{{ opt.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if not location_opts %}
+                <p class="file-hint">No locations configured yet — an administrator adds these under Masters.</p>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label>Priority <span class="req">*</span></label>
+                <select name="priority" id="prioritySelect" required>
+                    {% for value, label in priority_choices %}
+                    <option value="{{ value }}" {% if sel_priority == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <p class="file-hint">Higher-priority rework is listed first at every review stage.</p>
+            </div>
+
+            {% comment %}
+            The flow this batch will take, shown live from the Requested By and
+            Type of Rework selections. Uploaders previously discovered the
+            route from the success message; with the route configurable and a
+            rework type able to override the requester, being told up front is
+            the difference between "why did this skip PPIC?" and knowing it
+            would.
+
+            The server re-resolves and re-validates on submit — this panel is
+            never the decision, only the preview.
+            {% endcomment %}
+            <div class="form-group" id="flowPreview" style="display:none;">
+                <label>Approval flow</label>
+                <div id="flowPreviewBody"
+                     style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;font-size:.83rem;color:#075985;"></div>
+                <p class="file-hint" id="flowPreviewNote"></p>
+            </div>
+
+            {% comment %}
+            Slot dates, required only when the flow ends at Warehouse. That
+            flow has no Production Review, which is where the slot is normally
+            booked — so on that route alone the uploader commits to the window
+            the material will be worked in.
+            {% endcomment %}
+            <div id="slotFields" style="display:{% if slot_required %}block{% else %}none{% endif %};">
+                <div class="form-group">
+                    <label>Slot From <span class="req">*</span></label>
+                    <input type="date" name="slot_from" id="slotFrom" value="{{ sel_slot_from|default:'' }}"
+                           style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+                </div>
+                <div class="form-group">
+                    <label>Slot To <span class="req">*</span></label>
+                    <input type="date" name="slot_to" id="slotTo" value="{{ sel_slot_to|default:'' }}"
+                           style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+                </div>
+                <p class="file-hint">
+                    This request goes straight to Warehouse with no production review,
+                    so the rework window is committed here.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Email Subject <span class="req">*</span></label>
+                <input type="text" name="subject" id="subjectInput"
+                       value="{{ sel_subject|default:'' }}"
+                       maxlength="500"
+                       placeholder="Enter subject"
+                       required
+                       style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+                {% comment %} <p class="file-hint" id="subjectHint">
+                    <span id="wordCount" style="font-weight:700;">
+                </p> {% endcomment %}
+            </div>
+
+            {% comment %} <hr class="form-divider"> {% endcomment %}
+            <p class="section-label"><i class="fas fa-file-excel"></i> &nbsp;Excel File</p>
+
+            <div class="form-group">
+                <label>Upload File <span class="req">*</span></label>
+                <input type="file" name="excel_file" id="excelFileInput" accept=".xlsx,.xls" required>
+                <p class="file-hint">Accepted format: .xlsx or .xls</p>
+            </div>
+
+            <button type="submit" class="btn-primary" id="uploadBtn"><i class="fas fa-eye"></i> Preview &amp; Upload</button>
+        </form>
+
+        <div class="sample-row">
+            <p class="sample-label">Expected Excel column format:</p>
+            <div style="overflow-x:auto;">
+            <table class="sample-table" style="min-width:1100px;">
+                <thead>
+                    <tr>
+                        <th>Serial Number</th><th>Country</th>
+                        <th>From Country</th><th>To Country</th>
+                        <th>Code</th><th>Batch</th>
+                        <th>Mfg Date</th><th>Exp Date</th>
+                        <th>From Storage Location</th><th>To Storage Location</th>
+                        <th>Qty</th><th>Box No</th><th>Remarks</th><th>Uploaded At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Polyester Suture 3-0</td><td>India</td>
+                        <td>India</td><td>Germany</td>
+                        <td>MS300242</td><td>BEU007</td>
+                        <td>Jul-23</td><td>Jun-28</td><td>FG02</td><td>FG14</td>
+                        <td>5</td><td>1</td><td>Outer Box damage, change the Box</td><td>01.06.2026</td>
+                    </tr>
+                    <tr>
+                        <td>Bone Screw 4.5mm</td><td>Vietnam</td>
+                        <td>Vietnam</td><td>India</td>
+                        <td>MS300100</td><td>BT-002</td>
+                        <td>Mar-24</td><td>Feb-29</td><td>WH01</td><td>FG08</td>
+                        <td>5</td><td>2</td><td>Expired product</td><td>01.06.2026</td>
+                    </tr>
+                    <tr>
+                        <td>Absorbable Suture</td><td>India</td>
+                        <td>India</td><td>India</td>
+                        <td>SAP-10023</td><td>BT-003</td>
+                        <td>Jan-22</td><td>Dec-26</td><td>WH03</td><td>FG01</td>
+                        <td>5</td><td>1</td><td>Damaged packaging</td><td>01.06.2026</td>
+                    </tr>
+                    <tr>
+                        <td>Hip Implant Set</td><td>Germany</td>
+                        <td>Germany</td><td>India</td>
+                        <td>MS400011</td><td>BEU009</td>
+                        <td>Nov-23</td><td>Oct-28</td><td>FG05</td><td>FG11</td>
+                        <td>8</td><td>3</td><td>Short expiry</td><td>01.06.2026</td>
+                    </tr>
+                    <tr>
+                        <td>Knee Prosthesis</td><td>India</td>
+                        <td>India</td><td>Vietnam</td>
+                        <td>SAP-20045</td><td>BT-010</td>
+                        <td>Aug-23</td><td>Jul-27</td><td>WH02</td><td>FG09</td>
+                        <td>10</td><td>1</td><td></td><td>01.06.2026</td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<!-- Upload Loader -->
+<div id="uploadLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+    <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#10b981;border-radius:50%;animation:spin .85s linear infinite;"></div>
+    <div style="text-align:center;">
+        <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Uploading your file…</p>
+        <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+    </div>
+</div>
+
+<!-- Excel Preview Modal -->
+<div class="prev-overlay" id="previewOverlay">
+    <div class="prev-modal">
+        <div class="prev-head">
+            <span class="prev-title"><i class="fas fa-table" style="color:#1d4ed8"></i> Excel Preview</span>
+            <button class="prev-close" onclick="closePreview()" title="Cancel">&times;</button>
+        </div>
+        <div class="prev-meta" id="previewMeta"></div>
+        <div class="prev-warn" id="previewWarn" style="display:none">
+            <i class="fas fa-exclamation-triangle"></i> Showing first <strong>100</strong> rows. The full file will be uploaded.
+        </div>
+        <div class="prev-body" id="previewBody">
+            <div class="prev-loading"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>Reading file…</div>
+        </div>
+        <div class="prev-foot">
+            <span class="prev-foot-note" id="previewFootNote"></span>
+            <div class="prev-actions">
+                <button class="btn-cancel-prev" onclick="closePreview()"><i class="fas fa-times"></i> Cancel</button>
+                <button class="btn-confirm" id="confirmBtn" onclick="confirmUpload()" disabled>
+                    <i class="fas fa-paper-plane"></i> Confirm &amp; Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SheetJS for client-side Excel parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* The routing table, handed over once rather than fetched on every dropdown
+ * change — it is a handful of rows. The same precedence the server applies is
+ * applied here (a rework-type rule beats a requested-by rule), and the server
+ * re-resolves on POST regardless, so this only tells the uploader what will
+ * happen. */
+const ROUTING_MAP = {{ routing_map|default:"null"|safe }};
+
+const DEPT_URL         = "{% url 'material_rework:departments_ajax' 0 %}".replace('/0/', '/');
+const SAVE_SESSION_URL = "{% url 'material_rework:save_upload_session' %}";
+const CSRF_TOKEN       = "{{ csrf_token }}";
+const savedDept        = "{{ sel_dept|default:'' }}";
+</script>
+<script src="{% static 'js/material-rework/upload.js' %}"></script>
+<script>
+(function () {
+    const input = document.getElementById('subjectInput');
+    const counter = document.getElementById('wordCount');
+    const hint = document.getElementById('subjectHint');
+    if (!input || !counter || !hint) return;
+
+    function updateCount() {
+        const words = input.value.trim() ? input.value.trim().split(/\s+/).length : 0;
+        counter.textContent = words;
+        const over = words > 100;
+        counter.style.color = over ? '#dc2626' : '#059669';
+        hint.style.color    = over ? '#dc2626' : '#6b7280';
+        input.setCustomValidity(over ? 'Subject cannot exceed 100 words.' : '');
+    }
+    input.addEventListener('input', updateCount);
+    updateCount();
+})();
+
+/* ── Flow preview ──────────────────────────────────────────────────────────
+ * Shows the approval chain the batch will follow, and reveals the slot fields
+ * when that chain ends at Warehouse — the one route with no production review,
+ * and therefore the one where the uploader books the slot.
+ */
+(function () {
+    'use strict';
+
+    if (!ROUTING_MAP) { return; }
+
+    var requestedBy = document.getElementById('requestedBySelect');
+    var reworkType  = document.getElementById('reworkTypeSelect');
+    var preview     = document.getElementById('flowPreview');
+    var body        = document.getElementById('flowPreviewBody');
+    var note        = document.getElementById('flowPreviewNote');
+    var slotFields  = document.getElementById('slotFields');
+    var slotFrom    = document.getElementById('slotFrom');
+    var slotTo      = document.getElementById('slotTo');
+
+    if (!requestedBy || !reworkType || !preview || !body) { return; }
+
+    function resolve() {
+        /* Rework type first: assigning a type is how a batch is sent straight
+           to whoever should handle it, so it has to beat the requester. */
+        var byType = ROUTING_MAP.rework_type[reworkType.value];
+        if (byType) { return { entry: byType, origin: 'the ' + textOf(reworkType) + ' rework type' }; }
+        var byReq = ROUTING_MAP.requested_by[requestedBy.value];
+        if (byReq) { return { entry: byReq, origin: 'the ' + textOf(requestedBy) + ' flow' }; }
+        return { entry: ROUTING_MAP.default, origin: 'the default flow (no rule set)' };
+    }
+
+    function textOf(select) {
+        var opt = select.options[select.selectedIndex];
+        return opt ? opt.text.trim() : '';
+    }
+
+    function render() {
+        if (!requestedBy.value && !reworkType.value) {
+            preview.style.display = 'none';
+            setSlotRequired(false);
+            return;
+        }
+
+        var resolved = resolve();
+        var stages = resolved.entry.stages || [];
+
+        body.textContent = '';
+        stages.forEach(function (stage, index) {
+            if (index > 0) {
+                var arrow = document.createElement('span');
+                arrow.style.color = '#7dd3fc';
+                arrow.textContent = '→';
+                body.appendChild(arrow);
+            }
+            var chip = document.createElement('span');
+            var terminal = stage === resolved.entry.terminal;
+            chip.style.cssText = 'padding:3px 11px;border-radius:999px;font-weight:700;'
+                + (terminal
+                    ? 'background:#dcfce7;color:#166534;'
+                    : 'background:#fff;color:#0369a1;border:1px solid #bae6fd;');
+            /* textContent: the label is master data, and there is no reason
+               to let markup through into the page. */
+            chip.textContent = labelFor(stage);
+            body.appendChild(chip);
+        });
+
+        preview.style.display = 'block';
+        note.textContent = 'Routed by ' + resolved.origin + '.';
+        setSlotRequired(resolved.entry.terminal === ROUTING_MAP.warehouse_terminal);
+    }
+
+    var LABELS = {
+        om: 'Order Management',
+        ppic: 'PPIC',
+        production: 'Production',
+        warehouse: 'Warehouse',
+    };
+    function labelFor(stage) { return LABELS[stage] || stage; }
+
+    function setSlotRequired(required) {
+        if (!slotFields) { return; }
+        slotFields.style.display = required ? 'block' : 'none';
+        /* required is toggled rather than left on: a hidden required input
+           blocks submit with a validation message pointing at a field the
+           user cannot see. */
+        if (slotFrom) { slotFrom.required = required; }
+        if (slotTo)   { slotTo.required = required; }
+    }
+
+    requestedBy.addEventListener('change', render);
+    reworkType.addEventListener('change', render);
+    render();
+}());
+</script>
+{% endblock %}

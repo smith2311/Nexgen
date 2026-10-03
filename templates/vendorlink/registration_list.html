@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Vendor Registrations — VendorLink{% endblock %}
+{% block page_title %}Vendor Registrations{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'components/modal/modal.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:vm_home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Vendor Master
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-user-check"></i> Vendor Registrations</h1>
+          <p>Review self-submitted registrations — approving creates the Vendor Master
+             record and emails portal credentials.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ counts.pending }}</div>
+            <div class="lm-hstat-lbl">Pending</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ counts.approved }}</div>
+            <div class="lm-hstat-lbl">Approved</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lm-tabs">
+        <a href="?status=pending{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="lm-tab-btn {% if status_filter == 'pending' %}active{% endif %}" style="text-decoration:none;">
+          <i class="fas fa-clock"></i> Pending
+          {% if counts.pending %}<span class="lm-tab-badge">{{ counts.pending }}</span>{% endif %}
+        </a>
+        <a href="?status=approved{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="lm-tab-btn {% if status_filter == 'approved' %}active{% endif %}" style="text-decoration:none;">
+          <i class="fas fa-circle-check"></i> Approved
+        </a>
+        <a href="?status=rejected{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="lm-tab-btn {% if status_filter == 'rejected' %}active{% endif %}" style="text-decoration:none;">
+          <i class="fas fa-circle-xmark"></i> Rejected
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="get" class="filter-bar vl-row-form" id="vrSearchForm" style="margin-bottom:14px;">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <label for="vr-q" class="vl-sr">Search registrations</label>
+      <div class="search-wrap" style="min-width:280px;">
+        <i class="fas fa-search"></i>
+        <input type="text" id="vr-q" name="q" value="{{ q }}" class="form-input" style="width:100%;"
+               placeholder="Search company, email, country…" autocomplete="off">
+      </div>
+      <button type="submit" class="btn btn-navy btn-sm"><i class="fas fa-search"></i> Search</button>
+      {% if q %}
+      <a href="?status={{ status_filter }}" class="btn btn-ghost btn-sm"><i class="fas fa-xmark"></i> Clear</a>
+      {% endif %}
+    </form>
+
+    {% if status_filter == 'pending' %}
+    <div class="vl-bulk" id="vrBulkBar">
+      <span><span class="vl-bulk-count" id="vrSelCount">0</span> selected</span>
+      <button type="button" class="btn btn-green btn-sm" onclick="vrBulkApprove()">
+        <i class="fas fa-check"></i> Approve selected
+      </button>
+      <button type="button" class="btn btn-red btn-sm" onclick="vrBulkRejectOpen()">
+        <i class="fas fa-xmark"></i> Reject selected
+      </button>
+      <button type="button" class="vl-bulk-cancel" onclick="vrDeselectAll()">
+        <i class="fas fa-xmark"></i> Deselect all
+      </button>
+    </div>
+
+    <form id="vrBulkApproveForm" method="post" action="{% url 'vendorlink:bulk_registration_action' %}" hidden>
+      {% csrf_token %}<input type="hidden" name="action" value="approve"><div id="vrBulkApproveInputs"></div>
+    </form>
+    <form id="vrBulkRejectForm" method="post" action="{% url 'vendorlink:bulk_registration_action' %}" hidden>
+      {% csrf_token %}<input type="hidden" name="action" value="reject">
+      <input type="hidden" name="reason" id="vrBulkRejectReason"><div id="vrBulkRejectInputs"></div>
+    </form>
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left"></div>
+      <div class="record-count">
+        {{ registrations|length }} {{ status_filter }} registration{{ registrations|length|pluralize }}
+      </div>
+    </div>
+
+    {% if registrations %}
+    {% if status_filter == 'pending' %}
+      {% with cols="36px 1.5fr 1.2fr 1.4fr 1.1fr 110px 180px" %}
+      <div class="tbl-wrap vl-wide-scroll" style="--cols: {{ cols }}">
+        <div class="tbl-head" style="grid-template-columns: var(--cols)">
+          <div>
+            <label for="vrSelectAll" class="vl-sr">Select all registrations</label>
+            <input type="checkbox" class="vl-chk" id="vrSelectAll" onchange="vrToggleAll(this.checked)">
+          </div>
+          <div>Company</div>
+          <div>Location</div>
+          <div>Contact</div>
+          <div>Capabilities</div>
+          <div>Submitted</div>
+          <div style="text-align:right;">Actions</div>
+        </div>
+        {% for reg in registrations %}
+        <div class="tbl-row" style="grid-template-columns: var(--cols)">
+          <div>
+            <label for="vr-chk-{{ reg.pk }}" class="vl-sr">Select {{ reg.vendor_name }}</label>
+            <input type="checkbox" id="vr-chk-{{ reg.pk }}" class="vl-chk vr-row-chk"
+                   value="{{ reg.pk }}" onchange="vrUpdateBulkBar()">
+          </div>
+          <div>
+            <div class="tbl-name">{{ reg.vendor_name }}</div>
+            {% if reg.website %}
+            <div class="tbl-sub"><a href="{{ reg.website }}" target="_blank" rel="noopener">{{ reg.website|truncatechars:34 }}</a></div>
+            {% endif %}
+          </div>
+          <div class="tbl-desc">
+            <i class="fas fa-location-dot vl-muted"></i> {{ reg.country }}
+            {% if reg.state or reg.city %}<div class="tbl-sub">{{ reg.state|default:"—" }}{% if reg.city %}, {{ reg.city }}{% endif %}</div>{% endif %}
+          </div>
+          <div>
+            <div class="tbl-name">{{ reg.contact_person }}</div>
+            <div class="tbl-sub"><a href="mailto:{{ reg.email }}">{{ reg.email }}</a></div>
+            {% if reg.mobile %}<div class="tbl-sub">{{ reg.mobile }}</div>{% endif %}
+          </div>
+          <div class="vl-caps">
+            {% include "vendorlink/_reg_caps.html" with reg=reg %}
+          </div>
+          <div class="tbl-desc">
+            {{ reg.submitted_at|date:"d M Y" }}
+            <div class="tbl-sub">{{ reg.submitted_at|date:"H:i" }}</div>
+          </div>
+          <div class="tbl-actions" style="justify-content:flex-end;">
+            <form method="post" action="{% url 'vendorlink:approve_registration' reg.pk %}" style="display:inline;margin:0;"
+                  data-vl-confirm="Approve {{ reg.vendor_name }}? This creates a Vendor Master record and emails portal credentials."
+                  data-vl-confirm-title="Approve Registration" data-vl-confirm-ok="Approve">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-green btn-sm"><i class="fas fa-check"></i> Approve</button>
+            </form>
+            <button type="button" class="btn btn-red btn-sm"
+                    onclick="vrOpenReject({{ reg.pk }}, '{{ reg.vendor_name|escapejs }}')">
+              <i class="fas fa-xmark"></i> Reject
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endwith %}
+    {% else %}
+      {% with cols="1.5fr 1.2fr 1.4fr 1.1fr 110px 130px 1fr" %}
+      <div class="tbl-wrap vl-wide-scroll" style="--cols: {{ cols }}">
+        <div class="tbl-head" style="grid-template-columns: var(--cols)">
+          <div>Company</div>
+          <div>Location</div>
+          <div>Contact</div>
+          <div>Capabilities</div>
+          <div>Submitted</div>
+          <div>Status</div>
+          <div>Reviewed by</div>
+        </div>
+        {% for reg in registrations %}
+        <div class="tbl-row" style="grid-template-columns: var(--cols)">
+          <div>
+            <div class="tbl-name">{{ reg.vendor_name }}</div>
+            {% if reg.website %}
+            <div class="tbl-sub"><a href="{{ reg.website }}" target="_blank" rel="noopener">{{ reg.website|truncatechars:34 }}</a></div>
+            {% endif %}
+          </div>
+          <div class="tbl-desc">
+            <i class="fas fa-location-dot vl-muted"></i> {{ reg.country }}
+            {% if reg.state or reg.city %}<div class="tbl-sub">{{ reg.state|default:"—" }}{% if reg.city %}, {{ reg.city }}{% endif %}</div>{% endif %}
+          </div>
+          <div>
+            <div class="tbl-name">{{ reg.contact_person }}</div>
+            <div class="tbl-sub"><a href="mailto:{{ reg.email }}">{{ reg.email }}</a></div>
+          </div>
+          <div class="vl-caps">
+            {% include "vendorlink/_reg_caps.html" with reg=reg %}
+          </div>
+          <div class="tbl-desc">
+            {{ reg.submitted_at|date:"d M Y" }}
+            <div class="tbl-sub">{{ reg.submitted_at|date:"H:i" }}</div>
+          </div>
+          <div>
+            {% if reg.status == 'approved' %}
+            <span class="badge badge-green"><i class="fas fa-check"></i> Approved</span>
+            {% elif reg.status == 'rejected' %}
+            <span class="badge badge-red"><i class="fas fa-xmark"></i> Rejected</span>
+            {% else %}
+            <span class="badge badge-amber"><i class="fas fa-clock"></i> {{ reg.get_status_display }}</span>
+            {% endif %}
+            {% if reg.rejection_reason and reg.status == 'rejected' %}
+            <div class="tbl-sub" style="max-width:170px;">{{ reg.rejection_reason|truncatechars:60 }}</div>
+            {% endif %}
+          </div>
+          <div class="tbl-desc">
+            {% if reg.reviewed_by %}
+            {{ reg.reviewed_by.get_full_name|default:reg.reviewed_by.username }}
+            <div class="tbl-sub">{{ reg.reviewed_at|date:"d M Y" }}</div>
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endwith %}
+    {% endif %}
+    {% else %}
+    <div class="tbl-wrap">
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        {% if q %}
+        <p>No {{ status_filter }} registrations matching &ldquo;<strong>{{ q }}</strong>&rdquo;.</p>
+        <a href="?status={{ status_filter }}" class="btn btn-ghost btn-sm" style="margin-top:14px;">
+          <i class="fas fa-xmark"></i> Clear search
+        </a>
+        {% else %}
+        <p>No {{ status_filter }} registrations.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Single reject -->
+<div class="lmodal-overlay" id="vrRejectModal">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-circle-xmark"></i></div>
+      <div>
+        <h3>Reject registration</h3>
+        <p id="vrRejectLabel"></p>
+      </div>
+    </div>
+    <form id="vrRejectForm" method="post">
+      {% csrf_token %}
+      <div class="lmodal-body">
+        <label for="vrSingleReason" class="form-label">Reason <span class="form-hint">(optional)</span></label>
+        <textarea name="reason" id="vrSingleReason" class="form-textarea"
+                  placeholder="Explain why — this is included in the vendor's notification email"></textarea>
+      </div>
+      <div class="lmodal-footer">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="Modal.close('vrRejectModal')">Cancel</button>
+        <button type="submit" class="btn btn-red btn-sm"><i class="fas fa-xmark"></i> Confirm rejection</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Bulk reject -->
+<div class="lmodal-overlay" id="vrBulkRejectModal">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-circle-xmark"></i></div>
+      <div>
+        <h3>Bulk reject</h3>
+        <p id="vrBulkRejectLabel"></p>
+      </div>
+    </div>
+    <div class="lmodal-body">
+      <label for="vrBulkReasonInput" class="form-label">Reason <span class="form-hint">(optional)</span></label>
+      <textarea id="vrBulkReasonInput" class="form-textarea"
+                placeholder="Sent to every selected vendor"></textarea>
+    </div>
+    <div class="lmodal-footer">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="Modal.close('vrBulkRejectModal')">Cancel</button>
+      <button type="button" class="btn btn-red btn-sm" onclick="vrBulkRejectSubmit()">
+        <i class="fas fa-xmark"></i> Reject all selected
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+<script src="{% static 'components/modal/modal.js' %}"></script>
+<script>
+Modal.wire();
+
+function vrOpenReject(pk, name) {
+  document.getElementById('vrRejectLabel').textContent = 'Rejecting: ' + name;
+  document.getElementById('vrRejectForm').action = '/vendorlink/registrations/' + pk + '/reject/';
+  document.getElementById('vrSingleReason').value = '';
+  Modal.open('vrRejectModal');
+}
+
+function vrGetChecked() {
+  return Array.prototype.slice.call(document.querySelectorAll('.vr-row-chk:checked'));
+}
+
+function vrUpdateBulkBar() {
+  var checked = vrGetChecked();
+  var bar = document.getElementById('vrBulkBar');
+  if (!bar) return;
+  document.getElementById('vrSelCount').textContent = checked.length;
+  bar.classList.toggle('visible', checked.length > 0);
+
+  var allChk = document.getElementById('vrSelectAll');
+  if (allChk) {
+    var all = document.querySelectorAll('.vr-row-chk');
+    allChk.indeterminate = checked.length > 0 && checked.length < all.length;
+    allChk.checked = all.length > 0 && checked.length === all.length;
+  }
+}
+
+function vrToggleAll(checked) {
+  document.querySelectorAll('.vr-row-chk').forEach(function (c) { c.checked = checked; });
+  vrUpdateBulkBar();
+}
+function vrDeselectAll() { vrToggleAll(false); }
+
+function vrBuildInputs(containerId, pks) {
+  var c = document.getElementById(containerId);
+  c.innerHTML = '';
+  pks.forEach(function (pk) {
+    var i = document.createElement('input');
+    i.type = 'hidden'; i.name = 'pks'; i.value = pk;
+    c.appendChild(i);
+  });
+}
+
+function vrBulkApprove() {
+  var pks = vrGetChecked().map(function (c) { return c.value; });
+  if (!pks.length) return;
+  window.vlConfirm(
+    'Approve ' + pks.length + ' vendor(s)? This creates Vendor Master records and sends credentials by email.',
+    { title: 'Approve Selected', confirmText: 'Approve All' }
+  ).then(function (ok) {
+    if (!ok) return;
+    vrBuildInputs('vrBulkApproveInputs', pks);
+    document.getElementById('vrBulkApproveForm').submit();
+  });
+}
+
+function vrBulkRejectOpen() {
+  var pks = vrGetChecked();
+  if (!pks.length) return;
+  document.getElementById('vrBulkRejectLabel').textContent =
+    'Rejecting ' + pks.length + ' registration(s) — each vendor is notified by email.';
+  document.getElementById('vrBulkReasonInput').value = '';
+  Modal.open('vrBulkRejectModal');
+}
+
+function vrBulkRejectSubmit() {
+  var pks = vrGetChecked().map(function (c) { return c.value; });
+  if (!pks.length) return;
+  document.getElementById('vrBulkRejectReason').value = document.getElementById('vrBulkReasonInput').value;
+  vrBuildInputs('vrBulkRejectInputs', pks);
+  document.getElementById('vrBulkRejectForm').submit();
+}
+</script>
+{% endblock %}

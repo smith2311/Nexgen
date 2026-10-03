@@ -1,0 +1,461 @@
+{% extends "ai_sales_agent_dashboard/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}🏥 Hospital Accounts{% endblock %}
+{% block topbar_title %}🏥 Hospital Accounts{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'ai_sales_agent_dashboard:hospital_create' %}" class="btn-topbar btn-topbar-primary">➕ New Hospital</a>
+<a href="{% url 'ai_sales_agent_dashboard:dashboard_home' %}" class="btn-topbar btn-topbar-outline">← Dashboard</a>
+{% endblock %}
+
+{% block extra_style %}
+.hosp-stats { display: grid; grid-template-columns: repeat(5,1fr); gap:14px; margin-bottom:24px; }
+@media(max-width:900px){.hosp-stats{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:560px){.hosp-stats{grid-template-columns:repeat(2,1fr);}}
+
+/* ── Filter bar ── */
+.filter-bar {
+  background:var(--bg-card); border:1px solid var(--border); border-radius:14px;
+  padding:14px 18px; margin-bottom:8px;
+}
+.filter-bar-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.filter-bar-row + .filter-bar-row { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.filter-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--text-muted); white-space:nowrap; }
+.filter-active-badge { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; border-radius:9px; background:#7c3aed; color:#fff; font-size:10px; font-weight:800; padding:0 5px; }
+
+/* ── View toggle ── */
+.view-toggle { display:flex; gap:4px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:3px; }
+.view-btn { padding:5px 12px; border-radius:6px; border:none; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-muted); transition:all .2s; }
+.view-btn.active { background:var(--bg-card); color:var(--text-primary); box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+
+/* ── Table ── */
+.pipeline-table-wrap { overflow-x:auto; border-radius:14px; width:100%; }
+.pipeline-table { width:100%; border-collapse:collapse; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.pipeline-table th { padding:11px 14px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--text-muted); background:var(--bg-secondary); border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
+.pipeline-table th:hover { color:var(--text-primary); }
+.pipeline-table th .sort-icon { margin-left:4px; opacity:.4; }
+.pipeline-table th.sort-active .sort-icon { opacity:1; color:var(--accent-purple); }
+.pipeline-table td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.05); font-size:13px; color:var(--text-secondary); vertical-align:middle; }
+.pipeline-table tr:last-child td { border-bottom:none; }
+.pipeline-table tr:hover td { background:rgba(124,58,237,0.03); }
+
+/* ── Score bar ── */
+.inline-score { display:flex; align-items:center; gap:6px; min-width:90px; }
+.inline-score-track { flex:1; height:5px; background:rgba(0,0,0,0.08); border-radius:4px; overflow:hidden; }
+.inline-score-fill { height:100%; border-radius:4px; }
+.inline-score-val { font-size:12px; font-weight:700; white-space:nowrap; }
+
+/* ── Tier badges ── */
+.tier-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+.tier-hot  { background:rgba(239,68,68,.12); color:#ef4444; border:1px solid rgba(239,68,68,.2); }
+.tier-warm { background:rgba(245,158,11,.12); color:#f59e0b; border:1px solid rgba(245,158,11,.2); }
+.tier-cold { background:rgba(107,114,128,.12); color:#6b7280; border:1px solid rgba(107,114,128,.2); }
+
+.view-row-btn { display:inline-flex; align-items:center; gap:4px; padding:4px 12px; border-radius:6px; background:rgba(124,58,237,.1); color:var(--accent-purple); border:1px solid rgba(124,58,237,.2); font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap; transition:all .2s; }
+.view-row-btn:hover { background:rgba(124,58,237,.2); }
+
+/* ── Hospital name ── */
+.hosp-row-name { font-size:13px; font-weight:700; color:var(--text-primary); transition:color .15s; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:260px; }
+.hosp-row-name:hover { color:var(--accent-purple); }
+.hosp-row-loc { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+/* ── Cards ── */
+.hospital-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+@media(max-width:640px){.hospital-grid{grid-template-columns:1fr;}}
+.hospital-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px 20px; text-decoration:none; display:block; transition:all .25s; position:relative; overflow:hidden; }
+.hospital-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--tier-color,#6b7280); }
+.hospital-card:hover { border-color:var(--border-hover); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.1); }
+.hospital-name { font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:3px; line-height:1.35; }
+.hospital-location { font-size:11px; color:var(--text-muted); margin-bottom:10px; }
+.score-bar { margin:10px 0; }
+.score-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:4px; }
+.score-track { height:5px; background:rgba(0,0,0,0.08); border-radius:4px; overflow:hidden; }
+.score-fill { height:100%; border-radius:4px; background:var(--score-color,#7c3aed); }
+.hospital-meta-row { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--text-muted); margin-top:8px; }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+.empty-state-icon { font-size:48px; margin-bottom:12px; }
+.empty-state-title { font-size:16px; font-weight:700; color:var(--text-secondary); }
+
+.section-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+.section-heading-title { font-size:16px; font-weight:800; color:var(--text-primary); }
+.section-heading-sub { font-size:12px; color:var(--text-muted); }
+
+@media(max-width:700px){
+  .pipeline-table th:nth-child(n+5),
+  .pipeline-table td:nth-child(n+5){ display:none; }
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats row -->
+<div class="hosp-stats">
+  <div class="stat-card" style="--stat-color:#7c3aed">
+    <div class="stat-icon">🎯</div>
+    <div class="stat-value">{{ icp_total }}</div>
+    <div class="stat-label">AI Pipeline Leads</div>
+  </div>
+  <div class="stat-card" style="--stat-color:#ef4444">
+    <div class="stat-icon">🔥</div>
+    <div class="stat-value">{{ icp_hot_count }}</div>
+    <div class="stat-label">HOT (≥70)</div>
+  </div>
+  <div class="stat-card" style="--stat-color:#f59e0b">
+    <div class="stat-icon">🌡️</div>
+    <div class="stat-value">{{ icp_warm_count }}</div>
+    <div class="stat-label">WARM (40–69)</div>
+  </div>
+  <div class="stat-card" style="--stat-color:#6b7280">
+    <div class="stat-icon">❄️</div>
+    <div class="stat-value">{{ icp_cold_count }}</div>
+    <div class="stat-label">NURTURE (&lt;40)</div>
+  </div>
+  <div class="stat-card" style="--stat-color:#059669">
+    <div class="stat-icon">🏥</div>
+    <div class="stat-value">{{ total }}</div>
+    <div class="stat-label">Manual CRM</div>
+  </div>
+</div>
+
+<!-- ── Filter bar ── -->
+<form method="get" id="filter-form" class="filter-bar">
+  <!-- Row 1: search + view -->
+  <div class="filter-bar-row">
+    <input type="text" name="q" id="filter-q" value="{{ search }}" class="search-input"
+           placeholder="🔍 Search name, contact, city…" style="flex:1;min-width:180px"
+           autocomplete="off">
+    <div class="view-toggle" style="margin-left:auto">
+      <button type="button" class="view-btn active" id="btn-table" onclick="switchView('table')">☰ List</button>
+      <button type="button" class="view-btn" id="btn-grid" onclick="switchView('grid')">⊞ Cards</button>
+    </div>
+  </div>
+
+  <!-- Row 2: dropdowns -->
+  <div class="filter-bar-row">
+    <span class="filter-label">Filter &amp; Sort</span>
+
+    <select name="tier" class="select-input" onchange="this.form.submit()" title="Tier (by Lead Score)">
+      <option value="">🏷️ All Tiers</option>
+      <option value="hot"  {% if tier_filter == 'hot'  %}selected{% endif %}>🔥 HOT  (≥70)</option>
+      <option value="warm" {% if tier_filter == 'warm' %}selected{% endif %}>🌡️ WARM (40–69)</option>
+      <option value="cold" {% if tier_filter == 'cold' %}selected{% endif %}>❄️ NURTURE (&lt;40)</option>
+    </select>
+
+    <select name="type_f" class="select-input" onchange="this.form.submit()" title="Hospital Type">
+      <option value="">🏥 All Types</option>
+      {% for ht in hospital_type_choices %}
+      <option value="{{ ht }}" {% if type_filter == ht %}selected{% endif %}>{{ ht|capfirst }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="sort" class="select-input" onchange="this.form.submit()" title="Sort by">
+      <option value="score_desc" {% if sort_by == 'score_desc' %}selected{% endif %}>📊 Score: High → Low</option>
+      <option value="score_asc"  {% if sort_by == 'score_asc'  %}selected{% endif %}>📊 Score: Low → High</option>
+      <option value="name"       {% if sort_by == 'name'       %}selected{% endif %}>🔤 Name A→Z</option>
+      <option value="city"       {% if sort_by == 'city'       %}selected{% endif %}>📍 City A→Z</option>
+    </select>
+
+    <input type="number" name="score_min" value="{{ score_min }}" min="0" max="100"
+           class="search-input" style="width:90px" placeholder="ICP fit ≥"
+           title="Minimum ICP fit score (AI scoring)" onchange="this.form.submit()">
+
+    <input type="number" name="lead_score_min" value="{{ lead_score_min }}" min="0" max="100"
+           class="search-input" style="width:100px" placeholder="CRM lead ≥"
+           title="Minimum CRM lead score (HubSpot)" onchange="this.form.submit()">
+
+    {% if active_filter_count %}
+    <span class="filter-active-badge" title="{{ active_filter_count }} active filter{{ active_filter_count|pluralize }}">{{ active_filter_count }}</span>
+    <a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}" class="btn btn-outline btn-sm" style="white-space:nowrap">✕ Clear filters</a>
+    {% endif %}
+  </div>
+</form>
+<div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;padding-left:4px">
+  Showing <strong>{{ icp_total }}</strong> lead{{ icp_total|pluralize }} — tier from ICP fit score&nbsp;
+  <span style="color:#ef4444">🔥≥70</span>&nbsp;
+  <span style="color:#f59e0b">🌡️40–69</span>&nbsp;
+  <span style="color:#6b7280">❄️&lt;40</span>&nbsp;·&nbsp;
+  <span style="opacity:.7">ICP Fit = AI scoring · CRM Lead = HubSpot score</span>
+</div>
+
+<!-- Section header -->
+<div class="section-heading">
+  <div>
+    <div class="section-heading-title">🎯 AI Pipeline Leads</div>
+    <div class="section-heading-sub">ICP-scored hospitals — click any row to see the full agent detail</div>
+  </div>
+  {% if icp_total %}
+  <span style="background:rgba(124,58,237,0.1);color:var(--accent-purple);border:1px solid rgba(124,58,237,0.2);padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700">
+    {{ icp_total }} account{{ icp_total|pluralize }}
+  </span>
+  {% endif %}
+</div>
+
+<!-- ── TABLE VIEW ── -->
+<div id="view-table">
+{% if icp_hospital_leads %}
+<div class="pipeline-table-wrap">
+  <table class="pipeline-table" id="leads-table">
+    <thead>
+      <tr>
+        <th style="width:36px">#</th>
+        <th class="sortable {% if sort_by == 'name' %}sort-active{% endif %}"
+            onclick="tableSort('name')">
+          Hospital <span class="sort-icon">{% if sort_by == 'name' %}↕{% else %}↕{% endif %}</span>
+        </th>
+        <th>Tier</th>
+        <th class="sortable {% if sort_by == 'score_desc' or sort_by == 'score_asc' %}sort-active{% endif %}"
+            onclick="tableSort('score')">
+          ICP Fit <span class="sort-icon">{% if sort_by == 'score_asc' %}↑{% else %}↓{% endif %}</span>
+        </th>
+        <th>CRM Lead</th>
+        <th>Type</th>
+        <th>Contact</th>
+        <th>Stage</th>
+        <th style="max-width:160px">Rec. Action</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lead in icp_hospital_leads %}
+      <tr>
+        <td style="font-size:11px;color:var(--text-muted);font-weight:600">{{ forloop.counter }}</td>
+        <td>
+          <a href="{% url 'ai_sales_agent_dashboard:scraped_lead_detail' lead.place_id %}" style="text-decoration:none">
+            <div class="hosp-row-name">{{ lead.name }}</div>
+            <div class="hosp-row-loc">{% if lead.city %}📍 {{ lead.city }}{% endif %}</div>
+          </a>
+        </td>
+        <td>
+          <span class="tier-badge tier-{{ lead.icp_tier }}">
+            {% if lead.icp_tier == 'hot' %}🔥{% elif lead.icp_tier == 'warm' %}🌡️{% else %}❄️{% endif %}
+            {{ lead.tier_label }}
+          </span>
+        </td>
+        <td>
+          <div class="inline-score">
+            <div class="inline-score-track">
+              <div class="inline-score-fill"
+                   style="width:{{ lead.fit_score }}%;background:{% if lead.fit_score >= 70 %}#22c55e{% elif lead.fit_score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}">
+              </div>
+            </div>
+            <span class="inline-score-val"
+                  style="color:{% if lead.fit_score >= 70 %}#22c55e{% elif lead.fit_score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}">
+              {{ lead.fit_score }}
+            </span>
+          </div>
+        </td>
+        <td>
+          {% if lead.crm_score %}
+          <div class="inline-score">
+            <div class="inline-score-track">
+              <div class="inline-score-fill" style="width:{{ lead.crm_score }}%;background:#a78bfa"></div>
+            </div>
+            <span class="inline-score-val" style="color:#a78bfa">{{ lead.crm_score }}</span>
+          </div>
+          {% else %}
+          <span style="font-size:11px;color:var(--text-muted)">—</span>
+          {% endif %}
+        </td>
+        <td style="font-size:11px;color:var(--text-muted)">
+          {{ lead.speciality|default:"—"|truncatechars:22 }}
+        </td>
+        <td>
+          {% if lead.contact_name %}<div style="font-size:12px;font-weight:600;color:var(--text-secondary)">{{ lead.contact_name|truncatechars:22 }}</div>{% endif %}
+          {% if lead.contact_phone %}<div style="font-size:11px;color:var(--text-muted)">{{ lead.contact_phone|truncatechars:16 }}</div>{% endif %}
+        </td>
+        <td>
+          <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:{{ lead.tier_color }}14;color:{{ lead.tier_color }}">
+            {{ lead.status|default:"Discovery" }}
+          </span>
+        </td>
+        <td style="max-width:160px">
+          {% if lead.recommended_action %}
+          <span style="font-size:11px;color:var(--text-muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="{{ lead.recommended_action }}">
+            {{ lead.recommended_action|truncatechars:38 }}
+          </span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'ai_sales_agent_dashboard:scraped_lead_detail' lead.place_id %}" class="view-row-btn">View →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-state-icon">🎯</div>
+  <div class="empty-state-title">No AI pipeline leads found</div>
+  <div style="margin-top:8px;font-size:13px">
+    {% if search or tier_filter or type_filter or score_min or lead_score_min %}No leads match your current filters.
+    {% else %}The AI pipeline hasn't scored any hospitals yet.{% endif %}
+  </div>
+</div>
+{% endif %}
+</div>
+
+<!-- ── CARD VIEW ── -->
+<div id="view-grid" style="display:none">
+{% if icp_hospital_leads %}
+<div class="hospital-grid">
+  {% for lead in icp_hospital_leads %}
+  <a href="{% url 'ai_sales_agent_dashboard:scraped_lead_detail' lead.place_id %}"
+     class="hospital-card"
+     style="--tier-color:{{ lead.tier_color }}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div style="flex:1;min-width:0">
+        <div class="hospital-name">{{ lead.name|truncatechars:50 }}</div>
+        <div class="hospital-location">
+          {% if lead.city %}📍 {{ lead.city }}{% endif %}
+          {% if lead.speciality %} · {{ lead.speciality|truncatechars:18 }}{% endif %}
+        </div>
+      </div>
+      <span class="tier-badge tier-{{ lead.icp_tier }}" style="margin-left:8px;flex-shrink:0">
+        {% if lead.icp_tier == 'hot' %}🔥{% elif lead.icp_tier == 'warm' %}🌡️{% else %}❄️{% endif %}
+        {{ lead.tier_label }}
+      </span>
+    </div>
+    <div class="score-bar">
+      <div class="score-label">
+        <span>Lead Score</span>
+        <span style="font-weight:700;color:var(--text-secondary)">{{ lead.fit_score }}/100</span>
+      </div>
+      <div class="score-track">
+        <div class="score-fill" style="width:{{ lead.fit_score }}%;--score-color:{% if lead.fit_score >= 70 %}#22c55e{% elif lead.fit_score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}"></div>
+      </div>
+    </div>
+    <div class="hospital-meta-row">
+      {% if lead.contact_name %}<span>👤 {{ lead.contact_name }}</span>{% endif %}
+      {% if lead.contact_phone %}<span>📞 {{ lead.contact_phone|truncatechars:15 }}</span>{% endif %}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+      <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:{{ lead.tier_color }}14;color:{{ lead.tier_color }};font-weight:600">
+        {{ lead.status|default:"Discovery" }}
+      </span>
+      {% if lead.recommended_action %}
+      <span style="font-size:10px;color:var(--text-muted)" title="{{ lead.recommended_action }}">→ {{ lead.recommended_action|truncatechars:28 }}</span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+</div>
+
+<!-- ── Manual CRM accounts ── -->
+{% if hospitals %}
+<div style="margin-top:36px">
+  <div class="section-heading">
+    <div>
+      <div class="section-heading-title">🗂️ Manual CRM Accounts</div>
+      <div class="section-heading-sub">{{ total }} account{{ total|pluralize }} created manually</div>
+    </div>
+    <a href="{% url 'ai_sales_agent_dashboard:hospital_create' %}" class="btn btn-primary btn-sm">➕ Add Account</a>
+  </div>
+  <div class="pipeline-table-wrap">
+    <table class="pipeline-table">
+      <thead>
+        <tr>
+          <th>Hospital</th>
+          <th>Tier</th>
+          <th>Lead Score</th>
+          <th>Contact</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hospitals %}
+        {% with ls=h.lead_score|default:0 %}
+        <tr>
+          <td>
+            <a href="{% url 'ai_sales_agent_dashboard:hospital_detail' h.pk %}" style="text-decoration:none">
+              <div class="hosp-row-name">{{ h.name }}</div>
+              <div class="hosp-row-loc">{% if h.city %}📍 {{ h.city }}{% if h.state %}, {{ h.state }}{% endif %}{% endif %}</div>
+            </a>
+          </td>
+          <td>
+            {% if ls >= 70 %}
+            <span class="tier-badge tier-hot">🔥 HOT</span>
+            {% elif ls >= 40 %}
+            <span class="tier-badge tier-warm">🌡️ WARM</span>
+            {% else %}
+            <span class="tier-badge tier-cold">❄️ COLD</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="inline-score">
+              <div class="inline-score-track">
+                <div class="inline-score-fill" style="width:{{ ls }}%;background:{% if ls >= 70 %}#22c55e{% elif ls >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}"></div>
+              </div>
+              <span class="inline-score-val"
+                    style="color:{% if ls >= 70 %}#22c55e{% elif ls >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}">
+                {{ ls }}
+              </span>
+            </div>
+          </td>
+          <td>
+            {% if h.contact_name %}<div style="font-size:12px;font-weight:600">{{ h.contact_name }}</div>{% endif %}
+            {% if h.contact_phone %}<div style="font-size:11px;color:var(--text-muted)">{{ h.contact_phone }}</div>{% endif %}
+          </td>
+          <td>
+            <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;background:rgba(0,0,0,0.06);color:var(--text-muted)">
+              {{ h.get_status_display }}
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'ai_sales_agent_dashboard:hospital_detail' h.pk %}" class="view-row-btn">View →</a>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── View switch ── */
+function switchView(v){
+  document.getElementById('view-table').style.display = v === 'table' ? '' : 'none';
+  document.getElementById('view-grid').style.display  = v === 'grid'  ? '' : 'none';
+  document.getElementById('btn-table').classList.toggle('active', v === 'table');
+  document.getElementById('btn-grid').classList.toggle('active',  v === 'grid');
+  try { localStorage.setItem('hospsView', v); } catch(e){}
+}
+try { const sv = localStorage.getItem('hospsView'); if(sv) switchView(sv); } catch(e){}
+
+/* ── Table sort (client-side) ── */
+function tableSort(col){
+  const form = document.getElementById('filter-form');
+  const cur  = form.querySelector('[name=sort]').value;
+  let next;
+  if(col === 'score'){
+    next = cur === 'score_desc' ? 'score_asc' : 'score_desc';
+  } else if(col === 'name'){
+    next = 'name';
+  } else if(col === 'city'){
+    next = 'city';
+  } else {
+    next = 'score_desc';
+  }
+  form.querySelector('[name=sort]').value = next;
+  form.submit();
+}
+
+/* ── Debounced search ── */
+let searchTimer;
+document.getElementById('filter-q').addEventListener('input', function(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => document.getElementById('filter-form').submit(), 700);
+});
+</script>
+{% endblock %}

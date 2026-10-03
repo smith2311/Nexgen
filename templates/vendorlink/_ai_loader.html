@@ -1,0 +1,64 @@
+{% comment %}
+The "robot is writing a report" loader, shown while an OpenAI call is running.
+
+Used in three shapes:
+
+* `--overlay`  — covers the page for the ?ai=1 report links, which are ordinary
+                 navigations that block on the model. Those had no feedback at
+                 all: you clicked and stared at the old page for ten seconds.
+* `--inline`   — inside the AI Bid Evaluator panel while it polls.
+* `--bubble`   — inside a MerilGPT chat bubble while the answer is in flight.
+
+Inline SVG, animated with CSS keyframes, and no library: the whole scene is a
+dozen shapes, and pulling in an animation dependency to move them would cost
+more than it draws. Every animation is disabled under
+prefers-reduced-motion — see .vlx-ailoader in vendorlink-ds.css.
+
+Caller may pass `message`. There is deliberately no percentage or progress
+bar: the OpenAI call reports no progress, so a bar would be inventing one. The
+elapsed counter that vl-ailoader.js fills in is real.
+{% endcomment %}
+<div class="vlx-ailoader{% if variant %} vlx-ailoader--{{ variant }}{% endif %}"
+     role="status" aria-live="polite">
+    <div class="vlx-ailoader__stage" aria-hidden="true">
+        <svg viewBox="0 0 160 120" class="vlx-ailoader__svg" focusable="false">
+            {% comment %}Desk line the robot and paper sit on.{% endcomment %}
+            <rect class="vlx-bot-desk" x="10" y="98" width="140" height="3" rx="1.5"/>
+
+            {% comment %}The report being written: sheet plus the lines of text.{% endcomment %}
+            <g class="vlx-bot-paper">
+                <rect x="86" y="52" width="56" height="46" rx="3" class="vlx-bot-sheet"/>
+                <rect class="vlx-bot-line vlx-bot-line--1" x="93" y="61" width="0" height="3" rx="1.5"/>
+                <rect class="vlx-bot-line vlx-bot-line--2" x="93" y="69" width="0" height="3" rx="1.5"/>
+                <rect class="vlx-bot-line vlx-bot-line--3" x="93" y="77" width="0" height="3" rx="1.5"/>
+                <rect class="vlx-bot-line vlx-bot-line--4" x="93" y="85" width="0" height="3" rx="1.5"/>
+            </g>
+
+            {% comment %}Robot: antenna, head, visor, eyes, body, writing arm.{% endcomment %}
+            <g class="vlx-bot">
+                <line class="vlx-bot-stalk" x1="44" y1="30" x2="44" y2="20"/>
+                <circle class="vlx-bot-bulb" cx="44" cy="17" r="4"/>
+
+                <rect class="vlx-bot-head" x="22" y="30" width="44" height="34" rx="10"/>
+                <rect class="vlx-bot-visor" x="28" y="38" width="32" height="18" rx="7"/>
+                <circle class="vlx-bot-eye vlx-bot-eye--l" cx="38" cy="47" r="3.4"/>
+                <circle class="vlx-bot-eye vlx-bot-eye--r" cx="50" cy="47" r="3.4"/>
+
+                <rect class="vlx-bot-neck" x="40" y="61" width="8" height="9" rx="3"/>
+                <rect class="vlx-bot-body" x="20" y="69" width="48" height="29" rx="11"/>
+                <g class="vlx-bot-arm">
+                    <line class="vlx-bot-forearm" x1="64" y1="78" x2="88" y2="84"/>
+                    <circle class="vlx-bot-hand" cx="90" cy="85" r="4"/>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <div class="vlx-ailoader__body">
+        <p class="vlx-ailoader__msg">{{ message|default:"Generating with AI…" }}</p>
+        <p class="vlx-ailoader__sub">
+            Reading the bids and drafting the write-up.
+            <span class="vlx-ailoader__elapsed" data-ai-elapsed hidden></span>
+        </p>
+    </div>
+</div>

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Add / edit one month's KPI reading for a vendor.{% endcomment %}
+
+{% block title %}{% if mode == "edit" %}Edit{% else %}Add{% endif %} KPI Record — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.kf-shell { max-width:1180px; }
+.kf-layout { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:20px; align-items:start; }
+.kf-form { overflow:hidden; }
+.kf-card-head {
+    padding:18px 22px; border-bottom:1px solid var(--vlx-divider);
+    background:linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+    display:flex; justify-content:space-between; gap:16px; align-items:flex-start;
+}
+.kf-card-kicker {
+    margin:0 0 3px; color:var(--vlx-secondary); font-size:12px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+}
+.kf-card-title { margin:0; color:var(--vlx-primary); font-size:18px; line-height:26px; font-weight:700; }
+.kf-chip {
+    display:inline-flex; align-items:center; gap:7px; min-height:30px; padding:0 10px;
+    border-radius:999px; background:var(--vlx-brand-tint); color:var(--vlx-secondary);
+    font-size:12px; font-weight:700; white-space:nowrap;
+}
+.kf-fieldset { border:none; margin:0; padding:22px; border-bottom:1px solid var(--vlx-divider); }
+.kf-fieldset:last-of-type { border-bottom:none; }
+.kf-legend { display:flex; align-items:center; gap:9px; font-size:14px; line-height:22px; font-weight:700; color:#0b1733; margin-bottom:4px; }
+.kf-legend i { color:var(--vlx-secondary); width:16px; text-align:center; }
+.kf-legend__hint { font-size:12px; font-weight:500; color:#64748b; margin:0 0 14px; }
+.kf-grid { display:grid; gap:14px 16px; grid-template-columns:repeat(2, minmax(0,1fr)); }
+.kf-grid--identity { grid-template-columns:minmax(0, 1.15fr) minmax(220px, .85fr); }
+.kf-field label { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color:#334155; margin-bottom:6px; }
+.kf-required { color:var(--vlx-danger); }
+.kf-field .vm-input, .kf-field .vm-select {
+    width:100%; box-sizing:border-box; height:42px; padding:10px 12px;
+    border:1px solid #cbd5e1; border-radius:10px; font-size:14px;
+    background:#fff; color:#06152b; transition:border-color .16s, box-shadow .18s, background .16s;
+}
+.kf-field textarea.vm-input { min-height:108px; line-height:21px; resize:vertical; }
+.kf-field .vm-input:focus, .kf-field .vm-select:focus {
+    outline:none; border-color:var(--vlx-secondary); background:#fff;
+    box-shadow:0 0 0 3px rgba(0,118,200,.13);
+}
+.kf-field .kf-err { display:block; margin-top:5px; font-size:12px; color:var(--vlx-danger); font-weight:700; }
+.kf-metric-band {
+    padding:16px; border:1px solid #e2e8f0; border-radius:12px;
+    background:#fbfdff; margin-top:14px;
+}
+.kf-metric-band:first-of-type { margin-top:0; }
+.kf-band-title {
+    display:flex; align-items:center; gap:8px; margin:0 0 12px;
+    font-size:13px; font-weight:800; color:#0f1f3a;
+}
+.kf-band-title i {
+    width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;
+    border-radius:8px; background:#dcfce7; color:#15803d; font-size:13px;
+}
+.kf-band-title--ops i { background:#fef3c7; color:#b45309; }
+.kf-band-title--cost i { background:#f3e8ff; color:#7c3aed; }
+.kf-money { display:grid; grid-template-columns:minmax(0, 1fr) 96px; gap:8px; }
+.kf-foot {
+    position:sticky; bottom:0; z-index:2; display:flex; align-items:center; gap:10px;
+    justify-content:flex-end; padding:14px 22px; border-top:1px solid var(--vlx-divider);
+    background:rgba(255,255,255,.94); backdrop-filter:blur(8px);
+}
+.kf-side { display:flex; flex-direction:column; gap:14px; position:sticky; top:18px; }
+.kf-sidecard { padding:16px; }
+.kf-side-title { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:14px; font-weight:800; color:var(--vlx-primary); }
+.kf-side-title i { color:var(--vlx-secondary); }
+.kf-side-list { display:flex; flex-direction:column; gap:10px; margin:0; padding:0; list-style:none; }
+.kf-side-list li {
+    display:grid; grid-template-columns:30px 1fr; gap:9px; align-items:start;
+    padding:10px; border-radius:10px; background:#f8fbff; border:1px solid #e7eef8;
+}
+.kf-side-list i {
+    width:30px; height:30px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center;
+    background:#eef6ff; color:var(--vlx-secondary);
+}
+.kf-side-list strong { display:block; font-size:12px; color:#0f1f3a; line-height:18px; }
+.kf-side-list span { display:block; font-size:12px; color:#64748b; line-height:18px; }
+.kf-mini-kpis { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+.kf-mini {
+    padding:12px; border-radius:12px; border:1px solid #e2e8f0; background:#fff;
+}
+.kf-mini strong { display:block; font-family:var(--vlx-mono); font-size:18px; line-height:20px; color:var(--vlx-primary); }
+.kf-mini span { display:block; margin-top:4px; font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; }
+@media (max-width: 1100px) {
+    .kf-layout { grid-template-columns:1fr; }
+    .kf-side { position:static; display:grid; grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 700px) {
+    .kf-shell { padding-left:12px; padding-right:12px; }
+    .kf-grid, .kf-grid--identity, .kf-side { grid-template-columns:1fr; }
+    .kf-card-head, .kf-fieldset, .kf-foot { padding-left:16px; padding-right:16px; }
+    .kf-card-head { flex-direction:column; }
+    .kf-foot { justify-content:stretch; }
+    .kf-foot .vlx-btn { flex:1; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap kf-shell">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:kpi_dashboard' %}">KPI Dashboard</a>
+                <span class="sep">/</span>
+                <span class="current">{% if mode == "edit" %}Edit{% else %}Add{% endif %} Record</span>
+            </div>
+            <div class="vlx-titlerow"><h1 class="vlx-title">{% if mode == "edit" %}Edit KPI Record{% else %}Add KPI Record{% endif %}</h1></div>
+            <p class="vlx-subtitle">
+                {% if mode == "edit" %}Updating {{ record.vendor.vendor_name }}'s reading for {{ record.period|date:"M Y" }}.
+                {% else %}Leave a metric blank if it wasn't measured this month — a blank never counts as zero.{% endif %}
+            </p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:kpi_dashboard' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="vlx-alerts">
+        {% for err in form.non_field_errors %}
+        <div class="vlx-alert vlx-alert--error"><i class="fas fa-triangle-exclamation"></i><div>{{ err }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="kf-layout">
+    <div class="vlx-card kf-form">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="kf-card-head">
+                <div>
+                    <p class="kf-card-kicker">Monthly Vendor Performance</p>
+                    <h2 class="kf-card-title">{% if mode == "edit" %}Update KPI Reading{% else %}New KPI Reading{% endif %}</h2>
+                </div>
+                <span class="kf-chip"><i class="fas fa-calendar-days"></i> Monthly</span>
+            </div>
+
+            <fieldset class="kf-fieldset">
+                <div class="kf-legend"><i class="fas fa-truck-field"></i> Vendor &amp; Period</div>
+                <div class="kf-grid kf-grid--identity">
+                    <div class="kf-field">
+                        <label for="{{ form.vendor.id_for_label }}">Vendor <span class="kf-required">*</span></label>
+                        {{ form.vendor }}
+                        {% for e in form.vendor.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}
+                    </div>
+                    <div class="kf-field">
+                        <label for="{{ form.period.id_for_label }}">Period <span class="kf-required">*</span></label>
+                        {{ form.period }}
+                        {% for e in form.period.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="kf-fieldset">
+                <div class="kf-legend"><i class="fas fa-gauge-high"></i> Metrics</div>
+                <p class="kf-legend__hint">All 8 fields from the KPI Dashboard sheet — fill in whatever was measured this month.</p>
+                <div class="kf-metric-band">
+                    <div class="kf-band-title"><i class="fas fa-shield-halved"></i> Quality</div>
+                    <div class="kf-grid">
+                        <div class="kf-field"><label for="{{ form.inventory_accuracy.id_for_label }}">{{ form.inventory_accuracy.label }}</label>{{ form.inventory_accuracy }}{% for e in form.inventory_accuracy.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                        <div class="kf-field"><label for="{{ form.order_fulfilment_accuracy.id_for_label }}">{{ form.order_fulfilment_accuracy.label }}</label>{{ form.order_fulfilment_accuracy }}{% for e in form.order_fulfilment_accuracy.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                        <div class="kf-field"><label for="{{ form.damage_rate.id_for_label }}">{{ form.damage_rate.label }}</label>{{ form.damage_rate }}{% for e in form.damage_rate.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                        <div class="kf-field"><label for="{{ form.internal_complaints.id_for_label }}">{{ form.internal_complaints.label }}</label>{{ form.internal_complaints }}{% for e in form.internal_complaints.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                <div class="kf-metric-band">
+                    <div class="kf-band-title kf-band-title--ops"><i class="fas fa-stopwatch"></i> Reliability</div>
+                    <div class="kf-grid">
+                        <div class="kf-field"><label for="{{ form.on_time_delivery.id_for_label }}">{{ form.on_time_delivery.label }}</label>{{ form.on_time_delivery }}{% for e in form.on_time_delivery.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                        <div class="kf-field"><label for="{{ form.response_time_hours.id_for_label }}">{{ form.response_time_hours.label }}</label>{{ form.response_time_hours }}{% for e in form.response_time_hours.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                        <div class="kf-field"><label for="{{ form.capa_closure_days.id_for_label }}">{{ form.capa_closure_days.label }}</label>{{ form.capa_closure_days }}{% for e in form.capa_closure_days.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                <div class="kf-metric-band">
+                    <div class="kf-band-title kf-band-title--cost"><i class="fas fa-coins"></i> Cost</div>
+                    <div class="kf-grid">
+                        <div class="kf-field">
+                            <label for="{{ form.cost_per_shipment.id_for_label }}">{{ form.cost_per_shipment.label }}</label>
+                            <div class="kf-money">
+                            {{ form.cost_per_shipment }}
+                            {{ form.currency }}
+                            </div>
+                            {% for e in form.cost_per_shipment.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="kf-fieldset">
+                <div class="kf-legend"><i class="fas fa-note-sticky"></i> Notes</div>
+                <div class="kf-field">
+                    {{ form.notes }}
+                    {% for e in form.notes.errors %}<span class="kf-err">{{ e }}</span>{% endfor %}
+                </div>
+            </fieldset>
+
+            <div class="kf-foot">
+                <a href="{% url 'vendorlink:kpi_dashboard' %}" class="vlx-btn vlx-btn--outline">Cancel</a>
+                <button type="submit" class="vlx-btn vlx-btn--primary"><i class="fas fa-floppy-disk"></i> {% if mode == "edit" %}Save Changes{% else %}Save Record{% endif %}</button>
+            </div>
+        </form>
+    </div>
+
+    <aside class="kf-side" aria-label="KPI record context">
+        <div class="vlx-card kf-sidecard">
+            <h2 class="kf-side-title"><i class="fas fa-layer-group"></i> KPI Groups</h2>
+            <ul class="kf-side-list">
+                <li><i class="fas fa-shield-halved"></i><div><strong>Quality</strong><span>Inventory, fulfilment, damage and complaints.</span></div></li>
+                <li><i class="fas fa-stopwatch"></i><div><strong>Reliability</strong><span>Delivery, response time and CAPA closure.</span></div></li>
+                <li><i class="fas fa-coins"></i><div><strong>Cost</strong><span>Shipment cost with quoted currency.</span></div></li>
+            </ul>
+        </div>
+        <div class="vlx-card kf-sidecard">
+            <h2 class="kf-side-title"><i class="fas fa-chart-simple"></i> Record Shape</h2>
+            <div class="kf-mini-kpis">
+                <div class="kf-mini"><strong>8</strong><span>Metrics</span></div>
+                <div class="kf-mini"><strong>1</strong><span>Month</span></div>
+                <div class="kf-mini"><strong>%</strong><span>Quality</span></div>
+                <div class="kf-mini"><strong>₹/$</strong><span>Cost</span></div>
+            </div>
+        </div>
+    </aside>
+    </div>
+</div>
+</div>
+{% endblock %}

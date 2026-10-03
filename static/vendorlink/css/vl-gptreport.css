@@ -1,0 +1,391 @@
+/* Report cards inside the MerilGPT chat: tables, charts, KPIs.
+ *
+ * The chat asked the model for a `table` and a `chart` (see GPT_ANSWER_SCHEMA)
+ * and then rendered neither — the report came back on every response and was
+ * dropped on the floor, so "give me that as a table" produced a paragraph. The
+ * rendering itself is VL.renderReport in vendorlink-components.js, which
+ * already builds all of it; only the styling was missing here.
+ *
+ * Standalone rather than loading vendorlink-components.css, for the reason
+ * that file's own confirm-dialog note records: Bid Analytics is a .vlx page
+ * whose tokens are --vlx-* , while components.css is written against --vl-*
+ * declared on .vl, and it also defines .vl-table and .vl-modal, which collide
+ * with that page's own table styling. So every rule below is scoped under the
+ * chat container and every colour carries a literal fallback behind both token
+ * families — the card then looks native on either design system.
+ */
+
+.vl-chatcard {
+    margin-top: 12px;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    border-radius: 10px;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    overflow: hidden;
+}
+
+.vl-chatcard .vl-report__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--vl-100, var(--vlx-surface-container-low, #F4F6FB));
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+}
+
+.vl-chatcard .vl-report__title {
+    flex: 1;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--vl-ink, var(--vlx-ink-700, #0F172A));
+}
+
+.vl-chatcard .vl-report__badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    color: var(--vl-ink-3, var(--vlx-ink-300, #64748B));
+    white-space: nowrap;
+}
+
+.vl-chatcard .vl-report__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+}
+
+.vl-chatcard .vl-report__summary {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--vl-ink-2, var(--vlx-ink-700, #334155));
+}
+
+.vl-chatcard .vl-report__kpis {
+    display: grid;
+    gap: 8px;
+    /* auto-fit, so one KPI fills the row and four wrap to two-by-two rather
+       than being squeezed into unreadable slivers in a narrow chat panel. */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.vl-chatcard .vl-report__kpi {
+    padding: 9px 11px;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    border-radius: 8px;
+    background: var(--vl-100, var(--vlx-surface-bright, #F8FAFC));
+}
+
+.vl-chatcard .vl-report__kpi b {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--vl-ink, var(--vlx-ink-700, #0F172A));
+}
+
+.vl-chatcard .vl-report__kpi span {
+    font-size: 11px;
+    color: var(--vl-ink-3, var(--vlx-ink-300, #64748B));
+}
+
+/* A fixed height, because Chart.js sizes to its container: with an auto height
+   the canvas and the container each wait for the other and the chart collapses
+   to nothing or grows without bound on every reflow. */
+.vl-chatcard .vl-report__chart {
+    position: relative;
+    height: 220px;
+}
+
+.vl-chatcard .vl-report__tablewrap {
+    /* The table scrolls inside its own box. A wide table in a chat bubble
+       would otherwise widen the whole panel and push the page sideways. */
+    overflow-x: auto;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    border-radius: 8px;
+}
+
+.vl-chatcard .vl-report__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.vl-chatcard .vl-report__table th {
+    position: sticky;
+    top: 0;
+    background: var(--vl-100, var(--vlx-surface-container-low, #F1F5F9));
+    text-align: left;
+    font-weight: 700;
+    padding: 7px 10px;
+    white-space: nowrap;
+    color: var(--vl-ink, var(--vlx-ink-700, #0F172A));
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+}
+
+.vl-chatcard .vl-report__table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #EEF2F7));
+    color: var(--vl-ink-2, var(--vlx-ink-700, #334155));
+    /* nowrap, and the wrapper scrolls. Letting cells wrap in a ~340px drawer
+       broke a vendor name one character per line and turned three rows into
+       twelve; sideways scrolling keeps the row readable as a row. */
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.vl-chatcard .vl-report__table tr:last-child td { border-bottom: none; }
+
+.vl-chatcard .vl-report__highlights {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--vl-ink-2, var(--vlx-ink-700, #475569));
+}
+
+.vl-chatcard .vl-report__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.vl-chatcard .vl-report__actions .vl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 13px;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #CBD5E1));
+    border-radius: 7px;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    color: var(--vl-ink, var(--vlx-ink-700, #1F2A44));
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.vl-chatcard .vl-report__actions .vl-btn:hover {
+    background: var(--vl-100, var(--vlx-surface-bright, #F1F5F9));
+}
+
+.vl-chatcard .vl-meta {
+    font-size: 11.5px;
+    color: var(--vl-ink-3, var(--vlx-ink-300, #94A3B8));
+}
+
+/* Markdown pipe tables in the answer text.
+ *
+ * Structured output gives us report.table, but the model also writes plain
+ * markdown tables into `answer` — and those were rendered as paragraphs of
+ * pipes, which is the other half of "I asked for a table and did not get one".
+ */
+.vlx-gpt-bubble .vlx-gpt-mdtable-wrap {
+    overflow-x: auto;
+    margin: 10px 0;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    border-radius: 8px;
+}
+
+.vlx-gpt-bubble .vlx-gpt-mdtable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.vlx-gpt-bubble .vlx-gpt-mdtable th {
+    background: var(--vl-100, var(--vlx-surface-container-low, #F1F5F9));
+    text-align: left;
+    font-weight: 700;
+    padding: 7px 10px;
+    white-space: nowrap;
+    color: var(--vl-ink, var(--vlx-ink-700, #0F172A));
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+}
+
+.vlx-gpt-bubble .vlx-gpt-mdtable td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #EEF2F7));
+    color: var(--vl-ink-2, var(--vlx-ink-700, #334155));
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.vlx-gpt-bubble .vlx-gpt-mdtable tr:last-child td { border-bottom: none; }
+
+/* Which of the three sources answered: the portal's data, an attached file,
+   or the model's own knowledge.
+   
+   Above the answer rather than below it, because it changes how the sentences
+   under it should be read — "answered from general knowledge" is a caveat the
+   reader needs before the prose, not after it. Every colour carries a literal
+   fallback: this stylesheet loads on .vlx pages that do not define --vl-*. */
+.vlx-gpt-source {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--vl-accent-tint, #EEF2FF);
+    border: 1px solid var(--vl-border, #E2E8F0);
+    color: var(--vl-accent-ink, #312E81);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+
+/* Which documents an answer drew on. Distinct from the "what was read" chips:
+   those say what was uploaded, this says what retrieval actually selected —
+   an answer from two matched passages of a 900-page tender is a different
+   claim from one that saw the whole file. */
+.vlx-gpt-sources {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin-top: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--vl-100, var(--vlx-surface-container-low, #F4F6FB));
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--vlx-on-surface-variant, var(--vl-ink-3, #64748B));
+}
+
+.vlx-gpt-sources b {
+    color: var(--vlx-on-surface, var(--vl-ink-2, #334155));
+    font-weight: 700;
+}
+
+/* ── Artifact controls ───────────────────────────────────────────────────
+   Copy / sort / chart-type / expand / print on each report card. The card
+   drew the data but had no answer for what people then do with it: paste it
+   into a deck, rank it, look at it as a share rather than as bars, or read a
+   ten-column table that does not fit a side drawer.
+
+   Scoped under the chat bubble like the rest of this file, so it cannot
+   restyle the report cards on the four screens that render them through the
+   component library. */
+.vl-chatcard .vl-art-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+}
+
+.vl-chatcard .vl-art-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--vl-border, var(--vlx-outline, #E2E8F0));
+    border-radius: 6px;
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    color: var(--vl-ink-2, var(--vlx-ink-700, #334155));
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.vl-chatcard .vl-art-btn:hover {
+    background: var(--vl-100, var(--vlx-surface-bright, #F1F5F9));
+}
+
+/* The chart-type chips read as one control, so they share a track. */
+.vl-chatcard .vl-art-chartswitch {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 8px;
+    background: var(--vl-100, var(--vlx-surface-container-low, #F1F5F9));
+}
+.vl-chatcard .vl-art-btn--chip {
+    border-color: transparent;
+    background: transparent;
+    min-height: 22px;
+    padding: 0 9px;
+}
+.vl-chatcard .vl-art-btn--chip.is-active {
+    background: var(--vl-surface, var(--vlx-surface, #FFFFFF));
+    border-color: var(--vl-border, var(--vlx-outline, #E2E8F0));
+}
+
+/* Sortable headers. The caret is drawn with ::after so adding it cannot
+   change the header's text and re-wrap the row. */
+.vl-chatcard th.vl-art-sortable {
+    cursor: pointer;
+    user-select: none;
+    padding-right: 18px;
+    position: relative;
+}
+.vl-chatcard th.vl-art-sortable::after {
+    content: '\2195';
+    position: absolute;
+    right: 6px;
+    opacity: .3;
+    font-weight: 400;
+}
+.vl-chatcard th.vl-art-sortable.is-asc::after { content: '\2191'; opacity: 1; }
+.vl-chatcard th.vl-art-sortable.is-desc::after { content: '\2193'; opacity: 1; }
+.vl-chatcard th.vl-art-sortable:focus-visible {
+    outline: 2px solid var(--vl-accent, var(--vlx-primary, #4338CA));
+    outline-offset: -2px;
+}
+
+/* Expanded: the card leaves the bubble and centres over the page.
+   position:fixed rather than a width change, because the bubble it lives in
+   is itself inside a 420px drawer — growing in place could not get past that
+   container no matter what width was set. */
+.vl-art-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    background: rgba(9, 9, 11, .5);
+}
+/* Not scoped under .vlx-gpt-bubble, unlike everything else here: an expanded
+   card is moved to <body> so that position:fixed resolves against the
+   viewport rather than the transformed drawer, which means it is no longer
+   inside the bubble when these rules have to apply. */
+.vl-chatcard.vl-art-expanded {
+    position: fixed;
+    z-index: 1401;
+    top: 3vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1100px, 94vw);
+    max-height: 94vh;
+    overflow-y: auto;
+    margin: 0;
+    box-shadow: 0 30px 60px -12px rgba(9, 9, 11, .4);
+}
+/* With more room, let the table breathe instead of staying nowrap-and-scroll. */
+.vl-chatcard.vl-art-expanded .vl-report__table td { white-space: normal; }
+.vl-chatcard.vl-art-expanded .vl-report__chart { height: 340px; }
+
+/* ── Print ────────────────────────────────────────────────────────────────
+   Only the cloned card reaches the paper. Printing the page itself would
+   carry the drawer, the nav and the rest of the chat with it. */
+.vl-art-printarea { display: none; }
+
+@media print {
+    body.vl-art-printing > *:not(.vl-art-printarea) { display: none !important; }
+    body.vl-art-printing .vl-art-printarea {
+        display: block !important;
+        position: static;
+    }
+    body.vl-art-printing .vl-art-printarea .vl-report {
+        border: 1px solid #ccc;
+        box-shadow: none;
+        break-inside: avoid;
+    }
+    /* A table split mid-row across a page break is unreadable. */
+    body.vl-art-printing .vl-art-printarea tr { break-inside: avoid; }
+    body.vl-art-printing .vl-art-printarea .vl-report__tablewrap { overflow: visible; }
+    body.vl-art-printing .vl-art-printarea td { white-space: normal !important; }
+}

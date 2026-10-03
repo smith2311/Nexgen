@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+    /* Copied from main/landing_page.html, where this grid is page-local rather
+       than part of modern-ui.css — only its <640px override is global. The
+       340px min track is what makes these read as the platform's app cards and
+       not as narrow tiles; auto-fill then collapses 3-up → 2-up → 1-up on its
+       own as the viewport narrows. */
+    .apps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: var(--spacing-6);
+    }
+    /* app-card is a <div> on the landing page; as an <a> it needs the link
+       colour and underline reset explicitly. */
+    a.app-card { text-decoration: none; color: inherit; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-pagehead__left">
+        <h1 class="vlx-display">VendorLink</h1>
+        <p class="vlx-subtitle">The 3PL Vendor Database &amp; Innovation Platform — one connected home for vendor identity, commercials, capabilities and performance.</p>
+    </div>
+
+    <!-- Admin console -->
+    {% if is_vm_admin %}
+    <a href="{% url 'vendorlink:admin_console' %}" class="vlx-noticebar vlx-noticebar--admin">
+        <span class="vlx-noticebar__ic"><i class="fas fa-shield-halved"></i></span>
+        <div class="vlx-noticebar__body">
+            <div class="vlx-noticebar__title">Admin Console</div>
+            <div class="vlx-noticebar__sub">Manage all platform users and every master dataset from one command centre.</div>
+        </div>
+        <span class="vlx-noticebar__cta">Open Console <i class="fas fa-arrow-right"></i></span>
+    </a>
+    {% comment %}
+    Historical Data replaces the old "remove completed year" action. Nothing
+    deletes a year any more -- the records stay and are read over a date range
+    here, because an award and the bids behind it are the audit trail for a
+    commercial decision.
+    {% endcomment %}
+    {% endif %}
+
+    <!-- Geo Command Centre -- the global warehouse network, directly under the
+         Admin Console banner. Everything it needs lives in vendorlink/UI/; this
+         include is the only line about it on this page, and it is outside the
+         is_vm_admin block because the network is not an admin-only view. -->
+    {% include "vendorlink/geo/geo_command_panel.html" %}
+
+    <!-- Pending registrations alert -->
+    {% if pending_registrations %}
+    <a href="{% url 'vendorlink:registration_list' %}?status=pending" class="vlx-noticebar vlx-noticebar--warning">
+        <span class="vlx-noticebar__ic"><i class="fas fa-user-clock"></i></span>
+        <div class="vlx-noticebar__body">
+            <div class="vlx-noticebar__title">{{ pending_registrations }} vendor registration{{ pending_registrations|pluralize }} awaiting approval</div>
+            <div class="vlx-noticebar__sub">Click to review and approve or reject submissions.</div>
+        </div>
+        <span class="vlx-noticebar__cta">Review <i class="fas fa-arrow-right"></i></span>
+    </a>
+    {% endif %}
+
+    <!-- Registrations summary (admin) -->
+    {% if reg_stats %}
+    <div class="vlx-stack-md">
+        <div class="vlx-pagehead">
+            <div>
+                <h2 class="vlx-section-title"><i class="fas fa-user-plus"></i> Vendor Registrations</h2>
+                <p class="vlx-subtitle" style="margin-top:2px;">Self-registrations submitted via the public registration form.</p>
+            </div>
+            <a href="{% url 'vendorlink:registration_list' %}" class="vlx-link" style="font-size:13px;font-weight:600;">View all <i class="fas fa-arrow-right"></i></a>
+        </div>
+        {% comment %}
+        Four tiles, one row. The inline max-width:760px that used to be here
+        could not fit four of vlx-kpis' 200px minimum tracks, so the fourth
+        wrapped onto its own line with a wide gap beside it — visible in the
+        screenshot as a 3+1 break. vlx-kpis is auto-fit, so with the cap gone it
+        still collapses to 2-up and 1-up on smaller screens by itself.
+        {% endcomment %}
+        <div class="vlx-kpis vlx-kpis--wide">
+            <a href="{% url 'vendorlink:registration_list' %}" class="vlx-kpi">
+                <div class="vlx-kpi__value">{{ reg_stats.total }}</div>
+                <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-inbox"></i> Total Received</div>
+            </a>
+            <a href="{% url 'vendorlink:registration_list' %}?status=pending" class="vlx-kpi vlx-kpi--pending">
+                <div class="vlx-kpi__value">{{ reg_stats.pending }}</div>
+                <div class="vlx-kpi__delta warn" style="margin-top:6px;"><i class="fas fa-clock"></i> Pending Review</div>
+            </a>
+            <a href="{% url 'vendorlink:registration_list' %}?status=approved" class="vlx-kpi vlx-kpi--approved">
+                <div class="vlx-kpi__value">{{ reg_stats.approved }}</div>
+                <div class="vlx-kpi__delta up" style="margin-top:6px;"><i class="fas fa-circle-check"></i> Approved</div>
+            </a>
+            <a href="{% url 'vendorlink:registration_list' %}?status=rejected" class="vlx-kpi vlx-kpi--rejected">
+                <div class="vlx-kpi__value">{{ reg_stats.rejected }}</div>
+                <div class="vlx-kpi__delta" style="margin-top:6px;color:var(--vlx-danger);"><i class="fas fa-ban"></i> Rejected</div>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modules -->
+    <div class="vlx-stack-md">
+        <div>
+            <h2 class="vlx-section-title"><i class="fas fa-grip"></i> Modules</h2>
+            <p class="vlx-subtitle" style="margin-top:2px;">The modules that make up the VendorLink platform.</p>
+        </div>
+        {% comment %}
+        .app-card / .app-icon / .icon-* are global (static/css/modern-ui.css,
+        loaded by base.html), so these render identically to the Logistics
+        Performance and Visa Management cards on the platform landing page.
+        .apps-grid is NOT global — it lives in a page-local <style> in
+        main/landing_page.html — so it is declared in extra_css above.
+
+        An <a href> rather than the landing page's
+        <div onclick="navigateToApp(...)">: same appearance, but reachable by
+        keyboard, and middle-click / open-in-new-tab work. It also avoids
+        copying navigateToApp(), which is itself local to that template.
+
+        The Quick Actions pair that used to sit above this is gone: "My Requests"
+        is now the Inquiries card below, and Raise-a-Request is the primary button
+        in that screen's own header (request_list.html), so nothing is orphaned.
+        {% endcomment %}
+        <div class="apps-grid">
+            {% for mod in modules %}
+            <a href="{{ mod.url }}" class="app-card clickable fade-in">
+                <div class="app-card-header">
+                    <div class="app-icon icon-{{ mod.color }}">
+                        <i class="{{ mod.icon }}"></i>
+                    </div>
+                    <div class="app-info">
+                        <h3 class="app-title">{{ mod.name }}</h3>
+                        <p class="app-description">{{ mod.description }}</p>
+                    </div>
+                </div>
+                <div class="app-stats">
+                    {% for stat in mod.stats %}
+                    <div class="stat">
+                        <i class="{{ stat.icon }}"></i>
+                        <span>{{ stat.text }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}

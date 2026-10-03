@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if app %}Edit Application{% else %}New Visa Application{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-passport"></i> {% if app %}Edit Application — {{ app.ref_no }}{% else %}New Visa Application{% endif %}</h1>
+          <p>Fill in all required details and submit for HOD approval</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}warn{% endif %}">
+      <i class="fas fa-exclamation-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" action="" id="visaApplyForm">
+      {% csrf_token %}
+
+      <!-- Section 1: Personal & Company -->
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-user"></i> Personal &amp; Company Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Full Name <span class="req">*</span></label>
+              <input class="form-input" type="text" name="applicant_name"
+                value="{{ app.applicant_name|default:request.user.get_full_name }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Email (Zoho SSO)</label>
+              <input class="form-input" type="email" value="{{ request.user.email }}" disabled>
+              <input type="hidden" name="applicant_email" value="{{ request.user.email }}">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Designation <span class="req">*</span></label>
+              <input class="form-input" type="text" name="designation"
+                value="{{ app.designation|default:'' }}" required placeholder="e.g. Senior Engineer">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Company / Entity <span class="req">*</span></label>
+              <select class="form-select" name="company" required>
+                <option value="">— Select Company —</option>
+                {% for c in companies %}
+                <option value="{{ c.pk }}" {% if app and app.company_id == c.pk %}selected{% endif %}>
+                  {{ c.code }} — {{ c.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Date of Joining <span class="req">*</span></label>
+              <input class="form-input" type="date" name="joining_date"
+                value="{{ app.joining_date|date:'Y-m-d'|default:'' }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Gender <span class="req">*</span></label>
+              <div class="vm-radio-group">
+                <label class="vm-radio-opt">
+                  <input type="radio" name="gender" value="M"
+                    {% if not app or app.gender == 'M' %}checked{% endif %}> Male
+                </label>
+                <label class="vm-radio-opt">
+                  <input type="radio" name="gender" value="F"
+                    {% if app and app.gender == 'F' %}checked{% endif %}> Female
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: HOD Details -->
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-user-tie"></i> Reporting Head (HOD) Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Reporting Head Name <span class="req">*</span></label>
+              <input class="form-input" type="text" name="hod_name"
+                value="{{ app.hod_name|default:'' }}" required id="hodNameInput"
+                placeholder="Full name of your manager">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Reporting Head Email <span class="req">*</span></label>
+              <input class="form-input" type="email" name="hod_email"
+                value="{{ app.hod_email|default:'' }}" required id="hodEmailInput"
+                placeholder="manager@merillife.com">
+              <span class="form-hint">Approval request will be sent to this email</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Travel & Visa Details -->
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-plane-departure"></i> Travel &amp; Visa Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Destination Country <span class="req">*</span></label>
+              <select class="form-select" name="country" id="countrySelect" required>
+                <option value="">— Select Country —</option>
+                {% for c in countries %}
+                <option value="{{ c.pk }}"
+                  data-entry="{{ c.default_entry_type }}"
+                  {% if app and app.country_id == c.pk %}selected{% endif %}>
+                  {{ c.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Entry Type <span class="req">*</span></label>
+              <div class="vm-radio-group" id="entryTypeGroup">
+                <label class="vm-radio-opt">
+                  <input type="radio" name="entry_type" value="single"
+                    {% if app and app.entry_type == 'single' %}checked{% endif %}> Single Entry
+                </label>
+                <label class="vm-radio-opt">
+                  <input type="radio" name="entry_type" value="multiple"
+                    {% if not app or app.entry_type == 'multiple' %}checked{% endif %}> Multiple Entry
+                </label>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Visit Start Date <span class="req">*</span></label>
+              <input class="form-input" type="date" name="visit_start_date" id="visitStartDate"
+                value="{{ app.visit_start_date|date:'Y-m-d'|default:'' }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Visit End Date <span class="req">*</span></label>
+              <input class="form-input" type="date" name="visit_end_date" id="visitEndDate"
+                value="{{ app.visit_end_date|date:'Y-m-d'|default:'' }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Invitee Company Name <span class="req">*</span></label>
+              <input class="form-input" type="text" name="host_company_name"
+                value="{{ app.host_company_name|default:'' }}" required>
+            </div>
+
+            <div class="form-field span-2" style="grid-column:1/-1">
+              <label class="form-label">Invitee Company Address <span class="req">*</span></label>
+              <textarea class="form-textarea" name="host_company_address" required
+                rows="3">{{ app.host_company_address|default:'' }}</textarea>
+            </div>
+
+            <div class="form-field span-2" style="grid-column:1/-1">
+              <label class="form-label">Purpose of Visit</label>
+              <textarea class="form-textarea" name="purpose_of_visit" rows="2"
+                placeholder="Brief description of the business purpose">{{ app.purpose_of_visit|default:'' }}</textarea>
+            </div>
+
+            <div class="form-field span-2" style="grid-column:1/-1">
+              <label class="form-label">Remark</label>
+              <textarea class="form-textarea" name="applicant_remark" rows="2"
+                placeholder="Anything your reporting head or the Visa Department should know">{{ app.applicant_remark|default:'' }}</textarea>
+              <span class="form-hint">Optional — visible to your HOD and the Visa Department</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Passport Details -->
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-id-card"></i> Passport Details</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Name as per Passport <span class="req">*</span></label>
+              <input class="form-input" type="text" name="passport_name"
+                value="{{ app.passport_name|default:'' }}" required
+                placeholder="Exactly as printed on passport">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Passport Number <span class="req">*</span></label>
+              <input class="form-input vm-mono" type="text" name="passport_number"
+                value="{{ app.passport_number|default:'' }}" required
+                style="text-transform:uppercase" placeholder="e.g. A1234567">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Date of Birth <span class="req">*</span></label>
+              <input class="form-input" type="date" name="date_of_birth"
+                value="{{ app.date_of_birth|date:'Y-m-d'|default:'' }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Date of Issue <span class="req">*</span></label>
+              <input class="form-input" type="date" name="passport_issue_date"
+                value="{{ app.passport_issue_date|date:'Y-m-d'|default:'' }}" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Date of Expiry <span class="req">*</span></label>
+              <input class="form-input" type="date" name="passport_expiry_date" id="passportExpiry"
+                value="{{ app.passport_expiry_date|date:'Y-m-d'|default:'' }}" required>
+              <span class="form-hint" id="expiryWarn" style="color:var(--red);display:none">
+                ⚠ Passport expires within 6 months of travel end date
+              </span>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Place of Issue <span class="req">*</span></label>
+              <input class="form-input" type="text" name="place_of_issue"
+                value="{{ app.place_of_issue|default:'' }}" required placeholder="City name">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Nationality <span class="req">*</span></label>
+              <input class="form-input vm-mono" type="text" name="nationality"
+                value="{{ app.nationality }}"
+                style="text-transform:uppercase" required>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky action bar -->
+      <div class="vm-form-actions vm-no-print">
+        <button type="submit" name="action" value="draft" class="btn btn-ghost">
+          <i class="fas fa-save"></i> Save Draft
+        </button>
+        <button type="submit" name="action" value="submit" class="btn btn-navy" id="submitBtn">
+          <i class="fas fa-paper-plane"></i> Submit for HOD Approval
+        </button>
+        <a href="{% url 'visa:my_applications' %}" class="btn btn-ghost" style="margin-left:auto">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+<script src="{% static 'js/visa_management/visa_apply.js' %}"></script>
+{% endblock %}

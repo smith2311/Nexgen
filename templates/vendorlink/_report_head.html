@@ -1,0 +1,160 @@
+{% comment %}
+Report-only styling, shared by report_request.html and report_monthly.html.
+
+Kept here rather than in vendorlink-ds.css because these classes are used on
+two pages and nowhere else, and that file is already 2,000+ lines shared by
+every screen in the module. Everything structural reuses the .vlx components
+Bid Analytics already has (.vlx-ba-panel, .vlx-ba-kpi, .vlx-table, .vlx-pill);
+this adds only what a report needs and nothing else has — a verdict banner,
+chart wells, and print rules.
+
+Token names are the real .vlx ones from vendorlink-ds.css (--vlx-divider,
+--vlx-on-surface-variant, --vlx-r-lg …), and literal pixel values elsewhere
+because that scope has no spacing scale — 16px/12px matches .vlx-ba-panel.
+{% endcomment %}
+<style>
+/* ── Verdict banner ───────────────────────────────────────────────────────
+   The headline finding, tinted by tone. "We took the cheapest" and "we paid
+   14% more" are not the same news, and a reader should be able to tell which
+   they are looking at before reading a word. */
+.vlx-rep-verdict {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 16px 18px;
+    border: 1px solid var(--vlx-rep-border, var(--vlx-divider));
+    border-left: 4px solid var(--vlx-rep-accent, var(--vlx-primary));
+    border-radius: var(--vlx-r-lg);
+    background: var(--vlx-rep-bg, var(--vlx-surface));
+    box-shadow: var(--vlx-sh-1);
+    margin-bottom: 18px;
+}
+.vlx-rep-verdict--good    { --vlx-rep-accent: #059669; --vlx-rep-bg: #ECFDF5; --vlx-rep-border: #A7F3D0; }
+.vlx-rep-verdict--warning { --vlx-rep-accent: #D97706; --vlx-rep-bg: #FFFBEB; --vlx-rep-border: #FDE68A; }
+.vlx-rep-verdict--info    { --vlx-rep-accent: #0076C8; --vlx-rep-bg: #EFF8FF; --vlx-rep-border: #BAE0FD; }
+.vlx-rep-verdict--neutral { --vlx-rep-accent: #64748B; --vlx-rep-bg: #F8FAFC; --vlx-rep-border: #E2E8F0; }
+.vlx-rep-verdict__icon {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.72); color: var(--vlx-rep-accent);
+    font-size: 17px;
+}
+.vlx-rep-verdict__h {
+    margin: 0 0 4px; font-size: 15px; font-weight: 700; line-height: 1.45;
+    color: var(--vlx-on-surface);
+}
+.vlx-rep-verdict__d { margin: 0; font-size: 13px; line-height: 1.65; color: var(--vlx-on-surface-variant); }
+
+/* ── Summary prose ────────────────────────────────────────────────────────
+   The paragraph that gets pasted into a mail to someone who will never open
+   the page, so it is set at reading width rather than full bleed. */
+.vlx-rep-summary {
+    font-size: 13.5px; line-height: 1.78; color: var(--vlx-on-surface-variant);
+    max-width: 78ch; margin: 0;
+}
+
+/* ── Chart wells ──────────────────────────────────────────────────────────
+   The fixed height is required, not cosmetic: Chart.js with
+   maintainAspectRatio:false sizes the canvas to its parent, and a parent that
+   sizes to its child collapses to zero height and then grows without bound on
+   every resize event. */
+.vlx-rep-charts { display: grid; gap: 14px; grid-template-columns: 1fr; margin-bottom: 18px; }
+@media (min-width: 1100px) { .vlx-rep-charts--2 { grid-template-columns: 1fr 1fr; } }
+.vlx-rep-chart { min-width: 0; padding: 0; }
+.vlx-rep-chart__well { position: relative; height: 320px; padding: 14px 16px 4px; }
+.vlx-rep-chart__well--tall { height: 400px; }
+.vlx-rep-chart__note {
+    padding: 0 16px 14px; margin: 0;
+    font-size: 11.5px; line-height: 1.6; color: var(--vlx-ink-300);
+}
+
+/* ── Meta strip ───────────────────────────────────────────────────────────
+   Sits directly under the filter bar as a caption for it, so its top margin
+   is deliberately small — the gap above belongs to the filter card. */
+.vlx-rep-meta {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    font-size: 12px; color: var(--vlx-ink-300); margin: 0 0 14px;
+}
+/* The page head was written to butt straight up against a bare form. Now that
+   the filter bar is a card, it needs a real gap rather than 4px. */
+.vlx-ba-head { margin-bottom: 14px; }
+.vlx-rep-meta__item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Table extras ─────────────────────────────────────────────────────────
+   The premium column reads as a delta, so it wants a sign and a colour rather
+   than another neutral number in a row of neutral numbers. */
+.vlx-rep-delta--up   { color: #B45309; font-weight: 600; }
+.vlx-rep-delta--flat { color: #047857; font-weight: 600; }
+.vlx-rep-delta--none { color: var(--vlx-ink-300); }
+.vlx-rep-row--cheapest { background: #F0FDF4; }
+.vlx-rep-row--awarded  { background: #EFF8FF; }
+/* Both at once is the good case; the award tint wins so the row still reads as
+   "this is the one we chose". */
+.vlx-rep-row--cheapest.vlx-rep-row--awarded { background: #ECFDF5; }
+.vlx-rep-num { text-align: right; font-family: var(--vlx-mono); white-space: nowrap; }
+
+/* ── Filters ──────────────────────────────────────────────────────────────
+   `flex-direction: row` and `gap` are pinned explicitly, not left to default.
+   components.css sets a site-wide `form { display:flex; flex-direction:column;
+   gap: var(--spacing-6) }`, which beats an unset direction here — leave it off
+   and the controls stack, and with align-items:flex-end they pin to the right
+   edge with the whole left half of the row blank. vendorlink-ds.css carries
+   the same note on .vlx-toolbar and .vlx-cd-filters.
+
+   Shaped to match .vlx-cd-filters on Bid Analytics deliberately: the reports
+   are one click from that screen, so the filter bar should be the same object
+   rather than a second design for the same job. */
+.vlx-rep-filters {
+    display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-end;
+    gap: 12px; margin: 0 0 14px;
+    padding: 12px 16px;
+    background: var(--vlx-surface);
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-md);
+    box-shadow: var(--vlx-sh-1);
+}
+/* Each label+control pair is its own little column, same as .vlx-cd-fgroup. */
+.vlx-rep-filters > div { display: flex; flex-direction: column; gap: 4px; }
+.vlx-rep-filters label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--vlx-on-surface-variant);
+    white-space: nowrap; margin: 0;
+}
+.vlx-rep-filters select, .vlx-rep-filters input[type="date"] {
+    height: 36px; min-width: 148px; padding: 0 10px; font: inherit; font-size: 13px;
+    background: var(--vlx-surface); color: var(--vlx-on-surface);
+    border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-sm); cursor: pointer;
+}
+/* The bar is controls, not a form to fill in — anything that reads as a
+   submit action sits at the far end rather than in the middle of them. */
+.vlx-rep-filters .vlx-btn { margin-left: auto; }
+
+/* ── OpenAI narrative ──────────────────────────────────────────────────── */
+.vlx-ai-report { margin-bottom: 18px; }
+.vlx-ai-report__body { padding: 0 16px 16px; }
+.vlx-ai-report__summary {
+    margin: 10px 0 14px; max-width: 82ch;
+    font-size: 13.5px; line-height: 1.75; color: var(--vlx-on-surface);
+}
+.vlx-ai-report__grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 980px) { .vlx-ai-report__grid { grid-template-columns: 1.2fr 1fr 1fr; } }
+.vlx-ai-report__grid > div {
+    border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md);
+    padding: 12px; background: var(--vlx-surface-container-low);
+}
+.vlx-ai-report h3 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 800; color: var(--vlx-on-surface);
+}
+.vlx-ai-report ul { margin: 0; padding-left: 18px; color: var(--vlx-on-surface-variant); font-size: 12.5px; line-height: 1.6; }
+.vlx-ai-report li + li { margin-top: 4px; }
+.vlx-ai-report__muted { margin: 0; color: var(--vlx-ink-300); font-size: 12.5px; line-height: 1.6; }
+
+/* ── Print ────────────────────────────────────────────────────────────────
+   This report is printed to PDF and mailed more often than it is browsed, so
+   the on-screen chrome is dropped and the canvases are kept inside a page. */
+@media print {
+    .vlx-rep-noprint, .vlx-breadcrumb, .app-sidebar, aside,
+    .vlx-gpt-drawer, .vlx-gpt-scrim { display: none !important; }
+    .vlx-rep-chart__well { height: 260px; page-break-inside: avoid; }
+    .vlx-ba-panel, .vlx-rep-verdict { break-inside: avoid; box-shadow: none; }
+    body { background: #fff; }
+}
+</style>

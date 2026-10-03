@@ -1,0 +1,18 @@
+/* ═══════════════════════════════════════════════════════
+   zone_master.css — Zone Master grid overrides
+   Page shell  → components/master_page/master_page.css
+   Table/util  → components/data_table/data_table.css
+   Modal       → components/modal/modal.css
+   Only the per-module column widths live here.
+═══════════════════════════════════════════════════════ */
+
+/* ── LIST TABLE COLUMNS: ID | Zone | Actions ── */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 90px 1fr 120px;
+}
+
+/* ── SCHEMA ROW COLUMNS: Column | Type | Description ── */
+.lm-page .schema-row {
+  grid-template-columns: 150px 80px 1fr;
+}

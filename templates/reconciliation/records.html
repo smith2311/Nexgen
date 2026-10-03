@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Records screen — upload, preview, import, then filter/correct/export.
+
+The shell is server-rendered and the table is filled by recon.js from
+/reconciliation/api/records/. That split is what makes the screen usable on a
+10,000-row import: changing a filter or a page never re-renders the chrome,
+and the upload's progress bar reports counts from the work actually happening
+rather than animating a guess.
+{% endcomment %}
+
+{% block title %}3 Way Reconciliation{% endblock %}
+{% block page_title %}3 Way Reconciliation{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reconciliation/recon.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="rc-app" id="rcApp">
+
+  <header class="rc-header">
+    <div class="rc-header-inner">
+      <a href="{% url 'landing_page' %}" class="rc-back">
+        <i class="fas fa-arrow-left"></i> All applications
+      </a>
+      <div class="rc-header-top">
+        <div>
+          <h1><i class="fas fa-scale-balanced"></i> 3 Way Reconciliation</h1>
+          <p>GSTR-1 &middot; E-Invoice &middot; E-Way Bill &mdash; every document, side by side</p>
+        </div>
+        <div class="rc-header-actions">
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:dashboard' %}">
+            <i class="fas fa-chart-column"></i> Filing summary
+          </a>
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:billing_types' %}">
+            <i class="fas fa-list-check"></i> Billing type master
+          </a>
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:sales_types' %}">
+            <i class="fas fa-tags"></i> Sales type master
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="rc-inner">
+
+    <!-- ═══ KPI tiles — each one filters the table below ═══ -->
+    <div class="rc-kpi-grid rc-kpis" id="rcKpis">
+      <button type="button" class="rc-kpi" data-health="" aria-pressed="true">
+        <span class="rc-kpi-icon blue"><i class="fas fa-file-invoice"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Documents</span>
+          <span class="rc-kpi-value" id="rcKpiTotal">&mdash;</span>
+          <span class="rc-kpi-hint" id="rcKpiScope">in the current view</span>
+        </span>
+      </button>
+      <button type="button" class="rc-kpi" data-health="ok" aria-pressed="false">
+        <span class="rc-kpi-icon green"><i class="fas fa-circle-check"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Clear</span>
+          <span class="rc-kpi-value" id="rcKpiOk">&mdash;</span>
+          <span class="rc-kpi-hint">filed and matched</span>
+        </span>
+      </button>
+      <button type="button" class="rc-kpi" data-health="warn" aria-pressed="false">
+        <span class="rc-kpi-icon amber"><i class="fas fa-triangle-exclamation"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Watch</span>
+          <span class="rc-kpi-value" id="rcKpiWarn">&mdash;</span>
+          <span class="rc-kpi-hint">pending or incomplete</span>
+        </span>
+      </button>
+      <button type="button" class="rc-kpi" data-health="bad" aria-pressed="false">
+        <span class="rc-kpi-icon red"><i class="fas fa-circle-exclamation"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Exception</span>
+          <span class="rc-kpi-value" id="rcKpiBad">&mdash;</span>
+          <span class="rc-kpi-hint">needs a decision</span>
+        </span>
+      </button>
+      {% comment %}
+      Cancelled Invoices — the GST team reconciles these as a group, so a
+      single-click filter is quicker than hunting through two reason remarks
+      by name. Backed by GSTDocumentStatus / EINVDocumentStatus = Cancelled.
+      {% endcomment %}
+      <button type="button" class="rc-kpi" data-cancelled="1" aria-pressed="false">
+        <span class="rc-kpi-icon purple"><i class="fas fa-ban"></i></span>
+        <span class="rc-kpi-text">
+          <span class="rc-kpi-label">Cancelled Invoices</span>
+          <span class="rc-kpi-value" id="rcKpiCancelled">&mdash;</span>
+          <span class="rc-kpi-hint">GSTR-1 or e-invoice cancelled</span>
+        </span>
+      </button>
+    </div>
+
+    {% if recon_perms.import %}
+    <!-- ═══ Upload ═══ -->
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-cloud-arrow-up"></i> Upload reconciliation export</h2>
+        <span class="rc-count-badge">{{ column_count }} known columns</span>
+      </div>
+      <div class="rc-card-body">
+
+        {% comment %}
+        A file read in an earlier visit is offered, never opened. Staging
+        survives navigation on purpose — re-reading 10,000 rows to get back to
+        a preview is a poor trade — but restoring it automatically meant the
+        upload card greeted you with a workbook you had not chosen this time,
+        which reads as the module importing something on its own.
+        {% endcomment %}
+        <div class="rc-resume" id="rcResume" hidden>
+          <i class="fas fa-clock-rotate-left"></i>
+          <div class="rc-resume-copy">
+            <b>A file you read earlier is still staged</b>
+            <span id="rcResumeName"></span>
+            <span class="rc-resume-note">Nothing has been imported. Review it, discard
+              it, or just choose a different file below.</span>
+          </div>
+          <div class="rc-resume-actions">
+            <button type="button" class="rc-btn rc-btn-sm" id="rcResumeOpen">
+              <i class="fas fa-eye"></i> Review
+            </button>
+            <button type="button" class="rc-btn rc-btn-sm" id="rcResumeDiscard">
+              <i class="fas fa-xmark"></i> Discard
+            </button>
+          </div>
+        </div>
+
+        <!-- step 1: choose a file -->
+        <div id="rcUploadStep">
+          <div class="rc-drop" id="rcDrop">
+            <i class="fas fa-cloud-arrow-up rc-drop-icon"></i>
+            <h3>Drop the Reconciliation Export here</h3>
+            <p>or choose a file &mdash; .xlsx or .csv</p>
+
+            <input type="file" id="rcFile" accept=".xlsx,.xlsm,.csv" hidden>
+            <button type="button" class="rc-btn" id="rcPick">
+              <i class="fas fa-folder-open"></i> Choose file
+            </button>
+            <span class="rc-drop-file" id="rcFileName" hidden></span>
+
+            <div class="rc-note">
+              <b>Update matching document</b> matches on vendor + document number +
+              document type, and on GST date as well when the row in your file has
+              one &mdash; so re-uploading a file only ever updates the documents
+              actually in it. Nothing here bulk-deletes or bulk-replaces anything;
+              records are only ever removed by the Remove action or
+              &ldquo;Remove filtered&rdquo; below, and both are recoverable.
+            </div>
+          </div>
+
+          <div class="rc-modes" style="margin-top:16px">
+            <label class="rc-mode">
+              <input type="radio" name="rcMode" value="upsert" checked>
+              <span>
+                <b>Update matching document</b>
+                <span>Existing documents are corrected in place; new ones are added.</span>
+              </span>
+            </label>
+            <label class="rc-mode">
+              <input type="radio" name="rcMode" value="append">
+              <span>
+                <b>Append</b>
+                <span>Every row is added as a new record, matching nothing.</span>
+              </span>
+            </label>
+          </div>
+
+          <div style="text-align:center">
+            <button type="button" class="rc-btn rc-btn-primary" id="rcRead" disabled>
+              <i class="fas fa-file-import"></i> Read file
+            </button>
+          </div>
+        </div>
+
+        <!-- step 2: progress -->
+        <div id="rcProgressStep" hidden>
+          <div class="rc-progress">
+            <div class="rc-track"><div class="rc-bar" id="rcBar"></div></div>
+            <div class="rc-progress-line">
+              <span class="rc-progress-count" id="rcProgressCount">Starting&hellip;</span>
+              <span id="rcProgressPhase"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- step 3: preview + confirm -->
+        <div id="rcPreviewStep" hidden>
+          <div class="rc-card-hdr" style="border-radius:var(--rc-radius-sm);border:1px solid var(--rc-border);margin-bottom:12px">
+            <div>
+              <h2><i class="fas fa-eye"></i> <span id="rcPreviewTitle">Preview</span></h2>
+              <p class="rc-sub" id="rcPreviewSub"></p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="rc-btn" id="rcPreviewFull">
+                <i class="fas fa-table-columns"></i> Preview all columns
+              </button>
+              <button type="button" class="rc-btn rc-btn-success" id="rcConfirm">
+                <i class="fas fa-check"></i> Confirm import
+              </button>
+              <button type="button" class="rc-btn" id="rcDiscard">
+                <i class="fas fa-xmark"></i> Discard
+              </button>
+            </div>
+          </div>
+
+          <div class="rc-table-wrap" style="max-height:46vh;border:1px solid var(--rc-border);border-radius:var(--rc-radius-sm)">
+            <table class="rc-table">
+              <thead>
+                <tr>
+                  <th>Where</th><th>Document no.</th><th>Type</th><th>Bill-to</th>
+                  <th class="rc-num">GST <small>taxable</small></th>
+                  <th class="rc-num">E-Invoice <small>taxable</small></th>
+                  <th class="rc-num">E-Way Bill <small>taxable</small></th>
+                  <th>Reason remark</th>
+                </tr>
+              </thead>
+              <tbody id="rcPreviewBody"></tbody>
+            </table>
+          </div>
+
+          <div class="rc-pager" style="border-radius:0 0 var(--rc-radius-sm) var(--rc-radius-sm)">
+            <span>Nothing is written to the database until you confirm.</span>
+            <div class="rc-pager-btns">
+              <button type="button" class="rc-btn rc-btn-sm" id="rcPrevPreview">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <span class="rc-pager-page" id="rcPreviewPage">1 / 1</span>
+              <button type="button" class="rc-btn rc-btn-sm" id="rcNextPreview">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- ═══ Filters ═══ -->
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-filter"></i> Filters</h2>
+        <span class="rc-count-badge" id="rcFilterSummary">Active records</span>
+      </div>
+      <div class="rc-card-body">
+        <div class="rc-filters">
+          <div class="rc-field rc-field-wide">
+            <label for="rcSearch">Search</label>
+            <input type="search" class="rc-input" id="rcSearch"
+                   placeholder="Document no., GSTIN, party, IRN, e-way bill no., HSN">
+          </div>
+          <div class="rc-field">
+            <label for="rcVendor">Vendor</label>
+            <select class="rc-select" id="rcVendor"></select>
+          </div>
+          <div class="rc-field">
+            <label for="rcFrom">GST date from</label>
+            <input type="date" class="rc-input" id="rcFrom">
+          </div>
+          <div class="rc-field">
+            <label for="rcTo">GST date to</label>
+            <input type="date" class="rc-input" id="rcTo">
+          </div>
+          {% comment %}
+          Upload date is the date the file was imported, not the GST date on
+          the invoice. One file goes in per month and invoice dates spill
+          across months, so filtering by invoice date mixes batches — this
+          pair returns exactly one upload's rows.
+          {% endcomment %}
+          <div class="rc-field">
+            <label for="rcUploadFrom">Upload date from</label>
+            <input type="date" class="rc-input" id="rcUploadFrom">
+          </div>
+          <div class="rc-field">
+            <label for="rcUploadTo">Upload date to</label>
+            <input type="date" class="rc-input" id="rcUploadTo">
+          </div>
+          <div class="rc-field rc-field-wide">
+            <label for="rcReason">Reason remark</label>
+            <select class="rc-select" id="rcReason"></select>
+          </div>
+          <div class="rc-field">
+            <label for="rcPresence">Where</label>
+            <select class="rc-select" id="rcPresence"></select>
+          </div>
+          <div class="rc-field">
+            <label for="rcHealth">Health</label>
+            <select class="rc-select" id="rcHealth">
+              <option value="">All</option>
+              <option value="ok">Clear</option>
+              <option value="warn">Watch</option>
+              <option value="bad">Exception</option>
+            </select>
+          </div>
+          <div class="rc-field">
+            <label for="rcSection">GSTR-1 section</label>
+            <select class="rc-select" id="rcSection"></select>
+          </div>
+          <div class="rc-field">
+            <label for="rcStatus">Record status</label>
+            <select class="rc-select" id="rcStatus">
+              <option value="">Active (default)</option>
+              <option value="deleted">Deleted only</option>
+              <option value="all">Everything</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="rc-filter-actions">
+          <button type="button" class="rc-btn" id="rcReset">
+            <i class="fas fa-rotate-left"></i> Show all
+          </button>
+          <span class="rc-spacer"></span>
+          {% if recon_perms.edit %}
+          <button type="button" class="rc-btn" id="rcAdd">
+            <i class="fas fa-plus"></i> Add record
+          </button>
+          {% endif %}
+          {% if recon_perms.import %}
+          <button type="button" class="rc-btn" id="rcRerun">
+            <i class="fas fa-arrows-rotate"></i> Re-run reason rules
+          </button>
+          {% endif %}
+          <button type="button" class="rc-btn" id="rcPreviewExport">
+            <i class="fas fa-eye"></i> Preview export
+          </button>
+          <button type="button" class="rc-btn" id="rcExport">
+            <i class="fas fa-file-excel"></i> Export to Excel
+          </button>
+          {% if recon_perms.import %}
+          <button type="button" class="rc-btn rc-btn-danger" id="rcRemoveFiltered">
+            <i class="fas fa-trash-can"></i> Remove filtered
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Records ═══ -->
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-table-list"></i> Records</h2>
+        <span class="rc-count-badge" id="rcCount">&mdash;</span>
+      </div>
+
+      <div class="rc-table-host">
+        <div class="rc-busy" id="rcBusy" hidden><span class="rc-spinner"></span></div>
+
+        <div class="rc-table-wrap">
+          <table class="rc-table" id="rcTable">
+            <thead>
+              <tr>
+                <th>Where</th>
+                <th class="rc-sortable" data-sort="DocumentNumber">Document no. <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable" data-sort="DocumentType">Type <i class="fas fa-sort"></i></th>
+                <th>Bill-to</th>
+                <th class="rc-sortable" data-sort="GstDocumentDate">Date <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable rc-num" data-sort="GSTDocumentTaxableValue"
+                    title="GSTR-1 taxable value — the figure reconciliation compares">
+                    GST <small>taxable</small> <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable rc-num" data-sort="EINVDocumentTaxableValue"
+                    title="E-Invoice taxable value">
+                    E-Invoice <small>taxable</small> <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable rc-num" data-sort="EWBDocumentTaxableValue"
+                    title="E-Way Bill taxable value">
+                    E-Way Bill <small>taxable</small> <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable rc-num" data-sort="MaxGap"
+                    title="Largest taxable value minus smallest, across the sources carrying this document">
+                    Gap <i class="fas fa-sort"></i></th>
+                <th class="rc-sortable" data-sort="ReasonRemark">Reason remark <i class="fas fa-sort"></i></th>
+                <th style="text-align:right">&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody id="rcBody"></tbody>
+          </table>
+        </div>
+
+        <div class="rc-empty" id="rcEmpty" hidden>
+          <i class="fas fa-inbox"></i>
+          <h3>No records match</h3>
+          <p id="rcEmptyHint">Upload a reconciliation export above to begin.</p>
+        </div>
+      </div>
+
+      <div class="rc-pager">
+        <span id="rcPagerInfo">&mdash;</span>
+        <div class="rc-pager-btns">
+          <label for="rcPageSize" style="margin:0 6px 0 0">Rows</label>
+          <select class="rc-select" id="rcPageSize" style="width:auto">
+            <option>25</option><option selected>50</option>
+            <option>100</option><option>200</option>
+          </select>
+          <button type="button" class="rc-btn rc-btn-sm" id="rcFirst"><i class="fas fa-angles-left"></i></button>
+          <button type="button" class="rc-btn rc-btn-sm" id="rcPrev"><i class="fas fa-chevron-left"></i></button>
+          <span class="rc-pager-page" id="rcPage">1 / 1</span>
+          <button type="button" class="rc-btn rc-btn-sm" id="rcNext"><i class="fas fa-chevron-right"></i></button>
+          <button type="button" class="rc-btn rc-btn-sm" id="rcLast"><i class="fas fa-angles-right"></i></button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="rc-toasts" id="rcToasts"></div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<!-- ═══ Edit-all-fields drawer ═══ -->
+<div id="rcDrawerHost" hidden>
+  <div class="rc-scrim" data-rc-close></div>
+  <aside class="rc-drawer" role="dialog" aria-modal="true" aria-labelledby="rcDrawerTitle">
+    <div class="rc-drawer-hdr">
+      <div>
+        <h2 id="rcDrawerTitle">Document</h2>
+        <p class="rc-sub" id="rcDrawerSub"></p>
+      </div>
+      <button type="button" class="rc-icon-btn" data-rc-close aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="rc-tabs" id="rcDrawerTabs" role="tablist"></div>
+
+    <div class="rc-drawer-body">
+      <div id="rcDrawerGroups"></div>
+
+      <div id="rcDrawerClassification" hidden>
+        <div class="rc-pin">
+          <input type="checkbox" id="rcManual">
+          <label for="rcManual" style="margin:0">
+            <b>Pin this classification</b>
+            <span>
+              The four fields below are worked out from the document every time it is
+              saved and every time the rules are re-run. Pin them to keep your own
+              values instead &mdash; a pinned record is also left alone by a re-import,
+              so an operator's decision survives the next upload.
+            </span>
+          </label>
+        </div>
+        <div class="rc-field-grid">
+          <div class="rc-field">
+            <label for="rcReasonRemark">ReasonRemark</label>
+            <input type="text" class="rc-input" id="rcReasonRemark">
+          </div>
+          <div class="rc-field">
+            <label for="rcSegment">Segment</label>
+            <input type="text" class="rc-input" id="rcSegment">
+          </div>
+          <div class="rc-field">
+            <label for="rcGstr1Section">Gstr1Section</label>
+            <input type="text" class="rc-input" id="rcGstr1Section">
+          </div>
+          <div class="rc-field">
+            <label for="rcHealthField">Health</label>
+            <select class="rc-select" id="rcHealthField">
+              <option value="ok">ok &mdash; Clear</option>
+              <option value="warn">warn &mdash; Watch</option>
+              <option value="bad">bad &mdash; Exception</option>
+            </select>
+          </div>
+        </div>
+
+        <dl class="rc-audit" id="rcAudit"></dl>
+      </div>
+    </div>
+
+    <div class="rc-drawer-foot">
+      <span id="rcDrawerHint" class="rc-kpi-hint"></span>
+      <span class="rc-spacer"></span>
+      <button type="button" class="rc-btn" data-rc-close>Cancel</button>
+      {% if recon_perms.edit %}
+      <button type="button" class="rc-btn rc-btn-primary" id="rcDrawerSave">
+        <i class="fas fa-floppy-disk"></i> Save changes
+      </button>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+
+<!-- ═══ Add record ═══ -->
+<div class="rc-modal" id="rcAddModal" hidden>
+  <div class="rc-modal-box">
+    <div class="rc-modal-hdr">
+      <h2><i class="fas fa-plus"></i> Add record</h2>
+      <button type="button" class="rc-icon-btn" data-rc-close-add aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="rc-modal-body">
+      <div class="rc-form-grid">
+        <div class="rc-field">
+          <label for="nDoc">Document no. *</label>
+          <input type="text" class="rc-input" id="nDoc">
+        </div>
+        <div class="rc-field">
+          <label for="nType">Type</label>
+          <select class="rc-select" id="nType">
+            <option>Invoice</option><option>Credit Note</option>
+            <option>Debit Note</option><option>Challan</option>
+          </select>
+        </div>
+        <div class="rc-field">
+          <label for="nEntity">Entity GSTIN</label>
+          <input type="text" class="rc-input" id="nEntity">
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="nParty">Bill-to name</label>
+          <input type="text" class="rc-input" id="nParty">
+        </div>
+        <div class="rc-field">
+          <label for="nGstDate">GST date</label>
+          <input type="date" class="rc-input" id="nGstDate">
+        </div>
+        <div class="rc-field">
+          <label for="nGstVal">GST value</label>
+          <input type="text" class="rc-input" id="nGstVal" inputmode="decimal">
+        </div>
+        <div class="rc-field">
+          <label for="nIrn">E-Invoice IRN</label>
+          <input type="text" class="rc-input" id="nIrn">
+        </div>
+        <div class="rc-field">
+          <label for="nEinvVal">E-Invoice value</label>
+          <input type="text" class="rc-input" id="nEinvVal" inputmode="decimal">
+        </div>
+        <div class="rc-field">
+          <label for="nEwbNo">E-Way Bill no.</label>
+          <input type="text" class="rc-input" id="nEwbNo">
+        </div>
+        <div class="rc-field">
+          <label for="nEwbVal">E-Way Bill value</label>
+          <input type="text" class="rc-input" id="nEwbVal" inputmode="decimal">
+        </div>
+        <div class="rc-field">
+          <label for="nHsn">HSN / SAC</label>
+          <input type="text" class="rc-input" id="nHsn">
+        </div>
+        <div class="rc-field">
+          <label for="nBillingType">Billing type (GSTCustom1)</label>
+          <input type="text" class="rc-input" id="nBillingType" placeholder="e.g. ZSAE">
+        </div>
+      </div>
+    </div>
+    <div class="rc-modal-foot">
+      <span class="rc-kpi-hint">The reason remark is worked out from what you enter.</span>
+      <span class="rc-spacer"></span>
+      <button type="button" class="rc-btn" data-rc-close-add>Cancel</button>
+      <button type="button" class="rc-btn rc-btn-success" id="rcSaveNew">
+        <i class="fas fa-check"></i> Save record
+      </button>
+    </div>
+  </div>
+</div>
+
+{% include "reconciliation/_document_modal.html" %}
+
+{% include "reconciliation/_preview_modal.html" %}
+
+{{ filter_options|json_script:"rcFilterOptions" }}
+{{ pending_job|json_script:"rcPendingJobRaw" }}
+<script id="rcConfig" type="application/json">
+{
+  "urls": {
+    "records":        "{% url 'reconciliation:records_data' %}",
+    "filters":        "{% url 'reconciliation:filter_options' %}",
+    "recordCreate":   "{% url 'reconciliation:record_create' %}",
+    "recordBase":     "/reconciliation/api/record/",
+    "removeFiltered": "{% url 'reconciliation:remove_filtered' %}",
+    "upload":         "{% url 'reconciliation:upload' %}",
+    "jobBase":        "/reconciliation/api/job/",
+    "rerun":          "{% url 'reconciliation:rerun_rules' %}",
+    "exportRecords":  "{% url 'reconciliation:export_records' %}",
+    "exportPreview":  "{% url 'reconciliation:export_records_preview' %}"
+  },
+  "perms": {
+    "edit":    {{ recon_perms.edit|yesno:"true,false" }},
+    "import":  {{ recon_perms.import|yesno:"true,false" }},
+    "masters": {{ recon_perms.masters|yesno:"true,false" }}
+  },
+  "pageSize": {{ page_size }}
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/reconciliation/recon_preview.js' %}"></script>
+<script src="{% static 'js/reconciliation/recon.js' %}"></script>
+{% endblock %}

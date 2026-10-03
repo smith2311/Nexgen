@@ -1,0 +1,284 @@
+# Environment files. `.env*`, not a bare `.env`: that pattern left
+# .env.prd — real prod SECRET_KEY, DB password, Zoho and OpenAI keys —
+# untracked but NOT ignored, one `git add .` away from entering history
+# permanently. The negation keeps committing a redacted .env.example
+# possible without reopening the hole.
+.env*
+!.env.example
+.log
+# Runtime logs. These were tracked, which meant a deploy that resets prod's
+# checkout to the shipped commit would overwrite logs/daphne.log while daphne
+# still held it open — the writes then go to an unlinked inode and vanish.
+# logs/ itself stays in the tree via .gitkeep: settings.LOGGING points a
+# FileHandler at logs/vat_pipeline.log, and FileHandler creates the file but
+# not the directory, so an absent logs/ is a startup failure.
+logs/*.log
+*.sqlite3
+merilv_test_report_2026-08-30.xlsx
+dummy_login_vendorlink.txt
+media/
+__pycache__/
+req/
+# Dummy/sample design references and mock upload templates. The directory on
+# disk is spelled "dummy_tempelate" (el transposed) — the correctly-spelled
+# rules below matched nothing for as long as they existed, which is how the
+# dummy PDFs/XLSX ended up tracked. Both spellings are covered now.
+dummy_tempelate/
+dummy_template/
+dummy_template
+*.pyc
+translation_sessions.json
+SA_README.html
+module_info/
+# SQL dump files — never commit raw DB exports
+*.sql
+schema_backup.sql
+data_backup.sql
+migrations.zip
+
+# Generated/static build output
+staticfiles/
+static/staticfiles.json
+static/admin/
+static/rest_framework/
+
+# Retired Material Disposition module artifacts.
+# The active module is material_rework; keep the old app/template/static paths
+# from coming back as accidental branch noise.
+material_disposition/
+templates/material_disposition/
+static/css/material-disposition/
+static/js/material-disposition/
+
+# Local virtual environments
+venv/
+.venv/
+*.bak
+*.pptx
+
+# Local editor and tool metadata
+.vscode/
+.pytest_cache/
+.gitea/
+.claude/
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local data and export artifacts
+Master Data.xlsx
+vendorlink_data.xlsx
+vendorlink_sample_data.xlsx
+stitch_vendorlink_design_system.zip
+VendorLink_Design_Audit.pdf
+VendorLink_Phase2_Plan.pdf
+merilv_import_report*.json
+logs/*
+*.log
+
+# Test, lint, and package build artifacts
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+build/
+dist/
+*.egg-info/
+
+# Temporary local verification scripts
+v22.py
+vcc.py
+ves.py
+vot.py
+vr1.py
+verify_phase4.py
+verify_stock_kpis.py
+
+# Root-level scratch scripts from local debugging
+/beforeafter.py
+/entcheck.py
+/jab1.py
+/kpicheck.py
+/list.py
+/measure.py
+/probe*.py
+/replay.py
+/replayall.py
+/trace*.py
+/verify.py
+
+# Local/generated Meril-V design reference artifacts — these used to be listed
+# individually (_design_extracted/, meril_v_dummy_data/, the stitch zip, and
+# vendor_master_template.xlsx); the whole-directory rule above supersedes them.
+
+# Local vendor demo credentials (plaintext passwords — never commit)
+vendorlink_vendor_credentials.xlsx
+
+# Local n8n workflow exports / scratch workflows
+/vendor_scrapping.json
+
+# Local Warehouse Inspection import data (real staff email addresses — never commit)
+Warehouse_Checklist_Final*.xlsx
+Check list.xlsx
+
+# Python bytecode and packaging leftovers not covered by __pycache__/
+*.pyo
+*.pyd
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node dependencies (module_info/ vendored copies, any future frontend tooling)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Editor / IDE metadata
+.idea/
+.history/
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+
+# OS metadata
+desktop.ini
+$RECYCLE.BIN/
+
+# Environment files other than the committed .env.example template
+.env.*
+!.env.example
+
+# Django/Celery local runtime state
+local_settings.py
+celerybeat-schedule*
+celerybeat.pid
+*.pid
+db.sqlite3
+
+# Merge/patch and generic temp leftovers
+*.orig
+*.rej
+*.tmp
+*.temp
+~$*
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Archives — release/handover bundles are built on demand, never committed
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# One-off local test reports
+git_push_connectivity_test_report_*.xlsx
+
+# nginx was only used by the old local-dev compose topology (nginx :8443 +
+# TLS termination in front of Daphne). The current docker-compose.yml runs
+# Daphne directly on host networking with no nginx service, and this folder
+# isn't present on manas either — it's dead config, and its cert/key pair
+# should never have been committed in the first place.
+nginx/
+
+# Database dumps. Four of these (23 MB) had been committed: they are point-in-
+# time copies of the production-shaped database, including vendor contact
+# rows, and version control is the wrong place for either the bulk or the
+# contents. Kept on disk, untracked from here on.
+backups/
+*.dump
+*.sql.gz
+
+# Scratch output from local verification runs — screenshots, rendered page
+# dumps and the stray NUL that Windows redirection leaves behind.
+tmp_vlshots/
+tmp_vlshots*
+NUL
+
+# CI code-quality output. scripts/ci-quality.sh regenerates it; published as
+# job artifacts rather than committed.
+quality-reports/
+
+# ── Tracked-by-accident scratch, untracked 2026-09-18 ──────────────────────
+# A .gitignore rule does nothing to a file git is already tracking, which is
+# how all of these stayed in every clone and every checkout despite the rules
+# above matching their names. They were untracked with `git rm --cached` (the
+# files stay on disk) and these patterns stop them coming back.
+
+# One-off debugging scripts from the jabalpur serial investigation. The
+# existing /jab1.py rule matched one of four.
+/jab_default_serial_bug.py
+/jab_verify_raw.py
+/jab_verify_raw2.py
+/raw.py
+/xrule.py
+/build_verification_report.py
+
+# Generated exports and one-off verification reports. Each is a point-in-time
+# artifact of a run that has long finished; the code that produces them is
+# what belongs in the repository.
+/merilv_verification_*.xlsx
+/vendorlink_price_premium_heatmap.xlsx
+/Meril-V courier by region.xlsx
+
+# Local scratch: dumps pulled for a bug, barcode captures, generated masters.
+# pytest already skips tmp/ (see norecursedirs in pytest.ini).
+tmp/
+docs/Dumps/
+
+# ── 2026-09-21 ────────────────────────────────────────────────────────────
+# Dummy design references and mock upload templates. The `dummy_tempelate/`
+# rule above has matched since it was written, but a .gitignore rule does
+# nothing to a file git is ALREADY tracking — so all ten (1.7 MB of sample
+# PDFs, XLSX and DOCX) stayed in every clone. Untracked with
+# `git rm -r --cached dummy_tempelate`; the files stay on disk and the rule
+# above now keeps them out.
+
+# logs/ contents are ignored above, but this one file must stay tracked:
+# settings.LOGGING points a FileHandler at logs/, and FileHandler creates the
+# file but NOT the directory — an absent logs/ is a startup failure. Note the
+# rule above is `logs/*`, not `logs/`: excluding the DIRECTORY would make this
+# negation a no-op, because git will not descend into an excluded directory to
+# re-include something inside it.
+!logs/.gitkeep
+
+# Word documents, for the same reason *.pptx is ignored: handover decks and
+# scope documents are shared, not versioned here.
+*.docx
+
+# Extra local runtime/tooling leftovers
+.python-version
+.cache/
+.nox/
+pytestdebug.log
+.coverage.*
+*.out.log
+*.err.log
+*.stackdump
+*.seed
+
+# Root-level local handover/debug artifacts
+/DUMP_TEST_REPORT.md
+/MOM_FIX_REPORT.md
+/nexgen.zip
+
+# Test files and test-only config stay local. This repo keeps application code
+# only; Django app tests.py files, pytest modules and tests/ packages should
+# not be committed.
+tests/
+tests.py
+test_*.py
+*_test.py
+*_tests.py
+conftest.py
+pytest.ini
+settings_test.py
+test_db.sqlite3
+*test_report*.xlsx

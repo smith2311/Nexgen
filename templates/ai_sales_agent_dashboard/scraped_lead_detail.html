@@ -1,0 +1,1396 @@
+{% extends "ai_sales_agent_dashboard/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}{{ name }} — Pipeline Detail{% endblock %}
+{% block topbar_title %}🏥 {{ name|truncatechars:50 }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}" class="btn-topbar btn-topbar-outline">← Hospitals</a>
+<a href="{% url 'ai_sales_agent_dashboard:dashboard_home' %}" class="btn-topbar btn-topbar-outline">📊 Dashboard</a>
+{% endblock %}
+
+{% block extra_style %}
+/* ── Hero ───────────────────────────────────────────────────── */
+.lead-hero {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.lead-hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--tier-c, #6b7280), transparent);
+}
+.lead-hero-grid {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 24px; align-items: start;
+}
+@media (max-width: 680px) { .lead-hero-grid { grid-template-columns: 1fr; } }
+.lead-name { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3; }
+.lead-location { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+.lead-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.lead-contact-row {
+  margin-top: 16px;
+  display: flex; flex-wrap: wrap; gap: 12px;
+}
+.contact-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  font-size: 12px; color: var(--text-secondary); text-decoration: none;
+}
+.contact-pill:hover { border-color: var(--accent-purple); color: var(--accent-purple); }
+
+/* ── Pipeline Journey ───────────────────────────────────────── */
+.pipeline-journey {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+.journey-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-muted); margin-bottom: 16px;
+}
+.journey-track {
+  display: flex; align-items: center; gap: 0;
+  min-width: max-content;
+}
+.journey-step {
+  display: flex; align-items: center;
+}
+.journey-node {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 14px; border-radius: 10px;
+  min-width: 90px; text-align: center;
+  background: rgba(0,0,0,0.03); border: 1px solid var(--border);
+}
+.journey-node.active {
+  background: rgba(var(--jc-rgb, 99,102,241), 0.1);
+  border-color: rgba(var(--jc-rgb, 99,102,241), 0.35);
+}
+.journey-node-icon { font-size: 18px; line-height: 1; }
+.journey-node-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); }
+.journey-node-wf { font-size: 9px; color: var(--text-muted); }
+.journey-arrow { font-size: 16px; color: var(--border); padding: 0 4px; flex-shrink: 0; }
+
+/* ── Score Ring ─────────────────────────────────────────────── */
+.icp-score-ring {
+  width: 90px; height: 90px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  background: conic-gradient(var(--rc, #7c3aed) var(--rp, 0%), rgba(0,0,0,0.08) 0%);
+  position: relative; flex-shrink: 0;
+}
+.icp-score-ring::before {
+  content: ''; position: absolute; inset: 10px;
+  border-radius: 50%; background: var(--bg-card);
+}
+.icp-score-val { font-size: 20px; font-weight: 800; color: var(--text-primary); position: relative; z-index: 1; line-height: 1; }
+.icp-score-label { font-size: 8px; color: var(--text-muted); position: relative; z-index: 1; text-transform: uppercase; }
+
+/* ── Score bars ─────────────────────────────────────────────── */
+.score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.score-row-label { font-size: 12px; color: var(--text-muted); width: 110px; flex-shrink: 0; }
+.score-row-track { flex: 1; height: 6px; background: rgba(0,0,0,0.08); border-radius: 4px; overflow: hidden; }
+.score-row-fill { height: 100%; border-radius: 4px; }
+.score-row-val { font-size: 12px; font-weight: 700; color: var(--text-secondary); width: 32px; text-align: right; flex-shrink: 0; }
+
+/* ── Section cards ───────────────────────────────────────────── */
+.pipeline-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.pipeline-section-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 22px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.pipeline-section-header:hover { background: var(--bg-secondary); }
+.section-wf-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.05);
+  color: var(--text-muted);
+}
+.section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); flex: 1; }
+.section-toggle { font-size: 12px; color: var(--text-muted); transition: transform .2s; }
+.pipeline-section-body { padding: 22px; }
+.pipeline-section.collapsed .pipeline-section-body { display: none; }
+.pipeline-section.collapsed .section-toggle { transform: rotate(-90deg); }
+
+/* ── Data grid ───────────────────────────────────────────────── */
+.data-kv-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+  margin-bottom: 16px;
+}
+.data-kv {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+}
+.data-kv-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+.data-kv-value { font-size: 13px; color: var(--text-primary); font-weight: 600; word-break: break-word; }
+.data-kv-value a { color: var(--accent-blue); text-decoration: none; }
+.data-kv-value a:hover { text-decoration: underline; }
+
+/* ── Analysis text blocks ─────────────────────────────────────── */
+.analysis-block {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-bottom: 14px;
+}
+.analysis-block-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); margin-bottom: 8px; }
+.analysis-block-body { font-size: 13px; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap; }
+
+/* ── Meeting card ─────────────────────────────────────────────── */
+.meeting-card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-bottom: 10px;
+  display: flex; gap: 16px; align-items: flex-start;
+}
+.meeting-icon { font-size: 24px; flex-shrink: 0; }
+.meeting-status-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  background: rgba(124,58,237,.12); color: var(--accent-purple);
+}
+
+/* ── Review cards ─────────────────────────────────────────────── */
+.review-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 16px; padding: 12px 14px;
+  background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2);
+  border-radius: 10px;
+}
+.review-summary-label { font-size: 12px; color: var(--text-secondary); font-weight: 700; }
+.review-summary-meta { font-size: 12px; color: var(--text-muted); }
+.review-list { display: grid; gap: 12px; }
+.review-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.review-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
+}
+.review-author {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+}
+.review-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+  background: rgba(0,0,0,.08);
+}
+.review-avatar-fallback {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%;
+  flex-shrink: 0; font-size: 14px; font-weight: 800;
+  color: var(--accent-purple); background: rgba(124,58,237,.12);
+}
+.review-author-name {
+  font-size: 13px; font-weight: 700; color: var(--text-primary);
+}
+.review-author-meta {
+  font-size: 11px; color: var(--text-muted); margin-top: 2px;
+}
+.review-rating {
+  font-size: 12px; font-weight: 700; color: #d97706;
+  white-space: nowrap;
+}
+.review-text {
+  font-size: 13px; line-height: 1.7; color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+.review-actions {
+  margin-top: 12px;
+}
+.review-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--accent-blue); text-decoration: none;
+}
+.review-link:hover { text-decoration: underline; }
+
+/* ── Fit drivers/gaps ─────────────────────────────────────────── */
+.fit-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fit-chip-pos { background: rgba(5,150,105,.1); color: #059669; border: 1px solid rgba(5,150,105,.2); padding: 3px 10px; border-radius: 12px; font-size: 11px; }
+.fit-chip-neg { background: rgba(239,68,68,.08); color: #ef4444; border: 1px solid rgba(239,68,68,.15); padding: 3px 10px; border-radius: 12px; font-size: 11px; }
+
+/* ── AI Brief structured display ─────────────────────────────── */
+.brief-meta-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px;
+}
+.brief-meta-item {
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+}
+.brief-meta-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4px; }
+.brief-meta-value { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.brief-badge-low  { color: #ef4444; }
+.brief-badge-med  { color: #f59e0b; }
+.brief-badge-high { color: #22c55e; }
+
+.brief-sub-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--accent-purple); margin: 20px 0 10px;
+}
+.brief-insight-list { margin: 0; padding-left: 18px; }
+.brief-insight-list li { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 4px; }
+
+.pain-card {
+  background: var(--bg-secondary); border: 1px solid rgba(239,68,68,.25); border-left: 3px solid;
+  border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
+}
+.pain-card.severity-high { border-left-color: #ef4444; }
+.pain-card.severity-medium { border-left-color: #f59e0b; }
+.pain-card.severity-low { border-left-color: #22c55e; }
+.pain-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.pain-evidence { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+.pain-severity { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; }
+.pain-severity.high  { background: rgba(239,68,68,.12); color: #ef4444; }
+.pain-severity.medium { background: rgba(245,158,11,.12); color: #f59e0b; }
+.pain-severity.low   { background: rgba(34,197,94,.12); color: #22c55e; }
+.pain-vq { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+.pain-vq strong { color: var(--text-secondary); }
+
+.tag-pill-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tag-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: rgba(124,58,237,.1); color: var(--accent-purple); border: 1px solid rgba(124,58,237,.2); }
+.tag-pill-green { background: rgba(5,150,105,.1); color: #059669; border: 1px solid rgba(5,150,105,.2); }
+.tag-pill-red   { background: rgba(239,68,68,.08); color: #ef4444; border: 1px solid rgba(239,68,68,.15); }
+.tag-pill-blue  { background: rgba(37,99,235,.1); color: var(--accent-blue); border: 1px solid rgba(37,99,235,.2); }
+.tag-pill-amber { background: rgba(245,158,11,.1); color: #d97706; border: 1px solid rgba(245,158,11,.2); }
+
+.swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+@media (max-width: 600px) { .swot-grid { grid-template-columns: 1fr; } }
+.swot-box { border-radius: 8px; padding: 12px 14px; }
+.swot-box-s { background: rgba(5,150,105,.06); border: 1px solid rgba(5,150,105,.2); }
+.swot-box-w { background: rgba(239,68,68,.05); border: 1px solid rgba(239,68,68,.15); }
+.swot-box-o { background: rgba(37,99,235,.05); border: 1px solid rgba(37,99,235,.15); }
+.swot-box-t { background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.2); }
+.swot-box-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.swot-box-s .swot-box-label { color: #059669; }
+.swot-box-w .swot-box-label { color: #ef4444; }
+.swot-box-o .swot-box-label { color: var(--accent-blue); }
+.swot-box-t .swot-box-label { color: #d97706; }
+.swot-list { margin: 0; padding-left: 16px; }
+.swot-list li { font-size: 12px; line-height: 1.65; color: var(--text-secondary); margin-bottom: 2px; }
+
+.qs-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+.qs-category { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--accent-purple); margin-bottom: 6px; }
+.qs-question { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.qs-followup { font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 4px; }
+.qs-insight  { font-size: 11px; color: var(--accent-blue); }
+
+.tt-block { margin-bottom: 14px; }
+.tt-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px; }
+.tt-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+.tt-opening { border-left: 3px solid var(--accent-purple); padding-left: 14px; }
+.tt-vp { border-left: 3px solid #059669; padding-left: 14px; }
+.tt-close { border-left: 3px solid #d97706; padding-left: 14px; }
+.tt-followup { border-left: 3px solid var(--accent-blue); padding-left: 14px; }
+
+/* ── Social links ─────────────────────────────────────────────── */
+.social-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.social-link { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 6px; font-size: 12px; background: rgba(0,0,0,0.04); border: 1px solid var(--border); color: var(--accent-blue); text-decoration: none; }
+.social-link:hover { background: rgba(37,99,235,.08); border-color: var(--accent-blue); }
+
+/* ── Info bar (hero sub-row) ─────────────────────────────────── */
+.lead-info-bar {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin: 10px 0 6px;
+  padding: 8px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.info-bar-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.info-bar-item a { color: var(--accent-blue); text-decoration: none; }
+.info-bar-item a:hover { text-decoration: underline; }
+
+/* ── Info tooltips ────────────────────────────────────────────── */
+.info-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; cursor: help;
+  color: var(--accent-blue); background: rgba(37,99,235,.1);
+  border: 1px solid rgba(37,99,235,.2);
+  position: relative; vertical-align: middle; margin-left: 4px;
+  line-height: 1;
+}
+.info-tip:hover::after, .info-tip:focus::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: 11px; font-weight: 400;
+  white-space: normal; width: max-content; max-width: 260px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  z-index: 100; line-height: 1.5; letter-spacing: normal;
+  text-transform: none;
+}
+
+/* ── MEDDIC grid ─────────────────────────────────────────────── */
+.meddic-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+@media(max-width:680px){ .meddic-grid { grid-template-columns: 1fr; } }
+.meddic-category-card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; transition: border-color .2s;
+}
+.meddic-category-card:hover { border-color: rgba(37,99,235,.3); }
+.meddic-category-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.meddic-initial {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(37,99,235,.1); color: var(--accent-blue);
+  font-size: 12px; font-weight: 800; letter-spacing: .5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.meddic-label { font-size: 13px; font-weight: 700; color: var(--text-primary); flex: 1; }
+.meddic-count {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  background: rgba(0,0,0,.06); padding: 2px 7px; border-radius: 10px;
+}
+.meddic-questions-list {
+  margin: 0; padding: 0 0 0 20px;
+  list-style: disc;
+}
+.meddic-questions-list li {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.65;
+  margin-bottom: 6px; padding-left: 4px;
+}
+.meddic-questions-list li::marker { color: var(--accent-blue); }
+
+/* ── Potential Products card ──────────────────────────────────── */
+.products-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; margin-bottom: 20px; overflow: hidden;
+}
+.products-card-header {
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.products-card-body { padding: 22px; }
+.products-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.product-item {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.product-item:hover { border-color: rgba(124,58,237,.3); box-shadow: 0 2px 10px rgba(124,58,237,.08); }
+.product-item-icon { font-size: 22px; margin-bottom: 6px; }
+.product-item-name { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.product-item-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.product-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.product-tag { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: rgba(124,58,237,.08); color: var(--accent-purple); border: 1px solid rgba(124,58,237,.15); }
+.product-match-reason { font-size: 11px; color: #059669; margin: 6px 0 4px; font-weight: 600; }
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════ HERO ══════ -->
+<div class="lead-hero" style="--tier-c:{{ tier_color }}">
+  <div class="lead-hero-grid">
+    <div>
+      <div class="lead-name">{{ name }}</div>
+      <div class="lead-location">
+        {% if address %}📍 {{ address }}{% elif city %}📍 {{ city }}{% endif %}
+      </div>
+
+      {% if scraped %}
+      <div class="lead-info-bar">
+        {% if scraped.title and scraped.title != name %}
+        <span class="info-bar-item">🏢 {{ scraped.title }}</span>
+        {% endif %}
+        {% if scraped.type %}
+        <span class="info-bar-item">🏥 {{ scraped.type }}</span>
+        {% endif %}
+        {% if contact_phone %}
+        <span class="info-bar-item"><a href="tel:{{ contact_phone }}">📞 {{ contact_phone }}</a></span>
+        {% elif scraped.phone %}
+        <span class="info-bar-item"><a href="tel:{{ scraped.phone }}">📞 {{ scraped.phone }}</a></span>
+        {% endif %}
+        {% if contact_email %}
+        <span class="info-bar-item"><a href="mailto:{{ contact_email }}">✉️ {{ contact_email }}</a></span>
+        {% elif scraped.email %}
+        <span class="info-bar-item"><a href="mailto:{{ scraped.email }}">✉️ {{ scraped.email }}</a></span>
+        {% endif %}
+        {% if scraped.rating %}
+        <span class="info-bar-item">⭐ {{ scraped.rating }}/5
+          {% if total_review_count %}
+          <span style="color:var(--text-muted);font-size:11px">({{ total_review_count }} total reviews)</span>
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="lead-tags">
+        <span class="badge {% if tier_simple == 'hot' %}badge-hot{% elif tier_simple == 'warm' %}badge-warm{% else %}badge-cold{% endif %}">
+          {% if tier_simple == 'hot' %}🔥{% elif tier_simple == 'warm' %}🌡️{% else %}❄️{% endif %}
+          {{ tier_label|upper }}
+        </span>
+        {% if icp %}
+        <span class="badge badge-purple">ICP <span class="info-tip" tabindex="0" data-tip="ICP: Ideal Customer Profile — a scoring model that measures how well this lead matches your target customer criteria">ⓘ</span> {{ icp.icp_fit_score }}/100</span>
+        {% endif %}
+        {% if scraped %}
+        <span class="badge badge-gray">{{ scraped.lead_tier|default:"Lead"|upper }}</span>
+        {% endif %}
+        {% if scraped and scraped.call_status and scraped.call_status != 'not_called' %}
+        <span class="badge badge-active">📞 {{ scraped.call_status|capfirst }}</span>
+        {% endif %}
+        {% if deal %}
+        <span class="badge" style="background:rgba(217,119,6,.12);color:#d97706">💼 {{ deal.deal_stage }}</span>
+        {% endif %}
+      </div>
+
+      {% if contact_name or website %}
+      <div class="lead-contact-row">
+        {% if contact_name %}
+        <span class="contact-pill">👤 {{ contact_name }}</span>
+        {% endif %}
+        {% if website %}
+        <a href="{{ website }}" target="_blank" rel="noopener" class="contact-pill">🌐 Website</a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if social_links %}
+      <div class="social-links">
+        {% for name_s, url in social_links.items %}
+        <a href="{{ url }}" target="_blank" rel="noopener" class="social-link">{{ name_s }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ICP Score Ring -->
+    {% if icp %}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="icp-score-ring"
+           style="--rc:{{ tier_color }};--rp:{{ icp.icp_fit_score }}%">
+        <span class="icp-score-val">{{ icp.icp_fit_score }}</span>
+        <span class="icp-score-label">ICP Fit</span>
+      </div>
+      {% if scraped and scraped.lead_score %}
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text-muted)">Lead Score</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text-primary)">{{ scraped.lead_score }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ══════════════════════════════ PIPELINE JOURNEY ════════════ -->
+{% if pipeline_stages %}
+<div class="pipeline-journey">
+  <div class="journey-title">🔄 Agent Pipeline Journey — {{ pipeline_stages|length }} stage{{ pipeline_stages|length|pluralize }} completed</div>
+  <div class="journey-track">
+    {% for stage in pipeline_stages %}
+    <div class="journey-step">
+      <div class="journey-node active" style="border-color:{{ stage.color }}33;background:{{ stage.color }}0f">
+        <div class="journey-node-icon" style="filter:drop-shadow(0 0 3px {{ stage.color }}80)">{{ stage.icon }}</div>
+        <div class="journey-node-label" style="color:{{ stage.color }}">{{ stage.label }}</div>
+        <div class="journey-node-wf">{{ stage.wf }}</div>
+      </div>
+      {% if not forloop.last %}
+      <div class="journey-arrow">→</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═════════════════════ POTENTIAL MERIL PRODUCTS ════════════ -->
+{% if meril_products %}
+<div class="products-card" id="sec-products">
+  <div class="products-card-header">
+    <span style="font-size:18px">🏭</span>
+    <span class="section-title">Recommended Meril Products</span>
+    {% if meril_products.0.match_reason %}
+    <span class="badge badge-purple">{{ meril_products|length }} matched</span>
+    {% if scraped and scraped.type %}
+    <span class="badge badge-gray" style="font-size:10px">Based on: {{ scraped.type|truncatechars:30 }}</span>
+    {% endif %}
+    {% else %}
+    <span class="badge badge-gray" style="font-size:10px">No specific signal — general suggestion</span>
+    {% endif %}
+  </div>
+  <div class="products-card-body">
+    <div class="products-grid">
+      {% for prod in meril_products %}
+      <div class="product-item">
+        <div class="product-item-icon">{{ prod.icon }}</div>
+        <div class="product-item-name">{{ prod.name }}</div>
+        <div class="product-item-desc">{{ prod.desc }}</div>
+        {% if prod.match_reason %}
+        <div class="product-match-reason">📌 Matched: {{ prod.match_reason }}</div>
+        {% endif %}
+        <div class="product-item-tags">
+          {% for tag in prod.tags %}
+          <span class="product-tag">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════ ICP SCORE BREAKDOWN ════════════ -->
+{% if icp and icp_scores %}
+<div class="pipeline-section" id="sec-icp">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-icp')">
+    <span class="section-wf-badge">WF08–09</span>
+    <span style="font-size:18px">📊</span>
+    <span class="section-title">ICP Scoring <span class="info-tip" tabindex="0" data-tip="ICP: Ideal Customer Profile — scores leads on firmographic, behavioral, technographic & timing fit">ⓘ</span> — {{ icp.tier_label }}</span>
+    <span class="badge {% if tier_simple == 'hot' %}badge-hot{% elif tier_simple == 'warm' %}badge-warm{% else %}badge-cold{% endif %}">{{ icp.account_tier }}</span>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start">
+      <div>
+        <!-- Score breakdown bars -->
+        <div style="margin-bottom:18px">
+          {% for label, score in icp_scores.items %}
+          <div class="score-row">
+            <div class="score-row-label">{{ label|capfirst }}</div>
+            <div class="score-row-track">
+              <div class="score-row-fill"
+                   style="width:{{ score }}%;background:{% if score >= 70 %}#22c55e{% elif score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}">
+              </div>
+            </div>
+            <div class="score-row-val">{{ score }}</div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="data-kv-grid">
+          {% if icp.tech_sophistication %}
+          <div class="data-kv"><div class="data-kv-label">Tech Sophistication</div><div class="data-kv-value">{{ icp.tech_sophistication }}</div></div>
+          {% endif %}
+          {% if icp.digital_engagement %}
+          <div class="data-kv"><div class="data-kv-label">Digital Engagement</div><div class="data-kv-value">{{ icp.digital_engagement }}</div></div>
+          {% endif %}
+          {% if icp.review_velocity %}
+          <div class="data-kv"><div class="data-kv-label">Review Velocity</div><div class="data-kv-value">{{ icp.review_velocity }}</div></div>
+          {% endif %}
+          {% if icp.timing_urgency %}
+          <div class="data-kv"><div class="data-kv-label">Timing Urgency</div><div class="data-kv-value">{{ icp.timing_urgency }}</div></div>
+          {% endif %}
+          {% if icp.active_buying_signals %}
+          <div class="data-kv"><div class="data-kv-label">Buying Signals</div><div class="data-kv-value">{{ icp.active_buying_signals }}</div></div>
+          {% endif %}
+          {% if icp.trigger_events_detected %}
+          <div class="data-kv"><div class="data-kv-label">Trigger Events</div><div class="data-kv-value">{{ icp.trigger_events_detected }}</div></div>
+          {% endif %}
+          {% if icp.has_website %}<div class="data-kv"><div class="data-kv-label">Has Website</div><div class="data-kv-value" style="color:#22c55e">✓ Yes</div></div>{% endif %}
+          {% if icp.social_channel_count %}
+          <div class="data-kv"><div class="data-kv-label">Social Channels</div><div class="data-kv-value">{{ icp.social_channel_count }}</div></div>
+          {% endif %}
+        </div>
+
+        {% if icp.fit_drivers %}
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">✅ Fit Drivers</div>
+          <div class="fit-chips">
+            {% for d in icp.fit_drivers %}
+            <span class="fit-chip-pos">{{ d }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if icp.fit_gaps %}
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">⚠️ Fit Gaps</div>
+          <div class="fit-chips">
+            {% for g in icp.fit_gaps %}
+            <span class="fit-chip-neg">{{ g }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Right: ICP Big Score -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:100px">
+        <div class="icp-score-ring" style="--rc:{{ tier_color }};--rp:{{ icp.icp_fit_score }}%;width:80px;height:80px">
+          <span class="icp-score-val" style="font-size:18px">{{ icp.icp_fit_score }}</span>
+          <span class="icp-score-label">Score</span>
+        </div>
+        <span class="badge {% if tier_simple == 'hot' %}badge-hot{% elif tier_simple == 'warm' %}badge-warm{% else %}badge-cold{% endif %}">{{ tier_label }}</span>
+      </div>
+    </div>
+
+    {% if icp.recommended_action %}
+    <div class="analysis-block" style="background:rgba(124,58,237,.06);border-color:rgba(124,58,237,.2)">
+      <div class="analysis-block-title" style="color:var(--accent-purple)">🎯 Recommended Action</div>
+      <div class="analysis-block-body">{{ icp.recommended_action }}</div>
+    </div>
+    {% endif %}
+
+    {% if icp.entry_point %}
+    <div class="analysis-block">
+      <div class="analysis-block-title">🚪 Entry Point</div>
+      <div class="analysis-block-body">{{ icp.entry_point }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ════════════════════════════ DISCOVERY DATA ════════════════ -->
+{% if scraped %}
+<div class="pipeline-section" id="sec-scraped">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-scraped')">
+    <span class="section-wf-badge">WF01–07</span>
+    <span style="font-size:18px">🔍</span>
+    <span class="section-title">Discovery Data — Raw Scrape</span>
+    {% if scraped.lead_tier %}
+    <span class="badge badge-gray">{{ scraped.lead_tier|upper }}</span>
+    {% endif %}
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      {% if scraped.lead_score %}
+      <div class="data-kv"><div class="data-kv-label">Lead Score</div><div class="data-kv-value" style="color:{% if scraped.lead_score >= 70 %}#22c55e{% elif scraped.lead_score >= 40 %}#f59e0b{% else %}#60a5fa{% endif %}">{{ scraped.lead_score }}/100</div></div>
+      {% endif %}
+      {% if scraped.bant_score %}
+      <div class="data-kv"><div class="data-kv-label">BANT Score <span class="info-tip" tabindex="0" data-tip="BANT: Budget · Authority · Need · Timeline">ⓘ</span></div><div class="data-kv-value">{{ scraped.bant_score }}</div></div>
+      {% endif %}
+      {% if scraped.qualification_status %}
+      <div class="data-kv"><div class="data-kv-label">Qualification</div><div class="data-kv-value">{{ scraped.qualification_status }}</div></div>
+      {% endif %}
+      {% if scraped.mql_stage %}
+      <div class="data-kv"><div class="data-kv-label">MQL Stage <span class="info-tip" tabindex="0" data-tip="MQL: Marketing Qualified Lead — lead readiness for sales outreach">ⓘ</span></div><div class="data-kv-value">{{ scraped.mql_stage }}</div></div>
+      {% endif %}
+      {% if scraped.call_status and scraped.call_status != 'not_called' %}
+      <div class="data-kv"><div class="data-kv-label">Call Status</div><div class="data-kv-value">{{ scraped.call_status }}</div></div>
+      {% endif %}
+      {% if scraped.call_count %}
+      <div class="data-kv"><div class="data-kv-label">Call Count</div><div class="data-kv-value">{{ scraped.call_count }}</div></div>
+      {% endif %}
+      {% if scraped.intent_tier %}
+      <div class="data-kv"><div class="data-kv-label">Intent Tier</div><div class="data-kv-value">{{ scraped.intent_tier }}</div></div>
+      {% endif %}
+      {% if scraped.buyer_persona %}
+      <div class="data-kv"><div class="data-kv-label">Buyer Persona</div><div class="data-kv-value">{{ scraped.buyer_persona }}</div></div>
+      {% endif %}
+    </div>
+
+    {% if scraped.name or scraped.firstname %}
+    <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
+      <strong>Contact found:</strong>
+      {{ scraped.firstname }} {{ scraped.lastname }} — {{ scraped.name }}
+    </div>
+    {% endif %}
+
+    {% if review_items %}
+    <div style="margin-top:18px">
+      <div class="review-summary">
+        <div class="review-summary-label">Patient Reviews</div>
+        <div class="review-summary-meta">
+          Showing {{ review_items|length }} of
+          {% if total_review_count %}{{ total_review_count }}{% else %}all{% endif %}
+          review{{ review_items|length|pluralize }}
+          {% if scraped.rating %} · Overall rating {{ scraped.rating }}/5{% endif %}
+          <span class="info-tip" tabindex="0" data-tip="Google Places API returns a maximum of 5 reviews per location. The overall rating is computed by Google from all reviews.">ⓘ</span>
+        </div>
+      </div>
+
+      <div class="review-list">
+        {% for review in review_items %}
+        <article class="review-card">
+          <div class="review-card-header">
+            <div class="review-author">
+              {% if review.author_photo %}
+              <img src="{{ review.author_photo }}" alt="{{ review.author_name }}" class="review-avatar">
+              {% else %}
+              <span class="review-avatar-fallback">{{ review.author_name|first|upper }}</span>
+              {% endif %}
+              <div>
+                <div class="review-author-name">{{ review.author_name }}</div>
+                {% if review.relative_time or review.published_at %}
+                <div class="review-author-meta">
+                  {{ review.relative_time|default:review.published_at }}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if review.rating %}
+            <div class="review-rating">⭐ {{ review.rating }}/5</div>
+            {% endif %}
+          </div>
+
+          {% if review.text %}
+          <div class="review-text">{{ review.text }}</div>
+          {% endif %}
+
+          {% if review.maps_url %}
+          <div class="review-actions">
+            <a href="{{ review.maps_url }}" target="_blank" rel="noopener" class="review-link">View on Google Maps</a>
+          </div>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+    {% elif scraped.reviews %}
+    <div class="analysis-block" style="margin-top:18px">
+      <div class="analysis-block-title">Reviews</div>
+      <div class="analysis-block-body">{{ scraped.reviews }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ════════════════════════════ AI BRIEF ══════════════════════ -->
+{% if brief %}
+<div class="pipeline-section" id="sec-brief">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-brief')">
+    <span class="section-wf-badge">WF10–13</span>
+    <span style="font-size:18px">🧠</span>
+    <span class="section-title">AI Intelligence Brief</span>
+    {% if brief.ai_growth_stage %}
+    <span class="badge badge-purple">{{ brief.ai_growth_stage|title }}</span>
+    {% endif %}
+    {% if brief.ai_priority_score %}
+    <span class="badge badge-gray">Priority: {{ brief.ai_priority_score }}</span>
+    {% endif %}
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+
+    <!-- ── Company Profile ───────────── -->
+    {% if brief_company %}
+    <div class="analysis-block" style="background:rgba(124,58,237,.04);border-color:rgba(124,58,237,.18)">
+      <div class="analysis-block-title" style="color:var(--accent-purple)">🏢 Company Profile</div>
+      <div class="brief-meta-grid">
+        {% if brief_company.size_estimate %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Size Estimate</div>
+          <div class="brief-meta-value" style="text-transform:capitalize">{{ brief_company.size_estimate }}</div>
+        </div>
+        {% endif %}
+        {% if brief_company.employee_range %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Employee Range</div>
+          <div class="brief-meta-value">{{ brief_company.employee_range }}</div>
+        </div>
+        {% endif %}
+        {% if brief_company.growth_stage %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Growth Stage</div>
+          <div class="brief-meta-value" style="text-transform:capitalize">{{ brief_company.growth_stage }}</div>
+        </div>
+        {% endif %}
+        {% if brief_company.digital_maturity %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Digital Maturity</div>
+          <div class="brief-meta-value {% if brief_company.digital_maturity == 'high' %}brief-badge-high{% elif brief_company.digital_maturity == 'medium' %}brief-badge-med{% else %}brief-badge-low{% endif %}" style="text-transform:capitalize">
+            {% if brief_company.digital_maturity == 'high' %}🟢{% elif brief_company.digital_maturity == 'medium' %}🟡{% else %}🔴{% endif %} {{ brief_company.digital_maturity }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% if brief_company.market_position %}
+      <div style="margin-bottom:12px">
+        <div class="brief-meta-label" style="margin-bottom:5px">Market Position</div>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.7">{{ brief_company.market_position }}</div>
+      </div>
+      {% endif %}
+      {% if brief_company.key_insights %}
+      <div class="brief-sub-title">💡 Key Insights</div>
+      <ul class="brief-insight-list">
+        {% for insight in brief_company.key_insights %}
+        <li>{{ insight }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if brief_company.products_to_pitch %}
+      <div class="brief-sub-title" style="color:#059669;margin-top:14px">🎯 Products To Pitch</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        {% for product in brief_company.products_to_pitch %}
+        <div class="brief-meta-item" style="padding:14px">
+          {% if product.product_name %}
+          <div class="brief-meta-value" style="font-size:13px;margin-bottom:8px">{{ product.product_name }}</div>
+          {% endif %}
+          {% if product.why_it_fits %}
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">{{ product.why_it_fits }}</div>
+          {% endif %}
+          {% if product.lead_with %}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Lead with:</strong> {{ product.lead_with }}</div>
+          {% endif %}
+          {% if product.replaces %}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px"><strong>Replaces:</strong> {{ product.replaces }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── Pain Points ───────────────── -->
+    {% if brief_pain %}
+    <div class="analysis-block" style="background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.18)">
+      <div class="analysis-block-title" style="color:#ef4444">⚠️ Pain Point Analysis</div>
+      {% if brief_pain.primary_pain_points %}
+        {% for pp in brief_pain.primary_pain_points %}
+        <div class="pain-card severity-{{ pp.severity|lower|default:'medium' }}">
+          <div class="pain-title">{{ pp.pain_point }}</div>
+          {% if pp.evidence %}
+          <div class="pain-evidence">📎 Evidence: {{ pp.evidence }}</div>
+          {% endif %}
+          <span class="pain-severity {{ pp.severity|lower|default:'medium' }}">{{ pp.severity|upper|default:"MEDIUM" }} severity</span>
+          {% if pp.validation_questions %}
+          <div class="pain-vq"><strong>Validation questions:</strong>
+            <ul style="margin:4px 0 0 16px;padding:0">
+              {% for vq in pp.validation_questions %}
+              <li style="font-size:11px;color:var(--text-muted);line-height:1.6">{{ vq }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endif %}
+      {% if brief_pain.opportunity_areas %}
+      <div class="brief-sub-title" style="color:#059669">🎯 Opportunity Areas</div>
+      <div class="tag-pill-list">
+        {% for area in brief_pain.opportunity_areas %}
+        <span class="tag-pill tag-pill-green">{{ area }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_pain.urgency_triggers %}
+      <div class="brief-sub-title" style="color:#d97706;margin-top:14px">⚡ Urgency Triggers</div>
+      <div class="tag-pill-list">
+        {% for trigger in brief_pain.urgency_triggers %}
+        <span class="tag-pill tag-pill-amber">{{ trigger }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_pain.discovery_questions %}
+      <div class="brief-sub-title" style="color:var(--accent-blue);margin-top:14px">❓ Discovery Questions</div>
+      {% for q in brief_pain.discovery_questions %}
+      <div class="qs-card">
+        {% if q.category %}<div class="qs-category">{{ q.category|upper }}</div>{% endif %}
+        <div class="qs-question">{{ q.question }}</div>
+        {% if q.insight_goal %}<div class="qs-insight">🎯 Listen for: {{ q.insight_goal }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% if brief_pain.objection_responses %}
+      <div class="brief-sub-title" style="color:#7c3aed;margin-top:14px">🛡️ Objection Handling</div>
+      <div style="display:grid;gap:10px">
+        {% for item in brief_pain.objection_responses %}
+        <div class="brief-meta-item" style="padding:14px">
+          {% if item.they_say %}
+          <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:6px">They say: {{ item.they_say }}</div>
+          {% endif %}
+          {% if item.you_say %}
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">You say: {{ item.you_say }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── Contact Persona ──────────── -->
+    {% if brief_persona %}
+    <div class="analysis-block" style="background:rgba(37,99,235,.04);border-color:rgba(37,99,235,.18)">
+      <div class="analysis-block-title" style="color:var(--accent-blue)">👤 Contact Persona</div>
+      <div class="brief-meta-grid">
+        {% if brief_persona.likely_decision_maker %}
+        <div class="brief-meta-item" style="grid-column:1/-1;background:rgba(37,99,235,.07)">
+          <div class="brief-meta-label">Decision Maker</div>
+          <div class="brief-meta-value">{{ brief_persona.likely_decision_maker }}</div>
+        </div>
+        {% endif %}
+        {% if brief_persona.communication_style %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Communication Style</div>
+          <div class="brief-meta-value" style="font-size:12px;font-weight:600">{{ brief_persona.communication_style }}</div>
+        </div>
+        {% endif %}
+      </div>
+      {% if brief_persona.key_priorities %}
+      <div class="brief-sub-title" style="color:var(--accent-blue)">⭐ Key Priorities</div>
+      <div class="tag-pill-list">
+        {% for p in brief_persona.key_priorities %}<span class="tag-pill tag-pill-blue">{{ p }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_persona.rapport_builders %}
+      <div class="brief-sub-title" style="color:#059669;margin-top:14px">🤝 Rapport Builders</div>
+      <div class="tag-pill-list">
+        {% for r in brief_persona.rapport_builders %}<span class="tag-pill tag-pill-green">{{ r }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_persona.potential_objections %}
+      <div class="brief-sub-title" style="color:#ef4444;margin-top:14px">🚧 Potential Objections</div>
+      <div class="tag-pill-list">
+        {% for o in brief_persona.potential_objections %}<span class="tag-pill tag-pill-red">{{ o }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_persona.call_opening %}
+      <div class="tt-block" style="margin-top:14px">
+        <div class="tt-label">Call Opening</div>
+        <div class="tt-text tt-opening">{{ brief_persona.call_opening }}</div>
+      </div>
+      {% endif %}
+      {% if brief_persona.how_to_close %}
+      <div class="tt-block">
+        <div class="tt-label">Closing Prompt</div>
+        <div class="tt-text tt-close">{{ brief_persona.how_to_close }}</div>
+      </div>
+      {% endif %}
+      {% if brief_persona.follow_up %}
+      <div class="brief-sub-title" style="color:#059669;margin-top:14px">📬 Follow-Up Plan</div>
+      <div class="brief-meta-grid">
+        {% if brief_persona.follow_up.send %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Send</div>
+          <div class="brief-meta-value">{{ brief_persona.follow_up.send }}</div>
+        </div>
+        {% endif %}
+        {% if brief_persona.follow_up.subject_line %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Subject Line</div>
+          <div class="brief-meta-value">{{ brief_persona.follow_up.subject_line }}</div>
+        </div>
+        {% endif %}
+        {% if brief_persona.follow_up.within %}
+        <div class="brief-meta-item">
+          <div class="brief-meta-label">Timing</div>
+          <div class="brief-meta-value">{{ brief_persona.follow_up.within }}</div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── Competitive Intel (SWOT) ──── -->
+    {% if brief_competitive %}
+    <div class="analysis-block" style="background:rgba(5,150,105,.04);border-color:rgba(5,150,105,.18)">
+      <div class="analysis-block-title" style="color:#059669">🔬 Competitive Intelligence — SWOT <span class="info-tip" tabindex="0" data-tip="SWOT: Strengths · Weaknesses · Opportunities · Threats — a strategic analysis framework">ⓘ</span></div>
+      <div class="swot-grid">
+        {% if brief_competitive.strengths %}
+        <div class="swot-box swot-box-s">
+          <div class="swot-box-label">💪 Strengths</div>
+          <ul class="swot-list">{% for s in brief_competitive.strengths %}<li>{{ s }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if brief_competitive.weaknesses %}
+        <div class="swot-box swot-box-w">
+          <div class="swot-box-label">⚠️ Weaknesses</div>
+          <ul class="swot-list">{% for w in brief_competitive.weaknesses %}<li>{{ w }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if brief_competitive.differentiation_opportunities %}
+        <div class="swot-box swot-box-o">
+          <div class="swot-box-label">🚀 Opportunities</div>
+          <ul class="swot-list">{% for o in brief_competitive.differentiation_opportunities %}<li>{{ o }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if brief_competitive.competitive_threats %}
+        <div class="swot-box swot-box-t">
+          <div class="swot-box-label">⚡ Threats</div>
+          <ul class="swot-list">{% for t in brief_competitive.competitive_threats %}<li>{{ t }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+      </div>
+      {% if brief_competitive.products_to_pitch %}
+      <div class="brief-sub-title" style="color:#059669;margin-top:14px">🎯 Recommended Products</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        {% for product in brief_competitive.products_to_pitch %}
+        <div class="brief-meta-item" style="padding:14px">
+          {% if product.product_name %}
+          <div class="brief-meta-value" style="font-size:13px;margin-bottom:8px">{{ product.product_name }}</div>
+          {% endif %}
+          {% if product.why_it_fits %}
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">{{ product.why_it_fits }}</div>
+          {% endif %}
+          {% if product.lead_with %}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Lead with:</strong> {{ product.lead_with }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if brief_competitive.objection_responses %}
+      <div class="brief-sub-title" style="color:#7c3aed;margin-top:14px">🛡️ Response Library</div>
+      <div style="display:grid;gap:10px">
+        {% for item in brief_competitive.objection_responses %}
+        <div class="brief-meta-item" style="padding:14px">
+          {% if item.they_say %}
+          <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:6px">They say: {{ item.they_say }}</div>
+          {% endif %}
+          {% if item.you_say %}
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">You say: {{ item.you_say }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── Personalized Questions ──── -->
+    {% if brief_questions %}
+    <div class="analysis-block">
+      <div class="analysis-block-title">❓ Personalised Discovery Questions</div>
+      {% if brief_questions|length %}
+        {% for q in brief_questions %}
+        <div class="qs-card">
+          {% if q.category %}<div class="qs-category">{{ q.category|upper }}</div>{% endif %}
+          <div class="qs-question">{{ q.question }}</div>
+          {% if q.follow_up %}<div class="qs-followup">↳ Follow-up: {{ q.follow_up }}</div>{% endif %}
+          {% if q.insight_goal %}<div class="qs-insight">🎯 Goal: {{ q.insight_goal }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── Talk Tracks ──────────────── -->
+    {% if brief_talk %}
+    <div class="analysis-block" style="background:rgba(5,150,105,.04);border-color:rgba(5,150,105,.18)">
+      <div class="analysis-block-title" style="color:#059669">🎤 Talk Tracks</div>
+      {% if brief_talk.opening_statement %}
+      <div class="tt-block">
+        <div class="tt-label">Opening Statement</div>
+        <div class="tt-text tt-opening">{{ brief_talk.opening_statement }}</div>
+      </div>
+      {% endif %}
+      {% if brief_talk.value_proposition %}
+      <div class="tt-block">
+        <div class="tt-label">Value Proposition</div>
+        <div class="tt-text tt-vp">{{ brief_talk.value_proposition }}</div>
+      </div>
+      {% endif %}
+      {% if brief_talk.key_talking_points %}
+      <div class="tt-block">
+        <div class="tt-label">Key Talking Points</div>
+        <div class="tag-pill-list">
+          {% for pt in brief_talk.key_talking_points %}<span class="tag-pill tag-pill-green">{{ pt }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if brief_talk.closing_approach %}
+      <div class="tt-block">
+        <div class="tt-label">Closing Approach</div>
+        <div class="tt-text tt-close">{{ brief_talk.closing_approach }}</div>
+      </div>
+      {% endif %}
+      {% if brief_talk.follow_up_strategy %}
+      <div class="tt-block">
+        <div class="tt-label">Follow-Up Strategy</div>
+        <div class="tt-text tt-followup">{{ brief_talk.follow_up_strategy }}</div>
+      </div>
+      {% endif %}
+      {% if brief_talk.pitch_scripts %}
+      <div class="brief-sub-title" style="color:#059669;margin-top:14px">🧾 Pitch Scripts</div>
+      <div style="display:grid;gap:10px">
+        {% for item in brief_talk.pitch_scripts %}
+        <div class="brief-meta-item" style="padding:14px">
+          {% if item.product_name %}
+          <div class="brief-meta-value" style="font-size:13px;margin-bottom:8px">{{ item.product_name }}</div>
+          {% endif %}
+          {% if item.script %}
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">{{ item.script }}</div>
+          {% endif %}
+          {% if item.close_with %}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Close with:</strong> {{ item.close_with }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── AI Meta ───────────────────── -->
+    <div class="data-kv-grid" style="margin-top:12px">
+      {% if brief.ai_size_estimate %}<div class="data-kv"><div class="data-kv-label">Size Estimate</div><div class="data-kv-value" style="text-transform:capitalize">{{ brief.ai_size_estimate }}</div></div>{% endif %}
+      {% if brief.ai_growth_stage %}<div class="data-kv"><div class="data-kv-label">Growth Stage</div><div class="data-kv-value" style="text-transform:capitalize">{{ brief.ai_growth_stage }}</div></div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+{% if research %}
+<div class="pipeline-section collapsed" id="sec-research">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-research')">
+    <span class="section-wf-badge">WF12</span>
+    <span style="font-size:18px">🔭</span>
+    <span class="section-title">Prospect Research Profile</span>
+    {% if research.prospect_name %}<span class="badge badge-gray">{{ research.prospect_name|truncatechars:25 }}</span>{% endif %}
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      {% if research.prospect_name %}<div class="data-kv"><div class="data-kv-label">Prospect Name</div><div class="data-kv-value">{{ research.prospect_name }}</div></div>{% endif %}
+      {% if research.prospect_title %}<div class="data-kv"><div class="data-kv-label">Title</div><div class="data-kv-value">{{ research.prospect_title }}</div></div>{% endif %}
+      {% if research.recommended_channel %}<div class="data-kv"><div class="data-kv-label">Recommended Channel</div><div class="data-kv-value">{{ research.recommended_channel }}</div></div>{% endif %}
+      {% if research.data_quality_score %}<div class="data-kv"><div class="data-kv-label">Data Quality</div><div class="data-kv-value">{{ research.data_quality_score }}/100</div></div>{% endif %}
+    </div>
+    {% if research.company_summary %}<div class="analysis-block"><div class="analysis-block-title">Company Summary</div><div class="analysis-block-body">{{ research.company_summary|truncatechars:500 }}</div></div>{% endif %}
+    {% if research.pain_points %}<div class="analysis-block"><div class="analysis-block-title">Pain Points</div><div class="analysis-block-body">{{ research.pain_points|truncatechars:400 }}</div></div>{% endif %}
+    {% if research.personalisation_hooks %}<div class="analysis-block" style="background:rgba(124,58,237,.05);border-color:rgba(124,58,237,.2)"><div class="analysis-block-title" style="color:var(--accent-purple)">Personalisation Hooks</div><div class="analysis-block-body">{{ research.personalisation_hooks|truncatechars:400 }}</div></div>{% endif %}
+    {% if research.buying_triggers %}<div class="analysis-block"><div class="analysis-block-title">Buying Triggers</div><div class="analysis-block-body">{{ research.buying_triggers|truncatechars:400 }}</div></div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ DISCOVERY BRIEF ══════════════════════ -->
+{% if disc_brief %}
+<div class="pipeline-section collapsed" id="sec-disc-brief">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-disc-brief')">
+    <span class="section-wf-badge">WF06</span>
+    <span style="font-size:18px">🗂️</span>
+    <span class="section-title">Discovery Brief — BANT Analysis <span class="info-tip" tabindex="0" data-tip="BANT: Budget · Authority · Need · Timeline — a classic sales qualification framework">ⓘ</span></span>
+    {% if disc_brief.mql_stage %}<span class="badge badge-gray">{{ disc_brief.mql_stage }}</span>{% endif %}
+    {% if disc_brief.lead_temperature %}<span class="badge badge-{% if disc_brief.lead_temperature == 'HOT' %}hot{% elif disc_brief.lead_temperature == 'WARM' %}warm{% else %}cold{% endif %}">{{ disc_brief.lead_temperature }}</span>{% endif %}
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      {% if disc_brief.bant_score %}<div class="data-kv"><div class="data-kv-label">BANT Score <span class="info-tip" tabindex="0" data-tip="BANT: Budget · Authority · Need · Timeline">ⓘ</span></div><div class="data-kv-value">{{ disc_brief.bant_score }}</div></div>{% endif %}
+      {% if disc_brief.wf2_score %}<div class="data-kv"><div class="data-kv-label">WF2 Score</div><div class="data-kv-value">{{ disc_brief.wf2_score }}</div></div>{% endif %}
+      {% if disc_brief.lead_score %}<div class="data-kv"><div class="data-kv-label">Lead Score</div><div class="data-kv-value">{{ disc_brief.lead_score }}</div></div>{% endif %}
+      {% if disc_brief.buyer_persona %}<div class="data-kv"><div class="data-kv-label">Buyer Persona</div><div class="data-kv-value">{{ disc_brief.buyer_persona }}</div></div>{% endif %}
+    </div>
+    {% if disc_brief.bant_breakdown %}<div class="analysis-block"><div class="analysis-block-title">BANT Breakdown</div><div class="analysis-block-body">{{ disc_brief.bant_breakdown|truncatechars:600 }}</div></div>{% endif %}
+    {% if disc_talking_pts %}
+    <div class="analysis-block" style="background:rgba(5,150,105,.05);border-color:rgba(5,150,105,.2);padding:18px">
+      <div class="analysis-block-title" style="color:#059669;margin-bottom:12px">💬 Talking Points</div>
+      <ol style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+        {% for pt in disc_talking_pts %}
+        <li style="display:flex;gap:10px;align-items:flex-start">
+          <span style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#059669;color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-top:1px">{{ forloop.counter }}</span>
+          <span style="font-size:13px;color:var(--text-secondary);line-height:1.6">{{ pt }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if disc_meddic %}
+    <div class="analysis-block meddic-block" style="padding:18px">
+      <div class="analysis-block-title" style="margin-bottom:14px">🎯 MEDDIC Questions <span class="info-tip" tabindex="0" data-tip="MEDDIC: Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion — a proven sales qualification framework">ⓘ</span></div>
+      <div class="meddic-grid">
+        {% for label, questions in disc_meddic %}
+        <div class="meddic-category-card">
+          <div class="meddic-category-header">
+            <span class="meddic-initial">{{ label|slice:':1'|upper }}</span>
+            <span class="meddic-label">{{ label }}</span>
+            <span class="meddic-count">{{ questions|length }}</span>
+          </div>
+          <ul class="meddic-questions-list">
+            {% for q in questions %}
+            <li>{{ q }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if discovery_notes_text %}
+    <div class="analysis-block" style="margin-top:14px">
+      <div class="analysis-block-title">📝 Discovery Call-Prep Notes</div>
+      <div class="analysis-block-body" style="white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.6">{{ discovery_notes_text }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ CRM / HUBSPOT ════════════════════════ -->
+{% if deal %}
+<div class="pipeline-section collapsed" id="sec-deal">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-deal')">
+    <span class="section-wf-badge">WF18–21</span>
+    <span style="font-size:18px">💼</span>
+    <span class="section-title">CRM & HubSpot Deal</span>
+    <span class="badge" style="background:rgba(217,119,6,.12);color:#d97706">{{ deal.deal_stage }}</span>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      {% if deal.deal_name %}<div class="data-kv"><div class="data-kv-label">Deal Name</div><div class="data-kv-value">{{ deal.deal_name }}</div></div>{% endif %}
+      <div class="data-kv"><div class="data-kv-label">Deal Stage</div><div class="data-kv-value">{{ deal.deal_stage }}</div></div>
+      {% if deal.deal_owner %}<div class="data-kv"><div class="data-kv-label">Deal Owner</div><div class="data-kv-value">{{ deal.deal_owner }}</div></div>{% endif %}
+      {% if deal.contact_name %}<div class="data-kv"><div class="data-kv-label">Contact</div><div class="data-kv-value">{{ deal.contact_name }}</div></div>{% endif %}
+      {% if deal.contact_email %}<div class="data-kv"><div class="data-kv-label">Email</div><div class="data-kv-value"><a href="mailto:{{ deal.contact_email }}">{{ deal.contact_email }}</a></div></div>{% endif %}
+      {% if deal.contact_phone %}<div class="data-kv"><div class="data-kv-label">Phone</div><div class="data-kv-value">{{ deal.contact_phone }}</div></div>{% endif %}
+      {% if deal.lead_tier %}<div class="data-kv"><div class="data-kv-label">Lead Tier</div><div class="data-kv-value">{{ deal.lead_tier }}</div></div>{% endif %}
+      {% if deal.lead_score %}<div class="data-kv"><div class="data-kv-label">Lead Score</div><div class="data-kv-value">{{ deal.lead_score }}</div></div>{% endif %}
+      {% if deal.assigned_region %}<div class="data-kv"><div class="data-kv-label">Region</div><div class="data-kv-value">{{ deal.assigned_region }}</div></div>{% endif %}
+      {% if deal.assigned_language %}<div class="data-kv"><div class="data-kv-label">Language</div><div class="data-kv-value">{{ deal.assigned_language }}</div></div>{% endif %}
+      {% if deal.engagement_score %}<div class="data-kv"><div class="data-kv-label">Engagement</div><div class="data-kv-value">{{ deal.engagement_score }}</div></div>{% endif %}
+      {% if deal.quality_score %}<div class="data-kv"><div class="data-kv-label">Quality Score</div><div class="data-kv-value">{{ deal.quality_score }}</div></div>{% endif %}
+      {% if deal.lifecycle_stage %}<div class="data-kv"><div class="data-kv-label">Lifecycle Stage</div><div class="data-kv-value">{{ deal.lifecycle_stage }}</div></div>{% endif %}
+      {% if deal.routing_recommendation %}<div class="data-kv"><div class="data-kv-label">Routing</div><div class="data-kv-value">{{ deal.routing_recommendation }}</div></div>{% endif %}
+      {% if deal.hs_deal_id %}<div class="data-kv"><div class="data-kv-label">HubSpot Deal ID</div><div class="data-kv-value"><code>{{ deal.hs_deal_id }}</code></div></div>{% endif %}
+      {% if deal.hs_contact_id %}<div class="data-kv"><div class="data-kv-label">HubSpot Contact ID</div><div class="data-kv-value"><code>{{ deal.hs_contact_id }}</code></div></div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ MEETINGS ═══════════════════════════ -->
+{% if meetings %}
+<div class="pipeline-section collapsed" id="sec-meetings">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-meetings')">
+    <span class="section-wf-badge">WF26–28</span>
+    <span style="font-size:18px">📅</span>
+    <span class="section-title">Meeting Bookings</span>
+    <span class="badge badge-active">{{ meetings|length }} meeting{{ meetings|length|pluralize }}</span>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    {% for mtg in meetings %}
+    <div class="meeting-card">
+      <div class="meeting-icon">📅</div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-weight:700;color:var(--text-primary)">{{ mtg.prospect_first_name|default:"Prospect" }}</span>
+          <span class="meeting-status-chip">{{ mtg.booking_status }}</span>
+          {% if mtg.meeting_type %}<span class="badge badge-gray">{{ mtg.meeting_type }}</span>{% endif %}
+        </div>
+        <div class="data-kv-grid">
+          {% if mtg.selected_slot %}<div class="data-kv"><div class="data-kv-label">Scheduled</div><div class="data-kv-value">{{ mtg.selected_slot|date:"d M Y, H:i" }}</div></div>{% endif %}
+          {% if mtg.rep_name %}<div class="data-kv"><div class="data-kv-label">Rep</div><div class="data-kv-value">{{ mtg.rep_name }}</div></div>{% endif %}
+          {% if mtg.prospect_email %}<div class="data-kv"><div class="data-kv-label">Email</div><div class="data-kv-value">{{ mtg.prospect_email }}</div></div>{% endif %}
+          {% if mtg.prospect_timezone %}<div class="data-kv"><div class="data-kv-label">Timezone</div><div class="data-kv-value">{{ mtg.prospect_timezone }}</div></div>{% endif %}
+        </div>
+        {% if mtg.agenda %}<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;padding:10px;background:var(--bg-secondary);border-radius:6px">📋 {{ mtg.agenda|truncatechars:200 }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ CRM CONTACT ════════════════════════ -->
+{% if contact %}
+<div class="pipeline-section collapsed" id="sec-contact">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-contact')">
+    <span class="section-wf-badge">WF33</span>
+    <span style="font-size:18px">👤</span>
+    <span class="section-title">CRM Contact</span>
+    {% if contact.lead_status %}<span class="badge badge-purple">{{ contact.lead_status }}</span>{% endif %}
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      {% if contact.firstname or contact.lastname %}<div class="data-kv"><div class="data-kv-label">Name</div><div class="data-kv-value">{{ contact.firstname }} {{ contact.lastname }}</div></div>{% endif %}
+      {% if contact.email %}<div class="data-kv"><div class="data-kv-label">Email</div><div class="data-kv-value"><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></div></div>{% endif %}
+      {% if contact.phone %}<div class="data-kv"><div class="data-kv-label">Phone</div><div class="data-kv-value">{{ contact.phone }}</div></div>{% endif %}
+      {% if contact.company %}<div class="data-kv"><div class="data-kv-label">Company</div><div class="data-kv-value">{{ contact.company }}</div></div>{% endif %}
+      {% if contact.lifecycle_stage %}<div class="data-kv"><div class="data-kv-label">Lifecycle Stage</div><div class="data-kv-value">{{ contact.lifecycle_stage }}</div></div>{% endif %}
+      {% if contact.lead_tier %}<div class="data-kv"><div class="data-kv-label">Lead Tier</div><div class="data-kv-value">{{ contact.lead_tier }}</div></div>{% endif %}
+      {% if contact.lead_score %}<div class="data-kv"><div class="data-kv-label">Lead Score</div><div class="data-kv-value">{{ contact.lead_score }}</div></div>{% endif %}
+      {% if contact.assigned_region %}<div class="data-kv"><div class="data-kv-label">Region</div><div class="data-kv-value">{{ contact.assigned_region }}</div></div>{% endif %}
+      {% if contact.outreach_channel %}<div class="data-kv"><div class="data-kv-label">Outreach Channel</div><div class="data-kv-value">{{ contact.outreach_channel }}</div></div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ DISCOVERY QUEUE ════════════════════ -->
+{% if dq %}
+<div class="pipeline-section collapsed" id="sec-dq">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-dq')">
+    <span class="section-wf-badge">WF05</span>
+    <span style="font-size:18px">📋</span>
+    <span class="section-title">Discovery Queue</span>
+    <span class="badge badge-gray">{{ dq.discovery_status }}</span>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    <div class="data-kv-grid">
+      <div class="data-kv"><div class="data-kv-label">Status</div><div class="data-kv-value">{{ dq.discovery_status }}</div></div>
+      {% if dq.priority %}<div class="data-kv"><div class="data-kv-label">Priority</div><div class="data-kv-value">{{ dq.priority }}</div></div>{% endif %}
+      {% if dq.mql_stage %}<div class="data-kv"><div class="data-kv-label">MQL Stage</div><div class="data-kv-value">{{ dq.mql_stage }}</div></div>{% endif %}
+      {% if dq.bant_score %}<div class="data-kv"><div class="data-kv-label">BANT Score</div><div class="data-kv-value">{{ dq.bant_score }}</div></div>{% endif %}
+      {% if dq.icp_fit %}<div class="data-kv"><div class="data-kv-label">ICP Fit</div><div class="data-kv-value">{{ dq.icp_fit }}</div></div>{% endif %}
+      {% if dq.assigned_to %}<div class="data-kv"><div class="data-kv-label">Assigned To</div><div class="data-kv-value">{{ dq.assigned_to }}</div></div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════ ALL RESULTS FIELDS ══════════════════════ -->
+{% if result_fields %}
+<div class="pipeline-section collapsed" id="sec-all-fields">
+  <div class="pipeline-section-header" onclick="toggleSection('sec-all-fields')">
+    <span class="section-wf-badge">DATA</span>
+    <span style="font-size:18px">🗃️</span>
+    <span class="section-title">All Pipeline Fields <span class="info-tip" tabindex="0" data-tip="Every populated column from the Results table for this lead, grouped by pipeline stage">ⓘ</span></span>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="pipeline-section-body">
+    {% for group, items in result_fields %}
+    <div style="margin-bottom:18px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">{{ group }}</div>
+      <div class="data-kv-grid">
+        {% for label, value in items %}
+        <div class="data-kv"><div class="data-kv-label">{{ label }}</div><div class="data-kv-value" style="white-space:pre-wrap;word-break:break-word">{{ value }}</div></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+</script>
+{% endblock %}

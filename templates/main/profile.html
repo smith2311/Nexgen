@@ -1,0 +1,1049 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Profile Page ─────────────────────────────────────────── */
+:root {
+  --p-primary: #0771f4;
+  --p-primary-dark: #0558c9;
+  --p-primary-light: #eff6ff;
+  --p-surface: #ffffff;
+  --p-bg: #f1f5f9;
+  --p-border: #e2e8f0;
+  --p-text: #1e293b;
+  --p-muted: #64748b;
+  --p-success: #10b981;
+  --p-warning: #f59e0b;
+  --p-danger: #ef4444;
+  --p-radius: 14px;
+  --p-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.07);
+  --p-shadow-lg: 0 8px 32px rgba(7,113,244,.12);
+}
+
+.profile-page {
+  background: var(--p-bg);
+  min-height: calc(100vh - 64px);
+  padding: 2rem 1.5rem 3rem;
+}
+
+/* ── Hero Banner ── */
+.profile-hero {
+  background: linear-gradient(135deg, #0558c9 0%, #0771f4 50%, #00b5e2 100%);
+  border-radius: var(--p-radius);
+  padding: 2.5rem 2rem 4.5rem;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: -3rem;
+  box-shadow: var(--p-shadow-lg);
+}
+.profile-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.profile-hero-content {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.profile-hero-avatar {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  border: 3px solid rgba(255,255,255,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 20px rgba(0,0,0,.2);
+}
+.profile-hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-upload-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  background: var(--p-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid #fff;
+  transition: background .2s;
+  font-size: .7rem;
+  color: #fff;
+}
+.avatar-upload-btn:hover { background: var(--p-primary-dark); }
+.profile-hero-info { flex: 1; min-width: 180px; }
+.profile-hero-name {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -.4px;
+  line-height: 1.2;
+}
+.profile-hero-role {
+  font-size: .9rem;
+  color: rgba(255,255,255,.8);
+  margin-top: .35rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.profile-hero-badge {
+  background: rgba(255,255,255,.2);
+  border-radius: 100px;
+  padding: 2px 10px;
+  font-size: .78rem;
+  color: #fff;
+  font-weight: 600;
+}
+.profile-hero-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.profile-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .82rem;
+  color: rgba(255,255,255,.85);
+}
+.profile-hero-actions {
+  margin-left: auto;
+  align-self: flex-start;
+}
+.btn-hero {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.3);
+  color: #fff;
+  border-radius: 8px;
+  padding: .5rem 1.2rem;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background .2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}
+.btn-hero:hover { background: rgba(255,255,255,.25); color: #fff; }
+
+/* ── Layout ── */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+@media (max-width: 900px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Sidebar Nav ── */
+.profile-nav-card {
+  background: var(--p-surface);
+  border-radius: var(--p-radius);
+  box-shadow: var(--p-shadow);
+  overflow: hidden;
+  height: fit-content;
+  position: sticky;
+  top: 80px;
+}
+.profile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  padding: .9rem 1.25rem;
+  color: var(--p-muted);
+  font-size: .88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .18s;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  border-bottom: 1px solid #f8fafc;
+}
+.profile-nav-item:last-child { border-bottom: none; }
+.profile-nav-item:hover {
+  background: var(--p-primary-light);
+  color: var(--p-primary);
+  border-left-color: var(--p-primary);
+}
+.profile-nav-item.active {
+  background: var(--p-primary-light);
+  color: var(--p-primary);
+  border-left-color: var(--p-primary);
+  font-weight: 600;
+}
+.profile-nav-item i {
+  width: 18px;
+  text-align: center;
+  font-size: .95rem;
+}
+
+/* ── Card ── */
+.profile-card {
+  background: var(--p-surface);
+  border-radius: var(--p-radius);
+  box-shadow: var(--p-shadow);
+  overflow: hidden;
+  display: none;
+}
+.profile-card.active { display: block; }
+.profile-card-header {
+  padding: 1.4rem 1.75rem 1rem;
+  border-bottom: 1px solid var(--p-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.profile-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--p-text);
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.profile-card-title i {
+  color: var(--p-primary);
+  font-size: .95rem;
+}
+.profile-card-body { padding: 1.75rem; }
+
+/* ── Form Grid ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.form-grid .span-2 { grid-column: span 2; }
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .span-2 { grid-column: span 1; }
+}
+
+.form-group { display: flex; flex-direction: column; gap: .4rem; }
+.form-label {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.form-control-pro {
+  border: 1.5px solid var(--p-border);
+  border-radius: 9px;
+  padding: .65rem .9rem;
+  font-size: .9rem;
+  color: var(--p-text);
+  background: #fafbfc;
+  transition: border .18s, box-shadow .18s;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+}
+.form-control-pro:focus {
+  border-color: var(--p-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(7,113,244,.1);
+}
+textarea.form-control-pro { resize: vertical; min-height: 90px; }
+
+/* ── Buttons ── */
+.btn-pro {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem 1.4rem;
+  border-radius: 9px;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all .18s;
+}
+.btn-pro-primary {
+  background: var(--p-primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(7,113,244,.3);
+}
+.btn-pro-primary:hover {
+  background: var(--p-primary-dark);
+  box-shadow: 0 4px 16px rgba(7,113,244,.4);
+  transform: translateY(-1px);
+}
+.btn-pro-outline {
+  background: transparent;
+  color: var(--p-primary);
+  border: 1.5px solid var(--p-primary);
+}
+.btn-pro-outline:hover {
+  background: var(--p-primary-light);
+}
+.btn-pro-danger {
+  background: #fff0f0;
+  color: var(--p-danger);
+  border: 1.5px solid #fecaca;
+}
+.btn-pro-danger:hover { background: #fee2e2; }
+
+/* ── Toggle Switch ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-info { flex: 1; }
+.toggle-label {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--p-text);
+}
+.toggle-desc {
+  font-size: .78rem;
+  color: var(--p-muted);
+  margin-top: 2px;
+}
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.toggle-switch input { display: none; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background .22s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .22s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--p-primary); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+/* ── Theme Picker ── */
+.theme-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  cursor: pointer;
+}
+.theme-option input { display: none; }
+.theme-preview {
+  width: 80px;
+  height: 56px;
+  border-radius: 10px;
+  border: 2.5px solid var(--p-border);
+  overflow: hidden;
+  transition: border-color .18s, box-shadow .18s;
+  position: relative;
+}
+.theme-option input:checked + .theme-preview {
+  border-color: var(--p-primary);
+  box-shadow: 0 0 0 3px rgba(7,113,244,.15);
+}
+.theme-preview-light { background: linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 100%); }
+.theme-preview-light::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+  background: #0771f4;
+  border-radius: 4px;
+}
+.theme-preview-dark { background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%); }
+.theme-preview-dark::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 4px;
+}
+.theme-preview-auto {
+  background: linear-gradient(160deg, #f1f5f9 0% 50%, #1e293b 50% 100%);
+}
+.theme-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+.theme-option input:checked ~ .theme-name { color: var(--p-primary); }
+
+/* ── Security Section ── */
+.security-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.security-item:last-child { border-bottom: none; }
+.security-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.security-icon.blue { background: #eff6ff; color: var(--p-primary); }
+.security-icon.green { background: #ecfdf5; color: var(--p-success); }
+.security-icon.amber { background: #fffbeb; color: var(--p-warning); }
+.security-icon.red { background: #fff0f0; color: var(--p-danger); }
+.security-info { flex: 1; }
+.security-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--p-text);
+}
+.security-sub {
+  font-size: .78rem;
+  color: var(--p-muted);
+  margin-top: 2px;
+}
+
+/* ── Activity Timeline ── */
+.activity-item {
+  display: flex;
+  gap: 1rem;
+  padding: .9rem 0;
+  border-bottom: 1px solid #f8fafc;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.activity-text { flex: 1; }
+.activity-action {
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--p-text);
+}
+.activity-time {
+  font-size: .76rem;
+  color: var(--p-muted);
+  margin-top: 2px;
+}
+
+/* ── Stats strip ── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 700px) {
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+}
+.stat-chip {
+  background: var(--p-surface);
+  border-radius: var(--p-radius);
+  box-shadow: var(--p-shadow);
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+}
+.stat-chip-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+.stat-chip-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--p-text);
+  line-height: 1;
+}
+.stat-chip-lbl {
+  font-size: .74rem;
+  color: var(--p-muted);
+  margin-top: 2px;
+}
+
+/* ── Alert messages ── */
+.profile-alert {
+  padding: .8rem 1.1rem;
+  border-radius: 9px;
+  margin-bottom: 1rem;
+  font-size: .88rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.profile-alert-success { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+.profile-alert-error   { background: #fff0f0; color: #dc2626; border: 1px solid #fecaca; }
+
+/* ── Session card ── */
+.session-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .9rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.session-card:last-child { border-bottom: none; }
+.session-device {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--p-primary-light);
+  color: var(--p-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.session-info { flex: 1; }
+.session-name { font-size: .88rem; font-weight: 600; color: var(--p-text); }
+.session-detail { font-size: .76rem; color: var(--p-muted); margin-top: 1px; }
+.session-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.session-badge.current { background: #ecfdf5; color: #059669; }
+.session-badge.other   { background: #f1f5f9; color: var(--p-muted); }
+
+/* ── Divider ── */
+.section-divider {
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--p-muted);
+  margin: 1.5rem 0 .75rem;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--p-border);
+}
+
+/* ── Responsive tweaks ── */
+@media (max-width: 600px) {
+  .profile-hero { padding: 1.5rem 1rem 3.5rem; }
+  .profile-hero-avatar { width: 72px; height: 72px; font-size: 1.6rem; }
+  .profile-hero-name { font-size: 1.3rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+  {% if messages %}
+  <div style="max-width:1200px;margin:0 auto 1rem;">
+    {% for msg in messages %}
+    <div class="profile-alert profile-alert-{% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-{% if msg.tags == 'error' %}exclamation-circle{% else %}check-circle{% endif %}"></i>
+      {{ msg }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Hero Banner -->
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="profile-hero">
+      <div class="profile-hero-content">
+        <div class="profile-hero-avatar" id="heroAvatar">
+          {% if profile.avatar %}
+            <img src="{{ profile.avatar.url }}" alt="Avatar" id="avatarImg">
+          {% else %}
+            <span id="avatarInitials">{{ profile.get_avatar_initials }}</span>
+          {% endif %}
+          <label class="avatar-upload-btn" for="avatarFileInput" title="Change photo">
+            <i class="fas fa-camera"></i>
+          </label>
+        </div>
+        <div class="profile-hero-info">
+          <div class="profile-hero-name">{{ user.get_full_name|default:user.username }}</div>
+          <div class="profile-hero-role">
+            <span>{{ profile.designation|default:"Team Member" }}</span>
+            {% if profile.department %}
+            <span class="profile-hero-badge">{{ profile.department }}</span>
+            {% endif %}
+            {% for grp in user.groups.all %}
+            <span class="profile-hero-badge">{{ grp.name }}</span>
+            {% endfor %}
+          </div>
+          <div class="profile-hero-meta">
+            {% if profile.location %}
+            <div class="profile-hero-stat">
+              <i class="fas fa-map-marker-alt"></i> {{ profile.location }}
+            </div>
+            {% endif %}
+            <div class="profile-hero-stat">
+              <i class="fas fa-envelope"></i> {{ user.email|default:"—" }}
+            </div>
+            {% if profile.phone %}
+            <div class="profile-hero-stat">
+              <i class="fas fa-phone"></i> {{ profile.phone }}
+            </div>
+            {% endif %}
+            <div class="profile-hero-stat">
+              <i class="fas fa-calendar-alt"></i> Joined <time data-utc="{{ user.date_joined|date:'c' }}" data-fmt="month-year">{{ user.date_joined|date:"M Y" }}</time>
+            </div>
+          </div>
+        </div>
+        <div class="profile-hero-actions">
+          {% if user.is_staff %}
+          <a href="{% url 'admin:index' %}" class="btn-hero">
+            <i class="fas fa-tools"></i> Admin Panel
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="profile-layout" style="max-width:1200px;margin:0 auto;margin-top:1rem;">
+
+    <!-- Sidebar Nav -->
+    <div>
+      <div class="profile-nav-card">
+        <a href="?tab=profile"  class="profile-nav-item {% if active_tab == 'profile' %}active{% endif %}">
+          <i class="fas fa-user"></i> Personal Info
+        </a>
+        <a href="?tab=settings" class="profile-nav-item {% if active_tab == 'settings' %}active{% endif %}">
+          <i class="fas fa-sliders-h"></i> Preferences
+        </a>
+        <a href="?tab=notifications" class="profile-nav-item {% if active_tab == 'notifications' %}active{% endif %}">
+          <i class="fas fa-bell"></i> Notifications
+        </a>
+        <a href="?tab=security" class="profile-nav-item {% if active_tab == 'security' %}active{% endif %}">
+          <i class="fas fa-shield-alt"></i> Security
+        </a>
+        <a href="{% url 'logout' %}" class="profile-nav-item" style="color:var(--p-danger);">
+          <i class="fas fa-sign-out-alt"></i> Sign Out
+        </a>
+      </div>
+    </div>
+
+    <!-- Content Panels -->
+    <div>
+
+      <!-- Quick Stats -->
+      <div class="stats-strip">
+        <div class="stat-chip">
+          <div class="stat-chip-icon" style="background:#eff6ff;color:#0771f4;">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div>
+            <div class="stat-chip-val">
+              {% if user.is_superuser %}Admin{% else %}{{ user.groups.count }}{% endif %}
+            </div>
+            <div class="stat-chip-lbl">{% if user.is_superuser %}Role{% else %}Groups{% endif %}</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon" style="background:{% if user.is_active %}#ecfdf5;color:#10b981{% else %}#fef2f2;color:#ef4444{% endif %};">
+            <i class="fas fa-{% if user.is_active %}check-circle{% else %}times-circle{% endif %}"></i>
+          </div>
+          <div>
+            <div class="stat-chip-val">
+              {% if user.is_superuser %}Superuser{% elif user.is_staff %}Staff{% elif user.is_active %}Active{% else %}Inactive{% endif %}
+            </div>
+            <div class="stat-chip-lbl">Status</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon" style="background:#fffbeb;color:#f59e0b;">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div>
+            <div class="stat-chip-val"><time data-utc="{{ user.last_login|date:'c' }}" data-fmt="short">{{ user.last_login|date:"d M" }}</time></div>
+            <div class="stat-chip-lbl">Last Login</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon" style="background:#f5f3ff;color:#7c3aed;">
+            <i class="fas fa-fingerprint"></i>
+          </div>
+          <div>
+            <div class="stat-chip-val">{{ user.id }}</div>
+            <div class="stat-chip-lbl">User ID</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PROFILE TAB ══ -->
+      <div class="profile-card {% if active_tab == 'profile' %}active{% endif %}" id="tab-profile">
+        <div class="profile-card-header">
+          <div class="profile-card-title">
+            <i class="fas fa-user-edit"></i> Personal Information
+          </div>
+        </div>
+        <div class="profile-card-body">
+          <form method="post" action="{% url 'profile_update' %}" enctype="multipart/form-data" id="profileForm">
+            {% csrf_token %}
+            <!-- Hidden file input for avatar -->
+            <input type="file" id="avatarFileInput" name="avatar" accept="image/*" style="display:none;" onchange="previewAvatar(this)">
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" name="first_name" class="form-control-pro" value="{{ user.first_name }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" name="last_name" class="form-control-pro" value="{{ user.last_name }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-control-pro" value="{{ user.email }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" name="phone" class="form-control-pro" placeholder="+91 XXXXX XXXXX" value="{{ profile.phone }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Designation / Role</label>
+                <input type="text" name="designation" class="form-control-pro" placeholder="e.g. Sales Manager" value="{{ profile.designation }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Department</label>
+                <input type="text" name="department" class="form-control-pro" placeholder="e.g. Sales & Marketing" value="{{ profile.department }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Location</label>
+                <input type="text" name="location" class="form-control-pro" placeholder="City, Country" value="{{ profile.location }}">
+              </div>
+              <div class="form-group span-2">
+                <label class="form-label">About Me</label>
+                <textarea name="bio" class="form-control-pro" placeholder="A short bio…">{{ profile.bio }}</textarea>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.5rem;">
+              <button type="reset" class="btn-pro btn-pro-outline">
+                <i class="fas fa-undo"></i> Reset
+              </button>
+              <button type="submit" class="btn-pro btn-pro-primary">
+                <i class="fas fa-save"></i> Save Changes
+              </button>
+            </div>
+          </form>
+
+          <!-- Account Info (read-only) -->
+          <div class="section-divider">Account Details</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control-pro" value="{{ user.username }}" readonly style="background:#f8fafc;color:var(--p-muted);">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Account Type</label>
+              <input type="text" class="form-control-pro" value="{% if user.is_superuser %}Super Admin{% elif user.is_staff %}Staff{% else %}Standard User{% endif %}" readonly style="background:#f8fafc;color:var(--p-muted);">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SETTINGS TAB ══ -->
+      <div class="profile-card {% if active_tab == 'settings' %}active{% endif %}" id="tab-settings">
+        <div class="profile-card-header">
+          <div class="profile-card-title">
+            <i class="fas fa-sliders-h"></i> Preferences
+          </div>
+        </div>
+        <div class="profile-card-body">
+          <form method="post" action="{% url 'settings_update' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="preferences">
+
+            <div class="section-divider">Regional</div>
+            <div class="form-group">
+              <label class="form-label"><i class="fas fa-clock" style="margin-right:.4rem;color:var(--p-primary);"></i>Timezone</label>
+              <select name="timezone" class="form-control-pro" id="tzSelect" onchange="previewTzTime(this.value)">
+                {% for val, label in profile.TIMEZONE_CHOICES %}
+                <option value="{{ val }}" {% if profile.timezone == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div id="tzPreview" style="margin-top:.6rem;font-size:.82rem;color:var(--p-muted);display:flex;align-items:center;gap:.4rem;">
+                <i class="fas fa-globe"></i>
+                <span id="tzPreviewText"></span>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
+              <button type="submit" class="btn-pro btn-pro-primary">
+                <i class="fas fa-save"></i> Save Preferences
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ══ NOTIFICATIONS TAB ══ -->
+      <div class="profile-card {% if active_tab == 'notifications' %}active{% endif %}" id="tab-notifications">
+        <div class="profile-card-header">
+          <div class="profile-card-title">
+            <i class="fas fa-bell"></i> Notification Settings
+          </div>
+        </div>
+        <div class="profile-card-body">
+          <form method="post" action="{% url 'settings_update' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="notifications">
+
+            <div class="section-divider">Delivery Channels</div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Email Notifications</div>
+                <div class="toggle-desc">Receive important updates via email</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" name="notif_email" {% if profile.notif_email %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Browser Push</div>
+                <div class="toggle-desc">Desktop and mobile browser push alerts</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" name="notif_browser" {% if profile.notif_browser %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="section-divider" style="margin-top:1.5rem;">Notification Types</div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Shipment Alerts</div>
+                <div class="toggle-desc">GS1 scan results, shipment status updates</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" name="notif_shipment" {% if profile.notif_shipment %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Order Updates</div>
+                <div class="toggle-desc">New orders, order status changes, billing</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" name="notif_orders" {% if profile.notif_orders %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Inventory Alerts</div>
+                <div class="toggle-desc">Low stock warnings, expiry notifications</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" name="notif_inventory" {% if profile.notif_inventory %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
+              <button type="submit" class="btn-pro btn-pro-primary">
+                <i class="fas fa-save"></i> Save Notifications
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ══ SECURITY TAB ══ -->
+      <div class="profile-card {% if active_tab == 'security' %}active{% endif %}" id="tab-security">
+        <div class="profile-card-header">
+          <div class="profile-card-title">
+            <i class="fas fa-shield-alt"></i> Security &amp; Access
+          </div>
+        </div>
+        <div class="profile-card-body">
+
+          <!-- SSO notice -->
+          <div style="display:flex;align-items:center;gap:.9rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1.5rem;">
+            <i class="fas fa-shield-alt" style="color:#0771f4;font-size:1.1rem;flex-shrink:0;"></i>
+            <div>
+              <div style="font-size:.88rem;font-weight:600;color:#1e40af;">Managed via Zoho SSO</div>
+              <div style="font-size:.78rem;color:#3b82f6;margin-top:2px;">Your password and authentication are managed by your organisation's Zoho account. To change your password, visit <a href="https://accounts.zoho.in" target="_blank" rel="noopener noreferrer" style="color:#0771f4;font-weight:600;">accounts.zoho.in</a>.</div>
+            </div>
+          </div>
+
+          <!-- Security overview -->
+          <div class="section-divider">Security Overview</div>
+          <div class="security-item">
+            <div class="security-icon blue"><i class="fas fa-sign-in-alt"></i></div>
+            <div class="security-info">
+              <div class="security-title">Last Sign-in</div>
+              <div class="security-sub"><time data-utc="{{ user.last_login|date:'c' }}" data-fmt="datetime">{{ user.last_login|date:"l, d M Y \a\t H:i" }}</time></div>
+            </div>
+          </div>
+          <div class="security-item">
+            <div class="security-icon {% if user.is_active %}green{% else %}red{% endif %}">
+              <i class="fas fa-{% if user.is_active %}check-circle{% else %}times-circle{% endif %}"></i>
+            </div>
+            <div class="security-info">
+              <div class="security-title">Account Status</div>
+              <div class="security-sub">{% if user.is_active %}Active and in good standing{% else %}Account disabled{% endif %}</div>
+            </div>
+          </div>
+          <div class="security-item">
+            <div class="security-icon amber"><i class="fas fa-users-cog"></i></div>
+            <div class="security-info">
+              <div class="security-title">Assigned Roles</div>
+              <div class="security-sub">
+                {% for grp in user.groups.all %}{{ grp.name }}{% if not forloop.last %}, {% endif %}{% empty %}No roles assigned{% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Sessions -->
+          <div class="section-divider" style="margin-top:2rem;">Active Sessions</div>
+          <div class="session-card">
+            <div class="session-device"><i class="fas fa-desktop"></i></div>
+            <div class="session-info">
+              <div class="session-name">Current Browser Session</div>
+              <div class="session-detail">This device &bull; Active now</div>
+            </div>
+            <span class="session-badge current">Current</span>
+          </div>
+          <div style="margin-top:1rem;">
+            <a href="{% url 'logout' %}" class="btn-pro btn-pro-danger">
+              <i class="fas fa-sign-out-alt"></i> Sign Out All Sessions
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end content panels -->
+  </div><!-- end layout -->
+</div>
+
+<script>
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // Update hero avatar
+      const hero = document.getElementById('heroAvatar');
+      let img = hero.querySelector('img');
+      const initials = document.getElementById('avatarInitials');
+      if (!img) {
+        img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        if (initials) initials.replaceWith(img);
+        else hero.insertBefore(img, hero.querySelector('label'));
+      }
+      img.src = e.target.result;
+
+      // Update navbar user-avatar
+      const navAvatar = document.querySelector('.user-avatar');
+      if (navAvatar) {
+        navAvatar.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">` ;
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+    // Auto-submit to persist the upload
+    document.getElementById('profileForm').submit();
+  }
+}
+
+function previewTzTime(tz) {
+  try {
+    var now = new Date();
+    var text = new Intl.DateTimeFormat('en-IN', {
+      timeZone: tz, weekday: 'short', day: '2-digit', month: 'short',
+      year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+    }).format(now);
+    document.getElementById('tzPreviewText').textContent = 'Current time: ' + text;
+  } catch(e) {
+    document.getElementById('tzPreviewText').textContent = '';
+  }
+}
+// Show current time for default selection on load
+(function() {
+  var sel = document.getElementById('tzSelect');
+  if (sel) previewTzTime(sel.value);
+})();
+</script>
+{% endblock %}

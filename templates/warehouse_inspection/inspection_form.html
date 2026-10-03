@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Warehouse Inspection Checklist{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+.inspection-shell {
+    padding: 20px;
+}
+
+.inspection-title-band {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-left: 5px solid #0076c8;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+}
+
+.inspection-title-band h1 {
+    margin: 0;
+    color: #111827;
+    font-size: 1.8rem;
+    font-weight: 750;
+}
+
+.inspection-title-band p {
+    margin: 6px 0 0;
+    color: #4b5563;
+}
+
+.inspection-controls {
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) minmax(220px, 1fr) minmax(180px, 280px) auto;
+    gap: 14px;
+    align-items: end;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 18px;
+    margin-bottom: 18px;
+}
+
+.inspection-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #374151;
+    font-weight: 650;
+    font-size: 0.9rem;
+}
+
+.inspection-field select,
+.inspection-field textarea {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 9px 10px;
+    font-size: 0.95rem;
+    background: #ffffff;
+}
+
+.inspection-btn {
+    min-height: 42px;
+    border: 0;
+    border-radius: 6px;
+    padding: 0 18px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #ffffff;
+    background: #0076c8;
+}
+
+.inspection-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.checklist-table-wrap {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    overflow-x: auto;
+}
+
+.checklist-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 920px;
+}
+
+.checklist-table th {
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 0.82rem;
+    letter-spacing: 0;
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #d1d5db;
+}
+
+.checklist-table td {
+    padding: 12px;
+    vertical-align: top;
+    border-bottom: 1px solid #e5e7eb;
+    color: #1f2937;
+}
+
+.checklist-point {
+    max-width: 460px;
+    line-height: 1.4;
+    font-weight: 650;
+}
+
+.response-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.response-options label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    min-height: 38px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.response-options input {
+    margin: 0;
+}
+
+.response-options label:has(input:checked) {
+    border-color: #0076c8;
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.wi-photo-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.wi-photo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #0076c8;
+    background: #ffffff;
+    color: #0076c8;
+    border-radius: 6px;
+    min-height: 38px;
+    padding: 0 12px;
+    font-weight: 650;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.wi-photo-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.wi-photo-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wi-photo-thumb {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+}
+
+.wi-photo-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.wi-photo-status {
+    font-size: 0.78rem;
+    line-height: 1.3;
+    color: #6b7280;
+    max-width: 160px;
+}
+
+.wi-photo-status.error {
+    color: #b91c1c;
+}
+
+/* ── Live camera dialog (getUserMedia; no file picker anywhere) ── */
+.wi-camera-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.78);
+}
+
+.wi-camera-overlay.is-open {
+    display: flex;
+}
+
+.wi-camera-dialog {
+    width: min(720px, 100%);
+    background: #0f172a;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+    display: flex;
+    flex-direction: column;
+}
+
+.wi-camera-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.wi-camera-head button {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    border-radius: 8px;
+    min-height: 36px;
+    min-width: 36px;
+    padding: 0 10px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.wi-camera-stage {
+    position: relative;
+    background: #000000;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wi-camera-stage video,
+.wi-camera-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.wi-camera-status {
+    padding: 10px 16px;
+    color: #cbd5e1;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    min-height: 20px;
+}
+
+.wi-camera-status.is-error {
+    color: #fca5a5;
+}
+
+.wi-camera-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 0 16px 18px;
+    flex-wrap: wrap;
+}
+
+.wi-camera-actions button {
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 8px;
+    border: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wi-camera-actions button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+#wiCameraShutter { background: #0076c8; color: #ffffff; }
+#wiCameraUse     { background: #059669; color: #ffffff; }
+#wiCameraRetake  { background: #f1f5f9; color: #0f172a; }
+
+.remarks-panel {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-top: 0;
+    padding: 16px;
+}
+
+.remarks-panel label {
+    display: block;
+    margin-bottom: 8px;
+    color: #374151;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.remarks-panel textarea {
+    width: 100%;
+    min-height: 86px;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #111827;
+    font: inherit;
+    line-height: 1.45;
+}
+
+.inspection-footer {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-top: 0;
+    padding: 16px;
+}
+
+.completion-status {
+    color: #4b5563;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    max-width: 620px;
+}
+
+.completion-status.ready {
+    color: #047857;
+    font-weight: 700;
+}
+
+.status-panel {
+    display: none;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1e3a8a;
+    padding: 13px 15px;
+    margin-bottom: 18px;
+}
+
+.status-panel.error {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.empty-panel {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    padding: 28px;
+    text-align: center;
+}
+
+.submit-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.56);
+}
+
+.submit-dialog-overlay.active {
+    display: flex;
+}
+
+.submit-dialog {
+    width: min(420px, 100%);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.submit-dialog-visual {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+
+.submit-dialog-loading {
+    background: #e0f2fe;
+}
+
+.submit-dialog-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.submit-dialog-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.submit-dialog-spinner {
+    width: 34px;
+    height: 34px;
+    border: 4px solid #bae6fd;
+    border-top-color: #0076c8;
+    border-radius: 50%;
+    animation: inspectionSpin 0.8s linear infinite;
+}
+
+.submit-dialog-visual i {
+    font-size: 30px;
+}
+
+.submit-dialog h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 1.25rem;
+    line-height: 1.35;
+}
+
+.submit-dialog p {
+    margin: 10px 0 0;
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    /* The success message is set via textContent and lists the warehouse /
+       condition / floor on their own lines, so newlines must be honoured. */
+    white-space: pre-line;
+    text-align: left;
+}
+
+.submit-dialog-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    height: 48px;
+    margin-top: 22px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 6px;
+    background: #0076c8;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    cursor: pointer;
+}
+
+@keyframes inspectionSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 900px) {
+    .inspection-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .inspection-btn {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inspection-shell">
+    <div class="inspection-title-band">
+        <h1><i class="fas fa-clipboard-check"></i> Warehouse Inspection Checklist</h1>
+        <p>{{ user.email }}</p>
+    </div>
+
+    <div id="statusPanel" class="status-panel"></div>
+
+    <div class="inspection-controls">
+        <div class="inspection-field">
+            <label for="buildingSelect">Building</label>
+            <select id="buildingSelect" required>
+                <option value="">Select building</option>
+            </select>
+        </div>
+        <div class="inspection-field">
+            <label for="conditionSelect">Condition</label>
+            <select id="conditionSelect" required>
+                <option value="">Select condition</option>
+            </select>
+        </div>
+        <div class="inspection-field">
+            <label for="floorSelect">Floor</label>
+            <select id="floorSelect" required>
+                <option value="">Select floor</option>
+            </select>
+        </div>
+        <button type="button" id="loadChecklistBtn" class="inspection-btn">
+            <i class="fas fa-rotate"></i> Load Checklist
+        </button>
+    </div>
+
+    <form id="inspectionForm" style="display:none;">
+        {% csrf_token %}
+        <div class="checklist-table-wrap">
+            <table class="checklist-table">
+                <thead>
+                    <tr>
+                        <th style="width:42px;">#</th>
+                        <th>Checklist</th>
+                        <th style="width:180px;">Yes / No</th>
+                        <th style="width:170px;">Proof Photo</th>
+                    </tr>
+                </thead>
+                <tbody id="checklistRows"></tbody>
+            </table>
+        </div>
+        <div class="remarks-panel">
+            <label for="floorRemarks">Remarks</label>
+            <textarea id="floorRemarks" name="floor_remarks" placeholder="Add remarks for the selected floor"></textarea>
+        </div>
+        <div class="inspection-footer">
+            <span>
+                <span id="itemCountText" style="color:#6b7280;"></span>
+                <span id="completionStatusText" class="completion-status"></span>
+            </span>
+            <button type="submit" id="submitInspectionBtn" class="inspection-btn" disabled>
+                <i class="fas fa-paper-plane"></i> Submit Inspection
+            </button>
+        </div>
+    </form>
+
+    <div id="emptyPanel" class="empty-panel">
+        Select a building, condition and floor to view checklist items.
+    </div>
+</div>
+
+{% comment %}
+Live camera dialog. There is deliberately NO <input type="file"> anywhere in
+this page: proof photos must be captured live, and a file input would both
+allow gallery picks and fail to open the camera at all on desktop. See
+static/js/warehouse-inspection/photo-capture.js.
+{% endcomment %}
+<div id="wiCameraOverlay" class="wi-camera-overlay" role="dialog" aria-modal="true" aria-labelledby="wiCameraTitle">
+    <div class="wi-camera-dialog">
+        <div class="wi-camera-head">
+            <span id="wiCameraTitle"><i class="fas fa-camera"></i> Capture proof photo</span>
+            <span style="display:flex; gap:8px;">
+                <button type="button" id="wiCameraFlip" title="Switch camera"><i class="fas fa-camera-rotate"></i></button>
+                <button type="button" id="wiCameraClose" title="Close camera" aria-label="Close camera"><i class="fas fa-times"></i></button>
+            </span>
+        </div>
+        <div class="wi-camera-stage">
+            <video id="wiCameraVideo" playsinline muted autoplay></video>
+            <img id="wiCameraShot" alt="Captured proof photo" style="display:none;">
+        </div>
+        <div id="wiCameraStatus" class="wi-camera-status"></div>
+        <div class="wi-camera-actions">
+            <button type="button" id="wiCameraShutter"><i class="fas fa-camera"></i> Capture</button>
+            <button type="button" id="wiCameraRetake" style="display:none;"><i class="fas fa-rotate-left"></i> Retake</button>
+            <button type="button" id="wiCameraUse" style="display:none;"><i class="fas fa-check"></i> Use photo</button>
+        </div>
+    </div>
+</div>
+
+<div id="submitDialog" class="submit-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="submitDialogTitle" aria-describedby="submitDialogMessage">
+    <div class="submit-dialog">
+        <div id="submitDialogVisual" class="submit-dialog-visual submit-dialog-loading">
+            <span class="submit-dialog-spinner" aria-hidden="true"></span>
+        </div>
+        <h2 id="submitDialogTitle">Submitting inspection</h2>
+        <p id="submitDialogMessage">Saving checklist responses and sending email notifications. Please keep this page open.</p>
+        <button type="button" id="submitDialogCloseBtn" class="submit-dialog-close" style="display:none;">OK</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/warehouse-inspection/photo-capture.js' %}"></script>
+<script src="{% static 'js/warehouse-inspection/inspection_form.js' %}"></script>
+{% endblock %}
+

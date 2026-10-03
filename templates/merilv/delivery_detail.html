@@ -1,0 +1,91 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Delivery Detail — one closed dispatch: courier/packaging details + the scans that made it up.{% endcomment %}
+
+{% block mv_title %}{{ delivery.delivery_no }} — Delivery{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:delivery_history' %}">Delivery History</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current mv-mono">{{ delivery.delivery_no }}</span>
+{% endblock %}
+{% block mv_heading %}{{ delivery.delivery_no }}{% if delivery.is_partial %}<span class="mv-badge mv-badge--warn" style="margin-left:var(--mv-3);vertical-align:middle;">Partial</span>{% endif %}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ delivery.customer_name|default:"—" }} · closed {{ delivery.created_at|date:"d M Y, H:i" }}</p>{% endblock %}
+
+{% comment %}
+This screen had no actions block at all, so the one delivery you were looking at
+was the one thing you could not export — you had to go back to Delivery History,
+find the row again and tick it. Every export below is an existing endpoint
+scoped to this delivery, so the files are byte-for-byte what History produces
+for a single ticked row; nothing about their format is new.
+
+`pks` is intersected with the caller's own scoped queryset in
+views._selected_deliveries, so passing this pk cannot reach another team's
+delivery even by hand.
+
+Labels, order and colours match Delivery History's own action row, so the same
+file is called the same thing in both places.
+{% endcomment %}
+{% block mv_actions %}
+{% if delivery.session_id %}
+<a href="{% url 'merilv:outbound_export' delivery.session_id %}?delivery_no={{ delivery.delivery_no|urlencode }}"
+   class="mv-btn mv-btn--primary">{% icon "download" %} Serial Format</a>
+{% else %}
+{% comment %}
+The SAP sheet is built from the session's scans, and FinishedDelivery.session is
+SET_NULL — so once the session is deleted there is nothing left to build it
+from. Said plainly rather than offered as a link that 404s.
+{% endcomment %}
+<span class="mv-btn" aria-disabled="true"
+      title="The scanning session this delivery came from has been deleted, so the serial sheet can no longer be rebuilt. The dispatch record below is unaffected.">
+    {% icon "download" %} Serial Format
+</span>
+{% endif %}
+<a href="{% url 'merilv:delivery_export' %}?pks={{ delivery.pk }}" class="mv-btn mv-btn--tint-ok">{% icon "sheet" %} Export Excel</a>
+<a href="{% url 'merilv:delivery_invoice_export' %}?pks={{ delivery.pk }}" class="mv-btn mv-btn--tint-blue">{% icon "sheet" %} Invoice Format</a>
+<a href="{% url 'merilv:delivery_packing_list' %}?pks={{ delivery.pk }}" class="mv-btn mv-btn--tint-violet">{% icon "download" %} Packing List</a>
+{% endblock %}
+
+{% block mv_body %}
+<div class="mv-kpis">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "list" %}</span><span class="mv-kpi__label">Lines</span><span class="mv-kpi__value">{{ delivery.line_count }}</span></div>
+    <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scanned</span><span class="mv-kpi__value">{{ delivery.scanned_count }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Boxes</span><span class="mv-kpi__value">{{ delivery.box_count }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "package" %}</span><span class="mv-kpi__label">Weight (kg)</span><span class="mv-kpi__value">{{ delivery.weight_kg|default:"—" }}</span></div>
+</div>
+
+<div class="mv-grid-2col">
+    <div class="mv-card mv-card--flush">
+        <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;"><h2 class="mv-card__title">{% icon "scan" %} Scans</h2></div>
+        {% if scans %}
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense">
+            <thead><tr><th>Material</th><th>Batch</th><th>Serial</th><th>Box</th></tr></thead>
+            <tbody>
+                {% for s in scans %}
+                <tr><td class="mv-mono">{{ s.material }}</td><td class="mv-mono">{{ s.batch|default:"—" }}</td><td class="mv-mono">{{ s.serial_only|default:"—" }}</td><td class="mv-mono">{{ s.box|default:"—" }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="mv-empty">{% icon "scan" 48 %}<div class="mv-empty__title">No scan detail available</div><p class="mv-empty__text">The originating session may have been removed.</p></div>
+        {% endif %}
+    </div>
+
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "truck" %} Dispatch details</h2>
+        <dl class="mv-dl">
+            <dt>Entity</dt><dd><span class="mv-badge mv-badge--neutral">{{ delivery.entity.code }}</span></dd>
+            <dt>Courier</dt><dd>{{ delivery.courier_partner|default:"—" }}</dd>
+            <dt>Courier No.</dt><dd class="mv-mono">{{ delivery.courier_number|default:"—" }}</dd>
+            <dt>Vehicle No.</dt><dd class="mv-mono">{{ delivery.vehicle_number|default:"—" }}</dd>
+            <dt>Vehicle Type</dt><dd>{{ delivery.vehicle_type|default:"—" }}</dd>
+            <dt>Docket No.</dt><dd class="mv-mono">{{ delivery.docket_no|default:"—" }}</dd>
+            <dt>Mode of Transit</dt><dd>{{ delivery.mode_of_transit|transit_label|default:"—" }}</dd>
+            <dt>Boxes Used</dt><dd class="mv-mono">{{ delivery.boxes_used|default:"—" }}</dd>
+            <dt>Picker</dt><dd>{{ delivery.picker|display_name }}</dd>
+        </dl>
+    </div>
+</div>
+{% endblock %}

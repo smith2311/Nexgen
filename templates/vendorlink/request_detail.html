@@ -1,0 +1,829 @@
+{% extends "base.html" %}
+{% load static vl_extras %}
+
+{% block title %}Request · {{ vendor_req.subject }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% comment %}
+One vendor request in full, for three different audiences: the vendor bidding
+on it, the person who raised it, and a VendorLink admin. `is_vendor` picks the
+first; the other two now see the same thing, because the view's guard already
+redirects anyone who is neither an admin nor the raiser.
+
+Notes that are easy to undo by accident:
+
+* The four copy fields go through `|safe_richtext`, never `|safe`. They are
+  operator-authored TextFields, so a bare `|safe` is stored XSS — a <script>
+  saved into a request body would fire for every vendor and admin who opened
+  it. `safe_richtext` sanitises against a fixed allowlist and is safe to
+  render unescaped.
+
+* Money is `|floatformat:"2g"` — grouped thousands without django.contrib
+  .humanize, which is not in INSTALLED_APPS.
+
+* An award has no status any more -- BidAward existing on a request IS the
+  outcome, decided by the requester alone. See vendorlink/models.py.
+
+* `{% comment %}` and not a multi-line `{# #}`, which is not a Django comment
+  and leaks its text into the page as an anonymous flex item.
+{% endcomment %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:request_list' %}">Requests</a>
+        <span class="sep">/</span>
+        <span class="current">{{ vendor_req.subject|truncatechars:40 }}</span>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-detailhead">
+        <div class="vlx-detailhead__main">
+            <span class="vlx-avatar vlx-avatar--lg" style="font-size:22px;"><i class="fas fa-paper-plane"></i></span>
+            <div>
+                <h1 class="vlx-detailhead__title" style="font-size:22px;">{{ vendor_req.subject }}</h1>
+                {% if vendor_req.reference_id %}<div style="margin-top:2px;"><button type="button" class="vlx-refcopy" data-ref="{{ vendor_req.reference_id }}" title="Copy {{ vendor_req.reference_id }}" style="padding-left:0;"><span class="vlx-mono" style="font-size:12px;color:var(--vlx-on-surface-variant);">{{ vendor_req.reference_id }}</span><i class="fas fa-copy" aria-hidden="true"></i><span class="sr-only">Copy reference number</span></button></div>{% endif %}
+                <div class="vlx-loc" style="margin-top:6px;">
+                    <i class="fas fa-location-dot"></i> {{ vendor_req.country }}
+                    &nbsp;·&nbsp;
+                    <i class="fas fa-user"></i> {{ vendor_req.raised_by.get_full_name|default:vendor_req.raised_by.username|default:"—" }}
+                </div>
+                <div class="vlx-detailhead__meta">
+                    {% if vendor_req.status == 'sent' %}
+                    <span class="vlx-pill vlx-pill--active"><i class="fas fa-circle-check"></i> Sent to {{ vendor_req.recipient_count }} vendor{{ vendor_req.recipient_count|pluralize }}</span>
+                    {% else %}
+                    <span class="vlx-pill vlx-pill--draft"><i class="fas fa-circle-exclamation"></i> No recipients</span>
+                    {% endif %}
+                    {% if vendor_req.attachments.exists %}
+                    <span class="vlx-pill vlx-pill--draft"><i class="fas fa-paperclip"></i> {{ vendor_req.attachments.count }} attachment{{ vendor_req.attachments.count|pluralize }}</span>
+                    {% endif %}
+                    <span class="vlx-pill vlx-pill--draft"><i class="fas fa-clock"></i> <time data-utc="{{ vendor_req.created_at|date:'c' }}" data-fmt="datetime">{{ vendor_req.created_at|date:"d M Y, H:i" }}</time></span>
+
+                    {% if bid_window == 'open' %}
+                        {% if vendor_req.bid_close_at %}
+                        <span class="vlx-window-badge vlx-window-open"><i class="fas fa-door-open"></i> Bidding open · closes <time data-utc="{{ vendor_req.bid_close_at|date:'c' }}" data-fmt="datetime">{{ vendor_req.bid_close_at|date:"d M Y, H:i" }}</time></span>
+                        {% else %}
+                        <span class="vlx-window-badge vlx-window-open"><i class="fas fa-door-open"></i> Bidding open</span>
+                        {% endif %}
+                    {% elif bid_window == 'not_started' %}
+                    <span class="vlx-window-badge vlx-window-soon"><i class="fas fa-hourglass-start"></i> Opens <time data-utc="{{ vendor_req.bid_open_at|date:'c' }}" data-fmt="datetime">{{ vendor_req.bid_open_at|date:"d M Y, H:i" }}</time></span>
+                    {% elif bid_window == 'closed' %}
+                    <span class="vlx-window-badge vlx-window-closed"><i class="fas fa-door-closed"></i> Bidding closed</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="vlx-detailhead__actions">
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if not is_vendor %}
+            <a href="{% url 'vendorlink:request_create' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-paper-plane"></i> New request</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% comment %}
+    Award state. BidAward is a OneToOne on the request, so there is at most
+    one, and its existence IS the outcome -- the requester decided, full stop.
+    There is no accepted/declined split left to show; the only other fact
+    worth surfacing is whether the notice mail actually reached the vendor.
+    {% endcomment %}
+    {% if award %}
+    <div class="vlx-award">
+        <i class="vlx-award__ic fas fa-trophy"></i>
+        <div class="vlx-award__body">
+            <h3 class="vlx-award__title">Awarded to {{ award.vendor_name }}</h3>
+            <div class="vlx-award__meta">
+                {% if award.awarded_amount %}
+                <span class="vlx-award__amount">{{ award.awarded_currency }} {{ award.awarded_amount|floatformat:"2g" }}</span> &middot;
+                {% endif %}
+                Bid #{{ award.bid.bid_number }} &middot;
+                awarded <time data-utc="{{ award.awarded_at|date:'c' }}" data-fmt="datetime">{{ award.awarded_at|date:"d M Y, H:i" }}</time>
+                {% if award.awarded_by %} by {{ award.awarded_by.get_full_name|default:award.awarded_by.username }}{% endif %}
+                {% if award.notified_at %}
+                <br>Vendor notified <time data-utc="{{ award.notified_at|date:'c' }}" data-fmt="datetime">{{ award.notified_at|date:"d M Y, H:i" }}</time>.
+                {% elif award.notify_error %}
+                <br><strong>The notice mail did not send:</strong> {{ award.notify_error }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if is_vendor %}
+    {% comment %} Vendor view: outcome, onboarding gate, window notice, own bid history, new bid form. {% endcomment %}
+
+    {% comment %}
+    Their own outcome, and only their own. A vendor is told when THEY hold the
+    award; they are never told that somebody else does, how many others bid, or
+    what anyone quoted. That is the same line the regret letter holds -- see the
+    comment in vendorlink/email/bid_not_selected.html.
+
+    Gold, not green: green means "approved/active" everywhere else in this
+    design system and amber means "needs attention". A win is neither.
+    {% endcomment %}
+    {% if my_award %}
+    <div class="vlx-award" style="border-left-color:var(--vlx-gold);background:var(--vlx-gold-tint);">
+        <i class="vlx-award__ic fas fa-trophy" style="color:var(--vlx-gold);"></i>
+        <div class="vlx-award__body">
+            <h3 class="vlx-award__title">You have been awarded this request</h3>
+            <div class="vlx-award__meta">
+                {% if my_award.awarded_amount %}
+                <span class="vlx-award__amount">{{ my_award.awarded_currency }} {{ my_award.awarded_amount|floatformat:"2g" }}</span> &middot;
+                {% endif %}
+                Bid #{{ my_award.bid.bid_number }} &middot;
+                awarded <time data-utc="{{ my_award.awarded_at|date:'c' }}" data-fmt="datetime">{{ my_award.awarded_at|date:"d M Y" }}</time>
+                <br>Our team will be in touch shortly with the next steps to formalise the engagement.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if needs_onboarding %}
+    <div class="vlx-bid-notice onboarding">
+        <i class="fas fa-user-lock"></i>
+        <div class="vlx-bid-notice-body">
+            <h4>Complete your account setup to bid</h4>
+            <p>Your vendor account has been approved, but you haven't set your password yet.
+               Please <a href="{% url 'vendorlink:vendor_change_password' %}" class="vlx-link">set your new password</a>
+               to activate your account and start submitting bids.</p>
+        </div>
+    </div>
+
+    {% elif bid_window == 'closed' %}
+    <div class="vlx-bid-notice closed">
+        <i class="fas fa-door-closed"></i>
+        <div class="vlx-bid-notice-body">
+            <h4>Bidding closed</h4>
+            <p>The bid submission window for this request has ended. No further bids are being accepted.</p>
+        </div>
+    </div>
+
+    {% elif bid_window == 'not_started' %}
+    <div class="vlx-bid-notice not-started">
+        <i class="fas fa-hourglass-start"></i>
+        <div class="vlx-bid-notice-body">
+            <h4>Bidding not yet open</h4>
+            <p>This request will accept bids from
+               <strong><time data-utc="{{ vendor_req.bid_open_at|date:'c' }}" data-fmt="datetime">{{ vendor_req.bid_open_at|date:"d M Y, H:i" }}</time></strong>.
+               Please check back then.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if vendor_bids %}
+    <div class="vlx-bid-history">
+        <div class="vlx-bid-history-head">
+            <i class="fas fa-history" style="color:var(--vlx-secondary);"></i>
+            Your Previous Bid{{ vendor_bids|length|pluralize }} ({{ vendor_bids|length }})
+        </div>
+        {% for bid in vendor_bids %}
+        <div class="vlx-bid-history-item">
+            <div class="vlx-bid-history-item-head">
+                <span class="vlx-bid-num">Bid #{{ bid.bid_number }}</span>
+                {% if bid.is_awarded_to_me %}<span class="vlx-pill" style="background:var(--vlx-gold-tint);color:var(--vlx-gold);"><i class="fas fa-trophy"></i> Awarded</span>
+                {% elif bid.status == 'shortlisted' %}<span class="vlx-pill vlx-pill--yes"><i class="fas fa-star"></i> Shortlisted</span>
+                {% elif bid.status == 'rejected' %}<span class="vlx-pill vlx-pill--danger"><i class="fas fa-xmark"></i> Not selected</span>
+                {% else %}<span class="vlx-pill vlx-pill--info"><i class="fas fa-clock"></i> Submitted</span>{% endif %}
+                {% comment %}
+                The total, on the card itself. Seven cost lines were listed and
+                never added up, so the one number the vendor is actually judged
+                on -- and the only one they can compare against their own
+                earlier revision -- was the one thing this card did not carry.
+                Attached by the view through views._bid_total, the same function
+                the staff comparison screens rank on.
+                {% endcomment %}
+                {% if bid.total_cost %}
+                <span class="vlx-bid-total">
+                    <span class="vlx-bid-total__lbl">Total</span>
+                    <span class="vlx-bid-total__val">{{ bid.currency }} {{ bid.total_cost|floatformat:"2g" }}</span>
+                </span>
+                {% endif %}
+                <span class="vlx-bid-ts">{{ bid.submitted_at|date:"d M Y, H:i" }}</span>
+            </div>
+            <div class="vlx-bid-row-grid">
+                <div class="vlx-bid-kv"><span>Currency</span><span>{{ bid.currency }}</span></div>
+                {% if bid.storage_cost is not None %}<div class="vlx-bid-kv"><span>Storage</span><span>{{ bid.currency }} {{ bid.storage_cost|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.inbound_cost is not None %}<div class="vlx-bid-kv"><span>Inbound</span><span>{{ bid.currency }} {{ bid.inbound_cost|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.outbound_cost is not None %}<div class="vlx-bid-kv"><span>Outbound</span><span>{{ bid.currency }} {{ bid.outbound_cost|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.pick_cost is not None %}<div class="vlx-bid-kv"><span>Pick</span><span>{{ bid.currency }} {{ bid.pick_cost|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.packing_cost is not None %}<div class="vlx-bid-kv"><span>Packing</span><span>{{ bid.currency }} {{ bid.packing_cost|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.last_mile_charges is not None %}<div class="vlx-bid-kv"><span>Last Mile</span><span>{{ bid.currency }} {{ bid.last_mile_charges|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.manpower_charges is not None %}<div class="vlx-bid-kv"><span>Manpower</span><span>{{ bid.currency }} {{ bid.manpower_charges|floatformat:"2g" }}</span></div>{% endif %}
+                {% if bid.additional_charges %}<div class="vlx-bid-kv" style="grid-column:1/-1;"><span>Additional</span><span>{{ bid.additional_charges }}</span></div>{% endif %}
+                {% if bid.notes %}<div class="vlx-bid-kv" style="grid-column:1/-1;"><span>Notes</span><span>{{ bid.notes }}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if bid_form %}
+    <div class="vlx-bid-panel">
+        <h3><i class="fas fa-gavel" style="color:var(--vlx-secondary);margin-right:6px;"></i>
+            {% if vendor_bids %}Submit a Revised Bid{% else %}Submit Your Price Bid{% endif %}
+        </h3>
+        <p class="vlx-bid-sub">Fill in your pricing for the services requested. Leave fields blank if not applicable.</p>
+        <form method="post" action="{% url 'vendorlink:bid_submit' vendor_req.pk %}" style="margin:0;">
+            {% csrf_token %}
+            <div class="vlx-bid-grid">
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.currency.id_for_label }}">Currency</label>
+                    {{ bid_form.currency }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.storage_cost.id_for_label }}">Storage Cost <span class="vlx-muted" style="font-weight:400;">(per sqm/month)</span></label>
+                    {{ bid_form.storage_cost }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.inbound_cost.id_for_label }}">Inbound Cost</label>
+                    {{ bid_form.inbound_cost }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.outbound_cost.id_for_label }}">Outbound Cost</label>
+                    {{ bid_form.outbound_cost }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.pick_cost.id_for_label }}">Pick Cost</label>
+                    {{ bid_form.pick_cost }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.packing_cost.id_for_label }}">Packing Cost</label>
+                    {{ bid_form.packing_cost }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.last_mile_charges.id_for_label }}">Last Mile Charges</label>
+                    {{ bid_form.last_mile_charges }}
+                </div>
+                <div class="vlx-bid-field">
+                    <label for="{{ bid_form.manpower_charges.id_for_label }}">Manpower Charges</label>
+                    {{ bid_form.manpower_charges }}
+                </div>
+                <div class="vlx-bid-field vlx-bid-field-wide">
+                    <label for="{{ bid_form.additional_charges.id_for_label }}">Additional Charges</label>
+                    {{ bid_form.additional_charges }}
+                </div>
+                <div class="vlx-bid-field vlx-bid-field-wide">
+                    <label for="{{ bid_form.notes.id_for_label }}">Message / Notes</label>
+                    {{ bid_form.notes }}
+                </div>
+            </div>
+            <div style="margin-top:20px;">
+                <button type="submit" class="vlx-btn vlx-btn--primary">
+                    <i class="fas fa-paper-plane"></i>
+                    {% if vendor_bids %}Submit Revised Bid{% else %}Submit Bid{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    {% endif %}{# is_vendor #}
+
+    {% comment %}
+    Side-by-side comparison, full width above the two-column grid rather than
+    inside the 1fr right rail — five vendor columns do not fit in a rail, and
+    the whole point of the matrix is reading across it.
+
+    Only the newest bid per vendor appears: a revised quote supersedes the
+    vendor's own earlier numbers, and listing both would let a stale figure win
+    a row. `comparison.comparable` is false when the quotes are not in one
+    currency, in which case nothing is flagged — see the note below the table.
+    {% endcomment %}
+    {% if comparison %}
+    <div class="vlx-card" style="margin-bottom:16px;">
+        <div class="vlx-card__body">
+            <h3 class="vlx-section-title" style="margin-bottom:12px;">
+                <i class="fas fa-scale-balanced"></i> Bid Comparison
+                <small class="vlx-muted" style="font-weight:400;">
+                    &mdash; latest bid from each of {{ comparison.columns|length }} vendor{{ comparison.columns|length|pluralize }}
+                    {% if comparison.currency %}&middot; {{ comparison.currency }}{% endif %}
+                </small>
+            </h3>
+
+            {% if comparison.rows %}
+            <div class="vlx-cmp-wrap">
+                <table class="vlx-cmp">
+                    <thead>
+                        <tr>
+                            <th class="vlx-cmp__corner" scope="col">Cost component</th>
+                            {% for col in comparison.columns %}
+                            <th scope="col" data-col="{{ forloop.counter0 }}">
+                                <span class="vlx-cmp__vendor">
+                                    {% if award and award.bid.submitted_by_id == col.bid.submitted_by_id %}<i class="fas fa-trophy" style="color:var(--vlx-gold);" title="Awarded"></i> {% endif %}
+                                    {{ col.label }}
+                                </span>
+                                {% comment %}
+                                A vendor who revised their quote gets a picker,
+                                so "what did they say the first time?" is
+                                answerable without leaving the page. A vendor
+                                with one bid gets plain text — a one-option
+                                dropdown is just a control that cannot be used.
+                                {% endcomment %}
+                                {% if col.revision_count > 1 %}
+                                <select class="vlx-cmp__revpick" data-col="{{ forloop.counter0 }}"
+                                        aria-label="Which revision of {{ col.label }}'s bid to compare">
+                                </select>
+                                {% endif %}
+                                <span class="vlx-cmp__quoted" data-quoted="{{ forloop.counter0 }}">
+                                    Bid #{{ col.bid.bid_number }} &middot; {{ col.quoted }}/{{ comparison.row_total }} quoted
+                                    {% if not comparison.comparable %}&middot; {{ col.bid.currency }}{% endif %}
+                                </span>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in comparison.rows %}
+                        <tr data-row="{{ forloop.counter0 }}">
+                            <th class="vlx-cmp__rowhead" scope="row">
+                                {{ row.label }}
+                                <span class="vlx-cmp__tied"{% if not row.tied %} hidden{% endif %}>(all equal)</span>
+                            </th>
+                            {% for cell in row.cells %}
+                            <td data-col="{{ forloop.counter0 }}" class="{% if cell.is_best %}vlx-cmp__best{% endif %}">
+                                {% if cell.value is not None %}
+                                    <i class="fas fa-check vlx-cmp__best-ic" title="Lowest quote for this line"{% if not cell.is_best %} hidden{% endif %}></i>
+                                    <span class="vlx-cmp__num">{{ cell.value|floatformat:"2g" }}</span>
+                                {% else %}
+                                    <i class="fas fa-check vlx-cmp__best-ic" title="Lowest quote for this line" hidden></i>
+                                    <span class="vlx-cmp__num vlx-cmp__blank" title="Not quoted">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% comment %}
+            Both footers are always rendered and one is hidden, because
+            switching a revision can change the currency mix — EuroCold quoted
+            revision 1 in EUR and revision 2 in USD — and therefore flip the
+            table between comparable and not. Rendering only the current one
+            would leave the picker unable to show the other.
+            {% endcomment %}
+            <div class="vlx-cmp-note" id="vlxCmpMixed"{% if comparison.comparable %} hidden{% endif %}>
+                <i class="fas fa-triangle-exclamation"></i>
+                <div>
+                    These bids are quoted in different currencies
+                    (<span id="vlxCmpMixedList">{{ comparison.currencies|join:", " }}</span>), so no lowest quote is marked.
+                    VendorLink holds no exchange rates — comparing the figures directly
+                    would rank the vendors by currency rather than by price. Convert
+                    them outside the system before deciding.
+                </div>
+            </div>
+            <div class="vlx-cmp-legend" id="vlxCmpLegend"{% if not comparison.comparable %} hidden{% endif %}>
+                <span><span class="vlx-cmp-legend__swatch"></span>Lowest quote for that line</span>
+                <span><span class="vlx-cmp__blank">&mdash;</span>&nbsp; Not quoted</span>
+                <span class="vlx-cmp-legend__note">
+                    Rows nobody quoted are omitted. No total is shown &mdash; the components
+                    use different units (storage is per sqm per month, the rest are per
+                    shipment or movement), so summing them would not be a price.
+                </span>
+            </div>
+
+            {{ comparison.revision_data|json_script:"vlxRevisionData" }}
+
+            {% else %}
+            <p class="vlx-muted" style="font-size:13px;margin:0;">
+                {{ comparison.columns|length }} vendor{{ comparison.columns|length|pluralize }} responded, but no cost
+                component has been quoted yet — see the individual bids for their notes.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="vlx-request-body">
+
+    <div class="vlx-stack">
+
+        {% if vendor_req.intro_message %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-align-left"></i> Intro Message</h3>
+                <div class="vlx-rich">{{ vendor_req.intro_message|safe_richtext }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vendor_req.header_message %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-location-dot"></i> Header / Address</h3>
+                <div class="vlx-rich">{{ vendor_req.header_message|safe_richtext }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vendor_req.warehouse_space_range or vendor_req.storage_temp_range or vendor_req.monthly_shipment_range or vendor_req.inbound_range or vendor_req.outbound_range or vendor_req.product_verticals %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:8px;"><i class="fas fa-boxes-stacked"></i> Operational Requirements</h3>
+                <table class="vlx-req-table">
+                    {% if vendor_req.warehouse_space_range %}<tr><td>Warehouse Space Required</td><td>{{ vendor_req.warehouse_space_range }}</td></tr>{% endif %}
+                    {% if vendor_req.storage_temp_range %}<tr><td>Storage Temperature</td><td>{{ vendor_req.storage_temp_range }}</td></tr>{% endif %}
+                    {% if vendor_req.monthly_shipment_range %}<tr><td>Monthly Shipment Volume</td><td>{{ vendor_req.monthly_shipment_range }}</td></tr>{% endif %}
+                    {% if vendor_req.inbound_range %}<tr><td>Inbound Volume</td><td>{{ vendor_req.inbound_range }}</td></tr>{% endif %}
+                    {% if vendor_req.outbound_range %}<tr><td>Outbound Volume</td><td>{{ vendor_req.outbound_range }}</td></tr>{% endif %}
+                    {% if vendor_req.product_verticals %}<tr><td>Product Verticals</td><td>{{ vendor_req.product_verticals }}</td></tr>{% endif %}
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vendor_req.scope_of_work %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-list-check"></i> Scope of Work</h3>
+                <div class="vlx-rich">{{ vendor_req.scope_of_work|safe_richtext }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vendor_req.footer_message %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-signature"></i> Closing Message</h3>
+                <div class="vlx-rich">{{ vendor_req.footer_message|safe_richtext }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if vendor_req.attachments.exists %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:4px;"><i class="fas fa-paperclip"></i> Attachments <small class="vlx-muted" style="font-weight:400;">({{ vendor_req.attachments.count }})</small></h3>
+                {% for att in vendor_req.attachments.all %}
+                {% with fname=att.original_name|default:att.file.name %}
+                <div class="vlx-att-item">
+                    <i class="fas {{ fname|file_icon }} vlx-att-type-icon"></i>
+                    <span class="vlx-att-name" title="{{ fname }}">{{ fname }}</span>
+                    <span class="vlx-att-date">{{ att.uploaded_at|date:"d M Y" }}</span>
+                    <div class="vlx-att-actions">
+                        {% if fname|is_previewable %}
+                        <a href="{% url 'vendorlink:attachment_download' att.pk %}?preview=1"
+                           target="_blank" rel="noopener"
+                           class="vlx-att-btn vlx-att-btn-preview"
+                           title="Preview {{ fname }}">
+                            <i class="fas fa-eye"></i> Preview
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'vendorlink:attachment_download' att.pk %}?dl=1"
+                           class="vlx-att-btn vlx-att-btn-dl"
+                           title="Download {{ fname }}">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% comment %}
+        Every card above is conditional, so a request with no copy, no
+        operational ranges, no verticals and no attachments renders this column
+        as nothing — the header banner floating over blank space, which reads as
+        a broken page rather than an empty one. `has_request_body` covers all
+        eleven of those fields in the view so the cards and this state cannot
+        disagree.
+        {% endcomment %}
+        {% if not has_request_body %}
+        <div class="vlx-card">
+            <div class="vlx-empty" style="padding:32px 16px;">
+                <div class="vlx-empty__icon"><i class="fas fa-file-circle-question"></i></div>
+                <h3 style="font-size:15px;">No request details recorded</h3>
+                <p style="font-size:13px;">
+                    This request was raised with no intro, scope, operational requirements or
+                    attachments &mdash; only the subject and country above.
+                    {% if not is_vendor %}Raise a new request if the vendors need the full brief.{% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    </div>
+
+    <div class="vlx-request-workspace">
+
+        {% if bids is not None %}
+        <div class="vlx-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-gavel"></i> Bids Received ({{ bids|length }})</h3>
+                {% if bids %}
+                {% comment %}
+                regroup only collapses *adjacent* rows, so this depends on the
+                view ordering by submitted_by. Without that ordering one vendor
+                would silently split into several groups.
+                {% endcomment %}
+                {% comment %}
+                regroup only collapses *adjacent* rows, so this depends on the
+                view ordering by submitted_by. Without that ordering one vendor
+                would silently split into several groups.
+                {% endcomment %}
+                {% regroup bids by submitted_by as vendor_bid_groups %}
+                <div class="vlx-bidtable-wrap">
+                <table class="vlx-bidtable">
+                    <thead>
+                        <tr>
+                            {% comment %}
+                            Deliberately unlabelled: this column is the indent
+                            under each vendor banner, not a data column. The
+                            vendor is the row group's own header
+                            (`<th scope="rowgroup">` below), which is where a
+                            screen reader should find it — labelling the spacer
+                            "Vendor" put the word above a permanently empty
+                            column.
+                            {% endcomment %}
+                            <th scope="col"><span class="sr-only">Bid within vendor</span></th>
+                            <th scope="col">Bid</th>
+                            <th scope="col">Cur.</th>
+                            <th scope="col" class="num">Storage</th>
+                            <th scope="col" class="num">Inbound</th>
+                            <th scope="col" class="num">Outbound</th>
+                            <th scope="col" class="num">Pick</th>
+                            <th scope="col" class="num">Packing</th>
+                            <th scope="col" class="num">Last mile</th>
+                            <th scope="col" class="num">Manpower</th>
+                            <th scope="col">Submitted</th>
+                        </tr>
+                    </thead>
+                    {% for group in vendor_bid_groups %}
+                    {% with latest=group.list|last %}
+                    {% comment %}
+                    One tbody per vendor. A vendor's revisions stay together and
+                    read as one block, which is what the grouped cards were for;
+                    a flat table would interleave them by nothing useful.
+                    {% endcomment %}
+                    <tbody class="vlx-bidtable__vendor">
+                        <tr class="vlx-bidtable__vendorrow">
+                            <th scope="rowgroup" colspan="11">
+                                {% if award and award.bid.submitted_by_id == group.grouper.id %}<i class="fas fa-trophy" style="color:var(--vlx-gold);" title="Awarded"></i> {% endif %}
+                                {{ latest.vendor_registration.vendor_name|default:group.grouper.get_full_name|default:group.grouper.username }}
+                                <span class="vlx-bidtable__count">{{ group.list|length }} bid{{ group.list|length|pluralize }}</span>
+                                {% if latest.status == 'submitted' %}
+                                <span class="vlx-pill vlx-pill--info"><i class="fas fa-clock"></i> Latest: Submitted</span>
+                                {% elif latest.status == 'shortlisted' %}
+                                <span class="vlx-pill vlx-pill--yes"><i class="fas fa-star"></i> Latest: Shortlisted</span>
+                                {% else %}
+                                <span class="vlx-pill vlx-pill--danger"><i class="fas fa-xmark"></i> Latest: Rejected</span>
+                                {% endif %}
+                            </th>
+                        </tr>
+                        {% for bid in group.list %}
+                        <tr{% if bid == latest and group.list|length > 1 %} class="is-latest"{% endif %}>
+                            <td class="vlx-bidtable__spacer"></td>
+                            <td class="vlx-bidtable__num">
+                                #{{ bid.bid_number }}
+                                {% if bid == latest and group.list|length > 1 %}<span class="vlx-bidtable__tag">latest</span>{% endif %}
+                                {% if award and award.bid_id == bid.pk %}<span class="vlx-bidtable__tag vlx-bidtable__tag--award">awarded</span>{% endif %}
+                            </td>
+                            <td>{{ bid.currency }}</td>
+                            {% comment %}
+                            `is not None` rather than truthiness: a quote of
+                            0.00 is a real price (free) and must show, where a
+                            plain {% templatetag openblock %} if {% templatetag closeblock %} would hide it as falsy.
+                            {% endcomment %}
+                            <td class="num">{% if bid.storage_cost is not None %}{{ bid.storage_cost|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.inbound_cost is not None %}{{ bid.inbound_cost|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.outbound_cost is not None %}{{ bid.outbound_cost|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.pick_cost is not None %}{{ bid.pick_cost|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.packing_cost is not None %}{{ bid.packing_cost|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.last_mile_charges is not None %}{{ bid.last_mile_charges|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="num">{% if bid.manpower_charges is not None %}{{ bid.manpower_charges|floatformat:"2g" }}{% else %}<span class="vlx-bidtable__blank">&mdash;</span>{% endif %}</td>
+                            <td class="vlx-bidtable__when">{{ bid.submitted_at|date:"d M Y, H:i" }}</td>
+                        </tr>
+                        {% if bid.additional_charges or bid.notes %}
+                        {% comment %}
+                        Additional charges and notes are free text, so they get
+                        a spanning row rather than a numeric column. Dropping
+                        them would lose the part of a bid that explains the
+                        numbers.
+                        {% endcomment %}
+                        <tr class="vlx-bidtable__prose">
+                            <td class="vlx-bidtable__spacer"></td>
+                            <td colspan="10">
+                                {% if bid.additional_charges %}<span class="vlx-bidtable__proselbl">Additional</span> {{ bid.additional_charges }}{% endif %}
+                                {% if bid.additional_charges and bid.notes %}<br>{% endif %}
+                                {% if bid.notes %}<span class="vlx-bidtable__proselbl">Notes</span> {{ bid.notes }}{% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                    {% endwith %}
+                    {% endfor %}
+                </table>
+                </div>
+                {% else %}
+                <div class="vlx-empty" style="padding:24px 12px;">
+                    <div class="vlx-empty__icon"><i class="fas fa-gavel"></i></div>
+                    <h3 style="font-size:14px;">No bids yet</h3>
+                    <p style="font-size:13px;">
+                        {% if bid_window == 'not_started' %}Bidding has not opened for this request.
+                        {% elif bid_window == 'closed' %}The bid window closed without any submissions.
+                        {% else %}Bidding is open — responses will appear here as vendors submit them.{% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not is_vendor %}
+        <div class="vlx-card vlx-recipients-card">
+            <div class="vlx-card__body">
+                <h3 class="vlx-section-title" style="margin-bottom:12px;"><i class="fas fa-envelope"></i> Recipients ({{ recipients|length }})</h3>
+                {% if recipients %}
+                {% comment %}
+                Each address is paired with its registered vendor name where one
+                exists. VendorRegistration.email has no unique constraint, so the
+                view picks the most recently reviewed approved row per address
+                rather than an arbitrary one. Addresses with no approved
+                registration render as `--unknown`, with the address promoted to
+                the primary line instead of sitting under an empty heading.
+                {% endcomment %}
+                <div class="vlx-reciplist">
+                    {% for rec in recipients %}
+                    <div class="vlx-recip {% if not rec.vendor_name %}vlx-recip--unknown{% endif %}">
+                        <span class="vlx-recip__ic"><i class="fas {% if rec.vendor_name %}fa-building{% else %}fa-at{% endif %}"></i></span>
+                        <span class="vlx-recip__body">
+                            {% if rec.vendor_name %}<span class="vlx-recip__name">{{ rec.vendor_name }}</span>{% endif %}
+                            <span class="vlx-recip__mail">{{ rec.email }}</span>
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if vendor_req.recipient_count != recipients|length %}
+                <p class="vlx-muted" style="font-size:12px;margin:10px 0 0;">
+                    Recorded count is {{ vendor_req.recipient_count }};
+                    {{ recipients|length }} unique address{{ recipients|length|pluralize:"es" }} shown
+                    (duplicates collapsed).
+                </p>
+                {% endif %}
+                {% else %}
+                <p class="vlx-muted" style="font-size:13px;">No recipients were recorded for this request.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-refcopy.js' %}"></script>
+{% if comparison and comparison.rows %}
+<script>
+/* Revision picker for the comparison matrix.
+
+   The matrix compares one bid per vendor, the newest, because a revised quote
+   supersedes that vendor's own earlier numbers. This lets a reader put an
+   earlier revision back into the comparison to see what it had said.
+
+   The awkward part is that a revision can carry a different currency —
+   EuroCold quoted revision 1 in EUR and revision 2 in USD — so changing one
+   column can flip the whole table between comparable and not. Cheapest-cell
+   marks are only legitimate while every visible column shares one currency,
+   so they are recomputed from scratch on every change rather than patched. */
+(function () {
+    var payload = document.getElementById('vlxRevisionData');
+    var table = document.querySelector('.vlx-cmp');
+    if (!payload || !table) { return; }
+
+    var columns = JSON.parse(payload.textContent);
+    var pickers = table.querySelectorAll('.vlx-cmp__revpick');
+    if (!pickers.length) { return; }          /* nobody revised — nothing to pick */
+
+    var ROWS = table.querySelectorAll('tbody tr').length;
+    var mixedBox = document.getElementById('vlxCmpMixed');
+    var mixedList = document.getElementById('vlxCmpMixedList');
+    var legend = document.getElementById('vlxCmpLegend');
+
+    /* Which revision each column is currently showing. */
+    var chosen = columns.map(function (col) { return col.selected; });
+
+    function current(index) {
+        return columns[index].revisions[chosen[index]];
+    }
+
+    function money(value) {
+        return value.toLocaleString(undefined, {
+            minimumFractionDigits: 2, maximumFractionDigits: 2
+        });
+    }
+
+    /* Fill in one column's cells from its selected revision. */
+    function paintColumn(index) {
+        var revision = current(index);
+        for (var row = 0; row < ROWS; row++) {
+            var cell = table.querySelector('tbody tr[data-row="' + row + '"] td[data-col="' + index + '"]');
+            if (!cell) { continue; }
+            var value = revision.values[row];
+            var number = cell.querySelector('.vlx-cmp__num');
+            if (value === null || value === undefined) {
+                number.textContent = '\u2014';
+                number.classList.add('vlx-cmp__blank');
+                number.setAttribute('title', 'Not quoted');
+            } else {
+                number.textContent = money(value);
+                number.classList.remove('vlx-cmp__blank');
+                number.removeAttribute('title');
+            }
+        }
+        var caption = table.querySelector('[data-quoted="' + index + '"]');
+        if (caption) {
+            caption.textContent = 'Bid #' + revision.bid_number
+                + ' \u00b7 ' + revision.quoted + '/' + ROWS + ' quoted'
+                + ' \u00b7 ' + revision.currency
+                + ' \u00b7 ' + revision.submitted;
+        }
+    }
+
+    /* Re-decide every cheapest mark, and whether any are allowed at all. */
+    function repaintBest() {
+        var currencies = [];
+        chosen.forEach(function (_, index) {
+            var currency = current(index).currency;
+            if (currency && currencies.indexOf(currency) === -1) { currencies.push(currency); }
+        });
+        var comparable = currencies.length <= 1;
+
+        if (mixedBox) { mixedBox.hidden = comparable; }
+        if (legend) { legend.hidden = !comparable; }
+        if (mixedList) { mixedList.textContent = currencies.sort().join(', '); }
+
+        for (var row = 0; row < ROWS; row++) {
+            var tr = table.querySelector('tbody tr[data-row="' + row + '"]');
+            if (!tr) { continue; }
+            var present = [];
+            chosen.forEach(function (_, index) {
+                var value = current(index).values[row];
+                if (value !== null && value !== undefined) { present.push(value); }
+            });
+
+            var cheapest = present.length ? Math.min.apply(null, present) : null;
+            var dearest = present.length ? Math.max.apply(null, present) : null;
+            /* A row where every quote matches has no winner, and a lone quote
+               has nothing to have beaten — same rule the server applies. */
+            var hasSpread = present.length > 1 && cheapest < dearest;
+            var tied = tr.querySelector('.vlx-cmp__tied');
+            if (tied) { tied.hidden = !(comparable && present.length > 1 && !hasSpread); }
+
+            chosen.forEach(function (_, index) {
+                var cell = tr.querySelector('td[data-col="' + index + '"]');
+                if (!cell) { return; }
+                var value = current(index).values[row];
+                var best = comparable && hasSpread
+                    && value !== null && value !== undefined && value === cheapest;
+                cell.classList.toggle('vlx-cmp__best', best);
+                var tick = cell.querySelector('.vlx-cmp__best-ic');
+                if (tick) { tick.hidden = !best; }
+            });
+        }
+    }
+
+    /* Build the options now rather than in the template: the list belongs to
+       the same data the switch reads, so the two cannot disagree. */
+    Array.prototype.forEach.call(pickers, function (picker) {
+        var index = Number(picker.dataset.col);
+        columns[index].revisions.forEach(function (revision, position) {
+            var option = document.createElement('option');
+            option.value = String(position);
+            option.textContent = 'Bid #' + revision.bid_number + ' \u00b7 ' + revision.currency
+                + (position === columns[index].revisions.length - 1 ? ' (latest)' : '');
+            if (position === chosen[index]) { option.selected = true; }
+            picker.appendChild(option);
+        });
+
+        picker.addEventListener('change', function () {
+            chosen[index] = Number(picker.value);
+            paintColumn(index);
+            repaintBest();
+        });
+    });
+}());
+</script>
+{% endif %}
+{% endblock %}

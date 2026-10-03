@@ -1,0 +1,118 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Invoice Consolidator — results. The design mock shows per-row confidence bars,
+but ConsolidationRow has no confidence score (merilv/models.py) — nothing here
+fabricates one. KPIs instead summarise what the run actually recorded.
+{% endcomment %}
+
+{% block mv_title %}{{ run }} — Consolidator{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:consolidator' %}">Invoice Consolidator</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ run }}</span>
+{% endblock %}
+{% block mv_heading %}{{ run }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ run.get_source_type_display }} · {{ run.created_at|date:"d M Y, H:i" }}</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:consolidator' %}" class="mv-btn">{% icon "arrow-left" %} All runs</a>
+<a href="{% url 'merilv:consolidation_export' run.pk %}" class="mv-btn mv-btn--primary">{% icon "download" %} Export</a>
+{% endblock %}
+
+{% block mv_body %}
+{% comment %}
+Rows / Quantity / Invoices are the three the client's own Consolidation Engine
+panel shows, so they lead. Files stays because it is the one number that says
+whether every uploaded file was actually read.
+{% endcomment %}
+<div class="mv-kpis">
+    <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "table" %}</span><span class="mv-kpi__label">Rows</span><span class="mv-kpi__value">{{ run.row_count }}</span><span class="mv-kpi__sub">Total rows extracted</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "layers" %}</span><span class="mv-kpi__label">Quantity</span><span class="mv-kpi__value">{{ total_quantity|floatformat:"-2" }}</span><span class="mv-kpi__sub">Total quantity</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "file" %}</span><span class="mv-kpi__label">Invoices</span><span class="mv-kpi__value">{{ invoice_count }}</span><span class="mv-kpi__sub">Invoices extracted</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "folder" %}</span><span class="mv-kpi__label">Files</span><span class="mv-kpi__value">{{ run.file_count }}</span><span class="mv-kpi__sub">Files processed</span></div>
+</div>
+
+{% if run.warnings %}
+<div class="mv-alerts">{% for w in run.warnings %}<div class="mv-alert mv-alert--warn">{% icon "alert" %}<div>{{ w }}</div></div>{% endfor %}</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search">{% icon "search" %}<input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Invoice, material or customer…"></div>
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        {% comment %}
+        A Django Page defines __len__ but not __bool__, so an empty page is
+        falsy — gate on paginator.count, not the page itself, or a filter with
+        zero matches silently drops this caption to "Showing –- of 0" while
+        looking otherwise intact. Same fix as Row 9's Delivery History.
+        {% endcomment %}
+        <span class="mv-t-caption">Showing <strong class="mv-fg-2">{% if page_obj.paginator.count %}{{ page_obj.start_index }}–{{ page_obj.end_index }}{% else %}0{% endif %}</strong> of <strong class="mv-fg-2">{{ page_obj.paginator.count }}</strong></span>
+    </form>
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--zebra">
+        {% comment %}
+        The export (USD) layout carries five fields the domestic GST layout has
+        no equivalent for — line number, mfg/expiry dates and the FDA 510(k)
+        clearance — so those columns only appear on a PDF run. Rendering them
+        always would put four permanently-empty columns on every sheet import.
+        Column order follows the client's own reader, left to right.
+        {% endcomment %}
+        <thead><tr>
+            <th>Invoice #</th>
+            <th>Invoice Date</th>
+            {% if is_export_layout %}<th class="mv-num">Line #</th>{% endif %}
+            <th class="mv-num">Qty</th>
+            <th>Item Code</th>
+            {% if is_export_layout %}<th>Mfg Date</th><th>Expiry Date</th>{% endif %}
+            <th>Lot Number</th>
+            <th>Description</th>
+            {% if is_export_layout %}<th>510(k)</th>{% endif %}
+            {% if not is_export_layout %}<th>Customer</th>{% endif %}
+            <th class="mv-num">Unit Price</th>
+            <th class="mv-num">Line Total</th>
+            <th>DB Match</th>
+            <th>Source File</th>
+        </tr></thead>
+        <tbody>
+            {% for r in page_obj %}
+            <tr>
+                <td class="mv-mono mv-t-strong">{{ r.invoice_no|default:"—" }}</td>
+                <td class="mv-t-caption">{{ r.invoice_date|default:"—" }}</td>
+                {% if is_export_layout %}<td class="mv-num mv-t-caption">{{ r.data.line_no|default:"—" }}</td>{% endif %}
+                <td class="mv-num mv-t-strong">{{ r.quantity|floatformat:"-2"|default:"—" }}</td>
+                <td class="mv-mono">{{ r.material|default:"—" }}</td>
+                {% if is_export_layout %}
+                <td class="mv-t-caption">{{ r.data.mfg_date|default:"—" }}</td>
+                <td class="mv-t-caption">{{ r.data.expiry_date|default:"—" }}</td>
+                {% endif %}
+                <td class="mv-mono">{{ r.batch|default:"—" }}</td>
+                <td style="max-width:260px;white-space:normal;">{{ r.description|default:"—"|truncatechars:60 }}</td>
+                {% if is_export_layout %}<td class="mv-mono mv-t-caption">{{ r.data.k_number|default:"—" }}</td>{% endif %}
+                {% if not is_export_layout %}<td>{{ r.customer_name|default:"—"|truncatechars:28 }}</td>{% endif %}
+                <td class="mv-num">{{ r.rate|floatformat:"-2"|default:"—" }}</td>
+                <td class="mv-num mv-t-strong">{{ r.amount|floatformat:"-2"|default:"—" }}</td>
+                <td>
+                    {% if r.in_master %}
+                    <span class="mv-badge mv-badge--ok">Match</span>
+                    {% else %}
+                    <span class="mv-badge mv-badge--warn" title="This item code is not in the material master">Not in DB</span>
+                    {% endif %}
+                </td>
+                <td class="mv-t-caption">{{ r.source_file|truncatechars:24 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "search-x" 48 %}<div class="mv-empty__title">No rows match</div></div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,2496 @@
+/* ================================================================
+   VendorLink — "Enterprise Precision" Design System
+   Self-contained, token-based. Scoped under .vlx so it never
+   touches the shared site navbar/sidebar shell.
+   Fonts: Inter (already self-hosted) + JetBrains Mono (below).
+   Icons: Font Awesome (already loaded site-wide) — no new deps.
+   ================================================================ */
+
+/* ── JetBrains Mono (self-hosted, reused from static/css/fonts) ── */
+@font-face {
+    font-family: 'JetBrains Mono VL';
+    font-style: normal;
+    font-weight: 400 500;
+    font-display: swap;
+    src: url(../../css/fonts/jetbrains/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwg.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── Design tokens ─────────────────────────────────────────────── */
+.vlx {
+    /* structural surfaces */
+    --vlx-canvas:            #F6F8FB;
+    --vlx-surface:           #FFFFFF;
+    --vlx-surface-bright:    #f8f9ff;
+    --vlx-surface-container-low:  #eff4ff;
+    --vlx-surface-container: #e5eeff;
+    --vlx-surface-container-high: #dce9ff;
+    --vlx-divider:           #E5E9F0;
+
+    /* text / ink */
+    --vlx-on-surface:        #0b1c30;
+    --vlx-on-surface-variant:#44474d;
+    --vlx-ink-700:           #1F2A44;
+    --vlx-ink-300:           #94A3B8;
+
+    /* brand */
+    --vlx-primary:           #000618;  /* near-black navy — primary actions */
+    --vlx-primary-container: #0f1f3a;  /* ink navy — table headers, dark chrome */
+    --vlx-on-primary:        #ffffff;
+    --vlx-secondary:         #0061a6;  /* brand primary blue — links/accents */
+    --vlx-secondary-container:#58aaff; /* brand accent */
+    --vlx-brand-tint:        #E0F2FE;
+
+    /* semantic */
+    --vlx-success:           #16A34A;
+    --vlx-success-tint:      #DCFCE7;
+    --vlx-warning:           #D97706;
+    --vlx-warning-tint:      #FEF3C7;
+    --vlx-danger:            #DC2626;
+    --vlx-danger-tint:       #FEE2E2;
+    --vlx-violet:            #7C3AED;   /* AI-only accent */
+    --vlx-violet-tint:       #F3E8FF;
+
+    /* radii */
+    --vlx-r-sm:  6px;   /* pills, dots, checkboxes */
+    --vlx-r-md:  10px;  /* buttons, inputs */
+    --vlx-r-lg:  16px;  /* cards, KPI tiles, modals */
+
+    /* elevation */
+    --vlx-sh-1: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+    --vlx-sh-2: 0 10px 30px rgba(15,31,58,.14), 0 2px 8px rgba(15,31,58,.08);
+
+    /* type */
+    --vlx-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --vlx-mono: 'JetBrains Mono VL', 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+    background: var(--vlx-canvas);
+    color: var(--vlx-on-surface);
+    font-family: var(--vlx-font);
+    font-size: 14px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: calc(100vh - 70px);
+}
+@media (max-width: 768px) { .vlx { min-height: calc(100vh - 60px); } }
+.vlx *, .vlx *::before, .vlx *::after { box-sizing: border-box; }
+.vlx button { font-family: inherit; }
+/* :where() keeps this at zero specificity so it never outranks a real
+   component's own color rule (e.g. .vlx-btn--primary, .vlx-link) — without
+   this, any single-class color rule on an <a> tag loses to this reset and
+   only wins back on :hover, which reads as "text is black until hovered". */
+.vlx :where(a) { text-decoration: none; color: inherit; }
+
+/* ── Layout ────────────────────────────────────────────────────── */
+.vlx-wrap {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+@media (max-width: 768px) { .vlx-wrap { padding: 16px; gap: 16px; } }
+
+.vlx-stack   { display: flex; flex-direction: column; gap: 24px; }
+.vlx-stack-md{ display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Breadcrumb ────────────────────────────────────────────────── */
+.vlx-breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    font-size: 13px; line-height: 20px; color: var(--vlx-ink-300);
+}
+.vlx-breadcrumb a { color: var(--vlx-ink-300); transition: color .15s; }
+.vlx-breadcrumb a:hover { color: var(--vlx-secondary); }
+.vlx-breadcrumb .sep { color: var(--vlx-ink-300); }
+.vlx-breadcrumb .current { color: var(--vlx-on-surface); font-weight: 500; }
+
+/* ── Page header row ───────────────────────────────────────────── */
+.vlx-pagehead {
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    justify-content: space-between; gap: 16px;
+}
+.vlx-pagehead__left { display: flex; flex-direction: column; gap: 8px; }
+.vlx-titlerow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.vlx-title { font-size: 24px; line-height: 32px; font-weight: 600; color: var(--vlx-primary); margin: 0; }
+.vlx-display { font-size: 32px; line-height: 40px; font-weight: 600; color: var(--vlx-primary); margin: 0; }
+.vlx-subtitle { font-size: 14px; color: var(--vlx-on-surface-variant); margin: 0; }
+.vlx-count-badge {
+    font-family: var(--vlx-mono); font-size: 13px; color: var(--vlx-on-surface-variant);
+    background: var(--vlx-surface-container); padding: 2px 8px; border-radius: var(--vlx-r-sm);
+}
+.vlx-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.vlx-btn {
+    height: 36px; padding: 0 16px; border-radius: var(--vlx-r-md);
+    font-size: 14px; font-weight: 500; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+    transition: background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;
+    text-decoration: none;
+}
+.vlx-btn i { font-size: 15px; }
+.vlx-btn--primary   { background: var(--vlx-primary); color: var(--vlx-on-primary); box-shadow: var(--vlx-sh-1); }
+.vlx-btn--primary:hover   { background: var(--vlx-ink-700); color: #fff; }
+.vlx-btn--accent    { background: var(--vlx-secondary); color: #fff; box-shadow: var(--vlx-sh-1); }
+.vlx-btn--accent:hover    { background: #004f88; color: #fff; }
+.vlx-btn--outline   { background: var(--vlx-surface); color: var(--vlx-primary); border-color: var(--vlx-ink-300); box-shadow: var(--vlx-sh-1); }
+.vlx-btn--outline:hover   { background: var(--vlx-surface-container); }
+.vlx-btn--ghost     { background: transparent; color: var(--vlx-secondary); }
+.vlx-btn--ghost:hover     { background: var(--vlx-brand-tint); }
+.vlx-btn--danger    { background: var(--vlx-danger); color: #fff; }
+.vlx-btn--danger:hover    { background: #b91c1c; color: #fff; }
+.vlx-btn--danger-soft { background: var(--vlx-danger-tint); color: var(--vlx-danger); }
+.vlx-btn--danger-soft:hover { background: var(--vlx-danger); color: #fff; }
+.vlx-btn--success   { background: var(--vlx-success); color: #fff; }
+.vlx-btn--success:hover   { background: #15803d; color: #fff; }
+.vlx-btn--sm { height: 32px; padding: 0 12px; font-size: 13px; }
+.vlx-btn--lg { height: 44px; padding: 0 22px; font-size: 15px; }
+.vlx-btn:disabled, .vlx-btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* Icon-only action button (table row actions) */
+.vlx-iconbtn {
+    width: 30px; height: 30px; border-radius: var(--vlx-r-md);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--vlx-on-surface-variant); background: transparent; border: none;
+    cursor: pointer; transition: color .15s, background .15s; text-decoration: none;
+}
+.vlx-iconbtn:hover { color: var(--vlx-secondary); background: var(--vlx-brand-tint); }
+.vlx-iconbtn--danger:hover { color: var(--vlx-danger); background: var(--vlx-danger-tint); }
+.vlx-iconbtn i { font-size: 16px; }
+
+/* ── Cards / panels ────────────────────────────────────────────── */
+.vlx-card {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1);
+}
+.vlx-card--flush { overflow: hidden; }
+.vlx-card__head {
+    padding: 16px 20px; border-bottom: 1px solid var(--vlx-divider);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--vlx-surface-bright); border-radius: var(--vlx-r-lg) var(--vlx-r-lg) 0 0;
+}
+.vlx-card__body { padding: 20px; }
+.vlx-section-title {
+    font-size: 15px; line-height: 24px; font-weight: 600; color: var(--vlx-on-surface);
+    margin: 0; display: flex; align-items: center; gap: 8px;
+}
+.vlx-section-title i { color: var(--vlx-secondary); font-size: 16px; }
+
+/* ── Form elements ─────────────────────────────────────────────── */
+.vlx-field { display: flex; flex-direction: column; gap: 6px; }
+.vlx-label {
+    font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--vlx-on-surface-variant);
+}
+.vlx-req { color: var(--vlx-danger); }
+.vlx-hint { font-size: 12px; color: var(--vlx-ink-300); }
+.vlx-error { font-size: 12px; color: var(--vlx-danger); font-weight: 500; }
+.vlx-input, .vlx-select, .vlx-textarea {
+    width: 100%; height: 40px; padding: 0 12px; border-radius: var(--vlx-r-md);
+    border: 1px solid var(--vlx-ink-300); background: var(--vlx-surface);
+    font-family: var(--vlx-font); font-size: 14px; color: var(--vlx-on-surface);
+    transition: border-color .15s, box-shadow .15s; outline: none;
+}
+.vlx-textarea { height: auto; min-height: 92px; padding: 10px 12px; resize: vertical; line-height: 22px; }
+.vlx-input:focus, .vlx-select:focus, .vlx-textarea:focus {
+    border-color: var(--vlx-secondary); box-shadow: 0 0 0 2px rgba(0,97,166,.25);
+}
+.vlx-input::placeholder, .vlx-textarea::placeholder { color: var(--vlx-ink-300); }
+.vlx-select {
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+}
+.vlx-checkbox { width: 18px; height: 18px; border-radius: var(--vlx-r-sm); accent-color: var(--vlx-secondary); cursor: pointer; }
+
+/* Search input with leading icon */
+.vlx-search { position: relative; flex: 1 1 240px; min-width: 200px; }
+.vlx-search > i {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--vlx-ink-300); font-size: 16px; pointer-events: none;
+}
+.vlx-search input {
+    width: 100%; height: 40px; padding: 0 14px 0 38px; border-radius: var(--vlx-r-md);
+    border: 1px solid var(--vlx-ink-300); background: var(--vlx-surface);
+    font-family: var(--vlx-font); font-size: 14px; color: var(--vlx-on-surface); outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.vlx-search input:focus { border-color: var(--vlx-secondary); box-shadow: 0 0 0 2px rgba(0,97,166,.25); }
+
+/* Toolbar (search + filters) — the site-wide `form { flex-direction: column }`
+   default (components.css) beats an unset flex-direction here, so it must be
+   pinned to row explicitly or these render as a vertical stack. */
+.vlx-toolbar {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1);
+    padding: 16px; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px;
+}
+.vlx-toolbar__filters { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; }
+.vlx-toolbar .vlx-select { width: auto; min-width: 150px; height: 40px; }
+.vlx-vrule { width: 1px; height: 24px; background: var(--vlx-divider); }
+
+/* ── Data table ────────────────────────────────────────────────── */
+.vlx-table-wrap { overflow-x: auto; }
+.vlx-table { width: 100%; border-collapse: collapse; text-align: left; }
+.vlx-table thead { background: var(--vlx-primary-container); }
+.vlx-table th {
+    padding: 12px 16px; font-size: 12px; line-height: 16px; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--vlx-on-primary);
+    white-space: nowrap;
+}
+.vlx-table td { padding: 12px 16px; border-top: 1px solid var(--vlx-divider); vertical-align: middle; font-size: 13px; }
+.vlx-table tbody tr { transition: background .15s; }
+.vlx-table tbody tr:hover { background: var(--vlx-canvas); }
+.vlx-table .num { font-family: var(--vlx-mono); font-variant-numeric: tabular-nums; }
+.vlx-table .right { text-align: right; }
+.vlx-table .center { text-align: center; }
+
+/* Row-hover reveal actions */
+.vlx-rowactions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+@media (hover: hover) {
+    .vlx-table tbody tr .vlx-rowactions { opacity: 0; transition: opacity .15s; }
+    .vlx-table tbody tr:hover .vlx-rowactions,
+    .vlx-table tbody tr:focus-within .vlx-rowactions { opacity: 1; }
+}
+
+/* Avatar (initial square) */
+.vlx-avatar {
+    width: 32px; height: 32px; border-radius: var(--vlx-r-md); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    background: var(--vlx-brand-tint); color: var(--vlx-secondary);
+    border: 1px solid rgba(0,97,166,.18);
+}
+.vlx-avatar--lg { width: 64px; height: 64px; border-radius: 14px; font-size: 24px; }
+.vlx-avatar--green  { background: var(--vlx-success-tint); color: var(--vlx-success); border-color: rgba(22,163,74,.22); }
+.vlx-avatar--amber  { background: var(--vlx-warning-tint); color: var(--vlx-warning); border-color: rgba(217,119,6,.22); }
+.vlx-avatar--red    { background: var(--vlx-danger-tint);  color: var(--vlx-danger);  border-color: rgba(220,38,38,.22); }
+.vlx-avatar--violet { background: var(--vlx-violet-tint);  color: var(--vlx-violet);  border-color: rgba(124,58,237,.22); }
+.vlx-avatar--grey   { background: var(--vlx-surface-container-high); color: var(--vlx-on-surface); border-color: var(--vlx-divider); }
+
+/* Cell helpers */
+.vlx-cell { display: flex; align-items: center; gap: 12px; }
+.vlx-cell__title { font-size: 13px; font-weight: 500; color: var(--vlx-on-surface); }
+.vlx-cell__sub   { font-size: 12px; color: var(--vlx-on-surface-variant); }
+.vlx-stack0 { display: flex; flex-direction: column; min-width: 0; }
+.vlx-loc { display: inline-flex; align-items: center; gap: 6px; color: var(--vlx-on-surface-variant); font-size: 13px; }
+.vlx-loc i { font-size: 14px; }
+.vlx-link { color: var(--vlx-secondary); font-weight: 500; }
+.vlx-link:hover { text-decoration: underline; }
+
+/* ── Status pills ──────────────────────────────────────────────── */
+.vlx-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: var(--vlx-r-sm);
+    font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap;
+    background: var(--vlx-surface-container); color: var(--vlx-on-surface-variant);
+}
+.vlx-pill i { font-size: 12px; }
+.vlx-pill--info,    .vlx-pill--submitted,   .vlx-pill--under_review-soft { background: var(--vlx-brand-tint); color: var(--vlx-secondary); }
+.vlx-pill--success, .vlx-pill--approved,    .vlx-pill--active, .vlx-pill--yes { background: var(--vlx-success-tint); color: var(--vlx-success); }
+.vlx-pill--warning, .vlx-pill--pending,     .vlx-pill--under_review { background: var(--vlx-warning-tint); color: var(--vlx-warning); }
+.vlx-pill--danger,  .vlx-pill--rejected,    .vlx-pill--no { background: var(--vlx-danger-tint); color: var(--vlx-danger); }
+.vlx-pill--draft { background: var(--vlx-surface-container); color: var(--vlx-on-surface-variant); }
+.vlx-pill--blacklist { background: var(--vlx-primary); color: #fff; }
+.vlx-pill--violet { background: var(--vlx-violet-tint); color: var(--vlx-violet); }
+
+/* ── Capability dots ───────────────────────────────────────────── */
+.vlx-caps { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.vlx-cap {
+    width: 24px; height: 24px; border-radius: var(--vlx-r-sm);
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vlx-surface-container-high); color: var(--vlx-ink-300); font-size: 12px;
+}
+.vlx-cap--on { background: var(--vlx-brand-tint); color: var(--vlx-secondary); }
+.vlx-cap-count {
+    font-family: var(--vlx-mono); font-size: 11px; color: var(--vlx-on-surface-variant);
+    background: var(--vlx-surface-container); padding: 2px 7px; border-radius: var(--vlx-r-sm);
+}
+.vlx-cap-legend {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--vlx-divider); background: var(--vlx-canvas);
+}
+.vlx-cap-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--vlx-on-surface-variant); white-space: nowrap; }
+.vlx-cap-legend__item i { font-size: 14px; }
+.vlx-cap-legend__note { margin-left: auto; font-size: 12px; color: var(--vlx-ink-300); white-space: nowrap; }
+
+/* ── KPI tiles ─────────────────────────────────────────────────── */
+.vlx-kpis { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.vlx-kpi {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1); padding: 16px;
+    display: flex; flex-direction: column;
+}
+.vlx-kpi__top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.vlx-kpi__label { font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--vlx-on-surface-variant); }
+.vlx-kpi__icon {
+    width: 28px; height: 28px; border-radius: var(--vlx-r-md); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vlx-brand-tint); color: var(--vlx-secondary); font-size: 15px;
+}
+.vlx-kpi__value { font-family: var(--vlx-mono); font-size: 24px; font-weight: 600; line-height: 1; color: var(--vlx-on-surface); }
+.vlx-kpi__delta { font-size: 12px; margin-top: 8px; display: inline-flex; align-items: center; gap: 4px; color: var(--vlx-on-surface-variant); }
+.vlx-kpi__delta i { font-size: 13px; }
+.vlx-kpi__delta.up { color: var(--vlx-success); }
+.vlx-kpi__delta.warn { color: var(--vlx-warning); }
+/* KPI accent left-border variants (registration summary style) */
+.vlx-kpi--pending  { border-left: 4px solid var(--vlx-warning); }
+.vlx-kpi--approved { border-left: 4px solid var(--vlx-success); }
+.vlx-kpi--rejected { border-left: 4px solid var(--vlx-danger); }
+
+/* ── Module launcher cards ─────────────────────────────────────── */
+.vlx-modgrid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.vlx-modcard {
+    position: relative; background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1); padding: 20px;
+    display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit;
+    transition: box-shadow .15s, transform .15s, border-color .15s;
+}
+.vlx-modcard:hover { box-shadow: var(--vlx-sh-2); transform: translateY(-2px); border-color: rgba(0,97,166,.35); }
+.vlx-modcard__icon {
+    width: 40px; height: 40px; border-radius: var(--vlx-r-md);
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vlx-brand-tint); color: var(--vlx-secondary); font-size: 18px;
+}
+.vlx-modcard__icon.grey { background: var(--vlx-surface-container-high); color: var(--vlx-on-surface); }
+.vlx-modcard__body { flex: 1; }
+.vlx-modcard__title { font-size: 15px; font-weight: 600; color: var(--vlx-on-surface); margin: 0; transition: color .15s; }
+.vlx-modcard:hover .vlx-modcard__title { color: var(--vlx-secondary); }
+.vlx-modcard__desc { font-size: 13px; color: var(--vlx-on-surface-variant); margin: 4px 0 0; line-height: 20px; }
+.vlx-modcard__go { align-self: flex-end; color: var(--vlx-ink-300); transition: color .15s, transform .15s; }
+.vlx-modcard:hover .vlx-modcard__go { color: var(--vlx-secondary); transform: translateX(4px); }
+.vlx-modcard__badge {
+    position: absolute; top: 16px; right: 16px; padding: 2px 8px; border-radius: 9999px;
+    font-size: 11px; font-weight: 600;
+}
+.vlx-modcard__badge.info { background: rgba(0,97,166,.1); color: var(--vlx-secondary); }
+.vlx-modcard__badge.warn { background: rgba(217,119,6,.12); color: var(--vlx-warning); }
+
+/* ── Detail page ───────────────────────────────────────────────── */
+.vlx-detailhead {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1); padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.vlx-detailhead__main { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 240px; }
+.vlx-detailhead__title { font-size: 28px; font-weight: 600; color: var(--vlx-primary); margin: 0; line-height: 1.1; }
+.vlx-detailhead__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.vlx-detailhead__actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.vlx-detailgrid { display: grid; gap: 24px; grid-template-columns: 1.6fr 1fr; align-items: start; }
+@media (max-width: 900px) { .vlx-detailgrid { grid-template-columns: 1fr; } }
+.vlx-request-body,
+.vlx-request-workspace { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.vlx-request-workspace { margin-top: 24px; }
+
+.vlx-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+@media (max-width: 560px) { .vlx-info { grid-template-columns: 1fr; } }
+.vlx-info__label { font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--vlx-on-surface-variant); margin-bottom: 4px; }
+.vlx-info__value { font-size: 14px; color: var(--vlx-on-surface); word-break: break-word; }
+.vlx-info__value a { color: var(--vlx-secondary); }
+
+/* Capability list rows (detail) */
+.vlx-caplist { display: flex; flex-direction: column; gap: 10px; }
+.vlx-caprow {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border-radius: var(--vlx-r-md); background: var(--vlx-surface-container-low);
+}
+.vlx-caprow.on { background: var(--vlx-success-tint); }
+.vlx-caprow__ic { width: 32px; height: 32px; border-radius: var(--vlx-r-sm); display: inline-flex; align-items: center; justify-content: center; background: var(--vlx-brand-tint); color: var(--vlx-secondary); font-size: 14px; }
+.vlx-caprow.on .vlx-caprow__ic { background: rgba(22,163,74,.18); color: var(--vlx-success); }
+.vlx-caprow__name { flex: 1; font-size: 14px; font-weight: 500; color: var(--vlx-on-surface); }
+
+/* Star rating */
+.vlx-stars { display: inline-flex; gap: 2px; color: var(--vlx-warning); font-size: 14px; }
+.vlx-stars .off { color: var(--vlx-ink-300); opacity: .4; }
+
+/* Toggle switch */
+.vlx-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.vlx-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.vlx-switch__slider { position: absolute; inset: 0; border-radius: 9999px; background: var(--vlx-ink-300); transition: background .2s; cursor: pointer; }
+.vlx-switch__slider::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.vlx-switch input:checked + .vlx-switch__slider { background: var(--vlx-secondary); }
+.vlx-switch input:checked + .vlx-switch__slider::after { transform: translateX(18px); }
+
+/* ── Tabs (underline) ──────────────────────────────────────────── */
+.vlx-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--vlx-divider); flex-wrap: wrap; }
+.vlx-tab {
+    padding: 10px 2px; font-size: 14px; font-weight: 500; color: var(--vlx-on-surface-variant);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 8px;
+    transition: color .15s, border-color .15s; cursor: pointer; text-decoration: none;
+}
+.vlx-tab:hover { color: var(--vlx-on-surface); }
+.vlx-tab.active { color: var(--vlx-secondary); border-bottom-color: var(--vlx-secondary); font-weight: 600; }
+.vlx-tab__count { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 9999px; background: var(--vlx-surface-container); color: var(--vlx-on-surface-variant); }
+.vlx-tab.active .vlx-tab__count { background: var(--vlx-brand-tint); color: var(--vlx-secondary); }
+
+/* ── Alerts / messages ─────────────────────────────────────────── */
+.vlx-alerts { display: flex; flex-direction: column; gap: 10px; }
+.vlx-alert {
+    display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px;
+    border-radius: var(--vlx-r-md); font-size: 14px; border: 1px solid transparent;
+}
+.vlx-alert i { font-size: 16px; margin-top: 1px; }
+.vlx-alert--success { background: var(--vlx-success-tint); color: #14532d; border-color: rgba(22,163,74,.3); }
+.vlx-alert--error, .vlx-alert--danger { background: var(--vlx-danger-tint); color: #7f1d1d; border-color: rgba(220,38,38,.3); }
+.vlx-alert--warning { background: var(--vlx-warning-tint); color: #78350f; border-color: rgba(217,119,6,.3); }
+.vlx-alert--info { background: var(--vlx-brand-tint); color: #0c4a6e; border-color: rgba(0,97,166,.3); }
+
+/* ── Empty state ───────────────────────────────────────────────── */
+.vlx-empty { text-align: center; padding: 56px 24px; color: var(--vlx-ink-300); }
+.vlx-empty__icon {
+    width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+    background: var(--vlx-brand-tint); color: var(--vlx-secondary);
+}
+.vlx-empty h3 { color: var(--vlx-on-surface); font-size: 16px; margin: 0 0 6px; }
+.vlx-empty p { margin: 0; font-size: 14px; }
+
+/* ── Pagination footer ─────────────────────────────────────────── */
+.vlx-pagefoot {
+    padding: 12px 20px; border-top: 1px solid var(--vlx-divider); background: var(--vlx-surface);
+    display: flex; align-items: center; justify-content: space-between;
+    border-radius: 0 0 var(--vlx-r-lg) var(--vlx-r-lg);
+}
+.vlx-pagefoot__info { font-size: 12px; color: var(--vlx-on-surface-variant); }
+.vlx-pagefoot__info .num { font-family: var(--vlx-mono); color: var(--vlx-on-surface); }
+.vlx-pager { display: flex; align-items: center; gap: 8px; }
+.vlx-pager a, .vlx-pager span.dis {
+    width: 32px; height: 32px; border-radius: var(--vlx-r-sm); border: 1px solid var(--vlx-divider);
+    display: inline-flex; align-items: center; justify-content: center; color: var(--vlx-on-surface-variant);
+    transition: background .15s, color .15s;
+}
+.vlx-pager a:hover { background: var(--vlx-canvas); color: var(--vlx-on-surface); }
+.vlx-pager span.dis { color: var(--vlx-ink-300); opacity: .5; pointer-events: none; }
+
+/* ── Modal ─────────────────────────────────────────────────────── */
+.vlx-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(11,28,48,.5); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+}
+.vlx-modal-overlay.open { display: flex; }
+.vlx-modal {
+    background: var(--vlx-surface); border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-2);
+    width: 100%; max-width: 480px; overflow: hidden;
+}
+.vlx-modal__head { padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--vlx-divider); }
+.vlx-modal__head h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.vlx-modal__close { background: none; border: none; cursor: pointer; color: var(--vlx-ink-300); font-size: 20px; line-height: 1; }
+.vlx-modal__body { padding: 20px 22px; font-size: 14px; color: var(--vlx-on-surface-variant); line-height: 22px; }
+.vlx-modal__foot { padding: 16px 22px; background: var(--vlx-surface-bright); border-top: 1px solid var(--vlx-divider); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Dropzone */
+.vlx-dropzone { margin-top: 14px; border: 2px dashed var(--vlx-ink-300); border-radius: var(--vlx-r-md); padding: 24px; text-align: center; color: var(--vlx-on-surface-variant); cursor: pointer; transition: border-color .15s, background .15s; }
+.vlx-dropzone:hover { border-color: var(--vlx-secondary); background: var(--vlx-brand-tint); }
+
+/* ── Utility bits ──────────────────────────────────────────────── */
+.vlx-mono { font-family: var(--vlx-mono); font-variant-numeric: tabular-nums; }
+.vlx-muted { color: var(--vlx-on-surface-variant); }
+.vlx-divider-h { height: 1px; background: var(--vlx-divider); border: 0; margin: 0; }
+.vlx-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .vlx-grid-2 { grid-template-columns: 1fr; } }
+.vlx-progress { height: 8px; border-radius: 9999px; background: var(--vlx-surface-container-high); overflow: hidden; }
+.vlx-progress__fill { height: 100%; border-radius: 9999px; background: var(--vlx-secondary); transition: width .8s cubic-bezier(.22,1,.36,1); }
+
+/* ── Compatibility: Django-rendered widgets (forms.py emits vm-input /
+   vm-select / vm-range-input / vm-rich, and bare checkboxes) — map them
+   to the DS look wherever they land inside .vlx, with no forms.py changes. */
+.vlx input.vm-input,
+.vlx textarea.vm-input,
+.vlx select.vm-input,
+.vlx input.vm-range-input {
+    width: 100%; height: 40px; padding: 0 12px; border-radius: var(--vlx-r-md);
+    border: 1px solid var(--vlx-ink-300); background: var(--vlx-surface);
+    font-family: var(--vlx-font); font-size: 14px; color: var(--vlx-on-surface);
+    transition: border-color .15s, box-shadow .15s; outline: none;
+}
+.vlx textarea.vm-input { height: auto; min-height: 92px; padding: 10px 12px; line-height: 22px; resize: vertical; }
+.vlx textarea.vm-rich { min-height: 120px; }
+.vlx input.vm-input:focus, .vlx textarea.vm-input:focus, .vlx select.vm-input:focus {
+    border-color: var(--vlx-secondary); box-shadow: 0 0 0 2px rgba(0,97,166,.25);
+}
+.vlx select.vm-select {
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+}
+.vlx input[type="checkbox"]:not([class]) { width: 18px; height: 18px; border-radius: var(--vlx-r-sm); accent-color: var(--vlx-secondary); cursor: pointer; }
+
+/* Validation states applied by form JS (vl-error / vl-ok / vl-err-msg / vl-char-counter) */
+.vlx .vm-input.vl-error, .vlx .vm-select.vl-error { border-color: var(--vlx-danger) !important; box-shadow: 0 0 0 2px rgba(220,38,38,.15) !important; }
+.vlx .vm-input.vl-ok,    .vlx .vm-select.vl-ok    { border-color: var(--vlx-success) !important; box-shadow: 0 0 0 2px rgba(22,163,74,.12) !important; }
+.vlx .vl-err-msg { font-size: 12px; color: var(--vlx-danger); font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+.vlx .vl-char-counter { font-size: 11px; color: var(--vlx-ink-300); font-weight: 600; text-align: right; margin-top: 3px; }
+.vlx .vl-char-counter.vl-near { color: var(--vlx-warning); }
+.vlx .vl-char-counter.vl-over { color: var(--vlx-danger); font-weight: 700; }
+
+/* ── Form fieldset sections inside a card ─────────────────────── */
+.vlx-fieldset { border: none; margin: 0 0 24px; padding: 0; }
+.vlx-fieldset:last-child { margin-bottom: 0; }
+.vlx-legend {
+    font-size: 15px; font-weight: 600; color: var(--vlx-on-surface); margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--vlx-divider);
+    display: flex; align-items: center; gap: 8px; width: 100%;
+}
+.vlx-legend i { color: var(--vlx-secondary); font-size: 14px; }
+
+/* ── Toggle rows (capability flags, status switches) ──────────── */
+.vlx-toggle-grid { display: flex; flex-direction: column; gap: 4px; }
+.vlx-toggle {
+    display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer;
+    border-bottom: 1px solid var(--vlx-divider);
+}
+.vlx-toggle:last-child { border-bottom: none; }
+.vlx-toggle__icon {
+    width: 32px; height: 32px; border-radius: var(--vlx-r-sm); flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--vlx-brand-tint); color: var(--vlx-secondary); font-size: 14px;
+}
+.vlx-toggle__label { flex: 1; font-size: 14px; font-weight: 500; color: var(--vlx-on-surface); }
+.vlx-toggle__desc { font-size: 12px; color: var(--vlx-on-surface-variant); margin-top: 1px; }
+
+/* Form footer action bar */
+.vlx-formfoot {
+    display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px;
+    border-top: 1px solid var(--vlx-divider); background: var(--vlx-surface-bright);
+    border-radius: 0 0 var(--vlx-r-lg) var(--vlx-r-lg);
+}
+
+/* Bulk-import shortcut card (top of Add Vendor form) */
+.vlx-bulk { display: flex; gap: 24px; flex-wrap: wrap; }
+.vlx-bulk__col { flex: 1 1 240px; display: flex; flex-direction: column; gap: 10px; }
+.vlx-bulk__divider { width: 1px; background: var(--vlx-divider); align-self: stretch; }
+.vlx-bulk h4 { font-size: 14px; font-weight: 600; color: var(--vlx-on-surface); display: flex; align-items: center; gap: 8px; margin: 0; }
+.vlx-bulk h4 i { color: var(--vlx-secondary); }
+.vlx-bulk p { font-size: 13px; color: var(--vlx-on-surface-variant); margin: 0; line-height: 20px; }
+.vlx-bulk-file-label {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 9px 16px; border-radius: var(--vlx-r-md); border: 1.5px dashed var(--vlx-ink-300);
+    font-size: 13px; font-weight: 500; color: var(--vlx-on-surface-variant); background: var(--vlx-canvas);
+    transition: all .15s ease; white-space: nowrap;
+}
+.vlx-bulk-file-label:hover { border-color: var(--vlx-secondary); color: var(--vlx-secondary); background: var(--vlx-brand-tint); }
+
+/* ── Notice bars (pending-action banners) ──────────────────────── */
+.vlx-noticebar {
+    display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+    border-radius: var(--vlx-r-lg); text-decoration: none; color: inherit;
+    box-shadow: var(--vlx-sh-1); transition: box-shadow .15s;
+}
+.vlx-noticebar:hover { box-shadow: var(--vlx-sh-2); }
+.vlx-noticebar--warning { background: var(--vlx-warning-tint); border: 1px solid rgba(217,119,6,.25); }
+.vlx-noticebar--warning .vlx-noticebar__ic { background: var(--vlx-warning); color: #fff; }
+.vlx-noticebar--warning .vlx-noticebar__title { color: #78350f; }
+.vlx-noticebar--warning .vlx-noticebar__sub { color: #92620f; }
+.vlx-noticebar--admin { background: var(--vlx-primary-container); color: #fff; }
+.vlx-noticebar--admin .vlx-noticebar__ic { background: linear-gradient(135deg, var(--vlx-violet), var(--vlx-secondary-container)); color: #fff; }
+.vlx-noticebar--admin .vlx-noticebar__sub { color: rgba(255,255,255,.7); }
+.vlx-noticebar--admin .vlx-noticebar__cta { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.28); }
+.vlx-noticebar__ic {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.vlx-noticebar__body { flex: 1; min-width: 0; }
+.vlx-noticebar__title { font-weight: 600; font-size: 14px; }
+.vlx-noticebar__sub { font-size: 12px; margin-top: 2px; }
+.vlx-noticebar__cta {
+    margin-left: auto; flex-shrink: 0; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    background: var(--vlx-surface); border: 1px solid var(--vlx-ink-300); color: var(--vlx-primary);
+    padding: 8px 14px; border-radius: var(--vlx-r-md);
+}
+
+/* ── Module card icon accent variants ─────────────────────────── */
+.vlx-modcard__icon.tint-violet { background: var(--vlx-violet-tint); color: var(--vlx-violet); }
+.vlx-modcard__icon.tint-cyan   { background: #CFFAFE; color: #0891B2; }
+.vlx-modcard__icon.tint-orange { background: var(--vlx-warning-tint); color: var(--vlx-warning); }
+.vlx-modcard__icon.tint-pink   { background: #FCE7F3; color: #DB2777; }
+.vlx-modcard__icon.tint-green  { background: var(--vlx-success-tint); color: var(--vlx-success); }
+
+/* Small stat chip inside a module card body */
+.vlx-modcard__stat {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    font-size: 12px; font-weight: 600; color: var(--vlx-secondary);
+    background: var(--vlx-brand-tint); padding: 4px 10px; border-radius: 9999px; margin-top: 4px;
+}
+.vlx-modcard--soon { opacity: .75; cursor: not-allowed; }
+.vlx-modcard--soon:hover { transform: none; box-shadow: var(--vlx-sh-1); border-color: var(--vlx-divider); }
+.vlx-modcard--soon .vlx-modcard__stat { color: var(--vlx-ink-300); background: var(--vlx-surface-container-high); }
+
+/* ── Date-group accordion (request inbox) ─────────────────────── */
+.vlx-date-row td { background: var(--vlx-surface-container-low); padding: 0 !important; border-top: none !important; border-bottom: 1px solid var(--vlx-divider) !important; }
+.vlx-date-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 16px; background: none; border: none; cursor: pointer; font-family: inherit; text-align: left; }
+.vlx-date-toggle:hover { background: var(--vlx-surface-container-high); }
+.vlx-date-chevron { color: var(--vlx-secondary); font-size: 12px; transition: transform .2s ease; flex-shrink: 0; }
+.vlx-date-chevron.open { transform: rotate(180deg); }
+.vlx-date-label { font-weight: 600; font-size: 13px; color: var(--vlx-on-surface); flex: 1; }
+.vlx-date-today { color: var(--vlx-secondary); }
+.vlx-date-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--vlx-brand-tint); color: var(--vlx-secondary); border-radius: 9999px; padding: 2px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.vlx-req-row.hidden { display: none; }
+
+/* ── Quill rich-text editor chrome (request form) ─────────────── */
+.vlx-quill-wrap .ql-toolbar {
+    border-radius: var(--vlx-r-md) var(--vlx-r-md) 0 0;
+    border: 1px solid var(--vlx-ink-300); border-bottom: 1px solid var(--vlx-ink-300);
+    background: var(--vlx-canvas); padding: 8px 10px;
+}
+.vlx-quill-wrap .ql-container {
+    border: 1px solid var(--vlx-ink-300); border-top: none;
+    border-radius: 0 0 var(--vlx-r-md) var(--vlx-r-md);
+    font-family: var(--vlx-font); font-size: 14px; min-height: 110px;
+    background: var(--vlx-surface); transition: border-color .15s, box-shadow .15s;
+}
+.vlx-quill-wrap .ql-container:focus-within { border-color: var(--vlx-secondary); box-shadow: 0 0 0 2px rgba(0,97,166,.25); }
+.vlx-quill-wrap .ql-editor { min-height: 110px; padding: 12px 14px; line-height: 1.7; }
+.vlx-quill-wrap .ql-editor.ql-blank::before { color: var(--vlx-ink-300); font-style: normal; }
+
+/* ── Range inputs (request form operational requirements) ─────── */
+.vlx-range-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.vlx-range-row .vm-input { flex: 1 1 90px; min-width: 80px; }
+.vlx-range-sep { color: var(--vlx-ink-300); font-weight: 700; flex-shrink: 0; }
+.vlx-range-unit { font-size: 13px; font-weight: 600; color: var(--vlx-on-surface-variant); white-space: nowrap; flex-shrink: 0; }
+.vlx-req-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+/* ── File upload dropzone ──────────────────────────────────────── */
+.vlx-upload-zone {
+    border: 2px dashed var(--vlx-ink-300); border-radius: var(--vlx-r-md); padding: 22px 20px;
+    text-align: center; cursor: pointer; color: var(--vlx-on-surface-variant);
+    transition: all .15s ease; background: var(--vlx-canvas); position: relative;
+}
+.vlx-upload-zone:hover, .vlx-upload-zone.drag-over { border-color: var(--vlx-secondary); background: var(--vlx-brand-tint); color: var(--vlx-secondary); }
+.vlx-upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.vlx-upload-zone .vlx-upload-icon { font-size: 28px; margin-bottom: 8px; color: var(--vlx-ink-300); }
+.vlx-upload-zone .vlx-upload-label { font-weight: 600; font-size: 14px; }
+.vlx-upload-zone .vlx-upload-hint { font-size: 12px; margin-top: 4px; color: var(--vlx-ink-300); }
+.vlx-file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.vlx-file-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 13px;
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md);
+    font-size: 13px; font-weight: 500; color: var(--vlx-on-surface);
+}
+.vlx-file-item i { color: var(--vlx-secondary); }
+.vlx-file-item .vlx-file-size { margin-left: auto; font-size: 12px; color: var(--vlx-ink-300); font-weight: 400; }
+.vlx-file-item.vl-file-warn { border-color: #fde68a; background: var(--vlx-warning-tint); }
+.vlx-file-item.vl-file-warn i { color: var(--vlx-warning); }
+
+/* ── Request detail: key-value table + rich content ────────────── */
+.vlx-req-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vlx-req-table td { padding: 10px 0; border-bottom: 1px solid var(--vlx-divider); }
+.vlx-req-table tr:last-child td { border-bottom: none; }
+.vlx-req-table td:first-child { color: var(--vlx-on-surface-variant); font-weight: 500; width: 48%; }
+.vlx-req-table td:last-child { color: var(--vlx-on-surface); font-weight: 600; }
+.vlx-rich { color: var(--vlx-on-surface); font-size: 14px; line-height: 1.7; }
+.vlx-rich p { margin: 0 0 8px; }
+
+/* Attachment rows */
+.vlx-att-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-radius: var(--vlx-r-md); border: 1px solid var(--vlx-divider); background: var(--vlx-canvas);
+    font-size: 13px; font-weight: 500; color: var(--vlx-on-surface); margin-top: 8px;
+    transition: border-color .15s, background .15s;
+}
+.vlx-att-item:hover { border-color: rgba(0,97,166,.35); background: var(--vlx-brand-tint); }
+.vlx-att-item i.vlx-att-type-icon { color: var(--vlx-secondary); font-size: 16px; flex-shrink: 0; }
+.vlx-att-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vlx-att-date { font-size: 12px; color: var(--vlx-ink-300); font-weight: 400; white-space: nowrap; }
+.vlx-att-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.vlx-att-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: var(--vlx-r-sm); font-size: 12px; font-weight: 700;
+    text-decoration: none; border: 1px solid; cursor: pointer; white-space: nowrap;
+    transition: all .15s;
+}
+.vlx-att-btn-preview { color: var(--vlx-secondary); border-color: rgba(0,97,166,.3); background: var(--vlx-brand-tint); }
+.vlx-att-btn-preview:hover { background: var(--vlx-secondary); color: #fff; border-color: var(--vlx-secondary); }
+.vlx-att-btn-dl { color: var(--vlx-success); border-color: rgba(22,163,74,.3); background: var(--vlx-success-tint); }
+.vlx-att-btn-dl:hover { background: var(--vlx-success); color: #fff; border-color: var(--vlx-success); }
+
+/* Bid submission panel */
+.vlx-bid-panel { background: var(--vlx-brand-tint); border: 1px solid rgba(0,97,166,.25); border-radius: var(--vlx-r-lg); padding: 24px; margin-bottom: 24px; }
+.vlx-bid-panel h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--vlx-on-surface); }
+.vlx-bid-panel .vlx-bid-sub { font-size: 13px; color: var(--vlx-on-surface-variant); margin-bottom: 20px; }
+.vlx-bid-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+@media (max-width: 560px) { .vlx-bid-grid { grid-template-columns: 1fr; } }
+.vlx-bid-field label { display: block; font-size: 12px; font-weight: 600; color: var(--vlx-on-surface-variant); margin-bottom: 5px; }
+.vlx-bid-field-wide { grid-column: 1 / -1; }
+
+/* Bid history / bid cards */
+.vlx-bid-history { margin-bottom: 18px; }
+.vlx-bid-history-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--vlx-on-surface); margin-bottom: 10px; }
+.vlx-bid-history-item { border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md); padding: 14px 16px; background: var(--vlx-surface); margin-bottom: 8px; }
+.vlx-bid-history-item-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.vlx-bid-num { background: var(--vlx-brand-tint); color: var(--vlx-secondary); border-radius: 9999px; padding: 2px 9px; font-size: 11px; font-weight: 700; }
+/* The quoted total, on the bid card's own header. Sits right of the status
+   pills and left of the timestamp's auto margin, so it reads as part of the
+   bid's identity rather than as one more cost line in the grid below. */
+.vlx-bid-total { display: inline-flex; align-items: baseline; gap: 6px; }
+.vlx-bid-total__lbl {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--vlx-ink-300);
+}
+.vlx-bid-total__val {
+    font-family: var(--vlx-mono); font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 700; color: var(--vlx-on-surface);
+}
+.vlx-bid-ts { font-size: 12px; color: var(--vlx-ink-300); margin-left: auto; }
+
+/* Bid status notices (closed / not-started / onboarding) */
+.vlx-bid-notice { border-radius: var(--vlx-r-lg); padding: 20px 22px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 14px; }
+.vlx-bid-notice.closed { background: var(--vlx-danger-tint); border: 1px solid rgba(220,38,38,.3); color: #7f1d1d; }
+.vlx-bid-notice.not-started { background: var(--vlx-warning-tint); border: 1px solid rgba(217,119,6,.3); color: #78350f; }
+.vlx-bid-notice.onboarding { background: var(--vlx-brand-tint); border: 1px solid rgba(0,97,166,.3); color: #0c4a6e; }
+.vlx-bid-notice i { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.vlx-bid-notice-body h4 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.vlx-bid-notice-body p { margin: 0; font-size: 13px; opacity: .9; }
+
+/* Bid window badge in header (sits on the dark detail-head banner) */
+.vlx-window-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700; }
+.vlx-window-open { background: rgba(34,197,94,.28); color: #fff; }
+.vlx-window-closed { background: rgba(239,68,68,.32); color: #fff; }
+.vlx-window-soon { background: rgba(251,191,36,.32); color: #fff; }
+
+/* Submitted-bid key/value summary grid */
+.vlx-bid-row-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 18px; }
+@media (max-width: 560px) { .vlx-bid-row-grid { grid-template-columns: 1fr; } }
+.vlx-bid-kv { font-size: 13px; }
+.vlx-bid-kv span:first-child { color: var(--vlx-on-surface-variant); font-weight: 500; display: block; }
+.vlx-bid-kv span:last-child { color: var(--vlx-on-surface); font-weight: 600; }
+
+/* Bids list grouped by vendor (staff view) */
+.vlx-bids-list { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+.vlx-vendor-group { border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md); overflow: hidden; }
+.vlx-vendor-group-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; background: var(--vlx-canvas); border-bottom: 1px solid var(--vlx-divider); gap: 10px; }
+.vlx-bid-card { border-top: 1px solid var(--vlx-divider); padding: 14px 16px; background: var(--vlx-surface); }
+.vlx-bid-card:first-of-type { border-top: none; }
+.vlx-bid-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+.vlx-bid-vendor { font-size: 14px; font-weight: 700; color: var(--vlx-on-surface); }
+.vlx-bid-meta { font-size: 12px; color: var(--vlx-ink-300); }
+
+/* ── Rank medal (podium / cheapest-bid ranking) ────────────────── */
+.vlx-rank-medal {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: var(--vlx-surface-container-high); color: var(--vlx-on-surface-variant);
+}
+.vlx-rank-medal.r1 { background: #FEF3C7; color: #92400E; }
+.vlx-rank-medal.r2 { background: var(--vlx-surface-container-high); color: var(--vlx-ink-700); }
+.vlx-rank-medal.r3 { background: #FFE4CC; color: #9A3412; }
+
+/* ── Commercial Database: dark header / stat pills ─────────────── */
+.vlx-cd-header {
+    background: var(--vlx-primary-container); border-radius: var(--vlx-r-lg);
+    padding: 20px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.vlx-cd-header-icon {
+    width: 48px; height: 48px; background: rgba(255,255,255,.14); border-radius: var(--vlx-r-md);
+    display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; flex-shrink: 0;
+}
+.vlx-cd-header-text { flex: 1; min-width: 200px; }
+.vlx-cd-header-text h1 { font-size: 20px; font-weight: 700; color: #fff; margin: 0 0 4px; }
+.vlx-cd-header-text p { font-size: 13px; color: rgba(255,255,255,.65); margin: 0; }
+.vlx-cd-header-pills { display: flex; gap: 10px; }
+.vlx-cd-pill { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); border-radius: var(--vlx-r-md); padding: 8px 18px; text-align: center; }
+.vlx-cd-pill .n { display: block; font-family: var(--vlx-mono); font-size: 20px; font-weight: 700; color: #fff; }
+.vlx-cd-pill .l { font-size: 11px; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .05em; }
+
+/* AI stub banner (dashed, violet AI-accent per design spec) */
+.vlx-ai-stub {
+    border: 1.5px dashed rgba(124,58,237,.4); background: var(--vlx-violet-tint); border-radius: var(--vlx-r-md);
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+}
+.vlx-ai-stub-icon { font-size: 22px; flex-shrink: 0; }
+.vlx-ai-stub h4 { font-size: 13px; font-weight: 700; color: var(--vlx-primary); margin: 0 0 2px; }
+.vlx-ai-stub p { font-size: 12px; color: var(--vlx-violet); margin: 0; }
+.vlx-ai-stub-badge { margin-left: auto; flex-shrink: 0; background: #fff; color: var(--vlx-violet); padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+/* ── Meril GPT panel ─────────────────────────────────────────────────────
+   Violet stays the AI-only accent, but it is an ACCENT here, not a wash. The
+   previous version filled the whole panel with --vlx-violet-tint and then set
+   the body copy in --vlx-violet on top of it: violet-on-violet is hard to
+   read, and a lilac slab matched nothing else on a navy/blue page. Now the
+   surface is white like every other card, and violet appears only where it
+   signals "this is the AI" — the mark, the top hairline, the focus ring, the
+   send button and the answer's left edge. */
+.vlx-gpt-panel {
+    position: relative;
+    background: var(--vlx-surface);
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg);
+    padding: 18px 20px 20px;
+    box-shadow: var(--vlx-sh-1);
+}
+.vlx-gpt-panel::before {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+    border-radius: var(--vlx-r-lg) var(--vlx-r-lg) 0 0;
+    background: linear-gradient(90deg, var(--vlx-violet), #a855f7 55%, var(--vlx-secondary-container));
+}
+
+.vlx-gpt-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.vlx-gpt-mark {
+    flex: none; width: 38px; height: 38px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff;
+    background: linear-gradient(135deg, var(--vlx-violet), #4f46e5);
+    box-shadow: 0 4px 12px rgba(124,58,237,.32);
+}
+.vlx-gpt-head h4 {
+    display: flex; align-items: center; gap: 7px; margin: 1px 0 3px;
+    font-size: 15px; font-weight: 700; color: var(--vlx-on-surface);
+}
+.vlx-gpt-badge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .07em;
+    color: var(--vlx-violet); background: var(--vlx-violet-tint);
+    border-radius: 9999px; padding: 2px 7px;
+}
+.vlx-gpt-head p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--vlx-on-surface-variant); }
+
+.vlx-gpt-chips { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+.vlx-gpt-chips-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--vlx-ink-300);
+}
+.vlx-gpt-chip {
+    border: 1px solid var(--vlx-divider); background: var(--vlx-surface);
+    color: var(--vlx-ink-700); font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 9999px; cursor: pointer;
+    font-family: inherit;
+    transition: border-color .15s, color .15s, background .15s, transform .15s;
+}
+.vlx-gpt-chip:hover {
+    border-color: var(--vlx-violet); color: var(--vlx-violet);
+    background: var(--vlx-violet-tint); transform: translateY(-1px);
+}
+
+/* One composer. Textarea, attachment rows and the action bar share a single
+   border so the whole thing reads as one input, rather than the three
+   separately-outlined controls it used to be. */
+.vlx-gpt-composer {
+    position: relative;
+    border: 1px solid var(--vlx-ink-300);
+    border-radius: var(--vlx-r-md);
+    background: var(--vlx-surface);
+    transition: border-color .15s, box-shadow .15s;
+}
+.vlx-gpt-composer:focus-within {
+    border-color: var(--vlx-violet);
+    box-shadow: 0 0 0 3px rgba(124,58,237,.13);
+}
+.vlx-gpt-composer.is-drop { border-color: var(--vlx-violet); border-style: dashed; }
+
+.vlx-gpt-input {
+    display: block; width: 100%; box-sizing: border-box;
+    border: none; background: none; resize: none; outline: none;
+    min-height: 46px; max-height: 200px; padding: 12px 14px 4px;
+    font-size: 13.5px; line-height: 1.55; font-family: var(--vlx-font);
+    color: var(--vlx-on-surface);
+}
+.vlx-gpt-input::placeholder { color: var(--vlx-ink-300); }
+
+.vlx-gpt-composer-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px 9px 12px;
+    border-top: 1px solid var(--vlx-surface-container-low);
+}
+.vlx-gpt-ask {
+    margin-left: auto; flex: none; height: 34px; padding: 0 16px;
+    border: none; border-radius: 9999px; cursor: pointer;
+    background: linear-gradient(135deg, var(--vlx-violet), #4f46e5);
+    color: #fff; font-size: 12.5px; font-weight: 700; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 7px;
+    box-shadow: 0 2px 8px rgba(124,58,237,.3);
+    transition: filter .15s, box-shadow .15s, transform .15s;
+}
+.vlx-gpt-ask:hover:not(:disabled) {
+    filter: brightness(1.08); transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(124,58,237,.4);
+}
+.vlx-gpt-ask:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+/* Drag-and-drop overlay. The attach control used to be drawn with a dashed
+   border, which reads as a drop zone — so dropping now actually works. */
+.vlx-gpt-drop {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; gap: 8px;
+    border-radius: var(--vlx-r-md);
+    background: rgba(243,232,255,.93); color: var(--vlx-violet);
+    font-size: 13px; font-weight: 700; pointer-events: none;
+}
+.vlx-gpt-composer.is-drop .vlx-gpt-drop { display: flex; }
+
+.vlx-gpt-answer {
+    margin-top: 14px; padding: 14px 16px;
+    background: var(--vlx-surface-bright);
+    border: 1px solid var(--vlx-divider);
+    border-left: 3px solid var(--vlx-violet);
+    border-radius: var(--vlx-r-sm);
+    font-size: 13px; line-height: 1.68; color: var(--vlx-on-surface);
+}
+.vlx-gpt-answer.is-loading { color: var(--vlx-on-surface-variant); }
+.vlx-gpt-answer.error {
+    border-color: rgba(220,38,38,.35); border-left-color: var(--vlx-danger);
+    background: var(--vlx-danger-tint); color: var(--vlx-danger);
+}
+.vlx-gpt-answer p { margin: 0 0 8px; }
+.vlx-gpt-answer p:last-child { margin-bottom: 0; }
+.vlx-gpt-answer ul { margin: 0 0 8px; padding-left: 20px; }
+.vlx-gpt-answer ul:last-child { margin-bottom: 0; }
+.vlx-gpt-answer li { margin-bottom: 4px; }
+.vlx-gpt-answer strong { font-weight: 700; color: var(--vlx-on-surface); }
+
+/* Compact filter bar (bid analytics) — see .vlx-toolbar note above re: form{flex-direction:column}. */
+.vlx-cd-filters { background: var(--vlx-surface); border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md); padding: 12px 16px; display: flex; flex-direction: row; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: var(--vlx-sh-1); }
+.vlx-cd-fgroup { display: flex; flex-direction: column; gap: 4px; }
+.vlx-cd-fgroup label { font-size: 11px; font-weight: 700; color: var(--vlx-on-surface-variant); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.vlx-cd-fgroup select { height: 36px; min-width: 148px; }
+
+/* Request card (bid analytics) */
+.vlx-cd-card { background: var(--vlx-surface); border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md); box-shadow: var(--vlx-sh-1); overflow: hidden; }
+.vlx-cd-card-head { background: var(--vlx-primary-container); padding: 13px 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+.vlx-cd-card-head:hover { filter: brightness(1.06); }
+.vlx-cd-card-head:focus-visible { outline: 2px solid var(--vlx-secondary); outline-offset: -2px; }
+.vlx-cd-card-chevron { color: rgba(255,255,255,.75); font-size: 13px; flex-shrink: 0; margin-top: 4px; transition: transform .2s ease; }
+.vlx-cd-card.open .vlx-cd-card-chevron { transform: rotate(180deg); }
+.vlx-cd-card-body.collapsed { display: none; }
+.vlx-cd-req-name { font-size: 14px; font-weight: 600; color: #fff; margin: 0 0 5px; display: flex; align-items: center; gap: 7px; }
+.vlx-cd-req-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+.vlx-cd-meta-item { font-size: 12px; color: rgba(255,255,255,.65); display: flex; align-items: center; gap: 4px; }
+.vlx-cd-head-btns { display: flex; gap: 7px; align-items: center; flex-shrink: 0; }
+.vlx-cd-btn-view, .vlx-cd-btn-ai {
+    height: 30px; padding: 0 12px; border-radius: var(--vlx-r-sm); font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none; border: none;
+}
+.vlx-cd-btn-view { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+.vlx-cd-btn-view:hover { background: rgba(255,255,255,.25); color: #fff; }
+.vlx-cd-btn-ai { background: var(--vlx-secondary); color: #fff; }
+.vlx-cd-btn-ai:hover { background: #004f88; }
+.vlx-cd-btn-ai:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Vendor accordion rows */
+.vlx-cd-vendor-row { border-bottom: 1px solid var(--vlx-divider); }
+.vlx-cd-vendor-row:last-child { border-bottom: none; }
+.vlx-cd-vrow-btn { width: 100%; text-align: left; background: none; border: none; padding: 12px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; font-family: inherit; font-size: inherit; color: inherit; transition: background .12s; }
+.vlx-cd-vrow-btn:hover { background: var(--vlx-canvas); }
+.vlx-cd-vrow-btn:focus-visible { outline: 2px solid var(--vlx-secondary); outline-offset: -2px; }
+.vlx-cd-vname { font-size: 14px; font-weight: 600; color: var(--vlx-on-surface); }
+.vlx-cd-vsub { display: flex; gap: 7px; align-items: center; margin-top: 3px; flex-wrap: wrap; }
+.vlx-cd-score-txt { font-size: 12px; color: var(--vlx-ink-300); }
+.vlx-cd-cost { text-align: right; flex-shrink: 0; }
+.vlx-cd-cost-amt { font-family: var(--vlx-mono); font-size: 15px; font-weight: 700; color: var(--vlx-primary); }
+.vlx-cd-cost-cur { font-size: 11px; color: var(--vlx-ink-300); font-weight: 600; }
+.vlx-cd-cost-lbl { font-size: 11px; color: var(--vlx-ink-300); }
+.vlx-cd-chev { color: var(--vlx-ink-300); font-size: 12px; flex-shrink: 0; transition: transform .2s; margin-left: 4px; }
+.vlx-cd-vendor-row.open .vlx-cd-chev { transform: rotate(90deg); }
+.vlx-cd-detail { display: none; padding: 0 18px 14px; }
+.vlx-cd-vendor-row.open .vlx-cd-detail { display: block; }
+
+/* Compact bid line-item table */
+.vlx-cd-tbl-wrap { overflow-x: auto; margin-top: 8px; }
+.vlx-cd-tbl { width: 100%; border-collapse: collapse; font-size: 12px; border-radius: var(--vlx-r-sm); overflow: hidden; }
+.vlx-cd-tbl thead tr { background: var(--vlx-primary-container); }
+.vlx-cd-tbl th { padding: 7px 9px; text-align: left; color: rgba(255,255,255,.85); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.vlx-cd-tbl tbody tr { border-bottom: 1px solid var(--vlx-divider); transition: background .1s; }
+.vlx-cd-tbl tbody tr:hover { background: var(--vlx-canvas); }
+.vlx-cd-tbl tbody tr.best { background: var(--vlx-success-tint); }
+.vlx-cd-tbl td { padding: 7px 9px; color: var(--vlx-on-surface); font-family: var(--vlx-mono); font-variant-numeric: tabular-nums; }
+.vlx-cd-tbl td.tot { font-weight: 700; color: var(--vlx-primary); }
+.vlx-best-chip { background: var(--vlx-success-tint); color: var(--vlx-success); padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 4px; }
+.vlx-cd-tbl td.sel { text-align: center; width: 30px; }
+.vlx-cd-tbl input[type="radio"] { width: 16px; height: 16px; accent-color: var(--vlx-secondary); cursor: pointer; margin: 0; }
+
+/* ── Date-group accordion (card-based, not table — bid analytics) ──── */
+.vlx-date-group { border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md); overflow: hidden; margin-bottom: 14px; }
+.vlx-date-grouphead {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px;
+    background: var(--vlx-surface-container-low); border: none; cursor: pointer;
+    font-family: inherit; text-align: left; transition: background .15s;
+}
+.vlx-date-grouphead:hover { background: var(--vlx-surface-container-high); }
+.vlx-date-groupbody { padding: 14px; display: flex; flex-direction: column; gap: 14px; background: var(--vlx-canvas); }
+.vlx-date-groupbody.collapsed { display: none; }
+.vlx-cur-tag { background: var(--vlx-surface-container); color: var(--vlx-on-surface-variant); padding: 1px 5px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.vlx-cd-notes { margin-top: 8px; padding: 9px 12px; background: var(--vlx-canvas); border-left: 3px solid var(--vlx-secondary); border-radius: 0 6px 6px 0; font-size: 12px; color: var(--vlx-on-surface-variant); line-height: 1.5; }
+
+/* AI evaluation panel — violet accent (AI-only per design spec) */
+.vlx-cd-eval { margin: 0 14px 14px; border-radius: var(--vlx-r-sm); overflow: hidden; border: 1px solid rgba(124,58,237,.3); }
+.vlx-cd-eval-head { background: linear-gradient(90deg, var(--vlx-primary-container) 0%, var(--vlx-violet) 100%); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; color: #fff; gap: 8px; flex-wrap: wrap; }
+.vlx-cd-eval-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.vlx-cd-eval-meta { font-size: 11px; color: rgba(255,255,255,.6); }
+.vlx-cd-eval-body { padding: 13px 14px; background: var(--vlx-surface); }
+.vlx-ev-pending { color: #b45309; font-weight: 600; font-size: 13px; }
+.vlx-ev-completed { color: var(--vlx-success); font-weight: 600; font-size: 13px; }
+.vlx-ev-failed { color: var(--vlx-danger); font-weight: 600; font-size: 13px; }
+.vlx-ev-reasoning { background: var(--vlx-success-tint); border: 1px solid rgba(22,163,74,.25); border-radius: var(--vlx-r-sm); padding: 9px 12px; font-size: 13px; color: #14532d; line-height: 1.6; margin: 8px 0; }
+.vlx-ev-ranks { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.vlx-ev-rank-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 11px; border-radius: var(--vlx-r-sm); border: 1px solid var(--vlx-divider); background: var(--vlx-canvas); }
+.vlx-ev-rank-item.top { border-color: #fde68a; background: var(--vlx-warning-tint); }
+.vlx-ev-rnum { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--vlx-surface-container-high); color: var(--vlx-on-surface-variant); }
+.vlx-ev-rank-item.top .vlx-ev-rnum { background: #fde68a; color: #92400e; }
+.vlx-ev-rname { font-weight: 700; font-size: 13px; color: var(--vlx-on-surface); }
+.vlx-ev-rcost { font-size: 12px; color: var(--vlx-on-surface-variant); margin-top: 1px; }
+.vlx-ev-rwhy { font-size: 12px; color: var(--vlx-on-surface-variant); margin-top: 3px; line-height: 1.4; }
+.vlx-ev-rec { background: var(--vlx-success-tint); color: var(--vlx-success); padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; margin-left: 5px; }
+
+/* Required-services chips */
+.vlx-ev-reqsvc { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 8px 0; font-size: 12px; }
+.vlx-ev-reqsvc-lbl { font-weight: 700; color: var(--vlx-on-surface-variant); margin-right: 3px; }
+.vlx-ev-svc-chip { background: var(--vlx-surface-container-high); color: var(--vlx-on-surface); border: 1px solid var(--vlx-divider); border-radius: 20px; padding: 2px 9px; font-size: 11px; font-weight: 600; }
+
+/* Decision points — "why this vendor for this request" */
+.vlx-ev-points { background: var(--vlx-surface); border: 1px solid rgba(22,163,74,.3); border-left: 3px solid var(--vlx-success); border-radius: var(--vlx-r-sm); padding: 10px 13px; margin: 10px 0; }
+.vlx-ev-points-head { font-size: 12px; font-weight: 700; color: var(--vlx-success); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.vlx-ev-points-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.vlx-ev-points-list li { font-size: 12.5px; color: var(--vlx-on-surface); line-height: 1.5; }
+
+/* Per-vendor points + eligibility */
+.vlx-ev-rpoints { margin: 5px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.vlx-ev-rpoints li { font-size: 11.5px; color: var(--vlx-on-surface-variant); line-height: 1.45; }
+.vlx-ev-elig { padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; margin-left: 5px; }
+.vlx-ev-elig.ok { background: var(--vlx-success-tint); color: var(--vlx-success); }
+.vlx-ev-elig.bad { background: var(--vlx-danger-tint, #fee2e2); color: var(--vlx-danger, #b91c1c); }
+.vlx-ev-missing { margin-top: 5px; font-size: 11px; color: var(--vlx-danger, #b91c1c); display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.vlx-ev-miss-chip { background: var(--vlx-danger-tint, #fee2e2); color: var(--vlx-danger, #b91c1c); border-radius: 20px; padding: 1px 8px; font-size: 10.5px; font-weight: 600; }
+
+/* Spinner */
+.vlx-spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(0,0,0,.1); border-top-color: var(--vlx-secondary); border-radius: 50%; animation: vlxspin .7s linear infinite; vertical-align: middle; }
+@keyframes vlxspin { to { transform: rotate(360deg); } }
+.vlx-spin-w { border-color: rgba(255,255,255,.25); border-top-color: #fff; }
+
+/* Meril GPT attachments — up to 4 files, 30 MB each (see vendorlink/gptfiles.py,
+   which is the authority; these limits are also enforced server-side because a
+   file input's `accept`/`multiple` are advisory and trivially bypassed). */
+.vlx-gpt-attach-btn {
+    border: 1px solid var(--vlx-divider); background: var(--vlx-surface);
+    color: var(--vlx-ink-700); font-size: 11.5px; font-weight: 600;
+    padding: 5px 11px; border-radius: 9999px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+    transition: border-color .15s, color .15s, background .15s;
+}
+.vlx-gpt-attach-btn:hover:not(:disabled) {
+    border-color: var(--vlx-violet); color: var(--vlx-violet);
+    background: var(--vlx-violet-tint);
+}
+.vlx-gpt-attach-btn:disabled { opacity: .5; cursor: not-allowed; }
+/* on-surface-variant, not ink-300: at 11px the lighter grey sits near 2.6:1 on
+   white, which is under the 4.5:1 floor and was visibly hard to read. Weight
+   (400 vs the button's 600) still keeps it subordinate. */
+.vlx-gpt-attach-hint { font-size: 11px; color: var(--vlx-on-surface-variant); }
+/* Attachment rows sit inside the composer, between the textarea and the action
+   bar, so :empty has to collapse them or the composer grows a blank gap. */
+.vlx-gpt-files { display: flex; flex-direction: column; gap: 6px; padding: 4px 10px 0 12px; }
+.vlx-gpt-files:empty { display: none; }
+.vlx-gpt-file { display: flex; align-items: center; gap: 9px; background: var(--vlx-surface-bright); border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-sm); padding: 6px 10px; font-size: 12px; }
+.vlx-gpt-file i { color: var(--vlx-violet); flex-shrink: 0; }
+.vlx-gpt-file-name { font-weight: 600; color: var(--vlx-on-surface); overflow-wrap: anywhere; }
+.vlx-gpt-file-size { color: var(--vlx-ink-300); margin-left: auto; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.vlx-gpt-file-x { border: none; background: none; color: var(--vlx-ink-300); cursor: pointer; padding: 0 2px; flex-shrink: 0; font-size: 15px; line-height: 1; }
+.vlx-gpt-file-x:hover { color: var(--vlx-danger); }
+/* A file the client-side pre-check already rejected: shown, not silently
+   dropped, so the operator can see which one and why. */
+.vlx-gpt-file.bad { border-color: rgba(220,38,38,.4); background: var(--vlx-danger-tint); }
+.vlx-gpt-file.bad i, .vlx-gpt-file.bad .vlx-gpt-file-name { color: var(--vlx-danger); }
+.vlx-gpt-file-why { color: var(--vlx-danger); font-size: 11px; }
+/* What the model actually read, echoed back under the answer — including any
+   file that was truncated, which changes how the answer should be trusted. */
+.vlx-gpt-read { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.vlx-gpt-read-chip { background: var(--vlx-surface); border: 1px solid var(--vlx-divider); border-radius: 9999px; padding: 3px 10px; font-size: 11px; color: var(--vlx-on-surface-variant); display: inline-flex; align-items: center; gap: 5px; }
+.vlx-gpt-read-chip.warn { border-color: rgba(245,158,11,.5); color: #b45309; }
+
+/* ── Bid Analytics page ───────────────────────────────────────────────────
+   Restructured to the master-detail pattern shown in the two AIDA mockups
+   the team supplied (Active RFIs + Category Price Spread + Detailed Bid
+   Comparison + Meril AI Insight, with Meril GPT as a right-hand slide-over
+   rather than an inline panel). Their own left "assistant modes" rail and
+   top VendorLink navbar are dropped — this site already has its own shell —
+   so only the content area below is implemented here. Every class below
+   reuses vlx-* tokens rather than the mockups' own Tailwind palette, so this
+   page stays visually part of the same design system as the rest of
+   VendorLink instead of introducing a second one. */
+
+/* Header: title/subtitle left, actions right. */
+.vlx-ba-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.vlx-ba-head h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; color: var(--vlx-primary); letter-spacing: -.01em; }
+.vlx-ba-head p  { margin: 0; font-size: 13.5px; color: var(--vlx-on-surface-variant); max-width: 56ch; }
+
+.vlx-ba-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* New Analysis used to live in the mockup's left sidebar as the one action
+   above the assistant-mode list; there is no sidebar here to hold it apart,
+   so a hairline stands in for that separation — it reads as "a different
+   kind of action" from the two report buttons beside it, not a third
+   identical button crammed into the row. */
+.vlx-ba-new {
+    position: relative; margin-left: 6px; padding-left: 22px;
+}
+.vlx-ba-new::before {
+    content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 1px; height: 22px; background: var(--vlx-divider);
+}
+@media (max-width: 640px) {
+    /* The hairline only makes sense between two buttons on the same row;
+       once actions wrap to a stacked column it would just be a stray mark
+       above New Analysis, so it is dropped rather than reflowed. */
+    .vlx-ba-new { margin-left: 0; padding-left: 16px; }
+    .vlx-ba-new::before { display: none; }
+    .vlx-ba-actions { width: 100%; }
+    .vlx-ba-actions .vlx-btn { flex: 1; justify-content: center; }
+}
+
+/* KPI strip. Mirrors .vlx-kpi's visual language (mono value, uppercase-ish
+   label, coloured delta) but styles the plainer span/strong/small markup this
+   page already uses rather than requiring the icon-wrapper markup .vlx-kpi
+   expects. */
+.vlx-ba-kpis {
+    display: grid; gap: 14px; margin: 18px 0;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.vlx-ba-kpi {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1);
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.vlx-ba-kpi > span { font-size: 12px; color: var(--vlx-on-surface-variant); }
+.vlx-ba-kpi > strong {
+    font-family: var(--vlx-mono); font-size: 25px; font-weight: 600;
+    line-height: 1.15; color: var(--vlx-on-surface); font-variant-numeric: tabular-nums;
+}
+.vlx-ba-kpi > small {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: var(--vlx-ink-300);
+}
+.vlx-ba-kpi > small.good { color: var(--vlx-success); }
+.vlx-ba-kpi > small i { font-size: 12px; }
+
+/* Stacked content: Active RFIs full width, then the Price Premium Heatmap
+   under it.
+
+   This was a 1:2 grid — the RFI list in one narrow column beside a
+   double-width heatmap. That ratio came from the mockup, which drew a heatmap
+   ten-plus RFIs wide; with the three or four RFIs actually on screen the
+   heatmap did not need two thirds of the page and the list was squeezed into a
+   column too narrow to show a request's vendors, costs and scores side by
+   side. The list is the working surface — it is what gets expanded, compared
+   and evaluated — so it gets the full width, and the heatmap, which is read
+   rather than operated, sits below it with room for readable headers. */
+.vlx-ba-main {
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    gap: 18px; align-items: start; margin-top: 18px;
+}
+
+.vlx-ba-panel {
+    background: var(--vlx-surface); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-lg); box-shadow: var(--vlx-sh-1);
+    padding: 16px; min-width: 0;
+}
+.vlx-ba-panel-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.vlx-ba-panel-head h2 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: var(--vlx-on-surface); }
+.vlx-ba-panel-head p  { margin: 0; font-size: 12px; color: var(--vlx-on-surface-variant); }
+
+/* Requests panel: no height cap and no inner scrollbar. The cap existed so
+   this panel would not stretch to match a taller heatmap sitting beside it —
+   now that the two are stacked there is nothing to match, and a scroll-trapped
+   box inside a scrolling page was always the worse half of that trade. The
+   page's own scroll handles a long list. */
+.vlx-ba-panel--requests .vlx-date-group:last-child { margin-bottom: 0; }
+
+.vlx-ba-panel--heat { overflow: hidden; }
+/* Compact legend for the panel head — same swatches as the full legend under
+   the table, just inline and without its own top margin. */
+
+/* AI Insight strip: violet is this site's established AI accent (same family
+   as the Meril GPT mark below), so the two visually read as one feature. */
+.vlx-ba-insight {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 18px; padding: 14px 18px;
+    background: var(--vlx-violet-tint); border: 1px solid rgba(124,58,237,.22);
+    border-left: 4px solid var(--vlx-violet); border-radius: var(--vlx-r-lg);
+}
+.vlx-ba-insight-mark {
+    flex: none; width: 38px; height: 38px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: linear-gradient(135deg, var(--vlx-violet), #4f46e5); color: #fff;
+    box-shadow: 0 4px 12px rgba(124,58,237,.32);
+}
+.vlx-ba-insight-body { flex: 1; min-width: 220px; }
+.vlx-ba-insight-body span { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--vlx-violet); }
+.vlx-ba-insight-body h3  { margin: 3px 0 2px; font-size: 15px; font-weight: 700; color: var(--vlx-on-surface); }
+.vlx-ba-insight-body p   { margin: 0; font-size: 12.5px; color: var(--vlx-on-surface-variant); line-height: 1.5; }
+@media (max-width: 560px) {
+    .vlx-ba-insight { flex-direction: column; align-items: flex-start; }
+    .vlx-ba-insight > .vlx-btn { width: 100%; justify-content: center; }
+}
+
+/* ── Meril GPT slide-over ─────────────────────────────────────────────────
+   The mockups run this as a fixed right-hand drawer over the whole viewport
+   rather than content pushed into the page flow, so it opens over the site's
+   own header/sidebar too instead of only the content column. */
+.vlx-gpt-scrim {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(11,28,48,.45); backdrop-filter: blur(2px);
+}
+/* ── Meril GPT drawer ───────────────────────────────────────────────────────
+   Width is a custom property so one value drives the panel, its resize grip
+   and the Feedback button's step-aside. It was a fixed 420px, which is fine
+   for a paragraph and far too narrow for the tables and charts the chat now
+   renders — a four-column vendor comparison had to be scrolled sideways in a
+   420px column.
+
+   The drag handle sets --vlx-gpt-w on the drawer's own style attribute, so the
+   default here stays the fallback for a first visit and for anyone who has
+   never dragged it. */
+.vlx-gpt-drawer {
+    position: fixed; top: 0; right: 0; z-index: 1001;
+    /* clamp, not min: the lower bound stops a stray drag collapsing the panel
+       to nothing, and the upper one keeps a sliver of the page visible so the
+       drawer never reads as a full-screen takeover. */
+    width: clamp(320px, var(--vlx-gpt-w, 420px), 96vw);
+    height: 100vh;
+    background: var(--vlx-surface);
+    box-shadow: var(--vlx-sh-2);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+}
+
+/* No width transition while dragging, or the panel lags a frame behind the
+   pointer and feels broken. Re-enabled the moment the drag ends. */
+.vlx-gpt-drawer.is-resizing { transition: none; user-select: none; }
+
+.vlx-gpt-drawer__grip {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    /* Wider than it looks: a 4px target is a miss on a trackpad. The visible
+       line is drawn by the ::after below. */
+    width: 14px;
+    padding: 0; border: none; background: transparent;
+    cursor: col-resize;
+    z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+}
+.vlx-gpt-drawer__grip::after {
+    content: ''; display: block;
+    width: 3px; height: 44px; border-radius: 999px;
+    background: var(--vlx-outline, #E2E8F0);
+    transition: background .15s, height .15s;
+}
+.vlx-gpt-drawer__grip:hover::after,
+.vlx-gpt-drawer__grip:focus-visible::after {
+    background: var(--vlx-primary, #000618);
+    height: 72px;
+}
+.vlx-gpt-drawer__grip:focus-visible { outline: none; }
+.vlx-gpt-drawer.is-resizing .vlx-gpt-drawer__grip::after {
+    background: var(--vlx-primary, #000618); height: 100%;
+    border-radius: 0;
+}
+
+/* The head, body and foot are already padded; the grip overlays the left
+   edge, so their content is nudged clear of it rather than sitting under a
+   drag target. */
+.vlx-gpt-drawer-head,
+.vlx-gpt-drawer-body,
+.vlx-gpt-drawer-foot { padding-left: 22px; }
+
+@media (max-width: 720px) {
+    /* Full width on a phone, and no grip: there is no page left to resize
+       into, so a drag target there only gets in the way of scrolling. */
+    .vlx-gpt-drawer { width: 100vw; }
+    .vlx-gpt-drawer__grip { display: none; }
+    .vlx-gpt-drawer-head,
+    .vlx-gpt-drawer-body,
+    .vlx-gpt-drawer-foot { padding-left: 16px; }
+}
+.vlx-gpt-drawer.open { transform: translateX(0); }
+
+/* Keep the global Feedback button clear of the drawer.
+
+   base.html pins .fb-float-btn bottom-right at z-index 1200, which is above
+   this drawer (1001) and its scrim (1000) — so with the drawer open it sat on
+   top of the composer's Attach row, covering it and catching clicks meant for
+   it. Rather than hide the button (it is meant to be reachable anywhere), it
+   slides left of the drawer and stays usable on the page still showing.
+   Below the drawer's max width there is no page left to slide onto, so there
+   it does step out of the way until the drawer closes. */
+body.mgpt-open .fb-float-btn {
+    /* Slides clear of the drawer instead of being hidden — it is meant to be
+       reachable anywhere. Follows --vlx-gpt-w, so it keeps its distance while
+       the drawer is being dragged. This rule is what the comment above
+       described; the media block that used to be here was empty, so with the
+       drawer open the button sat on top of the composer's Attach row and
+       swallowed clicks meant for it.
+
+       Specificity, not order: body.mgpt-open .fb-float-btn (0,2,1) beats the
+       .fb-float-btn (0,1,0) declared in base.html's inline <style>, wherever
+       that lands in the cascade. */
+    transform: translateX(calc(-1 * clamp(320px, var(--vlx-gpt-w, 420px), 96vw) - 16px));
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+}
+.vlx-gpt-drawer.is-resizing ~ * .fb-float-btn,
+body.mgpt-open.vlx-gpt-resizing .fb-float-btn { transition: none; }
+
+@media (max-width: 720px) {
+    /* Nothing to slide onto once the drawer is full width. */
+    body.mgpt-open .fb-float-btn { display: none; }
+}
+.vlx-gpt-drawer-head {
+    flex: none; display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; padding: 16px 16px 14px; border-bottom: 1px solid var(--vlx-divider);
+}
+.vlx-gpt-drawer-head .vlx-gpt-head { margin-bottom: 0; flex: 1; }
+.vlx-gpt-close {
+    flex: none; width: 30px; height: 30px; border-radius: 9999px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: var(--vlx-surface-container-low);
+    color: var(--vlx-on-surface-variant); cursor: pointer; font-size: 13px;
+    transition: background .15s, color .15s;
+}
+.vlx-gpt-close:hover { background: var(--vlx-danger-tint); color: var(--vlx-danger); }
+.vlx-gpt-drawer-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
+.vlx-gpt-drawer-foot { flex: none; padding: 12px 16px 16px; border-top: 1px solid var(--vlx-divider); }
+/* The composer already has its own border; the drawer foot just needs to not
+   double it up with extra padding fighting the panel's. */
+.vlx-gpt-drawer-foot .vlx-gpt-composer { margin: 0; }
+
+/* ── Vendor x RFI price-premium heatmap ──────────────────────────────────────
+   Sequential single-hue encoding of "how much above the cheapest bid" — a
+   magnitude with a meaningful floor (0% = won it), so one hue light→dark, not a
+   rainbow and not a diverging pair. Ramp + per-step label ink are generated in
+   vendorlink/quoteheatmap.py, which is where the validated values live; this
+   file only lays the grid out.
+
+   Built as a real <table> with scoped headers on purpose: that is simultaneously
+   the accessible table view a colour-encoded chart owes its readers, so there is
+   no second markup path to keep in sync. */
+.vlx-report-builder {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 16px; padding: 12px;
+  border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-lg);
+  background: var(--vlx-surface); box-shadow: var(--vlx-sh-1);
+}
+.vlx-report-builder__title { font-size: 13px; font-weight: 800; color: var(--vlx-on-surface); }
+.vlx-report-builder__hint { font-size: 11.5px; color: var(--vlx-ink-300); margin-top: 2px; }
+.vlx-report-builder label {
+  display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700;
+  color: var(--vlx-ink-300); text-transform: uppercase; letter-spacing: .04em;
+}
+.vlx-report-builder input[type="date"] {
+  height: 34px; min-width: 148px; padding: 0 9px; font: inherit; font-size: 12px;
+  color: var(--vlx-on-surface); background: var(--vlx-surface-container-low);
+  border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-sm);
+}
+.vlx-report-pick {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px;
+  background: var(--vlx-surface-container-low); border: 1px solid var(--vlx-divider);
+  cursor: pointer;
+}
+.vlx-report-pick input { width: 14px; height: 14px; cursor: pointer; accent-color: var(--vlx-secondary); }
+/* ── Price premium heatmap ────────────────────────────────────────────────
+   Vendor x RFI matrix. Cells are premiums above the cheapest bid, painted on
+   the validated warm ramp in quoteheatmap.HEAT_STEPS; the winner is painted in
+   the module's success green because winning is a status, not the lightest
+   step of a magnitude. Every cell also prints its number, so colour is a
+   redundant channel rather than the only one.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Headline figures above the grid. */
+.vlx-qh-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 4px 0 14px;
+}
+.vlx-qh-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-md);
+    background: var(--vlx-surface-bright);
+}
+.vlx-qh-metric__label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-qh-metric__value {
+    font-size: 24px;
+    line-height: 1.1;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--vlx-on-surface);
+}
+.vlx-qh-metric__hint { font-size: 11px; color: var(--vlx-ink-300); }
+
+.vlx-qh-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.vlx-qh-tools__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.vlx-qh-sort { height: 32px; min-width: 190px; font-size: 12px; padding: 0 30px 0 10px; }
+.vlx-qh-sizewrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-qh-sizewrap input[type="range"] { width: 96px; accent-color: var(--vlx-secondary); }
+
+/* Scale legend as pills. Mandatory next to a heat ramp -- the colour means
+   nothing without its key. */
+.vlx-qh-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-qh-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px 3px 6px;
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-pill);
+    background: var(--vlx-surface);
+    white-space: nowrap;
+}
+.vlx-qh-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+    flex: 0 0 auto;
+}
+.vlx-qh-swatch.none {
+    background: transparent;
+    border: 1px dashed var(--vlx-ink-300);
+}
+
+.vlx-qh-wrap {
+    --vlx-qh-cell: 34px;
+    --vlx-qh-col: 118px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+/* border-spacing, not collapse: separated rounded cells are the point of the
+   design, and a collapsed table cannot round its cells. */
+.vlx-qh {
+    border-collapse: separate;
+    border-spacing: 4px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+.vlx-qh th {
+    font-weight: 700;
+    color: var(--vlx-on-surface-variant);
+    text-align: left;
+    vertical-align: bottom;
+}
+
+/* Column headers stay horizontal while they fit; _bid_analytics_body.html
+   adds .vlx-qh--rotated past the threshold. */
+.vlx-qh-col {
+    width: var(--vlx-qh-col);
+    min-width: var(--vlx-qh-col);
+    padding: 0 4px 6px 0;
+    vertical-align: bottom;
+    text-align: center;
+}
+.vlx-qh-col span { display: block; line-height: 1.3; }
+.vlx-qh-cur {
+    display: block;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: var(--vlx-violet);
+}
+.vlx-qh-subject {
+    font-weight: 500;
+    font-size: 10.5px;
+    color: var(--vlx-ink-300);
+}
+.vlx-qh--rotated .vlx-qh-col {
+    height: 128px;
+    width: calc(var(--vlx-qh-cell) + 12px);
+    min-width: 0;
+    padding: 0;
+}
+.vlx-qh--rotated .vlx-qh-col span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.vlx-qh-vendor {
+    max-width: 200px;
+    padding: 8px 10px;
+    border-radius: var(--vlx-r-sm);
+    background: var(--vlx-surface-bright);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vlx-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+thead .vlx-qh-vendor { background: none; }
+
+.vlx-qh-cell {
+    height: var(--vlx-qh-cell);
+    min-width: var(--vlx-qh-cell);
+    padding: 0 6px;
+    border-radius: var(--vlx-r-sm);
+    text-align: center;
+    font-weight: 700;
+    font-size: 11.5px;
+    position: relative;
+    /* Lift on hover so a single cell can be picked out of a dense grid.
+       transform only -- animating width would reflow the whole table. */
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.vlx-qh-cell:hover {
+    transform: scale(1.08);
+    z-index: 4;
+    box-shadow: var(--vlx-sh-2);
+}
+.vlx-qh-cell.none {
+    background: transparent;
+    border: 1px dashed var(--vlx-divider);
+    color: var(--vlx-ink-300);
+    font-weight: 400;
+}
+.vlx-qh-cell.none:hover { transform: none; box-shadow: none; }
+
+/* Marker dot on the winner. Colour is never the only signal: the dot and the
+   printed 0.0% both say it, which is what lets green be used at all. */
+.vlx-qh-cell.best::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    /* Dark green, not white: the winner fill is a light tint now, and a white
+       dot on it is invisible. The dot is the non-colour half of the winner
+       signal, so it has to actually show. */
+    background: #15803D;
+}
+
+.vlx-qh-sum {
+    padding: 0 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vlx-on-surface-variant);
+    white-space: nowrap;
+}
+.vlx-qh-sum--first { border-left: 1px solid var(--vlx-divider); }
+.vlx-qh-sum--win { color: #15803D; font-weight: 800; }
+.vlx-qh-avg {
+    border-radius: var(--vlx-r-sm);
+    font-weight: 700;
+    color: var(--vlx-on-surface);
+}
+
+.vlx-qh-notes {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-md);
+    background: var(--vlx-surface-bright);
+}
+.vlx-qh-notes h3 {
+    margin: 0 0 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--vlx-on-surface);
+}
+.vlx-qh-notes ul { list-style: none; margin: 0; padding: 0; }
+.vlx-qh-notes li {
+    position: relative;
+    padding-left: 14px;
+    margin-bottom: 5px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-qh-notes li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--vlx-ink-300);
+}
+.vlx-qh-notes li:last-child { margin-bottom: 0; }
+.vlx-qh-note { margin-top: 8px; font-size: 11px; color: var(--vlx-on-surface-variant); line-height: 1.55; }
+
+/* ── Recipient picker ────────────────────────────────────────────────────
+   Raise a Request: choose which vendors of the selected country actually get
+   the email. A native <select multiple> cannot carry a checkbox, a search box
+   or a secondary line of text per option, so this is a disclosure button over
+   a panel of real checkboxes — which keeps the value in the normal form POST
+   instead of needing a hidden mirror field. */
+.vlx-rcp { position: relative; }
+
+.vlx-rcp__toggle {
+    width: 100%; min-height: 42px; padding: 0 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--vlx-surface); color: var(--vlx-on-surface);
+    border: 1px solid var(--vlx-ink-300); border-radius: var(--vlx-r-md);
+    font-family: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+}
+.vlx-rcp__toggle:hover  { background: var(--vlx-surface-container-low); }
+.vlx-rcp__toggle:focus-visible {
+    outline: none; border-color: var(--vlx-secondary);
+    box-shadow: 0 0 0 2px rgba(0,97,166,.25);
+}
+.vlx-rcp__summary { font-weight: 500; }
+.vlx-rcp__caret { font-size: 11px; color: var(--vlx-ink-300); flex: none; }
+.vlx-rcp__toggle[aria-expanded="true"] .vlx-rcp__caret { transform: rotate(180deg); }
+
+/* Panel is absolute so a long vendor list never reflows the fields under it. */
+.vlx-rcp__panel {
+    position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--vlx-surface);
+    border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md);
+    box-shadow: var(--vlx-sh-2); overflow: hidden;
+}
+
+.vlx-rcp__search { position: relative; padding: 10px 10px 8px; }
+.vlx-rcp__search i {
+    position: absolute; left: 22px; top: 50%; transform: translateY(-30%);
+    font-size: 12px; color: var(--vlx-ink-300); pointer-events: none;
+}
+.vlx-rcp__search input {
+    width: 100%; height: 34px; padding: 0 10px 0 30px;
+    border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-sm);
+    background: var(--vlx-surface-bright); color: var(--vlx-on-surface);
+    font-family: inherit; font-size: 12.5px; outline: none;
+}
+.vlx-rcp__search input:focus { border-color: var(--vlx-secondary); }
+
+.vlx-rcp__bulk {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px 8px; font-size: 12px;
+}
+.vlx-rcp__bulk button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    color: var(--vlx-secondary);
+}
+.vlx-rcp__bulk button:hover { text-decoration: underline; }
+.vlx-rcp__sep   { color: var(--vlx-ink-300); }
+.vlx-rcp__tally {
+    margin-left: auto; color: var(--vlx-on-surface-variant);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Capped so a country with many vendors scrolls inside the panel rather than
+   running off the viewport. */
+.vlx-rcp__list { max-height: 260px; overflow-y: auto; border-top: 1px solid var(--vlx-divider); }
+
+.vlx-rcp__row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 12px; cursor: pointer;
+    border-bottom: 1px solid var(--vlx-surface-container-low);
+    transition: background .12s;
+}
+.vlx-rcp__row:last-child { border-bottom: none; }
+.vlx-rcp__row:hover      { background: var(--vlx-surface-container-low); }
+.vlx-rcp__row.is-on      { background: var(--vlx-surface-bright); }
+.vlx-rcp__row input { margin-top: 2px; accent-color: var(--vlx-secondary); flex: none; }
+
+.vlx-rcp__meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.vlx-rcp__name {
+    font-size: 13px; font-weight: 600; color: var(--vlx-on-surface);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vlx-rcp__name em { font-style: normal; font-weight: 400; color: var(--vlx-ink-300); }
+.vlx-rcp__mail {
+    font-size: 11.5px; color: var(--vlx-on-surface-variant);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vlx-rcp__empty {
+    margin: 0; padding: 18px 12px; text-align: center;
+    font-size: 12.5px; color: var(--vlx-ink-300);
+}
+
+/* ── Responsive corrections ──────────────────────────────────────────────
+   The grids already collapse (vlx-kpis and vlx-modgrid are auto-fit), and
+   every table sits in an overflow-x wrapper, so nothing overflowed the
+   viewport at 390/768/1024. These fix what a page-overflow check cannot see. */
+
+/* The KPI strip was capped at max-width:760px inline on the landing page, which
+   could not fit four 200px tracks — so the fourth tile dropped to its own row
+   and left a wide gap beside it. Removing the cap lets auto-fit do its job. */
+.vlx-kpis--wide { max-width: none !important; }
+
+/* A notice bar is a three-column strip (icon / text / CTA). Below 640px the
+   text column gets squeezed to a few words per line while the CTA keeps its
+   full width, so it stacks instead. */
+@media (max-width: 640px) {
+    .vlx-noticebar { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .vlx-noticebar__cta { width: 100%; justify-content: center; }
+    .vlx-noticebar__body { width: 100%; }
+}
+
+/* Touch targets. On a touch screen the smallest interactive elements measured
+   18–22px tall, well under the ~44px a fingertip needs. Scoped to
+   pointer:coarse so the desktop density that makes these screens efficient is
+   untouched — this is not a width breakpoint, it is an input-device one. */
+@media (pointer: coarse) {
+    .vlx button,
+    .vlx .vlx-btn,
+    .vlx .vlx-iconbtn,
+    .vlx select,
+    .vlx input[type="text"],
+    .vlx input[type="search"],
+    .vlx input[type="email"],
+    .vlx input[type="password"],
+    .vlx input[type="date"],
+    .vlx input[type="number"],
+    .vlx input[type="submit"] {
+        min-height: 44px;
+    }
+    /* Inline links get the height through padding rather than min-height, so
+       they keep flowing with the sentence they sit in. */
+    .vlx a.vlx-link,
+    .vlx .vlx-chip,
+    .vlx .vlx-breadcrumb a {
+        display: inline-flex; align-items: center; min-height: 44px;
+    }
+    /* Table row actions need real spacing once they are 44px tall. */
+    .vlx-table .vlx-iconbtn { margin: 0 2px; }
+}
+
+/* ── Meril GPT: recent chats + transcript ─────────────────────────────────
+   Added when the drawer gained history. The list is capped server-side at
+   GptConversation.KEEP_RECENT and older threads are deleted, so this panel is
+   the whole stored history rather than a page of it. */
+.vlx-gpt-head-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.vlx-gpt-headbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px;
+    background: var(--vlx-surface-container); border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-sm);
+    font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--vlx-on-surface-variant); cursor: pointer; white-space: nowrap;
+}
+.vlx-gpt-headbtn:hover { background: var(--vlx-surface-container-high); color: var(--vlx-on-surface); }
+.vlx-gpt-headbtn[aria-pressed="true"] {
+    background: var(--vlx-primary-container); border-color: var(--vlx-primary);
+    color: var(--vlx-on-primary);
+}
+@media (max-width: 520px) {
+    /* The drawer is nearly full width on a phone; the labels are the first
+       thing that can go before the buttons start wrapping onto the title. */
+    .vlx-gpt-headbtn { padding: 0 8px; }
+    .vlx-gpt-headbtn i { margin: 0; }
+    .vlx-gpt-headbtn span { display: none; }
+}
+
+.vlx-gpt-hist {
+    border: 1px solid var(--vlx-divider); border-radius: var(--vlx-r-md);
+    background: var(--vlx-surface-container-low);
+    margin-bottom: 12px; overflow: hidden;
+}
+.vlx-gpt-hist-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    padding: 9px 12px; background: var(--vlx-surface-container);
+    border-bottom: 1px solid var(--vlx-divider);
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-gpt-hist-head small { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--vlx-ink-300); }
+/* Bounded: fifteen rows would otherwise push the composer off a laptop. */
+.vlx-gpt-hist #mgpt-hist-list { max-height: 260px; overflow-y: auto; }
+.vlx-gpt-hist-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--vlx-divider); }
+.vlx-gpt-hist-row:last-child { border-bottom: 0; }
+.vlx-gpt-hist-row.is-active { background: var(--vlx-brand-tint); }
+.vlx-gpt-hist-open {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+    padding: 10px 12px; background: none; border: 0; cursor: pointer;
+    font: inherit; text-align: left; color: var(--vlx-on-surface);
+}
+.vlx-gpt-hist-open:hover { background: var(--vlx-surface-container-high); }
+.vlx-gpt-hist-open span {
+    font-size: 13px; font-weight: 600;
+    /* One line, clipped: a 120-character first question would otherwise make
+       every row three lines tall. */
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vlx-gpt-hist-open small { font-size: 11px; color: var(--vlx-ink-300); }
+.vlx-gpt-hist-del {
+    flex: 0 0 auto; width: 38px; background: none; border: 0; cursor: pointer;
+    color: var(--vlx-ink-300); font-size: 12px;
+}
+.vlx-gpt-hist-del:hover { background: var(--vlx-danger-tint); color: var(--vlx-danger); }
+.vlx-gpt-hist-empty { padding: 14px 12px; font-size: 12.5px; color: var(--vlx-ink-300); }
+
+/* The running transcript. Bounded and scrolling so the composer stays put
+   however long the conversation runs. */
+.vlx-gpt-thread { display: flex; flex-direction: column; gap: 10px; max-height: 46vh; overflow-y: auto; }
+.vlx-gpt-thread:empty { display: none; }
+.vlx-gpt-turn { display: flex; }
+.vlx-gpt-turn--user { justify-content: flex-end; }
+.vlx-gpt-turn--bot { justify-content: flex-start; }
+.vlx-gpt-bubble {
+    max-width: 88%; padding: 10px 13px; border-radius: var(--vlx-r-md);
+    font-size: 13px; line-height: 1.65; overflow-wrap: anywhere;
+    color: var(--vlx-on-surface);
+}
+.vlx-gpt-turn--user .vlx-gpt-bubble {
+    background: var(--vlx-primary-container); color: var(--vlx-on-primary);
+    border-bottom-right-radius: 4px;
+}
+.vlx-gpt-turn--bot .vlx-gpt-bubble {
+    background: var(--vlx-surface-container-low); color: var(--vlx-on-surface);
+    border: 1px solid var(--vlx-divider); border-bottom-left-radius: 4px;
+}
+.vlx-gpt-bubble * { color: inherit; }
+.vlx-gpt-bubble p,
+.vlx-gpt-bubble li,
+.vlx-gpt-bubble td,
+.vlx-gpt-bubble th,
+.vlx-gpt-bubble strong,
+.vlx-gpt-bubble b,
+.vlx-gpt-bubble em { color: inherit; }
+.vlx-gpt-bubble a { color: var(--vlx-secondary); }
+.vlx-gpt-bubble a:hover { color: var(--vlx-secondary); }
+.vlx-gpt-bubble p:first-child { margin-top: 0; }
+.vlx-gpt-bubble p:last-child { margin-bottom: 0; }
+
+/* ── Award action inside the Bid Analytics bid table ─────────────────────
+   Sits beside the Select radio but reads as the heavier of the two, because it
+   is: Select is internal bookkeeping, Award mails the vendor. */
+.vlx-cd-awardcell { white-space: nowrap; text-align: right; }
+.vlx-cd-btn-award {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; margin-left: 4px;
+    background: var(--vlx-primary); border: 1px solid var(--vlx-primary);
+    border-radius: var(--vlx-r-sm);
+    font: inherit; font-size: 11px; font-weight: 700;
+    color: var(--vlx-on-primary); cursor: pointer;
+}
+.vlx-cd-btn-award:hover { filter: brightness(1.08); }
+.vlx-cd-btn-award:focus-visible { outline: 2px solid var(--vlx-primary); outline-offset: 2px; }
+/* Withdraw, in the same cell -- same shape as the award button, danger tint
+   instead of primary, so the two read as opposite-weight actions. */
+.vlx-cd-btn-award--danger { background: var(--vlx-danger); border-color: var(--vlx-danger); }
+.vlx-cd-btn-award--secondary { background: var(--vlx-surface); border-color: var(--vlx-ink-300); color: var(--vlx-ink-700); }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Additions — 2026-09-07 · request list + request detail redesign
+   ══════════════════════════════════════════════════════════════════════════
+
+   Tokens first. These are declared on `.vlx`, not `:root`, because every
+   VendorLink token is class-scoped — a `:root` declaration here would leak the
+   scale into Meril-V and Material Rework, which have their own `--mv-*` and
+   `--vl-*` systems.
+
+   The spacing values are the ones this file already uses most (4 / 8 / 12 /
+   16 / 20 / 24 px), promoted to names rather than invented fresh, so the new
+   rules and the 1,600 lines above them stay on one scale.
+
+   Only genuinely-absent tokens are added. Everything else maps to what is
+   already here: success-tint, warning / warning-tint, brand-tint,
+   surface-container-low, surface-bright and --vlx-mono all existed, so no
+   near-duplicate aliases are introduced for them.
+   ────────────────────────────────────────────────────────────────────────── */
+.vlx {
+    --vlx-space-1: 4px;
+    --vlx-space-2: 8px;
+    --vlx-space-3: 12px;
+    --vlx-space-4: 16px;
+    --vlx-space-5: 20px;
+    --vlx-space-6: 24px;
+
+    --vlx-r-pill: 999px;
+    --vlx-fs-sm: 13px;
+
+    /* Award / best-value amber. Distinct from --vlx-warning, which means
+       "something needs attention" — a winning quote is not a warning. */
+    --vlx-gold:      #A16207;
+    --vlx-gold-tint: #FEF9C3;
+}
+
+/* ── Active-filter chips (request list) ──────────────────────────────────── */
+.vlx-filterchips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--vlx-space-2);
+    margin: var(--vlx-space-3) 0 0;
+}
+.vlx-filterchips__label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--vlx-ink-300);
+}
+.vlx-filterchip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--vlx-space-1);
+    padding: 3px 10px;
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-pill);
+    background: var(--vlx-brand-tint);
+    color: var(--vlx-ink-700);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+}
+.vlx-filterchip__key { color: var(--vlx-on-surface-variant); font-weight: 500; }
+.vlx-filterchip__x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    color: var(--vlx-on-surface-variant);
+    text-decoration: none;
+    font-size: 10px;
+}
+.vlx-filterchip__x:hover { background: rgba(0, 0, 0, .10); color: var(--vlx-danger); }
+.vlx-filterchip__x:focus-visible { outline: 2px solid var(--vlx-secondary); outline-offset: 1px; }
+
+/* ── Award banner (request detail) ───────────────────────────────────────── */
+.vlx-award {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--vlx-space-3);
+    padding: var(--vlx-space-3) var(--vlx-space-4);
+    margin-bottom: var(--vlx-space-4);
+    border: 1px solid var(--vlx-divider);
+    border-left: 4px solid var(--vlx-gold);
+    border-radius: var(--vlx-r-md);
+    background: var(--vlx-gold-tint);
+}
+.vlx-award--accepted { border-left-color: var(--vlx-success); background: var(--vlx-success-tint); }
+.vlx-award--declined { border-left-color: var(--vlx-danger);  background: var(--vlx-danger-tint); }
+.vlx-award__ic { font-size: 18px; line-height: 22px; color: var(--vlx-gold); }
+.vlx-award--accepted .vlx-award__ic { color: var(--vlx-success); }
+.vlx-award--declined .vlx-award__ic { color: var(--vlx-danger); }
+.vlx-award__body { min-width: 0; }
+.vlx-award__title {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--vlx-on-surface);
+}
+.vlx-award__meta {
+    font-size: var(--vlx-fs-sm);
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-award__amount { font-family: var(--vlx-mono); font-weight: 700; color: var(--vlx-on-surface); }
+
+/* ── Bid comparison matrix (request detail) ──────────────────────────────── */
+.vlx-cmp-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--vlx-divider);
+    border-radius: var(--vlx-r-md);
+    background: var(--vlx-surface);
+}
+.vlx-cmp {
+    border-collapse: separate;   /* separate, so the sticky column keeps its border */
+    border-spacing: 0;
+    width: 100%;
+    min-width: 460px;
+    font-size: var(--vlx-fs-sm);
+}
+.vlx-cmp th,
+.vlx-cmp td {
+    padding: var(--vlx-space-2) var(--vlx-space-3);
+    border-bottom: 1px solid var(--vlx-divider);
+    text-align: right;
+    white-space: nowrap;
+}
+.vlx-cmp tbody tr:last-child th,
+.vlx-cmp tbody tr:last-child td { border-bottom: 0; }
+
+/* First column pinned: the cost labels must stay readable while the vendor
+   columns scroll, otherwise a wide comparison becomes a grid of bare numbers. */
+/* Selector carries `.vlx-cmp` so it outweighs `.vlx-cmp th` above, which is
+   also two levels deep and would otherwise keep these cells right-aligned —
+   as it did on first render: the row labels sat hard against the numbers. */
+.vlx-cmp .vlx-cmp__rowhead,
+.vlx-cmp .vlx-cmp__corner {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    text-align: left;
+    font-weight: 600;
+    color: var(--vlx-on-surface-variant);
+    background: var(--vlx-surface-bright);
+    border-right: 1px solid var(--vlx-divider);
+}
+.vlx-cmp thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--vlx-surface-container-low);
+    color: var(--vlx-on-surface);
+    font-weight: 700;
+    vertical-align: bottom;
+}
+.vlx-cmp .vlx-cmp__corner { z-index: 3; background: var(--vlx-surface-container-low); }
+.vlx-cmp__vendor { display: block; max-width: 190px; white-space: normal; }
+.vlx-cmp__quoted {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--vlx-ink-300);
+}
+.vlx-cmp__num { font-family: var(--vlx-mono); font-variant-numeric: tabular-nums; }
+.vlx-cmp__blank { color: var(--vlx-ink-300); }
+
+/* The cheapest quote in a row. Amber fill plus bold plus a leading check —
+   three signals, so the winner survives a greyscale print and colour-blind
+   vision rather than resting on hue alone. */
+.vlx-cmp__best {
+    background: var(--vlx-gold-tint);
+    color: var(--vlx-on-surface);
+    font-weight: 700;
+}
+.vlx-cmp__best-ic { margin-right: var(--vlx-space-1); color: var(--vlx-gold); font-size: 11px; }
+.vlx-cmp__tied { font-size: 11px; font-weight: 500; color: var(--vlx-ink-300); }
+
+.vlx-cmp-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--vlx-space-2);
+    margin-top: var(--vlx-space-3);
+    padding: var(--vlx-space-2) var(--vlx-space-3);
+    border-radius: var(--vlx-r-sm);
+    background: var(--vlx-warning-tint);
+    color: var(--vlx-ink-700);
+    font-size: 12px;
+    line-height: 18px;
+}
+.vlx-cmp-note i { color: var(--vlx-warning); margin-top: 2px; }
+.vlx-cmp-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--vlx-space-4);
+    margin-top: var(--vlx-space-2);
+    font-size: 11px;
+    color: var(--vlx-ink-300);
+}
+/* The two swatch keys read as one run-on sentence when they sit inline with
+   the explanatory note, so the note is broken onto its own line. */
+.vlx-cmp-legend__note {
+    flex: 1 0 100%;
+    margin-top: var(--vlx-space-1);
+    padding-top: var(--vlx-space-1);
+    border-top: 1px dashed var(--vlx-divider);
+    line-height: 16px;
+}
+.vlx-cmp-legend__swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: var(--vlx-space-1);
+    border: 1px solid var(--vlx-gold);
+    border-radius: 2px;
+    background: var(--vlx-gold-tint);
+    vertical-align: -1px;
+}
+
+/* ── Recipient rows with a resolved vendor name ──────────────────────────── */
+.vlx-reciplist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--vlx-space-1);
+}
+.vlx-recip {
+    display: flex;
+    align-items: center;
+    gap: var(--vlx-space-2);
+    padding: var(--vlx-space-2) var(--vlx-space-2);
+    border-radius: var(--vlx-r-sm);
+}
+.vlx-recip:nth-child(odd) { background: var(--vlx-surface-bright); }
+.vlx-recip__ic {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--vlx-brand-tint);
+    color: var(--vlx-secondary);
+    font-size: 10px;
+}
+.vlx-recip__body { min-width: 0; }
+.vlx-recip__name {
+    font-size: var(--vlx-fs-sm);
+    font-weight: 600;
+    color: var(--vlx-on-surface);
+}
+.vlx-recip__mail {
+    font-size: 12px;
+    color: var(--vlx-on-surface-variant);
+    word-break: break-all;
+}
+/* Unregistered address: no company name resolved, so the address itself is
+   the primary line rather than a subtitle under an empty heading. */
+.vlx-recip--unknown .vlx-recip__mail { font-weight: 600; color: var(--vlx-on-surface); }
+.vlx-recip--unknown .vlx-recip__ic { background: var(--vlx-surface-container); color: var(--vlx-ink-300); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+    Additions — 2026-09-07 (3) · full-width request workspaces
+   ══════════════════════════════════════════════════════════════════════════
+
+    Bids and recipients are work surfaces, not a narrow sidebar. Keeping them
+    in the right rail made every additional vendor compete with the request
+    details and produced a tall, awkward page on real RFIs.
+
+   Fix has two independent parts:
+    Both lists get their own bounded scrolling region. The page therefore has
+    a stable reading width and never grows sideways or becomes unusably tall
+    because a request received dozens of responses.
+   ────────────────────────────────────────────────────────────────────────── */
+.vlx-bids-list {
+    max-height: 620px;
+    overflow-y: auto;
+    padding-right: 4px;   /* keeps the scrollbar off the card content */
+}
+.vlx-reciplist {
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.vlx-bids-list::-webkit-scrollbar,
+.vlx-reciplist::-webkit-scrollbar { width: 6px; }
+.vlx-bids-list::-webkit-scrollbar-track,
+.vlx-reciplist::-webkit-scrollbar-track { background: transparent; }
+.vlx-bids-list::-webkit-scrollbar-thumb,
+.vlx-reciplist::-webkit-scrollbar-thumb { background: var(--vlx-divider); border-radius: var(--vlx-r-pill); }
+.vlx-bids-list::-webkit-scrollbar-thumb:hover,
+.vlx-reciplist::-webkit-scrollbar-thumb:hover { background: var(--vlx-ink-300); }
+
+.vlx-bids-list .vlx-vendor-group { min-width: 0; }
+.vlx-bid-card-head,
+.vlx-vendor-group-head { min-width: 0; }
+.vlx-bid-meta,
+.vlx-bid-vendor { overflow-wrap: anywhere; }
+
+/* ── Bids Received, as a table ─────────────────────────────────────────────
+   Replaces one card per bid holding eight label/value pairs: a dozen bids was
+   a hundred little boxes read one at a time, where the point of having them
+   together is scanning a column. One tbody per vendor keeps a vendor's
+   revisions in one block.
+   ───────────────────────────────────────────────────────────────────────── */
+.vlx-bidtable-wrap { overflow-x: auto; }
+.vlx-bidtable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+}
+.vlx-bidtable thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 10px;
+    background: var(--vlx-surface-container-low);
+    border-bottom: 1px solid var(--vlx-divider);
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--vlx-on-surface-variant);
+    white-space: nowrap;
+}
+.vlx-bidtable th.num, .vlx-bidtable td.num { text-align: right; }
+.vlx-bidtable td { padding: 7px 10px; border-bottom: 1px solid var(--vlx-divider); white-space: nowrap; }
+
+/* The vendor banner spans the row and carries the trophy and status pill. */
+.vlx-bidtable__vendorrow th {
+    padding: 9px 10px;
+    background: var(--vlx-surface-bright);
+    border-top: 1px solid var(--vlx-divider);
+    border-bottom: 1px solid var(--vlx-divider);
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--vlx-on-surface);
+}
+.vlx-bidtable__count {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--vlx-ink-300);
+}
+.vlx-bidtable__vendorrow .vlx-pill { margin-left: 8px; vertical-align: 1px; }
+
+/* Indents each bid under its vendor banner without a nested table. */
+.vlx-bidtable__spacer { width: 18px; padding: 0; border-bottom-color: transparent; }
+.vlx-bidtable__num { font-weight: 700; color: var(--vlx-on-surface); }
+.vlx-bidtable tr.is-latest td { background: var(--vlx-surface-bright); }
+.vlx-bidtable__when { font-size: 11.5px; color: var(--vlx-on-surface-variant); }
+.vlx-bidtable__blank { color: var(--vlx-ink-300); }
+.vlx-bidtable__tag {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 1px 6px;
+    border-radius: var(--vlx-r-pill);
+    background: var(--vlx-surface-container);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-bidtable__tag--award { background: var(--vlx-gold-tint); color: var(--vlx-gold); }
+
+/* Free text wraps, unlike every numeric cell above it. */
+.vlx-bidtable__prose td {
+    white-space: normal;
+    padding-top: 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-bidtable__proselbl {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: 10px;
+    color: var(--vlx-ink-300);
+    margin-right: 4px;
+}
+
+/* Font Awesome sets `.fas { display: inline-block }`, which is author CSS and
+   therefore beats the `hidden` attribute's user-agent `display: none`. The
+   cheapest-cell tick is toggled by that attribute (the revision picker hides
+   and shows it as columns change), so without this it rendered on every cell —
+   including in the mixed-currency state, where nothing may be marked at all.
+   Two classes to outrank `.fas`; no !important needed. */
+.vlx-cmp__best-ic[hidden] { display: none; }
+
+/* Same trap, twice more. Both of these carry `display: flex` from their own
+   rules, which beats the `hidden` attribute exactly as Font Awesome's
+   `.fas` does — so the legend rendered *underneath* the mixed-currency
+   warning, telling the reader a lowest quote was marked while the warning
+   above said none was. Anything in this file toggled by `hidden` needs a
+   matching override, because every one of them sets its own display. */
+.vlx-cmp-note[hidden],
+.vlx-cmp-legend[hidden] { display: none; }
+
+/* ── Copyable reference number ─────────────────────────────────────────────
+   The reference is what people paste into mail, spreadsheets and MerilGPT, so
+   it has to be copyable in one click. On Bid Analytics it sits inside
+   .vlx-cd-card-head, a click-to-expand header carrying user-select:none —
+   there the text cannot even be selected by hand, so a button is the only way.
+   ───────────────────────────────────────────────────────────────────────── */
+.vlx-refcopy {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border: 1px solid transparent;
+    border-radius: var(--vlx-r-sm);
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    /* Re-enables selection inside headers that switch it off. */
+    user-select: text;
+}
+.vlx-refcopy:hover { border-color: var(--vlx-divider); background: var(--vlx-surface-bright); }
+.vlx-refcopy:focus-visible { outline: 2px solid var(--vlx-secondary); outline-offset: 1px; }
+.vlx-refcopy i { font-size: 10px; color: var(--vlx-ink-300); }
+.vlx-refcopy:hover i { color: var(--vlx-secondary); }
+.vlx-refcopy.is-copied { border-color: var(--vlx-success); background: var(--vlx-success-tint); }
+.vlx-refcopy.is-copied i { color: var(--vlx-success); }
+
+/* Inside the dark analytics card header the tints above would be invisible. */
+.vlx-cd-card-head .vlx-refcopy { color: inherit; }
+.vlx-cd-card-head .vlx-refcopy:hover { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .3); }
+.vlx-cd-card-head .vlx-refcopy i { color: rgba(255, 255, 255, .65); }
+.vlx-cd-card-head .vlx-refcopy:hover i { color: #fff; }
+
+/* ── AI loader: a robot writing a report ───────────────────────────────────
+   Shown while an OpenAI call is in flight. The ?ai=1 report links are plain
+   navigations that block on the model, so before this there was no feedback
+   at all — you clicked and watched the old page for ten seconds.
+
+   Inline SVG animated with keyframes; no animation library for a dozen shapes.
+   Every motion is switched off under prefers-reduced-motion at the bottom of
+   this block, where the scene settles into its finished state instead.
+   ───────────────────────────────────────────────────────────────────────── */
+.vlx-ailoader {
+    display: flex;
+    align-items: center;
+    gap: var(--vlx-space-4);
+    color: var(--vlx-on-surface);
+}
+.vlx-ailoader__svg { width: 132px; height: 99px; display: block; }
+.vlx-ailoader__msg {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--vlx-on-surface);
+}
+.vlx-ailoader__sub {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: var(--vlx-on-surface-variant);
+}
+.vlx-ailoader__elapsed { color: var(--vlx-ink-300); font-variant-numeric: tabular-nums; }
+
+/* ── the scene ─────────────────────────────────────────────────────────── */
+.vlx-bot-desk  { fill: var(--vlx-divider); }
+.vlx-bot-sheet { fill: var(--vlx-surface); stroke: var(--vlx-divider); stroke-width: 1.5; }
+.vlx-bot-line  { fill: var(--vlx-secondary-container); }
+.vlx-bot-head, .vlx-bot-body { fill: var(--vlx-surface-container); stroke: var(--vlx-ink-300); stroke-width: 1.5; }
+/* Drawn before the torso and without a stroke, so the join reads as one
+   silhouette rather than two outlined boxes touching. */
+.vlx-bot-neck { fill: var(--vlx-ink-300); }
+.vlx-bot-visor { fill: var(--vlx-primary-container); }
+.vlx-bot-eye   { fill: var(--vlx-secondary-container); }
+.vlx-bot-stalk { stroke: var(--vlx-ink-300); stroke-width: 2; }
+.vlx-bot-bulb  { fill: var(--vlx-violet); }
+.vlx-bot-forearm { stroke: var(--vlx-ink-300); stroke-width: 3.5; stroke-linecap: round; }
+.vlx-bot-hand  { fill: var(--vlx-secondary); }
+
+/* The robot breathes, so the scene is never completely still even between
+   the writing strokes. */
+.vlx-bot { animation: vlx-bot-bob 2.6s ease-in-out infinite; transform-origin: 44px 64px; }
+@keyframes vlx-bot-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2.5px); }
+}
+
+/* Antenna light: the "thinking" tell. */
+.vlx-bot-bulb { animation: vlx-bot-blink 1.15s ease-in-out infinite; }
+@keyframes vlx-bot-blink {
+    0%, 100% { opacity: .25; r: 3.4; }
+    50%      { opacity: 1;   r: 4.4; }
+}
+
+/* Eyes scan the page it is writing, then flick back. */
+.vlx-bot-eye { animation: vlx-bot-scan 2.6s ease-in-out infinite; }
+.vlx-bot-eye--r { animation-delay: .05s; }
+@keyframes vlx-bot-scan {
+    0%, 100%   { transform: translateX(0); }
+    35%        { transform: translateX(2.5px); }
+    55%        { transform: translateX(-1.5px); }
+}
+
+/* The writing hand sweeps across the sheet once per line. */
+.vlx-bot-arm { animation: vlx-bot-write 2s ease-in-out infinite; transform-origin: 60px 76px; }
+@keyframes vlx-bot-write {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25%      { transform: translate(4px, 5px) rotate(3deg); }
+    50%      { transform: translate(-2px, 12px) rotate(-2deg); }
+    75%      { transform: translate(5px, 18px) rotate(4deg); }
+}
+
+/* Lines of the report draw in one after another, then the set resets — the
+   loop is what says "still working" without claiming a percentage. */
+.vlx-bot-line { animation: vlx-bot-typing 8s linear infinite; }
+.vlx-bot-line--1 { animation-delay: 0s; }
+.vlx-bot-line--2 { animation-delay: 2s; }
+.vlx-bot-line--3 { animation-delay: 4s; }
+.vlx-bot-line--4 { animation-delay: 6s; }
+@keyframes vlx-bot-typing {
+    0%      { width: 0; opacity: 1; }
+    18%     { width: 42px; opacity: 1; }
+    92%     { width: 42px; opacity: 1; }
+    100%    { width: 42px; opacity: 0; }
+}
+
+/* ── presentations ─────────────────────────────────────────────────────── */
+
+/* Full page, for the report links that block on the model. */
+.vlx-ailoader--overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    flex-direction: column;
+    gap: var(--vlx-space-3);
+    justify-content: center;
+    text-align: center;
+    /* Not fully opaque: the page underneath stays faintly visible, so it reads
+       as "working on this" rather than "navigated somewhere else". */
+    background: rgba(246, 248, 251, .93);
+    backdrop-filter: blur(2px);
+}
+.vlx-ailoader--overlay .vlx-ailoader__svg { width: 208px; height: 156px; }
+.vlx-ailoader--overlay .vlx-ailoader__msg { font-size: 17px; }
+.vlx-ailoader--overlay .vlx-ailoader__sub { font-size: 13px; }
+
+/* Inside the evaluator panel. */
+.vlx-ailoader--inline {
+    padding: var(--vlx-space-3) 0;
+}
+.vlx-ailoader--inline .vlx-ailoader__svg { width: 108px; height: 81px; }
+
+/* Inside a chat bubble, where the space is tight. */
+.vlx-ailoader--bubble { gap: var(--vlx-space-2); }
+.vlx-ailoader--bubble .vlx-ailoader__svg { width: 76px; height: 57px; }
+.vlx-ailoader--bubble .vlx-ailoader__msg { font-size: 12.5px; }
+.vlx-ailoader--bubble .vlx-ailoader__sub { font-size: 11px; }
+
+@media (max-width: 560px) {
+    .vlx-ailoader { flex-direction: column; text-align: center; }
+}
+
+/* Motion is decoration here — the text says what is happening. Under reduced
+   motion everything stops with the report fully written rather than blank,
+   so the still frame reads as a finished scene instead of a broken one. */
+@media (prefers-reduced-motion: reduce) {
+    .vlx-bot,
+    .vlx-bot-bulb,
+    .vlx-bot-eye,
+    .vlx-bot-arm,
+    .vlx-bot-line {
+        animation: none !important;
+    }
+    .vlx-bot-line { width: 42px; }
+    .vlx-ailoader--overlay { backdrop-filter: none; }
+}

@@ -1,0 +1,105 @@
+{% comment %}
+The Meril GPT floating drawer. The AI Insight banner that used to sit
+above it was removed on request. Always
+included together with _bid_analytics_body.html and _bid_analytics_js.html
+— the JS wires up #mgpt-composer unconditionally at include time, so
+omitting this partial while including the JS would throw on load.
+Needs: gpt_files.
+{% endcomment %}
+
+{% comment %}
+The scrim and drawer stay inside .vlx even though both are position:fixed and
+would work in any DOM position layout-wise: every --vlx-* colour, including
+--vlx-surface behind the drawer's own card, is declared on .vlx itself, not on
+:root (see the token block at the top of vendorlink-ds.css). Outside .vlx those
+vars resolve to nothing, so the drawer had no opaque background at all — its
+header, chips and composer floated directly on the scrim's dark tint with no
+white panel behind them. Same root cause as the vendor-list modal fix earlier.
+{% endcomment %}
+<div class="vlx-gpt-scrim" id="mgpt-scrim" onclick="mgptClose()" hidden></div>
+<aside class="vlx-gpt-drawer" id="mgpt-drawer" aria-hidden="true" aria-labelledby="mgpt-title">
+    {% comment %}
+    Drag handle for the drawer width. A button rather than a bare div so it is
+    focusable and operable from the keyboard — arrow keys resize, Home resets —
+    which a div with a pointer listener would not be. aria-orientation and the
+    separator role are what a screen reader needs to announce it as a splitter
+    rather than as an unlabelled button.
+    {% endcomment %}
+    <button type="button" class="vlx-gpt-drawer__grip" data-mgpt="grip"
+            role="separator" aria-orientation="vertical"
+            aria-label="Resize the Meril GPT panel. Use the left and right arrow keys, or Home to reset."
+            title="Drag to resize · double-click to reset"></button>
+    <div class="vlx-gpt-drawer-head">
+        <div class="vlx-gpt-head">
+            <span class="vlx-gpt-mark"><i class="fas fa-wand-magic-sparkles"></i></span>
+            <div>
+                <h4 id="mgpt-title">Meril GPT <span class="vlx-gpt-badge">AI</span></h4>
+                <p>Strategic advisor for Bid Analytics.</p>
+            </div>
+        </div>
+        <div class="vlx-gpt-head-actions">
+            {% comment %}Recent chats. The list is capped at
+            GptConversation.KEEP_RECENT and anything older is deleted server-side,
+            so this is the whole history, not a window onto more.{% endcomment %}
+            <button type="button" class="vlx-gpt-headbtn" id="mgpt-hist-btn"
+                    aria-pressed="false" aria-controls="mgpt-hist" onclick="mgptToggleHistory()">
+                <i class="fas fa-clock-rotate-left"></i> Recent
+            </button>
+            <button type="button" class="vlx-gpt-headbtn" id="mgpt-new-btn" onclick="mgptNewChat()">
+                <i class="fas fa-plus"></i> New
+            </button>
+            <button type="button" class="vlx-gpt-close" onclick="mgptClose()" aria-label="Close Meril GPT">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="vlx-gpt-drawer-body">
+        <nav class="vlx-gpt-hist" id="mgpt-hist" hidden aria-label="Recent chats">
+            <div class="vlx-gpt-hist-head">
+                <span>Recent chats</span>
+                <small id="mgpt-hist-note"></small>
+            </div>
+            <div id="mgpt-hist-list"></div>
+        </nav>
+
+        {% comment %}The running transcript. Before this the drawer showed only
+        the newest answer, so reopening an earlier chat had nowhere to render
+        into and a follow-up question lost the exchange above it.{% endcomment %}
+        <div class="vlx-gpt-thread" id="mgpt-thread"></div>
+
+        <div class="vlx-gpt-chips">
+            <span class="vlx-gpt-chips-label">Try</span>
+            <button type="button" class="vlx-gpt-chip" onclick="mgptFill('Across every open request, suggest the best vendor and say why.')">Suggest best vendor</button>
+            <button type="button" class="vlx-gpt-chip" onclick="mgptFill('Summarise bid trends across all requests — price spread, currency mix, and which vendors win most.')">Summarise trends</button>
+            <button type="button" class="vlx-gpt-chip" onclick="mgptFill('Which requests currently have no eligible vendor, and why?')">No eligible vendor?</button>
+            <button type="button" class="vlx-gpt-chip" onclick="mgptFill('Generate a concise commercial report for management from this bid data.')">Create report</button>
+        </div>
+
+        <div id="mgpt-answer" style="display:none;"></div>
+        <div id="mgpt-read" class="vlx-gpt-read" style="display:none;"></div>
+    </div>
+
+    <div class="vlx-gpt-drawer-foot">
+        <div class="vlx-gpt-composer" id="mgpt-composer">
+            <textarea id="mgpt-q" class="vlx-gpt-input" rows="3"
+                      placeholder="Ask about these quotes, vendors, risks, or reports..."></textarea>
+            <div class="vlx-gpt-files" id="mgpt-filelist"></div>
+            <div class="vlx-gpt-composer-bar">
+                <input type="file" id="mgpt-files" multiple accept="{{ gpt_files.accept }}" hidden
+                       onchange="mgptPickFiles(this.files)">
+                <button type="button" class="vlx-gpt-attach-btn" id="mgpt-attach-btn"
+                        onclick="document.getElementById('mgpt-files').click()">
+                    <i class="fas fa-paperclip"></i> Attach
+                </button>
+                <span class="vlx-gpt-attach-hint">
+                    up to {{ gpt_files.max_files }} files · {{ gpt_files.max_mb }} MB each
+                </span>
+                <button type="button" class="vlx-gpt-ask" id="mgpt-btn" onclick="mgptAsk()">
+                    <i class="fas fa-paper-plane"></i> Ask
+                </button>
+            </div>
+            <div class="vlx-gpt-drop"><i class="fas fa-file-arrow-up"></i> Drop files to attach</div>
+        </div>
+    </div>
+</aside>

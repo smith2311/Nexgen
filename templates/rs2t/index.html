@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}LiveTranslate — Real-time Meeting Translator{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/manrope-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'css/rs2t.css' %}?v=20260817i">
+<link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div class="lt-app" id="ltApp">
+
+  <!-- ── TOP BAR ── -->
+  <header class="lt-topbar">
+    <div class="lt-topbar-brand">
+      <span class="lt-logo-dot"></span>
+      <span class="lt-brand-name">LiveTranslate</span>
+      <span class="lt-live-pill">Live</span>
+    </div>
+
+    <div class="lt-topbar-center">
+      <!-- Lag is the number that matters in simultaneous interpretation -->
+      <div class="lt-lag" title="How far the translation is running behind the speaker">
+        <span class="lt-lag-label">Lag</span>
+        <span class="lt-lag-track"><span class="lt-lag-fill" id="lagFill"></span></span>
+        <span class="lt-lag-val" id="lagVal">—</span>
+      </div>
+    </div>
+
+    <div class="lt-topbar-actions">
+      <select id="targetLangSelect" class="lt-lang-select" title="Translate into">
+        <optgroup label="Common">
+          <option value="en">🇺🇸 English</option>
+          <option value="hi">🇮🇳 Hindi</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="zh">🇨🇳 Chinese</option>
+          <option value="ja">🇯🇵 Japanese</option>
+          <option value="ar">🇸🇦 Arabic</option>
+        </optgroup>
+        <optgroup label="India">
+          <option value="gu">🇮🇳 Gujarati</option>
+          <option value="mr">🇮🇳 Marathi</option>
+          <option value="bn">🇮🇳 Bengali</option>
+          <option value="ta">🇮🇳 Tamil</option>
+          <option value="te">🇮🇳 Telugu</option>
+          <option value="kn">🇮🇳 Kannada</option>
+          <option value="ml">🇮🇳 Malayalam</option>
+          <option value="pa">🇮🇳 Punjabi</option>
+          <option value="ur">🇵🇰 Urdu</option>
+        </optgroup>
+        <optgroup label="Europe">
+          <option value="pt">🇵🇹 Português</option>
+          <option value="it">🇮🇹 Italian</option>
+          <option value="ru">🇷🇺 Russian</option>
+          <option value="nl">🇳🇱 Dutch</option>
+          <option value="pl">🇵🇱 Polish</option>
+          <option value="sv">🇸🇪 Swedish</option>
+          <option value="da">🇩🇰 Danish</option>
+          <option value="fi">🇫🇮 Finnish</option>
+          <option value="no">🇳🇴 Norwegian</option>
+          <option value="cs">🇨🇿 Czech</option>
+          <option value="el">🇬🇷 Greek</option>
+          <option value="hu">🇭🇺 Hungarian</option>
+          <option value="ro">🇷🇴 Romanian</option>
+          <option value="uk">🇺🇦 Ukrainian</option>
+          <option value="tr">🇹🇷 Turkish</option>
+        </optgroup>
+        <optgroup label="Asia Pacific">
+          <option value="ko">🇰🇷 Korean</option>
+          <option value="id">🇮🇩 Indonesian</option>
+          <option value="ms">🇲🇾 Malay</option>
+          <option value="th">🇹🇭 Thai</option>
+          <option value="vi">🇻🇳 Vietnamese</option>
+          <option value="tl">🇵🇭 Filipino</option>
+        </optgroup>
+        <optgroup label="Middle East &amp; Africa">
+          <option value="he">🇮🇱 Hebrew</option>
+          <option value="fa">🇮🇷 Persian</option>
+          <option value="sw">🇰🇪 Swahili</option>
+        </optgroup>
+      </select>
+
+      <!-- One set of buttons in one place. Wide: a labelled row. Medium:
+           icons only. Narrow: the same buttons become a labelled menu behind
+           the ⋯ trigger, where every row is a full-width touch target. -->
+      <div class="lt-actions" id="actionMenu">
+        <button class="lt-act" id="historyBtn" title="Saved sessions (H)">
+          <i class="fas fa-clock-rotate-left"></i><span>History</span>
+        </button>
+        <button class="lt-act" id="summaryBtn" title="Session summary (S)" disabled>
+          <i class="fas fa-file-lines"></i><span>Summary</span>
+        </button>
+        <button class="lt-act" id="popupBtn" title="Floating captions (P)">
+          <i class="fas fa-window-restore"></i><span>Captions</span>
+        </button>
+        <button class="lt-act" id="themeBtn" title="Switch theme (T)">
+          <i class="fas fa-moon" id="themeIcon"></i><span id="themeLabel">Light theme</span>
+        </button>
+        <button class="lt-act" id="glossaryBtn" title="Glossary — terms the translator must get right (G)">
+          <i class="fas fa-book-bookmark"></i><span>Glossary</span>
+        </button>
+        <button class="lt-act" id="helpBtn" title="Keyboard shortcuts (?)">
+          <i class="fas fa-keyboard"></i><span>Shortcuts</span>
+        </button>
+        <button class="lt-act lt-act--danger" id="discardBtn" title="Discard this session without saving">
+          <i class="fas fa-trash-can"></i><span>Discard</span>
+        </button>
+        <button class="lt-act lt-act--primary" id="clearBtn" title="Save this session and start a new one">
+          <i class="fas fa-floppy-disk"></i><span>Save &amp; new</span>
+        </button>
+      </div>
+
+      <button class="lt-more" id="moreBtn" aria-expanded="false" aria-controls="actionMenu"
+              aria-label="More actions">
+        <i class="fas fa-ellipsis"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── BODY ── -->
+  <div class="lt-body">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="lt-sidebar">
+
+      <div class="lt-mic-wrap">
+        <button class="lt-mic-btn" id="captureBtn" aria-label="Start or stop capture">
+          <i class="fas fa-microphone" id="micIcon"></i>
+          <span class="lt-mic-ring"></span>
+        </button>
+        <div class="lt-level" id="levelMeter" aria-hidden="true"></div>
+        <p class="lt-mic-label" id="statusText">Tap to start</p>
+      </div>
+
+      <div class="lt-stats-card">
+        <div class="lt-stat">
+          <span class="lt-stat-val" id="wordCount">0</span>
+          <span class="lt-stat-key">Words</span>
+        </div>
+        <div class="lt-stat-divider"></div>
+        <div class="lt-stat">
+          <span class="lt-stat-val" id="segmentCount">0</span>
+          <span class="lt-stat-key">Segments</span>
+        </div>
+        <div class="lt-stat-divider"></div>
+        <div class="lt-stat">
+          <span class="lt-stat-val lt-stat-val--time" id="sessionTimer">00:00</span>
+          <span class="lt-stat-key">Elapsed</span>
+        </div>
+      </div>
+
+      <div class="lt-card">
+        <div class="lt-card-hdr"><i class="fas fa-globe"></i> Languages heard</div>
+        <div class="lt-lang-pills" id="detectedLangs"></div>
+        <p class="lt-empty-note" id="langsEmpty">Nothing detected yet.</p>
+      </div>
+
+      <div class="lt-card">
+        <div class="lt-card-hdr"><i class="fas fa-text-height"></i> Reading size</div>
+        <div class="lt-read-ctl">
+          <button class="lt-read-btn" id="fontDownBtn" title="Smaller text">A−</button>
+          <span class="lt-read-size" id="fontSizeLabel">19px</span>
+          <button class="lt-read-btn" id="fontUpBtn" title="Larger text">A+</button>
+        </div>
+      </div>
+
+      <div class="lt-conn" id="connPill">
+        <span class="lt-conn-dot"></span>
+        <span class="lt-conn-text" id="connText">Connecting…</span>
+      </div>
+    </aside>
+
+    <!-- MAIN TRANSCRIPT -->
+    <main class="lt-transcript-wrap">
+
+      <div class="lt-toolbar">
+        <label class="lt-search">
+          <i class="fas fa-magnifying-glass"></i>
+          <input type="search" id="searchInput" placeholder="Search this transcript…" aria-label="Search transcript">
+        </label>
+        <span class="lt-search-count" id="searchCount"></span>
+        <span class="lt-toolbar-spacer"></span>
+        <button class="lt-toggle is-on" id="autoScrollBtn" title="Follow the newest line">
+          <i class="fas fa-arrow-down-long"></i> <span>Follow</span>
+        </button>
+      </div>
+
+      <div class="lt-live-bar" id="liveBar" style="display:none">
+        <span class="lt-live-dot"></span>
+        <span id="liveBarText">Listening…</span>
+      </div>
+
+      <div class="lt-transcript" id="transcriptEl">
+        <div class="lt-empty" id="emptyState">
+          <div class="lt-empty-icon"><i class="fas fa-tower-broadcast"></i></div>
+          <h3>Ready to translate</h3>
+          <p>
+            Start capture, then pick the tab or window carrying the meeting audio and
+            tick <b>Share tab audio</b>. Press <kbd class="lt-kbd">Space</kbd> to start and stop.
+          </p>
+        </div>
+      </div>
+
+      <button class="lt-jump" id="jumpBtn">
+        <i class="fas fa-arrow-down"></i> Jump to live
+      </button>
+
+      <div class="lt-caption-bar" id="captionBar" style="display:none">
+        <div class="lt-caption-original" id="captionOriginal"></div>
+        <div class="lt-caption-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="lt-caption-translated" id="captionTranslated"><span class="lt-cursor"></span></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════ FLOATING POPUP ═══════════════ -->
+<div class="lt-popup" id="ltPopup" style="display:none">
+  <div class="lt-popup-bar" id="popupDragBar">
+    <span class="lt-popup-brand"><span class="lt-logo-dot lt-logo-dot--sm"></span> LiveTranslate</span>
+    <div class="lt-popup-controls">
+      <button class="lt-popup-ctrl" id="popupMinBtn" title="Minimise"><i class="fas fa-minus"></i></button>
+      <button class="lt-popup-ctrl" id="popupCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+  <div class="lt-popup-body" id="popupBody">
+    <div class="lt-popup-caption-orig" id="popupOrig"></div>
+    <div class="lt-popup-caption-trans" id="popupTrans"><span class="lt-cursor"></span></div>
+  </div>
+  <div class="lt-popup-status" id="popupStatus">Idle</div>
+</div>
+
+<!-- ═══════════════ HISTORY MODAL ═══════════════ -->
+<div class="lt-modal-overlay" id="historyOverlay" style="display:none">
+  <div class="lt-modal lt-modal--wide">
+    <div class="lt-modal-hdr">
+      <h2><i class="fas fa-clock-rotate-left"></i> Saved sessions</h2>
+      <span class="lt-modal-count" id="historyCount"></span>
+      <button class="lt-icon-btn" id="historyCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="lt-modal-body lt-history-body" id="historyBody">
+      <label class="lt-history-search">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="search" id="historySearch" placeholder="Search titles and summaries…" aria-label="Search saved sessions">
+      </label>
+      <div id="historyList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SUMMARY MODAL ═══════════════ -->
+<div class="lt-modal-overlay" id="summaryOverlay" style="display:none">
+  <div class="lt-modal">
+    <div class="lt-modal-hdr">
+      <h2><i class="fas fa-file-lines"></i> Session summary</h2>
+      <button class="lt-icon-btn" id="summaryCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="lt-modal-body">
+      <div class="lt-summary-meta" id="summaryMeta"></div>
+      <div class="lt-summary-section">
+        <h4>Key points</h4>
+        <ul class="lt-summary-points" id="summaryPoints"></ul>
+      </div>
+      <div class="lt-summary-section">
+        <h4>Full transcript</h4>
+        <div class="lt-summary-transcript" id="summaryTranscript"></div>
+      </div>
+    </div>
+    <div class="lt-modal-footer">
+      <button class="lt-btn lt-btn--secondary" id="copyTranscriptBtn"><i class="fas fa-copy"></i> Copy</button>
+      <span class="lt-spacer"></span>
+      <button class="lt-btn lt-btn--secondary" id="exportSrtBtn"><i class="fas fa-closed-captioning"></i> SRT</button>
+      <button class="lt-btn lt-btn--primary" id="exportBtn"><i class="fas fa-download"></i> Download text</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ GLOSSARY MODAL ═══════════════ -->
+<div class="lt-modal-overlay" id="glossaryOverlay" style="display:none">
+  <div class="lt-modal">
+    <div class="lt-modal-hdr">
+      <h2><i class="fas fa-book-bookmark"></i> Glossary</h2>
+      <span class="lt-modal-count" id="glossaryCount"></span>
+      <button class="lt-icon-btn" id="glossaryCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="lt-modal-body">
+      <p class="lt-modal-note">
+        Product names, acronyms and jargon the translator keeps getting wrong. Each term
+        is fed to speech recognition so it is <em>heard</em> correctly, and to the
+        translator so it is <em>rendered</em> the way you want.
+      </p>
+      <form class="lt-gloss-form" id="glossaryForm">
+        <input type="text" id="glossTerm" maxlength="120" required
+               placeholder="Term as spoken — e.g. cardiovascular" aria-label="Term">
+        <input type="text" id="glossHint" maxlength="200"
+               placeholder="How to render it (optional) — e.g. keep in English" aria-label="Preferred rendering">
+        <button type="submit" class="lt-btn lt-btn--primary"><i class="fas fa-plus"></i> Add</button>
+      </form>
+      <div class="lt-gloss-list" id="glossaryList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SHORTCUTS MODAL ═══════════════ -->
+<div class="lt-modal-overlay" id="helpOverlay" style="display:none">
+  <div class="lt-modal" style="max-width:460px">
+    <div class="lt-modal-hdr">
+      <h2><i class="fas fa-keyboard"></i> Keyboard shortcuts</h2>
+      <button class="lt-icon-btn" id="helpCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="lt-modal-body">
+      <div class="lt-keys">
+        <div class="lt-key-row"><span>Start or stop capture</span> <kbd class="lt-kbd">Space</kbd></div>
+        <div class="lt-key-row"><span>Search the transcript</span> <kbd class="lt-kbd">/</kbd></div>
+        <div class="lt-key-row"><span>Follow the newest line</span> <kbd class="lt-kbd">F</kbd></div>
+        <div class="lt-key-row"><span>Floating captions</span> <kbd class="lt-kbd">P</kbd></div>
+        <div class="lt-key-row"><span>Saved sessions</span> <kbd class="lt-kbd">H</kbd></div>
+        <div class="lt-key-row"><span>Glossary</span> <kbd class="lt-kbd">G</kbd></div>
+        <div class="lt-key-row"><span>Session summary</span> <kbd class="lt-kbd">S</kbd></div>
+        <div class="lt-key-row"><span>Switch theme</span> <kbd class="lt-kbd">T</kbd></div>
+        <div class="lt-key-row"><span>Larger or smaller text</span> <kbd class="lt-kbd">+</kbd> <kbd class="lt-kbd">−</kbd></div>
+        <div class="lt-key-row"><span>Close what's open</span> <kbd class="lt-kbd">Esc</kbd></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/rs2t_app.js' %}?v=20260817i"></script>
+{% endblock %}

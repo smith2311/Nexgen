@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}VAT Reconciliation{% endblock %}
+{% block page_title %}VAT Reconciliation{% endblock %}
+
+{% block extra_css %}
+<style>
+
+.vath-wrap {
+    --navy:       #0b1f3a;
+    --blue:       #0076c8;
+    --blue-lt:    #e6f2fb;
+    --accent:     #00c2a8;
+    --accent-lt:  #e0f8f5;
+    --amber:      #f59e0b;
+    --amber-lt:   #fef3c7;
+    --red:        #ef4444;
+    --red-lt:     #fee2e2;
+    --green:      #10b981;
+    --green-lt:   #d1fae5;
+    --purple:     #8b5cf6;
+    --purple-lt:  #ede9fe;
+    --text-primary:   #0b1f3a;
+    --text-secondary: #4a5568;
+    --text-muted:     #9ca3af;
+    --bg:         #f0f4f9;
+    --surface:    #ffffff;
+    --border:     rgba(11,31,58,0.10);
+    --border-md:  rgba(11,31,58,0.18);
+    --radius-md:  10px;
+    --radius-lg:  16px;
+    --shadow-md:  0 4px 16px rgba(11,31,58,0.10);
+    --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 28px 24px 60px;
+    color: var(--text-primary);
+}
+
+.vath-header { margin-bottom: 26px; }
+.vath-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.vath-header p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+.vath-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.vath-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    text-decoration: none;
+    color: var(--text-primary);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+.vath-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.vath-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-md);
+    text-decoration: none;
+}
+.vath-card:hover::after { opacity: 1; }
+
+.vath-card.blue   { color: var(--blue);   }
+.vath-card.teal   { color: var(--accent); }
+.vath-card.amber  { color: var(--amber);  }
+.vath-card.purple { color: var(--purple); }
+.vath-card.green  { color: var(--green);  }
+.vath-card.navy   { color: var(--navy);   }
+
+.vath-icon {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: var(--blue-lt);
+    color: currentColor;
+    transition: var(--transition);
+}
+.vath-card.blue   .vath-icon { background: var(--blue-lt);   }
+.vath-card.teal   .vath-icon { background: var(--accent-lt); }
+.vath-card.amber  .vath-icon { background: var(--amber-lt);  }
+.vath-card.purple .vath-icon { background: var(--purple-lt); }
+.vath-card.green  .vath-icon { background: var(--green-lt);  }
+.vath-card.navy   .vath-icon { background: #e6ebf2;          }
+.vath-card:hover .vath-icon { transform: scale(1.08); }
+
+.vath-body h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin: 0 0 5px;
+}
+.vath-body p {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .vath-wrap { padding: 20px 16px 48px; }
+    .vath-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vath-wrap">
+    <div class="vath-header">
+        <h1><i class="fas fa-receipt"></i> VAT Reconciliation</h1>
+        <p>Select a module to continue.</p>
+    </div>
+
+    <div class="vath-grid">
+        <a href="/vat/dashboard/" class="vath-card blue">
+            <span class="vath-icon"><i class="fas fa-gauge-high"></i></span>
+            <span class="vath-body">
+                <h2>Dashboard</h2>
+                <p>Overview of VAT KPIs, FX rates, and reconciliation status.</p>
+            </span>
+        </a>
+
+        {% if vat_role == 'super' or vat_role == 'member' %}
+        <a href="/vat/invoices/" class="vath-card teal">
+            <span class="vath-icon"><i class="fas fa-file-invoice"></i></span>
+            <span class="vath-body">
+                <h2>Invoice Upload</h2>
+                <p>Upload invoices and review extracted reconciliation data.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if vat_role == 'super' or vat_role == 'admin' %}
+        <a href="/vat/country-master/" class="vath-card green">
+            <span class="vath-icon"><i class="fas fa-globe"></i></span>
+            <span class="vath-body">
+                <h2>Country Master</h2>
+                <p>Manage countries and their VAT configuration.</p>
+            </span>
+        </a>
+
+        <a href="/vat/vat-rate-master/" class="vath-card amber">
+            <span class="vath-icon"><i class="fas fa-percent"></i></span>
+            <span class="vath-body">
+                <h2>VAT Rate Master</h2>
+                <p>Maintain VAT rates used for reconciliation calculations.</p>
+            </span>
+        </a>
+
+        <a href="/vat/cha-email-master/" class="vath-card purple">
+            <span class="vath-icon"><i class="fas fa-address-book"></i></span>
+            <span class="vath-body">
+                <h2>CHA Email Master</h2>
+                <p>Manage CHA contact emails for invoice correspondence.</p>
+            </span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+/* ================================================================
+   Stock Audit — Premium Design Tokens
+   Shared variables for the entire product scanning suite
+   ================================================================ */
+:root {
+    /* ── Typography ────────────────────────────────────────────────── */
+    --sa-font:        'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --sa-font-mono:   'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+    --sa-font-smooth: antialiased;
+
+    /* ── Brand Colors — Deep & Rich ───────────────────────────────── */
+    --sa-primary:       #0062cc;
+    --sa-primary-dark:  #004a99;
+    --sa-primary-deep:  #003674;
+    --sa-primary-light: #e8f2ff;
+    --sa-primary-muted: rgba(0, 98, 204, 0.08);
+
+    /* ── Accent Colors ────────────────────────────────────────────── */
+    --sa-success:       #059669;
+    --sa-success-light: #ecfdf5;
+    --sa-warning:       #d97706;
+    --sa-warning-light: #fffbeb;
+    --sa-danger:        #dc2626;
+    --sa-danger-light:  #fef2f2;
+    --sa-orange:        #ea580c;
+    --sa-orange-light:  #fff7ed;
+    --sa-purple:        #7c3aed;
+    --sa-purple-light:  #f5f3ff;
+    --sa-teal:          #0d9488;
+    --sa-teal-light:    #f0fdfa;
+
+    /* ── Neutrals — Refined slate palette ─────────────────────────── */
+    --sa-bg:            #f4f6f9;
+    --sa-bg-warm:       #f8f9fb;
+    --sa-surface:       #ffffff;
+    --sa-surface-hover: #fafbfc;
+    --sa-border:        #e4e8ee;
+    --sa-border-light:  #eef1f5;
+    --sa-text:          #1a2332;
+    --sa-text-secondary:#5a6577;
+    --sa-text-muted:    #8b95a5;
+    --sa-text-faint:    #b0b8c5;
+
+    /* ── Shadows — Layered depth system ───────────────────────────── */
+    --sa-shadow-xs:     0 1px 2px rgba(0, 20, 50, 0.04);
+    --sa-shadow-sm:     0 2px 6px rgba(0, 20, 50, 0.05), 0 1px 2px rgba(0, 20, 50, 0.03);
+    --sa-shadow-md:     0 4px 16px rgba(0, 20, 50, 0.07), 0 2px 4px rgba(0, 20, 50, 0.04);
+    --sa-shadow-lg:     0 8px 32px rgba(0, 20, 50, 0.10), 0 4px 8px rgba(0, 20, 50, 0.05);
+    --sa-shadow-xl:     0 16px 48px rgba(0, 20, 50, 0.14), 0 8px 16px rgba(0, 20, 50, 0.06);
+    --sa-shadow-primary:0 4px 16px rgba(0, 98, 204, 0.20);
+    --sa-shadow-float:  0 20px 60px rgba(0, 20, 50, 0.18);
+
+    /* ── Radius ───────────────────────────────────────────────────── */
+    --sa-radius-xs:     6px;
+    --sa-radius-sm:     8px;
+    --sa-radius-md:     12px;
+    --sa-radius-lg:     16px;
+    --sa-radius-xl:     20px;
+    --sa-radius-full:   9999px;
+
+    /* ── Gradients ────────────────────────────────────────────────── */
+    --sa-gradient-primary:  linear-gradient(135deg, #0062cc 0%, #004a99 50%, #003674 100%);
+    --sa-gradient-hero:     linear-gradient(135deg, #0062cc 0%, #0052b0 40%, #003d85 100%);
+    --sa-gradient-success:  linear-gradient(135deg, #059669, #047857);
+    --sa-gradient-warning:  linear-gradient(135deg, #f59e0b, #d97706);
+    --sa-gradient-danger:   linear-gradient(135deg, #ef4444, #dc2626);
+    --sa-gradient-orange:   linear-gradient(135deg, #f97316, #ea580c);
+    --sa-gradient-purple:   linear-gradient(135deg, #8b5cf6, #7c3aed);
+    --sa-gradient-teal:     linear-gradient(135deg, #14b8a6, #0d9488);
+
+    /* ── Transitions ──────────────────────────────────────────────── */
+    --sa-ease:          cubic-bezier(0.4, 0, 0.2, 1);
+    --sa-ease-out:      cubic-bezier(0.0, 0, 0.2, 1);
+    --sa-duration:      0.2s;
+    --sa-duration-slow: 0.35s;
+}

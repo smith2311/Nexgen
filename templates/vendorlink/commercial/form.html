@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Add / edit a rate card. One template for both, keyed on `mode` — the fields and
+validation are identical, and two near-copies would drift apart.
+
+Grouped into four fieldsets rather than one 16-field wall: identity, the eight
+cost lines, contract dates, and cover/notes. The cost grid is 4-up so the eight
+lines read as one comparable block instead of a long column.
+{% endcomment %}
+
+{% block title %}{% if mode == "edit" %}Edit{% else %}Add{% endif %} Rate Card — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.vc-form { max-width: 1040px; padding:20px; }
+.vc-fieldset { border:none; margin:0 0 26px; padding:0; }
+.vc-legend { display:flex; align-items:center; gap:9px; font-size:.95rem; font-weight:700; color:var(--vlx-ink,#0b1733); margin-bottom:4px; }
+.vc-legend i { color:var(--vlx-secondary); }
+.vc-legend__hint { font-size:.8rem; font-weight:500; color:#64748b; margin:0 0 14px; }
+.vc-grid { display:grid; gap:16px; }
+.vc-grid--2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+.vc-grid--3 { grid-template-columns:repeat(3, minmax(0,1fr)); }
+.vc-grid--4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
+@media (max-width: 900px) { .vc-grid--3, .vc-grid--4 { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+@media (max-width: 560px) { .vc-grid--2, .vc-grid--3, .vc-grid--4 { grid-template-columns:1fr; } }
+.vc-field label { display:block; font-size:.8rem; font-weight:600; color:#334155; margin-bottom:5px; }
+.vc-field .req { color:var(--vlx-danger); }
+.vc-field .vm-input, .vc-field .vm-select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; background:#fff; color:#06152b; transition:border-color .16s, box-shadow .18s; }
+.vc-field .vm-input:focus, .vc-field .vm-select:focus { outline:none; border-color:var(--vlx-secondary); box-shadow:0 0 0 3px rgba(0,118,200,.13); }
+.vc-field .vc-help { display:block; margin-top:5px; font-size:.76rem; color:#64748b; }
+.vc-field .vc-err { display:block; margin-top:5px; font-size:.78rem; color:var(--vlx-danger); font-weight:600; }
+.vc-field--bad .vm-input, .vc-field--bad .vm-select { border-color:var(--vlx-danger); }
+.vc-cur-note { font-size:.78rem; color:#64748b; display:inline-flex; align-items:center; gap:6px; }
+.vc-foot { display:flex; align-items:center; gap:10px; justify-content:flex-end; padding-top:14px; border-top:1px solid #e6ebf2; margin-top:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:commercial_list' %}">Commercial Database</a>
+                <span class="sep">/</span>
+                <span class="current">{% if mode == "edit" %}Edit{% else %}Add{% endif %} Rate Card</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">{% if mode == "edit" %}Edit Rate Card{% else %}Add Rate Card{% endif %}</h1>
+            </div>
+            <p class="vlx-subtitle">
+                {% if mode == "edit" %}Updating commercial terms for <strong>{{ card.vendor.vendor_name }}</strong>.
+                {% else %}Record what a vendor charges and on what contract terms. Leave any line blank if it does not apply.{% endif %}
+            </p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% if mode == 'edit' %}{% url 'vendorlink:commercial_detail' card.pk %}{% else %}{% url 'vendorlink:commercial_list' %}{% endif %}" class="vlx-btn vlx-btn--ghost">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+    <div class="vlx-alerts">
+        {% for err in form.non_field_errors %}
+        <div class="vlx-alert vlx-alert--error"><i class="fas fa-triangle-exclamation"></i><div>{{ err }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-card vc-form">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <fieldset class="vc-fieldset">
+                <div class="vc-legend"><i class="fas fa-truck-field"></i> Vendor &amp; Currency</div>
+                <p class="vc-legend__hint">Every rate card belongs to a vendor already in the Vendor Master.</p>
+                <div class="vc-grid vc-grid--2">
+                    <div class="vc-field {% if form.vendor.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.vendor.id_for_label }}">Vendor <span class="req">*</span></label>
+                        {{ form.vendor }}
+                        {% for e in form.vendor.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                    <div class="vc-field {% if form.currency.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.currency.id_for_label }}">Currency <span class="req">*</span></label>
+                        {{ form.currency }}
+                        <span class="vc-help">All cost lines below are quoted in this currency.</span>
+                        {% for e in form.currency.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="vc-fieldset">
+                <div class="vc-legend"><i class="fas fa-coins"></i> Cost Lines</div>
+                <p class="vc-legend__hint">
+                    Leave a line blank where the vendor does not offer it — a blank is treated as
+                    "not applicable", whereas <strong>0</strong> would read as "free".
+                </p>
+                <div class="vc-grid vc-grid--4">
+                    {% for f in form %}
+                        {% if f.name == "storage_cost" or f.name == "inbound_cost" or f.name == "outbound_cost" or f.name == "pick_cost" or f.name == "packing_cost" or f.name == "customs_clearance_cost" or f.name == "last_mile_charges" or f.name == "manpower_charges" %}
+                        <div class="vc-field {% if f.errors %}vc-field--bad{% endif %}">
+                            <label for="{{ f.id_for_label }}">{{ f.label }}</label>
+                            {{ f }}
+                            {% for e in f.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="vc-field" style="margin-top:16px;">
+                    <label for="{{ form.additional_charges.id_for_label }}">{{ form.additional_charges.label }}</label>
+                    {{ form.additional_charges }}
+                    <span class="vc-help">{{ form.additional_charges.help_text }}</span>
+                    {% for e in form.additional_charges.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                </div>
+            </fieldset>
+
+            <fieldset class="vc-fieldset">
+                <div class="vc-legend"><i class="fas fa-calendar-check"></i> Contract &amp; Price Validity</div>
+                <p class="vc-legend__hint">
+                    Dates drive the expiry warnings on the list — a card is flagged once it is
+                    within 60 days of the earlier of these.
+                </p>
+                <div class="vc-grid vc-grid--3">
+                    <div class="vc-field {% if form.contract_start.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.contract_start.id_for_label }}">{{ form.contract_start.label }}</label>
+                        {{ form.contract_start }}
+                        {% for e in form.contract_start.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                    <div class="vc-field {% if form.contract_end.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.contract_end.id_for_label }}">{{ form.contract_end.label }}</label>
+                        {{ form.contract_end }}
+                        {% for e in form.contract_end.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                    <div class="vc-field {% if form.price_validity.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.price_validity.id_for_label }}">{{ form.price_validity.label }}</label>
+                        {{ form.price_validity }}
+                        <span class="vc-help">{{ form.price_validity.help_text }}</span>
+                        {% for e in form.price_validity.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="vc-fieldset">
+                <div class="vc-legend"><i class="fas fa-shield-halved"></i> Insurance &amp; Notes</div>
+                <div class="vc-grid vc-grid--2">
+                    <div class="vc-field {% if form.insurance.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.insurance.id_for_label }}">{{ form.insurance.label }}</label>
+                        {{ form.insurance }}
+                        <span class="vc-help">{{ form.insurance.help_text }}</span>
+                        {% for e in form.insurance.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                    <div class="vc-field {% if form.notes.errors %}vc-field--bad{% endif %}">
+                        <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                        <span class="vc-help">Internal only — never shown to the vendor.</span>
+                        {% for e in form.notes.errors %}<span class="vc-err">{{ e }}</span>{% endfor %}
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="vc-foot">
+                <a href="{% if mode == 'edit' %}{% url 'vendorlink:commercial_detail' card.pk %}{% else %}{% url 'vendorlink:commercial_list' %}{% endif %}" class="vlx-btn vlx-btn--outline">Cancel</a>
+                <button type="submit" class="vlx-btn vlx-btn--primary">
+                    <i class="fas fa-floppy-disk"></i> {% if mode == "edit" %}Save Changes{% else %}Create Rate Card{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

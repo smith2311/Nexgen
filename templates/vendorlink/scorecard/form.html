@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Score a vendor — one immutable scoring event, all 4 attributes + comments required together.{% endcomment %}
+
+{% block title %}Score a Vendor — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.sf-form { max-width: 780px; padding:20px; }
+.sf-attr { border:1px solid #e6ebf2; border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+.sf-attr__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sf-attr__title { font-size:.88rem; font-weight:700; color:#0f1f3a; }
+.sf-attr__weight { font-size:.74rem; font-weight:700; color:#0061a6; background:#eff4ff; padding:2px 9px; border-radius:999px; }
+.sf-attr .vm-select { width:120px; box-sizing:border-box; padding:9px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; background:#fff; margin-bottom:10px; }
+.sf-attr .vm-input { width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.87rem; resize:vertical; }
+.sf-attr .vm-select:focus, .sf-attr .vm-input:focus { outline:none; border-color:var(--vlx-secondary); box-shadow:0 0 0 3px rgba(0,118,200,.13); }
+.sf-err { display:block; margin-top:5px; font-size:.78rem; color:var(--vlx-danger); font-weight:600; }
+.sf-field label { display:block; font-size:.8rem; font-weight:600; color:#334155; margin-bottom:5px; }
+.sf-field .vm-input, .sf-field .vm-select { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; }
+.sf-foot { display:flex; align-items:center; gap:10px; justify-content:flex-end; padding-top:6px; border-top:1px solid #e6ebf2; margin-top:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:scorecard_list' %}">Vendor Scorecard</a>
+                <span class="sep">/</span>
+                <span class="current">Score a Vendor</span>
+            </div>
+            <div class="vlx-titlerow"><h1 class="vlx-title">Score a Vendor</h1></div>
+            <p class="vlx-subtitle">A comment is required for every score — it becomes part of that vendor's permanent scoring history.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:scorecard_list' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="vlx-alerts">
+        {% for err in form.non_field_errors %}
+        <div class="vlx-alert vlx-alert--error"><i class="fas fa-triangle-exclamation"></i><div>{{ err }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-card sf-form">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="sf-field" style="margin-bottom:20px;">
+                <label for="{{ form.vendor.id_for_label }}">Vendor <span style="color:var(--vlx-danger);">*</span></label>
+                {{ form.vendor }}
+                {% for e in form.vendor.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-attr">
+                <div class="sf-attr__head"><span class="sf-attr__title">Cost</span><span class="sf-attr__weight">20%</span></div>
+                {{ form.cost_score }}
+                {{ form.cost_comment }}
+                {% for e in form.cost_score.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+                {% for e in form.cost_comment.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-attr">
+                <div class="sf-attr__head"><span class="sf-attr__title">Serviceability</span><span class="sf-attr__weight">40%</span></div>
+                {{ form.serviceability_score }}
+                {{ form.serviceability_comment }}
+                {% for e in form.serviceability_score.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+                {% for e in form.serviceability_comment.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-attr">
+                <div class="sf-attr__head"><span class="sf-attr__title">WMS / Reports</span><span class="sf-attr__weight">20%</span></div>
+                {{ form.wms_reports_score }}
+                {{ form.wms_reports_comment }}
+                {% for e in form.wms_reports_score.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+                {% for e in form.wms_reports_comment.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-attr">
+                <div class="sf-attr__head"><span class="sf-attr__title">TAT</span><span class="sf-attr__weight">20%</span></div>
+                {{ form.tat_score }}
+                {{ form.tat_comment }}
+                {% for e in form.tat_score.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+                {% for e in form.tat_comment.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-field" style="margin-bottom:16px;">
+                <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+                {{ form.notes }}
+                {% for e in form.notes.errors %}<span class="sf-err">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="sf-foot">
+                <a href="{% url 'vendorlink:scorecard_list' %}" class="vlx-btn vlx-btn--outline">Cancel</a>
+                <button type="submit" class="vlx-btn vlx-btn--primary"><i class="fas fa-star"></i> Save Score</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

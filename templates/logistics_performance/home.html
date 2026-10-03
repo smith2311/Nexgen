@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Logistics Performance{% endblock %}
+{% block page_title %}Logistics Performance{% endblock %}
+
+{% block extra_css %}
+<style>
+
+.lph-wrap {
+    --navy:       #0b1f3a;
+    --blue:       #0076c8;
+    --blue-lt:    #e6f2fb;
+    --accent:     #00c2a8;
+    --accent-lt:  #e0f8f5;
+    --amber:      #f59e0b;
+    --amber-lt:   #fef3c7;
+    --red:        #ef4444;
+    --red-lt:     #fee2e2;
+    --green:      #10b981;
+    --green-lt:   #d1fae5;
+    --purple:     #8b5cf6;
+    --purple-lt:  #ede9fe;
+    --text-primary:   #0b1f3a;
+    --text-secondary: #4a5568;
+    --text-muted:     #9ca3af;
+    --bg:         #f0f4f9;
+    --surface:    #ffffff;
+    --border:     rgba(11,31,58,0.10);
+    --border-md:  rgba(11,31,58,0.18);
+    --radius-md:  10px;
+    --radius-lg:  16px;
+    --shadow-md:  0 4px 16px rgba(11,31,58,0.10);
+    --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 28px 24px 60px;
+    color: var(--text-primary);
+}
+
+.lph-header { margin-bottom: 26px; }
+.lph-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.lph-header p { font-size: 14px; color: var(--text-secondary); margin: 0; }
+
+.lph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.lph-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    text-decoration: none;
+    color: var(--text-primary);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+.lph-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.lph-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-md);
+    text-decoration: none;
+}
+.lph-card:hover::after { opacity: 1; }
+
+.lph-card.blue   { color: var(--blue);   }
+.lph-card.teal   { color: var(--accent); }
+.lph-card.amber  { color: var(--amber);  }
+.lph-card.purple { color: var(--purple); }
+.lph-card.green  { color: var(--green);  }
+.lph-card.red    { color: var(--red);    }
+.lph-card.navy   { color: var(--navy);   }
+
+.lph-icon {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: var(--blue-lt);
+    color: currentColor;
+    transition: var(--transition);
+}
+.lph-card.blue   .lph-icon { background: var(--blue-lt);   }
+.lph-card.teal   .lph-icon { background: var(--accent-lt); }
+.lph-card.amber  .lph-icon { background: var(--amber-lt);  }
+.lph-card.purple .lph-icon { background: var(--purple-lt); }
+.lph-card.green  .lph-icon { background: var(--green-lt);  }
+.lph-card.red    .lph-icon { background: var(--red-lt);    }
+.lph-card.navy   .lph-icon { background: #e6ebf2;          }
+.lph-card:hover .lph-icon { transform: scale(1.08); }
+
+.lph-body h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin: 0 0 5px;
+}
+.lph-body p {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .lph-wrap { padding: 20px 16px 48px; }
+    .lph-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lph-wrap">
+    <div class="lph-header">
+        <h1><i class="fas fa-shipping-fast"></i> Logistics Performance</h1>
+        <p>Select a module to continue.</p>
+    </div>
+
+    <div class="lph-grid">
+        {% if lp_role == 'super' or lp_role == 'member' %}
+        <a href="/logistics/dashboard/" class="lph-card blue">
+            <span class="lph-icon"><i class="fas fa-gauge-high"></i></span>
+            <span class="lph-body">
+                <h2>Logistics Dashboard</h2>
+                <p>Overview of shipment KPIs, TAT alerts, and recent activity.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/logistics-performance-upload/" class="lph-card teal">
+            <span class="lph-icon"><i class="fas fa-upload"></i></span>
+            <span class="lph-body">
+                <h2>Performance Upload</h2>
+                <p>Browse, add, and bulk-upload shipment performance records.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        <a href="/logistics/performance-report/" class="lph-card amber">
+            <span class="lph-icon"><i class="fas fa-chart-line"></i></span>
+            <span class="lph-body">
+                <h2>Performance Report</h2>
+                <p>Analyse TAT, cost, and courier performance with drill-downs.</p>
+            </span>
+        </a>
+
+        {% if lp_role == 'super' or lp_role == 'admin' %}
+        <a href="/logistics/location-master/" class="lph-card green">
+            <span class="lph-icon"><i class="fas fa-map-marker-alt"></i></span>
+            <span class="lph-body">
+                <h2>Location Master</h2>
+                <p>Manage pincodes, locations, couriers, and TAT baselines.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/domestic-sales-type-master/" class="lph-card purple">
+            <span class="lph-icon"><i class="fas fa-tags"></i></span>
+            <span class="lph-body">
+                <h2>Sales Type Master</h2>
+                <p>Maintain sales type cards and division mappings.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/courier-master/" class="lph-card teal">
+            <span class="lph-icon"><i class="fas fa-truck"></i></span>
+            <span class="lph-body">
+                <h2>Courier Master</h2>
+                <p>Manage couriers (code &amp; name) — validates Location Master uploads.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/division-master/" class="lph-card amber">
+            <span class="lph-icon"><i class="fas fa-sitemap"></i></span>
+            <span class="lph-body">
+                <h2>Division Master</h2>
+                <p>Manage company divisions — validates Sales Type Master uploads.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/zone-master/" class="lph-card blue">
+            <span class="lph-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="lph-body">
+                <h2>Zone Master</h2>
+                <p>Manage zones — validates Location Master uploads.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/mode-master/" class="lph-card navy">
+            <span class="lph-icon"><i class="fas fa-route"></i></span>
+            <span class="lph-body">
+                <h2>Mode Master</h2>
+                <p>Manage transport modes — validates Location &amp; Logistics uploads.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/state-master/" class="lph-card green">
+            <span class="lph-icon"><i class="fas fa-map"></i></span>
+            <span class="lph-body">
+                <h2>State Master</h2>
+                <p>Manage states — validates Location Master uploads.</p>
+            </span>
+        </a>
+
+        <a href="/logistics/plant-master/" class="lph-card purple">
+            <span class="lph-icon"><i class="fas fa-industry"></i></span>
+            <span class="lph-body">
+                <h2>Plant Master</h2>
+                <p>Manage plants — validates Location Master uploads.</p>
+            </span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

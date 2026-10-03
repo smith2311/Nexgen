@@ -1,0 +1,38 @@
+/* ═══════════════════════════════════════════════════════
+   location_master.css — Location Master module-specific styles
+   Page shell (header/tabs/toast) → components/master_page/master_page.css
+   Shared table/form/util styles    → components/data_table/data_table.css
+   Edit/Delete modal                → components/modal/modal.css
+   Only the per-module grid widths live here.
+═══════════════════════════════════════════════════════ */
+
+/* ── TABLE COLUMN LAYOUT (location master specific) ── */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 80px 1fr 1fr 110px 90px 60px 120px;
+}
+
+/* ── PREVIEW TABLE COLUMNS (location master specific) ── */
+.lm-page .prev-tbl-hdr,
+.lm-page .prev-tbl-row {
+  grid-template-columns: 44px 60px 1fr 1fr 80px 80px 110px;
+}
+
+/* ── SCHEMA ROW COLUMNS (location master specific) ── */
+.lm-page .schema-row {
+  grid-template-columns: 150px 70px 1fr;
+}
+
+/* ── RESPONSIVE (table-column hides) ── */
+@media (max-width: 900px) {
+  .lm-page .tbl-head,
+  .lm-page .tbl-row {
+    grid-template-columns: 1fr 1fr 100px 110px;
+  }
+  .lm-page .tbl-head > *:nth-child(1),
+  .lm-page .tbl-head > *:nth-child(4),
+  .lm-page .tbl-head > *:nth-child(5),
+  .lm-page .tbl-row  > *:nth-child(1),
+  .lm-page .tbl-row  > *:nth-child(4),
+  .lm-page .tbl-row  > *:nth-child(5) { display: none; }
+}

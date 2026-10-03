@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}One vendor's full scoring history — the scorecard is immutable, so this list *is* the audit trail.{% endcomment %}
+
+{% block title %}{{ vendor.vendor_name }} — Scorecard History{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.sh-final { display:inline-flex; align-items:baseline; gap:3px; font-weight:800; font-size:1.6rem; color:#0f1f3a; }
+.sh-final small { font-size:.8rem; font-weight:600; color:#94a3b8; }
+.sh-current { display:flex; align-items:center; gap:22px; padding:20px; }
+.sh-attr-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; flex:1; }
+@media (max-width:760px) { .sh-attr-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+.sh-attr { text-align:center; }
+.sh-attr__label { font-size:.72rem; font-weight:600; color:#64748b; margin-bottom:4px; }
+.sh-attr__score { font-size:1.2rem; font-weight:800; color:#0f1f3a; }
+.sh-entry { border-bottom:1px solid #eef1f6; padding:18px 0; }
+.sh-entry:last-child { border-bottom:none; }
+.sh-entry__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sh-entry__meta { font-size:.78rem; color:#64748b; }
+.sh-entry__attrs { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 20px; }
+@media (max-width:640px) { .sh-entry__attrs { grid-template-columns:1fr; } }
+.sh-entry__attr dt { font-size:.76rem; font-weight:600; color:#64748b; }
+.sh-entry__attr dd { font-size:.85rem; color:#0f1f3a; margin:2px 0 0; line-height:1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:scorecard_list' %}">Vendor Scorecard</a>
+                <span class="sep">/</span>
+                <span class="current">{{ vendor.vendor_name }}</span>
+            </div>
+            <div class="vlx-titlerow"><h1 class="vlx-title">{{ vendor.vendor_name }}</h1></div>
+            <p class="vlx-subtitle">{{ cards|length }} scoring event{{ cards|length|pluralize }}</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:scorecard_list' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:scorecard_create' %}?vendor={{ vendor.pk }}" class="vlx-btn vlx-btn--primary"><i class="fas fa-star"></i> Re-score</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if current %}
+    <div class="vlx-card sh-current" style="margin-bottom:20px;">
+        <div class="sh-final">{{ current.final_score }}<small>/10</small></div>
+        <div class="sh-attr-grid">
+            {% for label, score, comment in current.attributes_for_display %}
+            <div class="sh-attr">
+                <div class="sh-attr__label">{{ label }}</div>
+                <div class="sh-attr__score">{{ score }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="vlx-card" style="padding:6px 20px;">
+        {% if cards %}
+        {% for card in cards %}
+        <div class="sh-entry">
+            <div class="sh-entry__head">
+                <span class="sh-final" style="font-size:1.1rem;">{{ card.final_score }}<small>/10</small></span>
+                <span class="sh-entry__meta">
+                    Scored by {% if card.scored_by %}{{ card.scored_by.get_full_name|default:card.scored_by.username }}{% else %}—{% endif %}
+                    on {{ card.scored_at|date:"d M Y H:i" }}
+                    {% if is_vm_admin %}
+                    <form method="post" action="{% url 'vendorlink:scorecard_delete' card.pk %}" style="display:inline;" data-confirm="Remove this scorecard entry? This cannot be undone."
+                          data-confirm-action="Remove entry"
+                          data-confirm-tone="danger">
+                        {% csrf_token %}
+                        <button type="submit" class="vlx-iconbtn vlx-iconbtn--danger" title="Delete" style="width:24px;height:24px;"><i class="fas fa-trash" style="font-size:12px;"></i></button>
+                    </form>
+                    {% endif %}
+                </span>
+            </div>
+            <dl class="sh-entry__attrs">
+                {% for label, score, comment in card.attributes_for_display %}
+                <div class="sh-entry__attr">
+                    <dt>{{ label }} — {{ score }}/10</dt>
+                    <dd>{{ comment }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+            {% if card.notes %}
+            <p style="margin:10px 0 0; font-size:.83rem; color:#475569;"><strong>Notes:</strong> {{ card.notes }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-ranking-star"></i></div>
+            <h3>Not scored yet</h3>
+            <p>This vendor has no scorecard entries.</p>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:scorecard_create' %}?vendor={{ vendor.pk }}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-star"></i> Score This Vendor</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+{% endblock %}

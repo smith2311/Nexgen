@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Tracking Master{% endblock %}
+{% block page_title %}PR Tracker — Tracking Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pr_tracker/pr.css' %}">
+<style>
+.tm-edit-row td { background: var(--blue-lt) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'pr_tracker:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        PR Tracker
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-hashtag"></i> Tracking Master</h1>
+          <p>Manage tracking numbers available for PR assignments.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ tracking|length }}</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="prt-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+
+      <!-- Table -->
+      <div class="prt-tbl-wrap">
+        {% if tracking %}
+        <table class="prt-tbl" id="trackingTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tracking Number</th>
+              <th>Description</th>
+              <th>Active</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tracking %}
+            <tr id="row-{{ t.pk }}">
+              <td class="prt-mono" style="color:var(--text-muted)">{{ forloop.counter }}</td>
+              <td><strong class="prt-mono">{{ t.tracking_number }}</strong></td>
+              <td>{{ t.description|default:"—" }}</td>
+              <td>
+                {% if t.is_active %}
+                  <span style="color:var(--green);font-size:12px;font-weight:700;"><i class="fas fa-circle-check"></i> Yes</span>
+                {% else %}
+                  <span style="color:var(--text-muted);font-size:12px;"><i class="fas fa-circle-xmark"></i> No</span>
+                {% endif %}
+              </td>
+              <td style="display:flex;gap:8px;">
+                <button class="prt-btn prt-btn-ghost prt-btn-sm"
+                        onclick="openEdit({{ t.pk }}, '{{ t.tracking_number|escapejs }}', '{{ t.description|escapejs }}', {{ t.is_active|yesno:'true,false' }})">
+                  <i class="fas fa-pen"></i> Edit
+                </button>
+                <form method="post" onsubmit="return confirm('Delete {{ t.tracking_number }}?');" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="pk" value="{{ t.pk }}">
+                  <button type="submit" class="prt-btn prt-btn-sm"
+                          style="background:var(--red-lt);color:var(--red);border:none;cursor:pointer;">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="prt-empty">
+          <i class="fas fa-hashtag"></i>
+          <p>No tracking numbers yet. Add one using the form.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Add / Edit panel -->
+      <div>
+        <div class="prt-form-section">
+          <div class="prt-form-section-hdr">
+            <i class="fas fa-plus section-icon" id="formIcon"></i>
+            <h3 id="formTitle">Add Tracking Number</h3>
+          </div>
+          <form method="post" id="tmForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create" id="tmAction">
+            <input type="hidden" name="pk" id="tmPk">
+            <div class="prt-form-body">
+              <div style="display:flex;flex-direction:column;gap:12px;">
+
+                <div class="prt-field">
+                  <label class="prt-label">Tracking Number <span class="req">*</span></label>
+                  <input class="prt-input" type="text" name="tracking_number" id="tmTn"
+                         placeholder="e.g. TRK-011" required>
+                </div>
+
+                <div class="prt-field">
+                  <label class="prt-label">Description</label>
+                  <input class="prt-input" type="text" name="description" id="tmDesc"
+                         placeholder="Optional note">
+                </div>
+
+                <div class="prt-field" style="flex-direction:row;align-items:center;gap:8px;">
+                  <input type="checkbox" name="is_active" id="tmActive" checked
+                         style="width:16px;height:16px;cursor:pointer;">
+                  <label for="tmActive" style="font-size:13.5px;font-weight:600;color:var(--navy);cursor:pointer;margin:0;">Active</label>
+                </div>
+
+              </div>
+            </div>
+            <div class="prt-form-actions">
+              <button type="submit" class="prt-btn prt-btn-navy" id="tmSubmit">
+                <i class="fas fa-plus"></i> Add
+              </button>
+              <button type="button" class="prt-btn prt-btn-ghost" onclick="resetForm()">Clear</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEdit(pk, tn, desc, active) {
+  document.getElementById('tmAction').value   = 'edit';
+  document.getElementById('tmPk').value       = pk;
+  document.getElementById('tmTn').value       = tn;
+  document.getElementById('tmDesc').value     = desc;
+  document.getElementById('tmActive').checked = active;
+  document.getElementById('formTitle').textContent    = 'Edit Tracking Number';
+  document.getElementById('formIcon').className       = 'fas fa-pen section-icon';
+  document.getElementById('tmSubmit').innerHTML       = '<i class="fas fa-floppy-disk"></i> Update';
+  document.getElementById('tmSubmit').className       = 'prt-btn prt-btn-teal';
+  document.getElementById('tmTn').focus();
+}
+function resetForm() {
+  document.getElementById('tmAction').value   = 'create';
+  document.getElementById('tmPk').value       = '';
+  document.getElementById('tmTn').value       = '';
+  document.getElementById('tmDesc').value     = '';
+  document.getElementById('tmActive').checked = true;
+  document.getElementById('formTitle').textContent = 'Add Tracking Number';
+  document.getElementById('formIcon').className    = 'fas fa-plus section-icon';
+  document.getElementById('tmSubmit').innerHTML    = '<i class="fas fa-plus"></i> Add';
+  document.getElementById('tmSubmit').className    = 'prt-btn prt-btn-navy';
+}
+</script>
+{% endblock %}

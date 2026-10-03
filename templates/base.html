@@ -1,0 +1,1080 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-tz="{% if user.is_authenticated %}{{ user.profile.timezone|default:'Asia/Kolkata' }}{% else %}Asia/Kolkata{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NextGen Automation{% endblock %} | Meril</title>
+    
+    <!-- Meril Logo Favicon -->
+    <link rel="icon" type="image/jpeg" href="{% static 'img/Meril-logo-bluebg.jpg' %}">
+    <link rel="shortcut icon" type="image/jpeg" href="{% static 'img/Meril-logo-bluebg.jpg' %}">
+
+    {% block css %}
+    <!-- Fonts: Helvetica Neue everywhere, JetBrains Mono for identifiers/codes -->
+    {% comment %}
+    Inter is what --vlx-font / --vl-font actually ask for across VendorLink and
+    Meril-V, and css/google-fonts.css is where its @font-face lives — but this
+    file never loaded it, so every internal page silently fell back to system
+    fonts while the public register/assessment pages (which link it directly)
+    rendered as designed.
+    {% endcomment %}
+    <link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/helvetica-neue-fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/jetbrains-mono-fonts.css' %}">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.min.css' %}">
+
+    <!-- Modern UI System -->
+    <link rel="stylesheet" href="{% static 'css/modern-ui.css' %}">
+
+    <!-- Component Styles -->
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/landing_page.css' %}">
+
+    <!-- Material Rework responsive -->
+    <link rel="stylesheet" href="{% static 'css/material-rework/md_responsive.css' %}">
+    {% endblock %}
+    <!-- Auto-loaded component CSS (from @uses_components) — before page CSS -->
+    {% for f in ui_css %}<link rel="stylesheet" href="{% static f %}">
+    {% endfor %}
+    {% block extra_css %}{% endblock %}
+        {% if request.resolver_match.namespace == 'warehouse_inspection' %}
+        <!-- Matomo -->
+        <script>
+            var _paq = window._paq = window._paq || [];
+            /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+            _paq.push(['trackPageView']);
+            _paq.push(['enableLinkTracking']);
+            (function() {
+                var u="https://analytics.e-meril.in/";
+                _paq.push(['setTrackerUrl', u+'matomo.php']);
+                _paq.push(['setSiteId', '28']);
+                var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+                g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+            })();
+        </script>
+        <!-- End Matomo Code -->
+        {% endif %}
+    <style>
+    /* ── Notification Bell ──────────────────────────────────── */
+    .notif-bell {
+        position: relative;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: rgba(255,255,255,0.8);
+        transition: color 0.2s, background 0.2s;
+        display: flex;
+        align-items: center;
+        font-size: 1.1em;
+    }
+    .notif-bell:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .notif-bell.has-alert { color: #fff; background: rgba(239,68,68,0.2); }
+    .notif-badge {
+        position: absolute;
+        top: 2px;
+        right: 4px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 0.65em;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 1px 5px;
+        min-width: 16px;
+        text-align: center;
+        line-height: 1.4;
+        pointer-events: none;
+    }
+    .notif-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: -10px;
+        width: 370px;
+        max-width: 95vw;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        z-index: 9999;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+    }
+    /* Dropdown Sidebar */
+.sidebar-dropdown .dropdown-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-submenu {
+    display: none;
+    padding-left: 18px;
+}
+
+.sidebar-submenu.show {
+    display: block;
+}
+
+.submenu-link {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.dropdown-arrow {
+    transition: transform 0.3s ease;
+    font-size: 12px;
+}
+
+.dropdown-arrow.rotate {
+    transform: rotate(180deg);
+}
+    @media (max-width: 768px) {
+        .notif-dropdown {
+            position: fixed;
+            top: 62px;
+            left: 8px;
+            right: 8px;
+            width: auto;
+            max-width: none;
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+        }
+        .notif-list {
+            max-height: calc(100vh - 180px);
+        }
+    }
+    .notif-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #0076c8 0%, #00b5e2 100%);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95em;
+    }
+    .notif-mark-all {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: #fff;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.78em;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    .notif-mark-all:hover { background: rgba(255,255,255,0.35); }
+    .notif-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .notif-item {
+        padding: 13px 18px;
+        border-bottom: 1px solid #f3f4f6;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .notif-item:hover { background: #f9fafb; }
+    .notif-item.unread { background: #eff6ff; border-left: 3px solid #0076c8; }
+    .notif-item.unread:hover { background: #dbeafe; }
+    .notif-item-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.88em;
+        margin-bottom: 4px;
+    }
+    .notif-item-msg {
+        color: #6b7280;
+        font-size: 0.82em;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .notif-item-time {
+        color: #9ca3af;
+        font-size: 0.76em;
+        margin-top: 5px;
+    }
+    .notif-empty {
+        padding: 30px 18px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.9em;
+    }
+    </style>
+</head>
+<body>
+
+    <!-- 🔁 REUSABLE NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <!-- Sidebar Toggle -->
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" title="Collapse Navigation" aria-label="Collapse Navigation" aria-controls="sidebar" aria-expanded="true">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- Brand Logo -->
+            <a href="{% url 'landing_page' %}" class="navbar-brand">
+                <div class="brand-logo">
+                    <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril Logo">
+                </div>
+                <span class="brand-text">NexGen Automation</span>
+            </a>
+
+            <!-- Breadcrumb Navigation (Optional) -->
+            <div class="navbar-breadcrumb" id="navBreadcrumb">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <!-- Navigation Actions -->
+            <div class="navbar-actions">
+                <!-- Quick Search -->
+                <div class="navbar-search" id="navSearch">
+                    <i class="fas fa-search navbar-search-icon" aria-hidden="true"></i>
+                    <input type="text" placeholder="Search apps&hellip;" id="searchInput"
+                           autocomplete="off" spellcheck="false" aria-label="Search apps" />
+                    {% comment %}
+                    The Ctrl/Cmd+K shortcut has been wired up all along but
+                    nothing ever said so, so nobody used it. The chip advertises
+                    it, then gets out of the way: it swaps for a clear button as
+                    soon as there is something to clear. Its label is set from
+                    the platform in JS below — ⌘K on a Mac, Ctrl K elsewhere.
+                    {% endcomment %}
+                    <button type="button" class="navbar-search-clear" id="searchClear"
+                            aria-label="Clear search" hidden>
+                        <i class="fas fa-xmark" aria-hidden="true"></i>
+                    </button>
+                    <kbd class="navbar-search-kbd" id="searchKbd" aria-hidden="true">Ctrl K</kbd>
+                </div>
+
+                <!-- Admin Panel Link -->
+                {% if user.is_staff %}
+                <a href="{% url 'admin:index' %}" class="navbar-link admin" title="Admin Panel">
+                    <i class="fas fa-tools"></i>
+                    <span>Admin</span>
+                </a>
+                {% endif %}
+
+                <!-- Notification Bell (product scanning users only) -->
+                {% if user.is_authenticated %}
+                <div class="notif-bell" id="notifBell" title="Notifications"
+                     data-notif-enabled="{{ user.profile.notif_browser|yesno:'true,false' }}"
+                     data-notif-api="{{ notif_api_base|default:'/product_scanning/api/notifications' }}">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                    <!-- Notification Dropdown -->
+                    <div class="notif-dropdown" id="notifDropdown" style="display:none;">
+                        <div class="notif-header">
+                            <span>🔔 Notifications</span>
+                            <button class="notif-mark-all" id="notifMarkAll">Mark all read</button>
+                        </div>
+                        <div class="notif-list" id="notifList">
+                            <div class="notif-empty">No notifications</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="user-menu">
+                    <div class="user-button" onclick="toggleDropdown()" title="User Menu">
+                        <div class="user-avatar">
+                            {% if user.profile.avatar %}<img src="{{ user.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">{% else %}{{ user.get_full_name|first|default:user.username|first|upper }}{% endif %}
+                        </div>
+                        <span class="user-name">
+                            {{ user.get_full_name|default:user.username }}
+                        </span>
+                        <i class="fas fa-chevron-down" style="font-size: 11px; margin-left: auto;"></i>
+                    </div>
+
+                    <div class="user-dropdown" id="userDropdown">
+                        <a href="{% url 'profile' %}" class="dropdown-item">
+                            <i class="fas fa-user"></i>
+                            <span>My Profile</span>
+                        </a>
+                        <a href="{% url 'profile' %}?tab=settings" class="dropdown-item">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="{% url 'logout' %}" class="dropdown-item logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 📁 SIDEBAR NAVIGATION -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-header-inner">
+                <i class="fas fa-compass"></i>
+                <span class="sidebar-header-text">Navigation</span>
+            </div>
+        </div>
+        <nav class="sidebar-menu">
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">Main Menu</div>
+                <a href="{% url 'landing_page' %}" class="sidebar-link" data-page="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">Applications</div>
+                {% if nav.vendorlink %}
+                <a href="{% url 'vendorlink:index' %}" class="sidebar-link" data-page="vendorlink">
+                    <i class="fas fa-building"></i>
+                    <span>VendorLink</span>
+                </a>
+                {% endif %}
+                {% if user.is_superuser or user.groups.all|length > 0 or nav.platform_admin %}
+                {% with user_groups=user.groups.all %}
+                
+                {# Product Scanning — visible to Product Scanner, Sales, PS Salesperson, PS Warehouse, or superuser #}
+                {% if nav.product_scanning %}
+                <a href="/product_scanning/" class="sidebar-link" data-page="product-scanning">
+                    <i class="fas fa-barcode"></i>
+                    <span>Stock Audit</span>
+                </a>
+                {% endif %}
+
+
+                {# Translator — visible to HR group or superuser #}
+                {% if nav.translator %}
+                <a href="/rs2t/" class="sidebar-link" data-page="translator">
+                    <i class="fas fa-language"></i>
+                    <span>Translator</span>
+                </a>
+                {% endif %}
+                
+                {# MeriTrack — visible to MT Rep, MT Manager, MT Logistics, or superuser #}
+                {% if nav.meritrack %}
+                <a href="/meritrack/" class="sidebar-link" data-page="meritrack">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>MeriTrack</span>
+                </a>
+                {% endif %}
+
+                {# AI Sales Dashboard — superuser or AI Sales Dashboard group #}
+                {% if nav.ai_sales %}
+                <a href="{% url 'ai_sales_agent_dashboard:dashboard_home' %}" class="sidebar-link" data-page="ai-sales">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Sales Hub</span>
+                </a>
+                {% endif %}
+
+                {# Logistics Performance — visible to LP groups or superuser #}
+                {% if nav.logistics %}
+                <a href="{% url 'logistics:home' %}" class="sidebar-link" data-page="logistics-performance">
+                    <i class="fas fa-shipping-fast"></i>
+                    <span>Logistics Performance</span>
+                </a>
+                {% endif %}
+
+                {# VAT Reconciliation — visible to VAT groups or superuser #}
+                {% if nav.vat %}
+                <a href="{% url 'vat:home' %}" class="sidebar-link" data-page="vat-reconciliation">
+                    <i class="fas fa-receipt"></i>
+                    <span>VAT Reconciliation</span>
+                </a>
+                {% endif %}
+
+                {# Export Billing Dashboard — visible to Billing groups or superuser #}
+                {% if nav.billing %}
+                <a href="{% url 'billing:home' %}" class="sidebar-link" data-page="billing-dashboard">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Billing Dashboard</span>
+                </a>
+                {% endif %}
+
+                {# Logistics Cost (Subsidiary) — visible to Sub groups or superuser #}
+                {% if nav.subsidiary %}
+                <a href="{% url 'sub:home' %}" class="sidebar-link" data-page="subsidiary-logistics">
+                    <i class="fas fa-truck-ramp-box"></i>
+                    <span>Logistics Cost</span>
+                </a>
+                {% endif %}
+
+                {# PR Tracker — visible to PR groups or superuser #}
+                {% if nav.pr_tracker %}
+                <a href="{% url 'pr_tracker:home' %}" class="sidebar-link" data-page="pr-tracker">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>PR Tracker</span>
+                </a>
+                {% endif %}
+
+                {# Visa Management — visible to all authenticated Meril employees #}
+                {% if nav.visa %}
+                <a href="{% url 'visa:home' %}" class="sidebar-link" data-page="visa">
+                    <i class="fas fa-passport"></i>
+                    <span>Visa Management</span>
+                </a>
+                {% endif %}
+
+                {# Warehouse Inspection — visible only to WI-specific groups #}
+                {% if nav.warehouse_inspection %}
+                    {# Admins → full module-selector dashboard; regular users → inspection form directly #}
+                    {% if nav.warehouse_inspection_admin %}
+                    <a href="{% url 'warehouse_inspection:dashboard' %}" class="sidebar-link" data-page="warehouse-inspection">
+                        <i class="fas fa-warehouse"></i>
+                        <span>Warehouse Inspection</span>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'warehouse_inspection:inspection_form' %}" class="sidebar-link" data-page="warehouse-inspection-inspect">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span>Inspection</span>
+                    </a>
+                    {% endif %}
+                {% endif %}
+
+                {% if nav.material_rework %}
+                <a href="{% url 'material_rework:dashboard' %}" class="sidebar-link" data-page="material-rework">
+                    <i class="fas fa-recycle"></i>
+                    <span>Material Rework</span>
+                </a>
+                {% endif %}
+
+                {# Grocery Stock & Cost Management — visible to any Grocery role #}
+                {% if nav.grocery %}
+                <a href="{% url 'grocery_stock:home' %}" class="sidebar-link" data-page="grocery-stock">
+                    <i class="fas fa-basket-shopping"></i>
+                    <span>Grocery Stock</span>
+                </a>
+                {% endif %}
+
+                {# 3 Way Reconciliation — GSTR-1 vs E-Invoice vs E-Way Bill #}
+                {% if nav.reconciliation %}
+                <a href="{% url 'reconciliation:records' %}" class="sidebar-link" data-page="reconciliation">
+                    <i class="fas fa-scale-balanced"></i>
+                    <span>3 Way Reconciliation</span>
+                </a>
+                {% endif %}
+
+                {# Meril-V — warehouse stock validation & outbound dispatch scanning #}
+                {% if nav.merilv %}
+                <a href="{% url 'merilv:index' %}" class="sidebar-link" data-page="merilv">
+                    <i class="fas fa-boxes-packing"></i>
+                    <span>Meril-V</span>
+                </a>
+                {% endif %}
+
+                {% endwith %}
+                {% endif %}
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">Tools</div>
+                {% if user.is_staff %}
+                <a href="{% url 'admin:index' %}" class="sidebar-link" data-page="admin">
+                    <i class="fas fa-tools"></i>
+                    <span>Admin Panel</span>
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Feedback portal link (platform-wide, visible to all authenticated users) -->
+            {% if user.is_authenticated %}
+            <div class="sidebar-group">
+                <div class="sidebar-group-title">Support</div>
+                <a href="/feedback/" class="sidebar-link" data-page="feedback">
+                    <i class="fas fa-comment-alt"></i>
+                    <span>Feedback &amp; Support</span>
+                </a>
+                {% if user.is_staff or user.is_superuser %}
+                <a href="/feedback/inbox/" class="sidebar-link" data-page="feedback-inbox">
+                    <i class="fas fa-inbox"></i>
+                    <span>Feedback Inbox</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="sidebar-group" style="margin-top: auto; padding-bottom: 2rem;">
+                <div class="sidebar-group-title">Account</div>
+                <a href="{% url 'profile' %}" class="sidebar-link">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+                <a href="{% url 'logout' %}" class="sidebar-link" style="color: var(--danger);">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- 🔽 PAGE CONTENT GOES HERE -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <main role="main">
+    {% block content %}{% endblock %}
+    </main>
+    {% block extra_modals %}{% endblock %}
+
+    <!-- 🔽 COMMON JS -->
+    <script>
+        // Add sidebar class to body to enable sidebar layout
+        document.body.classList.add('with-sidebar');
+
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarDesktopQuery = window.matchMedia('(min-width: 769px)');
+        const sidebarStorageKey = 'nexgen.sidebar.collapsed';
+
+        document.querySelectorAll('.sidebar-link').forEach((link) => {
+            const label = link.querySelector('span')?.textContent.trim();
+            if (label) {
+                link.dataset.label = label;
+                link.setAttribute('title', label);
+                link.setAttribute('aria-label', label);
+            }
+        });
+
+        function isDesktopSidebar() {
+            return sidebarDesktopQuery.matches;
+        }
+
+        function readStoredSidebarState() {
+            try {
+                return localStorage.getItem(sidebarStorageKey) === 'true';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function writeStoredSidebarState(collapsed) {
+            try {
+                localStorage.setItem(sidebarStorageKey, String(collapsed));
+            } catch (error) {
+                // Ignore storage failures.
+            }
+        }
+
+        function updateSidebarToggleState() {
+            if (!sidebarToggle) {
+                return;
+            }
+
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+            const isMobileOpen = document.body.classList.contains('sidebar-mobile-open');
+            const isExpanded = isDesktopSidebar() ? !isCollapsed : isMobileOpen;
+            const label = isDesktopSidebar()
+                ? (isCollapsed ? 'Expand Navigation' : 'Collapse Navigation')
+                : (isMobileOpen ? 'Close Navigation' : 'Open Navigation');
+
+            sidebarToggle.setAttribute('title', label);
+            sidebarToggle.setAttribute('aria-label', label);
+            sidebarToggle.setAttribute('aria-expanded', String(isExpanded));
+        }
+
+        function openSidebar() {
+            if (isDesktopSidebar()) {
+                setDesktopSidebarCollapsed(false);
+                return;
+            }
+
+            document.body.classList.add('sidebar-mobile-open');
+            sidebar?.classList.add('open');
+            sidebarOverlay?.classList.add('show');
+            updateSidebarToggleState();
+        }
+
+        function closeSidebar() {
+            document.body.classList.remove('sidebar-mobile-open');
+            sidebar?.classList.remove('open');
+            sidebarOverlay?.classList.remove('show');
+            updateSidebarToggleState();
+        }
+
+        function setDesktopSidebarCollapsed(collapsed, persistState = true) {
+            if (!isDesktopSidebar()) {
+                return;
+            }
+
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            document.body.classList.remove('sidebar-mobile-open');
+            sidebar?.classList.remove('open');
+            sidebarOverlay?.classList.remove('show');
+
+            if (persistState) {
+                writeStoredSidebarState(collapsed);
+            }
+
+            updateSidebarToggleState();
+        }
+
+        function syncSidebarMode() {
+            if (isDesktopSidebar()) {
+                setDesktopSidebarCollapsed(readStoredSidebarState(), false);
+                return;
+            }
+
+            document.body.classList.remove('sidebar-collapsed');
+            closeSidebar();
+        }
+
+        sidebarToggle?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (isDesktopSidebar()) {
+                setDesktopSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+                return;
+            }
+
+            if (document.body.classList.contains('sidebar-mobile-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        // Close sidebar when clicking overlay
+        sidebarOverlay?.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (event) => {
+            if (!isDesktopSidebar() && sidebar && sidebarToggle && !sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                closeSidebar();
+            }
+        });
+
+        // Close sidebar when clicking on a link in mobile drawer mode
+        document.querySelectorAll('.sidebar-link').forEach((link) => {
+            link.addEventListener('click', () => {
+                if (!isDesktopSidebar()) {
+                    closeSidebar();
+                }
+            });
+        });
+
+        if (typeof sidebarDesktopQuery.addEventListener === 'function') {
+            sidebarDesktopQuery.addEventListener('change', syncSidebarMode);
+        } else if (typeof sidebarDesktopQuery.addListener === 'function') {
+            sidebarDesktopQuery.addListener(syncSidebarMode);
+        }
+
+        syncSidebarMode();
+
+        // Set Active Sidebar Link
+        function updateActiveSidebarLink(pageName) {
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.querySelector(`.sidebar-link[data-page="${pageName}"]`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set active link based on current URL
+            const currentPath = window.location.pathname;
+            if (currentPath === '/' || currentPath.includes('landing')) {
+                updateActiveSidebarLink('dashboard');
+            } else if (currentPath.includes('product_scanning')) {
+                updateActiveSidebarLink('product-scanning');
+            } else if (currentPath.includes('rs2t')) {
+                updateActiveSidebarLink('translator');
+            } else if (currentPath.includes('warehouse-inspection')) {
+                updateActiveSidebarLink('warehouse-inspection');
+            } else if (currentPath.includes('material-rework')) {
+                updateActiveSidebarLink('material-rework');
+            } else if (currentPath.includes('vendorlink')) {
+                updateActiveSidebarLink('vendorlink');
+            } else if (currentPath.startsWith('/meril-v')) {
+                updateActiveSidebarLink('merilv');
+            } else if (currentPath.includes('admin')) {
+                updateActiveSidebarLink('admin');
+            }
+        });
+
+        // User Dropdown Toggle
+        function toggleDropdown() {
+            document.getElementById('userDropdown').classList.toggle('active');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const userMenu = document.querySelector('.user-menu');
+            const dropdown = document.getElementById('userDropdown');
+            if (userMenu && !userMenu.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        // Search Functionality (Quick App Search)
+        const searchInput = document.getElementById('searchInput');
+        const searchBox = document.getElementById('navSearch');
+        const searchClear = document.getElementById('searchClear');
+        const searchKbd = document.getElementById('searchKbd');
+
+        // Name the shortcut the way this keyboard actually names it, rather
+        // than showing Windows users a key their keyboard does not have.
+        if (searchKbd && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) {
+            searchKbd.textContent = '⌘ K';
+        }
+
+        function runAppSearch(query) {
+            const q = (query || '').trim().toLowerCase();
+            document.querySelectorAll('.app-card').forEach(card => {
+                const title = card.querySelector('.app-title')?.textContent.toLowerCase() || '';
+                const description = card.querySelector('.app-description')?.textContent.toLowerCase() || '';
+                card.style.display = (!q || title.includes(q) || description.includes(q)) ? '' : 'none';
+            });
+            // Drives which of the shortcut chip / clear button is laid out.
+            searchBox?.classList.toggle('has-text', q.length > 0);
+            if (searchClear) searchClear.hidden = q.length === 0;
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => runAppSearch(e.target.value));
+
+            searchClear?.addEventListener('click', () => {
+                searchInput.value = '';
+                runAppSearch('');
+                searchInput.focus();
+            });
+
+            // Escape clears a search in progress, and only steps out of the
+            // field once there is nothing left to clear — so one press never
+            // both empties the box and loses your place.
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                e.stopPropagation();
+                if (searchInput.value) {
+                    searchInput.value = '';
+                    runAppSearch('');
+                } else {
+                    searchInput.blur();
+                }
+            });
+
+            // The browser can restore a value on back-navigation without ever
+            // firing input, which would leave the chip showing over live text.
+            runAppSearch(searchInput.value);
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Cmd/Ctrl + K to focus search
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                searchInput?.focus();
+                searchInput?.select();
+            }
+            
+            // Escape to close dropdowns
+            if (e.key === 'Escape') {
+                document.getElementById('userDropdown')?.classList.remove('active');
+                closeSidebar();
+            }
+        });
+
+        // Prevent caching of authenticated pages
+        (function() {
+            if (typeof window.sessionStorage !== 'undefined') {
+                const lastLogout = localStorage.getItem('last_logout');
+                const currentTime = new Date().getTime();
+                
+                if (lastLogout && (currentTime - lastLogout) < 5000) {
+                    sessionStorage.clear();
+                }
+            }
+            
+            // Was: a pushState(current URL) on every load plus a popstate
+            // handler that called location.reload(). Together those broke the
+            // browser Back button across the whole platform:
+            //
+            //   * the pushState duplicated EVERY page's history entry, so the
+            //     first Back press only moved between the two copies of the
+            //     same URL and looked like it did nothing;
+            //   * the popstate guard tested `body.authenticated`, but <body>
+            //     carries no class, so the test was always true and every Back
+            //     press additionally forced a reload of the page you were
+            //     trying to leave.
+            //
+            // The actual goal — never show a cached authenticated page after
+            // logout — is what pageshow/persisted is for: it fires only when
+            // the document was restored from the back/forward cache, and it
+            // needs no history manipulation, so Back behaves normally.
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    location.reload();
+                }
+            });
+        })();
+    </script>
+
+    <!-- Division master (from DB) made available to all page scripts -->
+    {{ lp_divisions|json_script:"lp-divisions-data" }}
+    <script>
+        try {
+            window.LP_DIVISIONS = JSON.parse(
+                document.getElementById('lp-divisions-data').textContent
+            );
+        } catch (e) { window.LP_DIVISIONS = []; }
+    </script>
+
+    <!-- All logistics masters (from DB) for dynamic advanced-filter dropdowns -->
+    {{ lp_masters|json_script:"lp-masters-data" }}
+    <script>
+        try {
+            window.LP_MASTERS = JSON.parse(
+                document.getElementById('lp-masters-data').textContent
+            );
+        } catch (e) { window.LP_MASTERS = { zones: [], modes: [], states: [], couriers: [] }; }
+    </script>
+
+    <!-- Auto-loaded component JS (from @uses_components) — before page JS -->
+    {% for f in ui_js %}<script src="{% static f %}"></script>
+    {% endfor %}
+
+    {% block extra_js %}{% endblock %}
+
+    {% if user.is_authenticated %}
+    <script>
+    // ── Notification Bell ──────────────────────────────────────────────────
+    (function () {
+        const bell      = document.getElementById('notifBell');
+        const dropdown  = document.getElementById('notifDropdown');
+        const badge     = document.getElementById('notifBadge');
+        const listEl    = document.getElementById('notifList');
+        const markAllBtn = document.getElementById('notifMarkAll');
+        if (!bell) return;
+
+        // Respect user's browser notification preference
+        if (bell.dataset.notifEnabled === 'false') {
+            bell.style.display = 'none';
+            return;
+        }
+
+        const API_BASE = bell.dataset.notifApi || '/product_scanning/api/notifications';
+
+        function getCookie(name) {
+            const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
+            return c ? decodeURIComponent(c.split('=')[1]) : null;
+        }
+
+        function relativeTime(isoStr) {
+            const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+            if (diff < 60)  return 'just now';
+            if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+            return new Date(isoStr).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+        }
+
+        function updateBadge(count) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'block';
+                bell.classList.add('has-alert');
+            } else {
+                badge.style.display = 'none';
+                bell.classList.remove('has-alert');
+            }
+        }
+
+        async function fetchCount() {
+            try {
+                const r = await fetch(`${API_BASE}/unread_count/`, {credentials:'same-origin'});
+                if (!r.ok) return;
+                const d = await r.json();
+                updateBadge(d.count || 0);
+            } catch {}
+        }
+
+        async function fetchNotifications() {
+            try {
+                const r = await fetch(`${API_BASE}/`, {credentials:'same-origin'});
+                if (!r.ok) { listEl.innerHTML = '<div class="notif-empty">Could not load</div>'; return; }
+                const items = await r.json();
+                if (!items.length) {
+                    listEl.innerHTML = '<div class="notif-empty">No notifications yet</div>';
+                    return;
+                }
+                listEl.innerHTML = items.map(n => `
+                    <div class="notif-item ${n.is_read ? '' : 'unread'}" data-id="${n.id}"
+                         onclick="notifClick(${n.id}, '${n.session_key || ''}')">
+                        <div class="notif-item-title">${n.title}</div>
+                        <div class="notif-item-msg">${n.message}</div>
+                        <div class="notif-item-time">${relativeTime(n.created_at)}</div>
+                    </div>
+                `).join('');
+                updateBadge(items.filter(n => !n.is_read).length);
+            } catch { listEl.innerHTML = '<div class="notif-empty">Could not load</div>'; }
+        }
+
+        window.notifClick = async function(id, sessionKey) {
+            // Mark as read
+            await fetch(`${API_BASE}/mark_read/`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+                credentials: 'same-origin',
+                body: JSON.stringify({id}),
+            });
+            // Navigate to session if available
+            if (sessionKey) {
+                window.location.href = `/product_scanning/session/${sessionKey}/`;
+            } else {
+                // Just update the item style in-place
+                const el = listEl.querySelector(`[data-id="${id}"]`);
+                if (el) el.classList.remove('unread');
+                fetchCount();
+            }
+            dropdown.style.display = 'none';
+        };
+
+        window.markAllRead = async function(e) {
+            e.stopPropagation();
+            await fetch(`${API_BASE}/mark_read/`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-CSRFToken':getCookie('csrftoken')},
+                credentials: 'same-origin',
+                body: JSON.stringify({}),
+            });
+            fetchNotifications();
+            fetchCount();
+        };
+
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', window.markAllRead);
+        }
+
+        // Toggle dropdown
+        bell.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const open = dropdown.style.display === 'block';
+            dropdown.style.display = open ? 'none' : 'block';
+            if (!open) {
+                fetchNotifications();
+                fetchCount();
+            }
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!bell.contains(e.target)) dropdown.style.display = 'none';
+        });
+
+        // Poll unread count every 30 seconds
+        fetchCount();
+        setInterval(fetchCount, 30000);
+    })();
+    </script>
+    {% endif %}
+
+    {% include "_matomo.html" %}
+
+    <script>
+    // Apply user timezone to all <time data-utc> elements
+    (function() {
+      var tz = document.documentElement.dataset.tz || 'UTC';
+      document.querySelectorAll('time[data-utc]').forEach(function(el) {
+        try {
+          var dt = new Date(el.dataset.utc);
+          if (isNaN(dt)) return;
+          var fmt = el.dataset.fmt || 'datetime';
+          var text;
+          if (fmt === 'datetime') {
+            text = new Intl.DateTimeFormat('en-IN', {
+              timeZone: tz, weekday: 'long', day: '2-digit',
+              month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }).format(dt);
+          } else if (fmt === 'short') {
+            text = new Intl.DateTimeFormat('en-IN', {
+              timeZone: tz, day: '2-digit', month: 'short'
+            }).format(dt);
+          } else if (fmt === 'month-year') {
+            text = new Intl.DateTimeFormat('en-IN', {
+              timeZone: tz, month: 'short', year: 'numeric'
+            }).format(dt);
+          }
+          if (text) el.textContent = text;
+        } catch(e) {}
+      });
+    })();
+    </script>
+
+    {% comment %}
+    The floating Feedback button, everywhere except the modules that asked to
+    drop it — see FEEDBACK_FAB_EXCLUDED in core/context_processors.py.
+
+    They are dense operational screens with their own fixed furniture in the
+    bottom-right corner (Meril GPT's composer, the scanner console's status
+    rail, Material Rework's wide action tables), and a 1200-z-index pill parked
+    on top of it was in the way rather than to hand. Feedback is still one click
+    away in the sidebar on every page.
+
+    Gated on the resolved URL namespace rather than a path prefix: the mount
+    points live in core/urls.py and a namespace does not silently start
+    matching some future app that happens to share a prefix. The list lives in
+    the context processor rather than being spelled out here as a chain of
+    `!=` comparisons, which is how Material Rework came to be missing from it.
+    {% endcomment %}
+    {% if user.is_authenticated and request.resolver_match.namespace not in FEEDBACK_FAB_EXCLUDED %}
+    <!-- ── Floating Feedback Button ──────────────────────────────────── -->
+    <style>
+    .fb-float-btn {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 1200;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #0076c8, #00b5e2);
+        color: #fff;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 20px;
+        font-size: .9em;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(0,118,200,.35);
+        text-decoration: none;
+        transition: transform .2s, box-shadow .2s, opacity .2s;
+        letter-spacing: .01em;
+    }
+    .fb-float-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(0,118,200,.45);
+        color: #fff;
+    }
+    .fb-float-btn .fb-float-icon { font-size: 1.05em; }
+    /* Hide on feedback pages themselves to avoid duplication */
+    body.page-feedback .fb-float-btn { display: none !important; }
+    @media (max-width: 600px) {
+        .fb-float-btn .fb-float-label { display: none; }
+        .fb-float-btn { padding: 13px; border-radius: 50%; }
+    }
+    </style>
+    <a href="/feedback/" class="fb-float-btn" title="Report a bug or give feedback">
+        <span class="fb-float-icon">💬</span>
+        <span class="fb-float-label">Feedback</span>
+    </a>
+    <script>
+    // Mark the feedback page so we can hide the float button
+    (function(){
+        const p = window.location.pathname;
+        if (p.startsWith('/feedback') || p.startsWith('/product_scanning/feedback')) {
+            document.body.classList.add('page-feedback');
+        }
+    })();
+    </script>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Meril – Hospital Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/hospital_master.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="top-header">
+    <div>
+      <h1>Hospital Master</h1>
+      <p>Manage hospital accounts and SAP customer codes</p>
+    </div>
+    <a href="{% url 'product_scanning:dashboard' %}" class="back-link">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="num" id="statTotal">—</div><div class="lbl">Total Hospitals</div></div>
+    <div class="stat-card"><div class="num" id="statWith" style="color:#2e7d32">—</div><div class="lbl">With SAP Code</div></div>
+    <div class="stat-card"><div class="num" id="statWithout" style="color:#e65100">—</div><div class="lbl">Without SAP Code</div></div>
+  </div>
+
+  {% if not can_view_only %}
+  <!-- Upload Panel -->
+  <div class="panel">
+    <div class="panel-hd">
+      <div class="panel-title">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Bulk Import / Update
+      </div>
+      <a href="/product_scanning/api/hospitals/export-template/" class="btn btn-outline btn-sm" style="text-decoration:none">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download CSV Template
+      </a>
+    </div>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+      <svg width="26" height="26" fill="none" stroke="#aaa" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:7px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div class="uz-text">Drag &amp; drop or click to upload CSV / Excel</div>
+      <div class="uz-hint">Required columns: <strong>hospital_name</strong>, <strong>customer_code</strong></div>
+      <div class="uz-chosen" id="fileChosen"></div>
+    </div>
+    <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="import-result" id="importResult"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-success" id="uploadBtn" onclick="uploadFile()" disabled>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import &amp; Update
+      </button>
+      <button class="btn btn-outline" onclick="resetUpload()">Clear</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Table Panel -->
+  <div class="panel">
+    <div class="panel-hd">
+      <div class="panel-title">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        All Hospitals
+      </div>
+      {% if not can_view_only %}
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Hospital
+      </button>
+      {% endif %}
+    </div>
+    <div style="overflow-x:auto">
+      <table id="hospTable" class="display" style="width:100%">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Hospital Name</th>
+            <th>SAP Code</th>
+            <th>Province</th>
+            <th>Location</th>
+            <th>Contact Person</th>
+            <th>Phone</th>
+            <th>Salesperson Email</th>
+            <th style="width:90px">Actions</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal('editModal')">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="modalTitle">Add Hospital</h3>
+      <button class="modal-close-x" onclick="closeModal('editModal')">&times;</button>
+    </div>
+    <div class="modal-bd">
+      <div class="modal-alert" id="modalAlert"></div>
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Hospital Name <span class="req">*</span></label>
+          <input type="text" class="form-control" id="fName" placeholder="e.g. City Hospital">
+          <div class="ferr" id="fNameErr">Hospital name is required.</div>
+        </div>
+        <div class="form-group">
+          <label>SAP / Customer Code <span class="req">*</span></label>
+          <input type="text" class="form-control" id="fSap" placeholder="e.g. C001234">
+          <div class="ferr" id="fSapErr">SAP code is required.</div>
+        </div>
+        <div class="form-group">
+          <label>Province</label>
+          <input type="text" class="form-control" id="fProvince" placeholder="e.g. Maharashtra">
+        </div>
+        <div class="form-group">
+          <label>Location / City</label>
+          <input type="text" class="form-control" id="fLocation" placeholder="e.g. Mumbai">
+        </div>
+        <div class="form-group">
+          <label>Contact Person</label>
+          <input type="text" class="form-control" id="fContact" placeholder="e.g. Dr. Sharma">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" class="form-control" id="fPhone" placeholder="e.g. 9876543210">
+        </div>
+        <div class="form-group">
+          <label>Hospital Email</label>
+          <input type="email" class="form-control" id="fEmail" placeholder="e.g. admin@hospital.com">
+        </div>
+        <div class="form-group">
+          <label>Salesperson Email</label>
+          <input type="email" class="form-control" id="fSaleEmail" placeholder="e.g. rep@merillife.com">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('editModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveHospital()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Hospital
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="deleteModal" onclick="if(event.target===this)closeModal('deleteModal')">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-hd"><h3 style="color:#c62828">Delete Hospital</h3><button class="modal-close-x" onclick="closeModal('deleteModal')">&times;</button></div>
+    <div class="del-body">Are you sure you want to delete <span class="del-name" id="delLabel"></span>?<br><br><span style="color:#c62828;font-size:.88em">This cannot be undone.</span></div>
+    <div class="modal-ft">
+      <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn btn-danger" id="confirmDelBtn" onclick="confirmDelete()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"canViewOnly":{{ can_view_only|yesno:"true,false" }}}</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/hospital_master.js' %}"></script>
+{% endblock %}

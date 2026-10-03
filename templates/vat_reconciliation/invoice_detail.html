@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Invoice Result — VAT Reconciliation{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/vat_reconciliation/vat_invoice.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<script>
+const DET_CONFIG = {
+  invoiceId: {{ invoice_id }},
+  urls: {
+    detail:    "{% url 'vat:invoice_detail_api' 0 %}".replace('/0/', '/'),
+    process:   "{% url 'vat:invoice_process_api' 0 %}".replace('/0/', '/'),
+    emailDraft:"{% url 'vat:invoice_email_draft_api' 0 %}".replace('/0/', '/'),
+    chaContacts:"{% url 'vat:invoice_cha_contacts_api' 0 %}".replace('/0/', '/'),
+    sendCha:   "{% url 'vat:invoice_send_cha_api' 0 %}".replace('/0/', '/'),
+    listPage:  "{% url 'vat:invoice_list' %}",
+  }
+};
+</script>
+
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vat:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        VAT Reconciliation
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-file-invoice-dollar"></i> <span id="hdrInvoiceNo">Invoice</span></h1>
+          <p id="hdrSub">VAT Working Summary &amp; reconciliation result</p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <span id="hdrStatus" class="badge badge-amber" style="font-size:13px;padding:6px 14px;">—</span>
+          <a class="btn btn-ghost btn-sm" href="{% url 'vat:invoice_list' %}"><i class="fas fa-arrow-left"></i> Back</a>
+          <button class="btn btn-navy btn-sm" onclick="reprocess(this)"><i class="fas fa-sync-alt"></i> Re-process</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    <div id="errBanner" class="alert-banner warn" style="display:none;margin-bottom:16px;">
+      <i class="fas fa-exclamation-triangle" style="color:var(--amber)"></i>
+      <span id="errBannerMsg"></span>
+    </div>
+
+    <!-- ── INVOICE META CARDS ── -->
+    <div class="det-cards fi fi-1" id="metaCards"></div>
+
+    <!-- ── COUNTRY-SPECIFIC VAT OUTPUT ── -->
+    <div class="section-hdr fi fi-2" style="margin-top:24px;">
+      <h2 id="outputTitle">VAT Working Summary</h2>
+      <span id="outputCountryTag" class="badge badge-muted" style="margin-left:8px;"></span>
+    </div>
+    <div class="det-output fi fi-2" id="countryOutput">
+      <div class="loading-overlay"><span class="loading-spinner"></span> Loading…</div>
+    </div>
+
+    <!-- ── EXPECTED VAT — CALCULATION / FORMULA ── -->
+    <div class="section-hdr fi fi-2" style="margin-top:24px;">
+      <h2><i class="fas fa-square-root-alt"></i> Expected VAT — Calculation</h2>
+    </div>
+    <div class="vat-formula fi fi-2" id="vatFormula"></div>
+
+    <!-- ── RECONCILIATION RESULT ── -->
+    <div class="section-hdr fi fi-3" style="margin-top:24px;"><h2>Reconciliation</h2></div>
+    <div class="det-recon fi fi-3" id="reconBox"></div>
+
+    <!-- ── OCR / TRANSLATION ── -->
+    <div class="section-hdr fi fi-4" style="margin-top:24px;"><h2>OCR &amp; Translation</h2></div>
+    <div class="det-textgrid fi fi-4">
+      <div class="det-textbox">
+        <div class="det-textbox-hdr"><i class="fas fa-language"></i> Raw OCR Text <span id="ocrLang" class="badge badge-muted"></span></div>
+        <pre id="rawText" class="det-pre">—</pre>
+      </div>
+      <div class="det-textbox">
+        <div class="det-textbox-hdr"><i class="fas fa-flag-usa"></i> Translated Text (English)</div>
+        <pre id="translatedText" class="det-pre">—</pre>
+      </div>
+    </div>
+
+    <!-- ── EMAIL DRAFT ── -->
+    <div class="section-hdr fi fi-5" style="margin-top:24px;">
+      <h2>Email Draft</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="copyEmail(this)"><i class="fas fa-copy"></i> Copy</button>
+        <button class="btn btn-navy btn-sm" onclick="openSendCha()"><i class="fas fa-paper-plane"></i> Send to CHA</button>
+      </div>
+    </div>
+    <div class="det-email fi fi-5">
+      <div class="form-field" style="margin-bottom:10px;">
+        <label class="form-label">Subject</label>
+        <input type="text" id="emailSubject" class="form-input">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Body</label>
+        <textarea id="emailBody" class="form-input" style="min-height:220px;font-family:var(--font-mono);font-size:12.5px;"></textarea>
+      </div>
+    </div>
+
+  </div><!-- /lm-inner -->
+</div><!-- /lm-page -->
+
+<!-- ═══ SEND TO CHA MODAL ═══ -->
+<div class="lmodal-overlay" id="sendChaOverlay">
+  <div class="lmodal" style="max-width:640px">
+    <div class="lmodal-hdr" style="background:var(--blue-lt)">
+      <div class="lmodal-icon" style="background:var(--blue)"><i class="fas fa-paper-plane"></i></div>
+      <div>
+        <h3 style="color:var(--blue)">Send to CHA</h3>
+        <p style="color:var(--navy)" id="sendChaSub">Choose recipients for this invoice's country</p>
+      </div>
+      <button type="button" onclick="closeSendCha()" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+
+    <div class="lmodal-body" style="max-height:70vh;overflow-y:auto">
+      <div class="form-field" style="margin-bottom:12px;">
+        <label class="form-label">Recipients</label>
+        <div id="chaRecipients" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;max-height:180px;overflow:auto;">
+          <div class="loading-overlay" style="padding:14px"><span class="loading-spinner"></span> Loading CHA contacts…</div>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:12px;">
+        <label class="form-label">Subject</label>
+        <input type="text" id="chaSubject" class="form-input">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Body</label>
+        <textarea id="chaBody" class="form-input" style="min-height:200px;font-family:var(--font-mono);font-size:12.5px;"></textarea>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+        <i class="fas fa-paperclip"></i> The uploaded invoice file(s) will be attached automatically.
+      </div>
+    </div>
+
+    <div class="lmodal-footer">
+      <button type="button" class="btn btn-ghost" onclick="closeSendCha()"><i class="fas fa-times"></i> Cancel</button>
+      <button type="button" class="btn btn-navy" onclick="sendCha(this)"><i class="fas fa-paper-plane"></i> Send Email</button>
+    </div>
+  </div>
+</div>
+
+<div class="lm-toast" id="lmToast"><i class="fas fa-check-circle"></i><span class="toast-msg">Done</span></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/vat_reconciliation/vat_invoice_detail.js' %}"></script>
+{% endblock %}

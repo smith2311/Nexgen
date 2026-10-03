@@ -1,0 +1,724 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NexGen Automation | SSO Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="{% static 'css/helvetica-neue-fonts.css' %}">
+
+    <style>
+        :root {
+            --primary: #0076c8;
+            --primary-dark: #005a9e;
+            --primary-light: #00a0e3;
+            --accent: #00b5e2;
+            --bg-body: linear-gradient(135deg, #0076c8 0%, #00b5e2 60%, #0093d0 100%);
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --error: #dc2626;
+            --border-color: #e5e7eb;
+            --shadow-soft: 0 25px 60px rgba(0, 0, 0, 0.15);
+            --zoho-red: #e42527;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(rgba(0, 45, 110, 0.52), rgba(0, 60, 130, 0.52)),
+                        url("{% static 'img/Meril_park.jpg' %}") center / cover no-repeat fixed;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .page-wrapper {
+            width: 100%;
+            max-width: 1100px;
+            padding: 24px;
+        }
+
+        .login-shell {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 0;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 16px;
+            box-shadow: var(--shadow-soft);
+            /* overflow: hidden removed — would flatten preserve-3d on flip card */
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+        }
+
+        /* Left panel: brand + illustration */
+        .brand-panel {
+            position: relative;
+            padding: 32px 40px;
+            background: linear-gradient(145deg, #f0f9ff, #e8f4fd 60%, #dbeafe);
+            border-right: 1px solid var(--border-color);
+            border-radius: 16px 0 0 16px;
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+
+        .brand-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #0076c8, #00b5e2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 118, 200, 0.25);
+        }
+
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .brand-text-main {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .brand-text-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .brand-body-title {
+            font-size: 26px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1f2937;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-body-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        .brand-highlights {
+            list-style: none;
+            margin-bottom: 40px;
+        }
+
+        .brand-highlights li {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #4b5563;
+            margin-bottom: 12px;
+        }
+
+        .brand-highlights li span.icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(0, 118, 200, 0.12);
+            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .brand-footer {
+            position: absolute;
+            bottom: 24px;
+            left: 40px;
+            right: 40px;
+            font-size: 11px;
+            color: #9ca3af;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .brand-footer a:hover {
+            color: var(--primary);
+        }
+
+        /* Right panel: flip card container */
+        .flip-card-container {
+            perspective: 1400px;
+            min-height: 520px;
+        }
+
+        .flip-card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .flip-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            padding: 32px 40px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow-y: auto;
+            border-radius: 0 16px 16px 0;
+        }
+
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Password form fields */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-main);
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="password"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 118, 200, 0.12);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0, 118, 200, 0.25);
+            margin-top: 4px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 118, 200, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .back-to-sso {
+            margin-top: 14px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            justify-content: center;
+            width: 100%;
+            padding: 6px;
+            font-family: inherit;
+            transition: color 0.2s;
+        }
+
+        .back-to-sso:hover {
+            color: var(--primary);
+        }
+
+        .dev-warning {
+            margin-top: 16px;
+            padding: 10px 12px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            font-size: 11.5px;
+            color: #92400e;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .form-header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            letter-spacing: -0.3px;
+        }
+
+        .form-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .messages .error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            padding: 12px 14px;
+            font-size: 13px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        /* SSO Button Styles */
+        .sso-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .btn-sso {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #ffffff;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-sso:hover {
+            border-color: var(--primary);
+            background: #f0f9ff;
+            box-shadow: 0 8px 32px rgba(0, 118, 200, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .btn-sso:active {
+            transform: translateY(0);
+        }
+
+        /* Zoho specific styling */
+        .btn-zoho {
+            background: linear-gradient(135deg, #e42527, #c91d1f);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 4px 20px rgba(228, 37, 39, 0.25);
+        }
+
+        .btn-zoho:hover {
+            background: linear-gradient(135deg, #c91d1f, #a71719);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 8px 32px rgba(228, 37, 39, 0.3);
+        }
+
+        /* Grey secondary variant — same footprint as .btn-sso */
+        .btn-grey {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            color: #4b5563;
+            box-shadow: 0 4px 20px rgba(17, 24, 39, 0.06);
+            font-family: inherit;
+        }
+
+        .btn-grey:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
+            color: #374151;
+            box-shadow: 0 8px 32px rgba(17, 24, 39, 0.1);
+        }
+
+        .btn-grey .sso-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .sso-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sso-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 24px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .divider span {
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .security-note {
+            margin-top: 28px;
+            padding: 14px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .security-note strong {
+            color: var(--primary-dark);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .help-text {
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .help-text a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .help-text a:hover {
+            color: var(--primary-dark);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .login-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .brand-panel {
+                display: none;
+            }
+
+            .flip-card-container {
+                padding: 28px 22px;
+            }
+
+            .flip-card-front,
+            .flip-card-back {
+                padding: 28px 22px;
+                border-radius: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-wrapper {
+                padding: 16px;
+            }
+
+            .login-shell {
+                border-radius: 12px;
+            }
+
+            .form-title {
+                font-size: 20px;
+            }
+
+            .btn-sso {
+                padding: 14px 16px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <div class="login-shell">
+
+        <!-- Left: Brand / Info -->
+        <div class="brand-panel">
+            <div class="brand-header">
+                <div class="brand-logo">
+                    <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril Logo">
+                </div>
+                <div>
+                    <div class="brand-text-main">NexGen IT Automation</div>
+                    <div class="brand-text-sub">Meril Group Automation Tool</div>
+                </div>
+            </div>
+
+            <div class="brand-body">
+                <div class="brand-body-title">Secure Single Sign-On</div>
+                <div class="brand-body-subtitle">
+                    Access all your workplace tools with one secure login through Zoho SSO.
+                </div>
+
+                <ul class="brand-highlights">
+                    <li>
+                        <span class="icon">✓</span>
+                        One-click access with your Meril credentials
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        Enterprise-grade security and encryption
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        Seamless integration across all platforms
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        24x7 availability with enhanced monitoring
+                    </li>
+                </ul>
+            </div>
+
+            <div class="brand-footer">
+                <span>© 2025 Meril Life Sciences Pvt. Ltd.</span>
+                <span>Support: <a href="mailto:scm.digitalsupport@merillife.com">scm.digitalsupport@merillife.com</a></span>
+            </div>
+        </div>
+
+        <!-- Right: Flip Card -->
+        <div class="flip-card-container">
+            <div class="flip-card" id="loginFlipCard">
+
+                <!-- FRONT: Zoho SSO -->
+                <div class="flip-card-front">
+                    <div class="form-header">
+                        <div class="form-title">Welcome to NexGen</div>
+                        <div class="form-subtitle">
+                            Sign in securely using your Meril Zoho account to access automation tools and dashboards.
+                        </div>
+                    </div>
+
+                    <!-- Django messages for errors -->
+                    {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                            <div class="error">
+                                <strong>Authentication Error:</strong><br>
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- SSO Login Button -->
+                    <div class="sso-container">
+                        {# social_django stashes ?next= and honours it after the Zoho round-trip #}
+                        <a href="{% url 'social:begin' 'zoho' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn-sso btn-zoho">
+                            <span class="sso-icon">
+                                <!-- Zoho Icon SVG -->
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M21.5 2h-19C1.7 2 1 2.7 1 3.5v17c0 .8.7 1.5 1.5 1.5h19c.8 0 1.5-.7 1.5-1.5v-17c0-.8-.7-1.5-1.5-1.5zM8 18H4v-2h4v2zm0-3H4v-2h4v2zm0-3H4V9h4v2zm0-3H4V6h4v2zm6 9h-4v-2h4v2zm0-3h-4v-2h4v2zm0-3h-4V9h4v2zm0-3h-4V6h4v2zm6 9h-4v-2h4v2zm0-3h-4v-2h4v2zm0-3h-4V9h4v2zm0-3h-4V6h4v2z"/>
+                                </svg>
+                            </span>
+                            <span>Sign in with Zoho SSO</span>
+                        </a>
+
+                        <button class="btn-sso btn-grey" onclick="flipLoginCard()" type="button">
+                            <span class="sso-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
+                            </span>
+                            <span>Login with Username &amp; Password</span>
+                        </button>
+                    </div>
+
+                    <div class="security-note">
+                        <strong>🔒 Secure Authentication</strong>
+                        Your login is protected by Zoho's enterprise SSO. Only authorized Meril employees can access this system.
+                    </div>
+                </div>
+
+                <!-- BACK: Username + Password -->
+                <div class="flip-card-back">
+                    <div class="form-header">
+                        <div class="form-title">Login with Username & Password</div>
+                        <div class="form-subtitle">
+                            Sign in with your username and password.
+                        </div>
+                    </div>
+
+                    {% if form.errors %}
+                    <div class="messages">
+                        <div class="error">
+                            <strong>Login failed:</strong> Invalid username or password.
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="" autocomplete="off">
+                        {% csrf_token %}
+                        {% comment %}
+                        Without this, LoginView falls back to LOGIN_REDIRECT_URL and the page
+                        the user was heading for (e.g. a session link from a notification
+                        email) is discarded.
+                        {% endcomment %}
+                        <input type="hidden" name="next" value="{{ next }}">
+                        <div class="form-group">
+                            <label for="id_username">Username</label>
+                            <input type="text" id="id_username" name="username"
+                                   placeholder="Enter username"
+                                   value="{{ form.username.value|default:'' }}"
+                                   autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="id_password">Password</label>
+                            <input type="password" id="id_password" name="password"
+                                   placeholder="Enter password"
+                                   autocomplete="current-password">
+                        </div>
+                        <button type="submit" class="btn-submit">Sign In</button>
+                    </form>
+
+                    <button class="back-to-sso" onclick="flipLoginCard()" type="button">
+                        ← Back to Zoho SSO
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Flip card toggle
+    function flipLoginCard() {
+        document.getElementById('loginFlipCard').classList.toggle('flipped');
+    }
+
+    // If the back face has form errors, auto-flip to show them
+    (function () {
+        {% if form.errors %}flipLoginCard();{% endif %}
+    })();
+
+    // Clear any cached Zoho session data on page load
+    (function() {
+        // Clear all session storage
+        sessionStorage.clear();
+        
+        // Clear sensitive local storage keys
+        const keysToRemove = [
+            'auth_token',
+            'user_data',
+            'session_id',
+            'zoho_session',
+            'zoho_authenticated',
+            'zoho_user',
+            'translator_state',
+            'app_state'
+        ];
+        
+        keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+        });
+        
+        // Prevent caching by adding unique parameter to Zoho login URL
+        // This ensures fresh authentication every time
+        document.querySelectorAll('a[href*="social:begin"]').forEach(link => {
+            const originalHref = link.getAttribute('href');
+            link.setAttribute('href', originalHref + '?nocache=' + new Date().getTime());
+        });
+        
+        // Clear browser cache on page visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // User came back to page - clear any cached auth
+                sessionStorage.clear();
+            }
+        });
+    })();
+</script>
+
+{% include "_matomo.html" %}
+</body>
+</html>

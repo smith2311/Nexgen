@@ -1,0 +1,156 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ app.ref_no }} — Invitation Letter</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', Times, serif; font-size: 11.5pt; color: #000; background: #fff; }
+@page { size: A4; margin: 1.3cm 1.5cm; }
+
+/* On screen (before printing), @page margins don't apply — so give the
+   letter its own comfortable padding here. When actually printing, drop it
+   back to 0 so it doesn't double up with the @page margin above. */
+.letter-wrap { width: 100%; max-width: 900px; margin: 0 auto; padding: 32px 40px; position: relative; }
+
+@media print {
+  .letter-wrap { max-width: 100%; padding: 0; margin: 0; }
+}
+
+/* Letterhead */
+.lh { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.lh-date { font-size: 11pt; }
+/* Current brand wordmark. The source file is a square with a lot of white
+   padding — the wordmark itself is only about 29% of its height — so setting a
+   plain height would render the mark far smaller than the box it sits in.
+   Instead the box is sized to the mark we want (~138x56) and object-fit: cover
+   scales the square to that width and crops the surplus white off the top and
+   bottom. The mark is vertically centred in the source, so a centre crop keeps
+   it centred. Swapping in an already-trimmed logo later needs only the
+   object-fit line removed. */
+.lh-logo { width: 96px; height: 34px; overflow: hidden; }
+.lh-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+}
+
+
+.letter-body { font-size: 11pt; line-height: 1.45; margin-bottom: 12px; }
+.letter-body p     { margin: 0 0 11pt 0; }
+.letter-body table { border-collapse: collapse; font-size: 11pt; }
+
+/* Footer — mirrors the official Meril letterhead footer */
+.letter-footer {
+  margin-top: 16px;
+  position: relative;
+  padding-top: 14px;
+}
+.lf-watermark {
+  position: absolute;
+  top: -6px; left: 0; right: 0;
+  text-align: center;
+  font-size: 26pt;
+  font-weight: 700;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #000;
+  opacity: 0.08;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.lf-bar { height: 6px; background: #0033a0; margin-bottom: 8px; }
+.lf-content {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 8pt;
+  color: #333;
+  line-height: 1.5;
+}
+.lf-left { max-width: 60%; }
+.lf-right { text-align: right; white-space: nowrap; }
+
+/* Screen-only buttons */
+.screen-only {
+  position: fixed;
+  top: 16px; right: 16px;
+  display: flex; gap: 8px;
+  z-index: 100;
+}
+.print-btn {
+  padding: 8px 18px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.print-btn-primary { background: #0076c8; color: #fff; }
+.print-btn-ghost   { background: #f1f5f9; color: #334155; }
+
+@media print {
+  .screen-only { display: none !important; }
+  body { margin: 0; }
+
+  /* Print in full colour, matching the screen exactly: the Meril logo keeps its
+     colours and the footer bar stays brand blue (#0033a0).
+     print-color-adjust is still required — browsers drop background colours from
+     printed output by default, which made the footer bar vanish from every
+     printed letter and saved PDF. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<div class="screen-only">
+  <button class="print-btn print-btn-ghost" onclick="window.close()">Close</button>
+  <button class="print-btn print-btn-primary" onclick="window.print()">
+    🖨 Print / Save PDF
+  </button>
+</div>
+
+<div class="letter-wrap">
+
+  <!-- Letterhead -->
+  <div class="lh">
+    <div class="lh-date">
+      Date: {{ app.processed_at|date:"d/m/Y"|default:"" }}{% if not app.processed_at %}{% now "d/m/Y" %}{% endif %}
+    </div>
+    <div class="lh-logo">
+      <img src="{% static 'img/Meril Logo.jpg' %}" alt="Meril">
+    </div>
+  </div>
+
+  <!-- Letter body: the whole letter — address, subject, salutation, narrative,
+       passport particulars and signature — comes from the template text. -->
+  <div class="letter-body">{{ letter_body_html }}</div>
+
+  <!-- Footer -->
+  <div class="letter-footer">
+    <div class="lf-watermark">More to Life</div>
+    <div class="lf-bar"></div>
+    <div class="lf-content">
+      <div class="lf-left">
+        <div>{{ app.company.name }}</div>
+        {% if app.company.registered_address %}
+        <div>Registered Office: {{ app.company.registered_address }}</div>
+        {% endif %}
+      </div>
+      <div class="lf-right">
+        {% if app.company.cin %}<div>CIN. : {{ app.company.cin }}</div>{% endif %}
+        {% if app.company.tel %}<div>Tel. : {{ app.company.tel }}</div>{% endif %}
+        {% if app.company.email %}<div>Email : {{ app.company.email }}</div>{% endif %}
+        {% if app.company.website %}<div>Web : {{ app.company.website }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% include "_matomo.html" %}
+</body>
+</html>

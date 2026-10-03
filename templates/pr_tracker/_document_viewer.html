@@ -1,0 +1,127 @@
+{% comment %}
+The document preview overlay. Include once per page.
+
+Two callers, wanting different things:
+
+  * the PR screens preview a document that is already stored — it has a URL
+    on the server and a download worth offering;
+  * the Assign form previews a file the browser is still holding, chosen a
+    moment ago and not uploaded yet. There is no server URL, and a download
+    button would offer someone the file they just picked off their own disk.
+
+So the overlay exposes window.prtDocViewer.open() and the two callers pass
+what they have. The `.js-doc-preview` wiring below is just the first caller's
+adapter over that same call.
+{% endcomment %}
+<div class="prt-viewer" id="docViewer" hidden>
+  <div class="prt-viewer-box" role="dialog" aria-modal="true" aria-labelledby="docViewerName">
+    <div class="prt-viewer-bar">
+      <i class="fas fa-file"></i>
+      <span id="docViewerName"></span>
+      <a id="docViewerGet" class="prt-viewer-get" href="#">
+        <i class="fas fa-file-arrow-down"></i> Download
+      </a>
+      <button type="button" class="prt-viewer-x" id="docViewerClose" aria-label="Close preview">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="prt-viewer-body" id="docViewerBody"></div>
+  </div>
+</div>
+
+<script>
+/* Read a document without leaving the page.
+
+   A stored file comes from pr_document_preview, which serves it inline under
+   a type derived from the extension rather than from anything the uploader
+   supplied, with nosniff so the browser cannot second-guess that, and with
+   X-Frame-Options: SAMEORIGIN so this frame is allowed to show it at all —
+   the site sends DENY globally, which is what made this frame come back
+   "refused to connect" the first time round.
+
+   Office files never reach here: no browser renders them, so their row
+   offers the download only. */
+window.prtDocViewer = (function () {
+  var viewer = document.getElementById('docViewer');
+  if (!viewer) return { open: function () {}, close: function () {} };
+
+  var body   = document.getElementById('docViewerBody');
+  var name   = document.getElementById('docViewerName');
+  var get    = document.getElementById('docViewerGet');
+  var close  = document.getElementById('docViewerClose');
+  var opener = null;
+  var owned  = null;   /* an object URL this overlay created and must revoke */
+
+  /* open({name, url, isImage, download, revoke}) */
+  function open(file) {
+    name.textContent = file.name || '';          /* textContent: user input */
+
+    if (file.download) {
+      get.href = file.download;
+      get.hidden = false;
+    } else {
+      /* Nothing to offer: the viewer already has the file on their disk. */
+      get.removeAttribute('href');
+      get.hidden = true;
+    }
+
+    release();
+    owned = file.revoke ? file.url : null;
+    opener = file.opener || null;
+
+    body.innerHTML = '';
+    var frame;
+    if (file.isImage) {
+      frame = document.createElement('img');
+      frame.alt = file.name || '';
+    } else {
+      frame = document.createElement('iframe');
+      frame.title = file.name || '';
+    }
+    frame.src = file.url;
+    body.appendChild(frame);
+
+    viewer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    close.focus();
+  }
+
+  function release() {
+    if (owned) { URL.revokeObjectURL(owned); owned = null; }
+  }
+
+  function shut() {
+    viewer.hidden = true;
+    body.innerHTML = '';              /* stops the load and frees the file */
+    release();
+    document.body.style.overflow = '';
+    if (opener) { opener.focus(); opener = null; }
+  }
+
+  /* Stored documents: every row rendered by _document_list.html. */
+  Array.prototype.forEach.call(
+    document.querySelectorAll('.js-doc-preview'),
+    function (button) {
+      button.addEventListener('click', function () {
+        open({
+          name:     button.getAttribute('data-name'),
+          url:      button.getAttribute('data-url'),
+          download: button.getAttribute('data-download'),
+          isImage:  button.getAttribute('data-image') === '1',
+          opener:   button,
+        });
+      });
+    });
+
+  close.addEventListener('click', shut);
+  viewer.addEventListener('click', function (e) {
+    if (e.target === viewer) shut();          /* click the backdrop */
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !viewer.hidden) shut();
+  });
+  window.addEventListener('pagehide', release);
+
+  return { open: open, close: shut };
+})();
+</script>

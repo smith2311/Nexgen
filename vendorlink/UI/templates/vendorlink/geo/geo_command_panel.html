@@ -1,0 +1,148 @@
+{% load static %}
+{% comment %}
+VendorLink — Geo Command Centre.
+
+Include once, directly under the Admin Console banner on the launcher:
+
+    {% include "vendorlink/geo/geo_command_panel.html" %}
+
+Self-contained on purpose. The section brings its own stylesheet, its own
+script and its own endpoints, takes nothing from the page context, and writes
+nothing outside `.vlgeo` — so it can be moved to another screen by moving the
+one include line, and removed by deleting it.
+
+Assets are declared here rather than in the page's {% templatetag openblock %} block extra_css {% templatetag closeblock %}
+for the same reason: a page that includes this file cannot end up with the
+markup and not the CSS. A <link> in the body is valid HTML5 and, being a
+render-blocking stylesheet, still applies before the section paints.
+
+The URLs are handed over as data attributes with a __CODE__ placeholder that
+the controller substitutes, so the URL shape stays in urls.py and is never
+rebuilt by string concatenation in JavaScript.
+{% endcomment %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{% static 'vendorlink/geo/geo-command.css' %}">
+
+<section class="vlgeo"
+         data-vlgeo
+         data-vlgeo-theme="light"
+         aria-label="Global warehouse network"
+         data-api-overview="{% url 'vendorlink:geo_overview' %}"
+         data-api-continent="{% url 'vendorlink:geo_continent' '__CODE__' %}"
+         data-api-country="{% url 'vendorlink:geo_country' '__CODE__' %}"
+         data-api-state="{% url 'vendorlink:geo_state' '__COUNTRY__' '__STATE__' %}"
+         data-api-hierarchy="{% url 'vendorlink:geo_hierarchy' %}"
+         data-borders="{% static 'vendorlink/geo/world-countries.geojson' %}">
+
+    <header class="vlgeo__head">
+        <div>
+            <h2 class="vlgeo__title"><span class="vlgeo__title-dot"></span> Geo Command Centre</h2>
+            <p class="vlgeo__sub">Registered VendorLink warehouse footprint across the 3PL network — drill from region to country to state to city.</p>
+        </div>
+        <div class="vlgeo__head-actions">
+            <button type="button"
+                    class="vlgeo__theme"
+                    data-vlgeo-theme-toggle
+                    aria-pressed="false"
+                    aria-label="Switch to dark theme"
+                    title="Switch to dark theme">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 1.8a.8.8 0 0 1 .8.8v1.1a.8.8 0 1 1-1.6 0V2.6a.8.8 0 0 1 .8-.8Zm0 9.4a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm5.6-3.2a.8.8 0 0 1-.8.8h-1.1a.8.8 0 1 1 0-1.6h1.1a.8.8 0 0 1 .8.8ZM3.7 4.8a.8.8 0 0 1 0 1.1l-.8.8a.8.8 0 1 1-1.1-1.1l.8-.8a.8.8 0 0 1 1.1 0Zm8.4 8.4a.8.8 0 0 1 0-1.1l.8-.8a.8.8 0 1 1 1.1 1.1l-.8.8a.8.8 0 0 1-1.1 0ZM2.6 8a.8.8 0 0 1-.8.8H.7a.8.8 0 1 1 0-1.6h1.1a.8.8 0 0 1 .8.8Zm12.7 0a.8.8 0 0 1-.8.8h-1.1a.8.8 0 1 1 0-1.6h1.1a.8.8 0 0 1 .8.8ZM4.5 11.5a.8.8 0 0 1 1.1 0 .8.8 0 0 1 0 1.1l-.8.8a.8.8 0 0 1-1.1-1.1l.8-.8Zm7-7a.8.8 0 0 1 1.1 0l.8.8a.8.8 0 1 1-1.1 1.1l-.8-.8a.8.8 0 0 1 0-1.1Z"/>
+                </svg>
+                <span data-vlgeo-theme-label>Dark theme</span>
+            </button>
+            <nav class="vlgeo__trail" data-vlgeo-trail aria-label="Map drill-down"></nav>
+        </div>
+    </header>
+
+    {% comment %}
+    The four dependent selects. They are a second route to the same state the
+    map clicks set, not a filter beside it — picking Asia here and clicking
+    Asia on the map land in exactly the same place, and a drill by click moves
+    these to match. Each one is disabled until its parent is chosen, because a
+    state list with nothing above it is a list of every state in the network.
+    {% endcomment %}
+    <div class="vlgeo__filters" data-vlgeo-filters>
+        <label class="vlgeo__filter">
+            <span class="vlgeo__filter-label">Continent</span>
+            <select class="vlgeo__select" data-vlgeo-select="continent">
+                <option value="">All continents</option>
+            </select>
+        </label>
+        <label class="vlgeo__filter">
+            <span class="vlgeo__filter-label">Country</span>
+            <select class="vlgeo__select" data-vlgeo-select="country" disabled>
+                <option value="">Select a continent first</option>
+            </select>
+        </label>
+        <label class="vlgeo__filter">
+            <span class="vlgeo__filter-label">State / Region</span>
+            <select class="vlgeo__select" data-vlgeo-select="state" disabled>
+                <option value="">Select a country first</option>
+            </select>
+        </label>
+        <label class="vlgeo__filter">
+            <span class="vlgeo__filter-label">City</span>
+            <select class="vlgeo__select" data-vlgeo-select="city" disabled>
+                <option value="">Select a state first</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="vlgeo__body">
+
+        <!-- ── Map ─────────────────────────────────────────────────────── -->
+        <div class="vlgeo__stage" data-vlgeo-stage>
+            <div class="vlgeo__map" data-vlgeo-map data-tier="1"></div>
+
+            <div class="vlgeo__overlay vlgeo__overlay--tl">
+                <!-- Persistent at every tier below the first; the controller
+                     toggles `hidden`, never removes it. -->
+                <button type="button" class="vlgeo__back vlgeo-glass" data-vlgeo-back hidden>
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor"
+                              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Back
+                </button>
+                <span class="vlgeo__tier vlgeo-glass" data-vlgeo-tier>Tier <b>1</b> / 4</span>
+            </div>
+
+            <div class="vlgeo__overlay vlgeo__overlay--bl">
+                <div class="vlgeo__legend vlgeo-glass">
+                    <span class="vlgeo__legend-row"><i class="vlgeo__legend-sw vlgeo__legend-sw--pin"></i> Registered vendor location</span>
+                    <span class="vlgeo__legend-row"><i class="vlgeo__legend-sw vlgeo__legend-sw--approx"></i> City unresolved — country centre</span>
+                    <span class="vlgeo__legend-row"><i class="vlgeo__legend-sw vlgeo__legend-sw--scope"></i> Current selection</span>
+                </div>
+            </div>
+
+            <div class="vlgeo__veil" data-vlgeo-veil>
+                <span class="vlgeo__spinner" role="status" aria-label="Loading map data"></span>
+            </div>
+        </div>
+
+        <!-- ── Analytics panel ─────────────────────────────────────────── -->
+        <aside class="vlgeo__panel" aria-live="polite">
+            <div class="vlgeo__panel-head">
+                <h3 class="vlgeo__scope" data-vlgeo-scope>Global network</h3>
+                <span class="vlgeo__scope-kind" data-vlgeo-scope-kind>Worldwide</span>
+            </div>
+
+            <div class="vlgeo__kpis" data-vlgeo-kpis></div>
+
+            <div class="vlgeo__list-head">
+                <span data-vlgeo-list-title>Regions</span>
+                <span data-vlgeo-list-count></span>
+            </div>
+            <ul class="vlgeo__list" data-vlgeo-list></ul>
+
+            <p class="vlgeo__hint" data-vlgeo-hint>Hover a pin for the vendor at that location</p>
+        </aside>
+    </div>
+
+    <p class="vlgeo__error" data-vlgeo-error hidden></p>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="{% static 'vendorlink/geo/geo-command.js' %}" defer></script>

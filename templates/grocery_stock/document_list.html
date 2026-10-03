@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ spec.plural }} — Grocery Stock{% endblock %}
+{% block page_title %}{{ spec.plural }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+
+{{ columns|json_script:"gs-columns" }}
+<script>
+  const GS_LIST = {
+    slug:     "{{ slug|escapejs }}",
+    apiBase:  "/grocery/api/v1/{{ spec.endpoint }}/",
+    newUrl:   "{% url 'grocery_stock:document_new' slug %}",
+    detailUrlTemplate: "{% url 'grocery_stock:document_detail' slug 0 %}",
+    numberField: "{{ spec.number_field|escapejs }}",
+    dateField: "{{ spec.date_field|escapejs }}",
+    canWrite: {{ can_write|yesno:"true,false" }},
+    columns:  JSON.parse(document.getElementById('gs-columns').textContent),
+  };
+</script>
+
+<div class="lm-page gs-master gs-master-wide">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'grocery_stock:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Grocery Stock Management
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="{{ spec.icon }}"></i> {{ spec.plural }}</h1>
+          <p>{{ spec.subtitle }}</p>
+        </div>
+
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statTotal">—</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statDraft">—</div>
+            <div class="lm-hstat-lbl">Draft</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statPosted">—</div>
+            <div class="lm-hstat-lbl">Posted</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if not can_write %}
+    <div class="alert-banner">
+      <i class="fas fa-circle-info"></i>
+      <span>You have read-only access. Creating or posting a
+            {{ spec.title|lower }} requires the
+            <strong>{{ spec.write_roles_label }}</strong> role.</span>
+    </div>
+    {% endif %}
+
+    <div class="gs-filter-bar">
+      <div class="gs-search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="gsSearch" autocomplete="off"
+               placeholder="Search number, supplier or reference…">
+        <button type="button" class="gs-search-clear" id="gsSearchClear" hidden>&times;</button>
+      </div>
+
+      <div class="gs-pills" id="gsStatusPills">
+        <button type="button" class="gs-pill active" data-status="">All</button>
+        <button type="button" class="gs-pill" data-status="DRAFT">Draft</button>
+        <button type="button" class="gs-pill" data-status="POSTED">Posted</button>
+        <button type="button" class="gs-pill" data-status="CANCELLED">Cancelled</button>
+      </div>
+    </div>
+
+    <div class="gs-actions-bar">
+      <div class="gs-actions-left">
+        {% if can_write %}
+        <a class="btn btn-navy btn-sm" href="{% url 'grocery_stock:document_new' slug %}">
+          <i class="fas fa-plus"></i> New {{ spec.title }}
+        </a>
+        {% endif %}
+        <button class="btn btn-ghost btn-sm" id="gsRefreshBtn">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+      <div class="gs-actions-right">
+        <label class="gs-daterange">
+          <span>From</span><input type="date" id="gsFrom" class="gs-select-sm">
+        </label>
+        <label class="gs-daterange">
+          <span>To</span><input type="date" id="gsTo" class="gs-select-sm">
+        </label>
+        <div class="gs-record-count" id="gsRecordCount">Loading…</div>
+      </div>
+    </div>
+
+    <div class="gs-tbl-wrap">
+      <table class="gs-tbl">
+        <thead id="gsTblHead"></thead>
+        <tbody id="gsTblBody">
+          <tr><td class="gs-loading"><span class="gs-spinner"></span> Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="gs-pagi">
+        <div class="gs-pagi-info" id="gsPagiInfo">—</div>
+        <div class="gs-pagi-btns" id="gsPagiBtns"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="lm-toast" id="gsToast">
+  <i class="fas fa-check-circle"></i><span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/grocery_stock/grocery_common.js' %}"></script>
+<script src="{% static 'js/grocery_stock/grocery_document_list.js' %}"></script>
+{% endblock %}

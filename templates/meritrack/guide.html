@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MeriTrack User Guide{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-core.css' %}">
+<style>
+:root {
+  --g-blue:   var(--mt-primary);
+  --g-cyan:   var(--mt-secondary);
+  --g-green:  var(--mt-success);
+  --g-amber:  var(--mt-warning-dark);
+  --g-red:    var(--mt-danger);
+  --g-purple: var(--mt-purple);
+  --g-r:      14px;
+}
+.guide-page  { max-width:1080px; margin:0 auto; padding:28px 20px 80px; }
+
+/* Back button */
+.guide-back {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 18px; border-radius:10px;
+  font-size:.88rem; font-weight:600; text-decoration:none;
+  color:var(--mt-primary); background:var(--mt-primary-lighter); border:1.5px solid var(--mt-info-border);
+  transition:all .18s; cursor:pointer;
+}
+.guide-back:hover { background:var(--mt-info-light); border-color:var(--mt-info-border); }
+
+/* Hero */
+.guide-hero {
+  background:linear-gradient(135deg,var(--mt-primary) 0%,var(--mt-secondary) 100%);
+  border-radius:var(--g-r); padding:36px 40px; color:#fff;
+  display:flex; align-items:center; gap:24px;
+  margin-bottom:32px; position:relative; overflow:hidden;
+}
+.guide-hero::before { content:''; position:absolute; right:-50px; top:-50px;
+  width:220px;height:220px;background:rgba(255,255,255,.08);border-radius:50%; }
+.guide-hero-icon {
+  width:68px;height:68px;background:rgba(255,255,255,.2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:1.9rem;flex-shrink:0;
+}
+.guide-hero h1 { margin:0;font-size:1.65rem;font-weight:700; }
+.guide-hero p  { margin:.35rem 0 0;opacity:.9;font-size:.95rem; }
+
+/* Role pill row */
+.guide-roles { display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:28px; }
+.guide-role-pill {
+  padding:.45rem 1.1rem; border-radius:99px; font-size:.82rem; font-weight:600;
+  cursor:pointer; border:2px solid transparent; transition:all .18s;
+}
+.guide-role-pill.rep    { background:var(--mt-primary-lighter); color:var(--mt-primary); border-color:var(--mt-info-border); }
+.guide-role-pill.mgr    { background:var(--mt-success-light); color:var(--mt-success-dark); border-color:var(--mt-success-border); }
+.guide-role-pill.active { box-shadow:0 0 0 3px rgba(0,86,179,.35); }
+
+/* Section cards */
+.guide-section {
+  background:#fff; border:1.5px solid var(--mt-gray-200); border-radius:var(--g-r);
+  margin-bottom:20px; overflow:hidden;
+}
+.guide-section-head {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 20px; background:var(--mt-gray-50); border-bottom:1px solid var(--mt-gray-200);
+  cursor:pointer; user-select:none;
+}
+.guide-section-head .gs-icon { font-size:1.35rem; flex-shrink:0; }
+.guide-section-head .gs-title { font-size:1rem; font-weight:600; color:var(--mt-gray-800); flex:1; }
+.guide-section-head .gs-chevron { color:var(--mt-gray-400); transition:transform .2s; font-size:.85rem; }
+.guide-section-head.open .gs-chevron { transform:rotate(180deg); }
+.guide-section-body { padding:20px 24px; display:none; }
+.guide-section-body.open { display:block; }
+
+/* Steps */
+.guide-steps { list-style:none; margin:0; padding:0; }
+.guide-steps li {
+  display:flex; gap:14px; padding:12px 0;
+  border-bottom:1px solid var(--mt-gray-100);
+}
+.guide-steps li:last-child { border-bottom:none; }
+.guide-steps .step-num {
+  width:28px;height:28px;border-radius:50%;
+  background:var(--mt-primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.78rem;font-weight:700;flex-shrink:0;margin-top:1px;
+}
+.guide-steps .step-body strong { display:block;font-size:.9rem;color:var(--mt-gray-800);margin-bottom:.2rem; }
+.guide-steps .step-body p { margin:0;font-size:.85rem;color:var(--mt-gray-600);line-height:1.5; }
+
+/* Tips & notes */
+.guide-tip {
+  background:var(--mt-primary-lighter); border-left:4px solid var(--mt-info);
+  border-radius:0 8px 8px 0; padding:12px 16px;
+  font-size:.85rem; color:var(--mt-primary-dark); margin:12px 0;
+}
+.guide-tip strong { display:block;margin-bottom:.2rem; }
+.guide-warn {
+  background:var(--mt-orange-light); border-left:4px solid var(--mt-warning);
+  border-radius:0 8px 8px 0; padding:12px 16px;
+  font-size:.85rem; color:var(--mt-warning-text); margin:12px 0;
+}
+
+/* Role-specific sections */
+.role-rep, .role-mgr { display:none; }
+.show-rep .role-rep { display:block; }
+.show-mgr .role-mgr { display:block; }
+
+/* Quick-ref table */
+.guide-ref { width:100%; border-collapse:collapse; font-size:.85rem; }
+.guide-ref th { background:var(--mt-gray-100);padding:8px 12px;text-align:left;font-weight:600;color:var(--mt-gray-700); }
+.guide-ref td { padding:8px 12px;border-bottom:1px solid var(--mt-gray-100);color:var(--mt-gray-800); }
+.guide-ref tr:last-child td { border-bottom:none; }
+.badge-s { display:inline-block;padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600; }
+.badge-active   { background:var(--mt-warning-light);color:var(--mt-warning-text); }
+.badge-awaiting { background:var(--mt-info-light);color:var(--mt-primary-dark); }
+.badge-onhold   { background:var(--mt-purple-light);color:var(--mt-purple-dark); }
+.badge-closed   { background:var(--mt-success-light);color:var(--mt-success-dark); }
+.badge-cancel   { background:var(--mt-danger-light);color:var(--mt-danger-dark); }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+.guide-ref-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
+
+@media (max-width: 820px) {
+  .guide-hero { padding:26px 22px; gap:18px; }
+  .guide-hero h1 { font-size:1.35rem; }
+  .guide-hero-icon { width:56px;height:56px;font-size:1.55rem; }
+  .guide-section-body { padding:16px 18px; }
+}
+@media (max-width: 640px) {
+  .guide-page { padding:16px 13px 40px; }
+  .guide-hero {
+    flex-direction:column; align-items:flex-start; text-align:left;
+    padding:20px 16px; gap:12px; border-radius:12px; margin-bottom:22px;
+  }
+  .guide-hero::before { width:150px;height:150px;right:-40px;top:-40px; }
+  .guide-hero h1 { font-size:1.15rem; }
+  .guide-hero p  { font-size:.85rem; }
+  .guide-hero-icon { width:46px;height:46px;font-size:1.25rem; }
+  .guide-roles { gap:.4rem; margin-bottom:20px; }
+  .guide-role-pill { padding:.5rem .9rem; font-size:.78rem; min-height:40px; display:inline-flex; align-items:center; }
+  .guide-section-head { padding:13px 14px; gap:10px; min-height:52px; }
+  .guide-section-head .gs-title { font-size:.9rem; }
+  .guide-section-head .gs-icon { font-size:1.15rem; }
+  .guide-section-body { padding:14px; }
+  .guide-steps li { gap:10px; padding:11px 0; }
+  .guide-steps .step-num { width:25px;height:25px;font-size:.72rem; }
+  .guide-steps .step-body p { font-size:.83rem; }
+  .guide-tip, .guide-warn { padding:11px 13px; font-size:.82rem; }
+  .guide-back { min-height:42px; }
+  .guide-ref { font-size:.8rem; min-width:420px; }
+}
+@media (max-width: 380px) {
+  .guide-page { padding:12px 10px 32px; }
+  .guide-hero h1 { font-size:1.05rem; }
+  .guide-section-body { padding:12px 11px; }
+}
+</style>
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-motion.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-responsive.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="guide-page" id="guidePage">
+    {% include "meritrack/_nav.html" %}
+
+  <!-- Back -->
+  <div style="margin-bottom:18px;">
+    {# history.length counts the whole tab, so it is >1 even on a first visit #}
+    <a href="{% url 'meritrack:dashboard' %}" class="guide-back">← Back to dashboard</a>
+  </div>
+
+  <!-- Hero -->
+  <div class="guide-hero">
+    <div class="guide-hero-icon">📘</div>
+    <div>
+      <h1>MeriTrack User Guide</h1>
+      <p>Everything you need to know about scanning, inventory, and session management</p>
+    </div>
+  </div>
+
+  <!-- Role pills -->
+  <div class="guide-roles">
+    <span class="guide-role-pill rep active" onclick="setRole('rep', this)">🔬 MT Rep (Salesperson)</span>
+    <span class="guide-role-pill mgr" onclick="setRole('mgr', this)">📊 MT Manager / Logistics</span>
+  </div>
+
+  <!-- ════ REP CONTENT ════════════════════════════════════════════════════════ -->
+  <div class="role-rep">
+
+    <div class="guide-section">
+      <div class="guide-section-head open" onclick="toggleSection(this)">
+        <span class="gs-icon">🚀</span>
+        <span class="gs-title">Getting Started — Starting a Scan Session</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body open">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Open the Scanner</strong>
+              <p>Go to <strong>MeriTrack → Scanner</strong> from the navigation. You'll see a 3-step setup wizard.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Select Hospital &amp; Department</strong>
+              <p>Choose the hospital you're visiting from the dropdown. Then pick the department (ward/ICU/OT). Only your assigned hospitals appear if you're a pure rep.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Choose Session Type</strong>
+              <p><strong>Audit</strong> — count and verify existing consignment stock. <strong>Replenishment</strong> — scan items you're adding to the shelf. <strong>Removal</strong> — scan expired or recalled items being taken off shelf. <strong>Transfer</strong> — move stock to another hospital (H2H).</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Start the Session</strong>
+              <p>Click <strong>Start Audit</strong>. A session ID is auto-generated (e.g. MT-XXXXXXXXX). You're now in scanning mode.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">📷</span>
+        <span class="gs-title">Scanning Products</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Choose Input Mode</strong>
+              <p>Toggle between <strong>📷 Camera</strong> (phone camera) and <strong>🔫 Scanner Gun</strong> (hardware barcode reader). Camera mode works best for QR / DataMatrix codes. Scanner gun works best for linear barcodes.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Scan the Barcode</strong>
+              <p>Point the camera at the product barcode. The app reads GS1 data automatically — extracting serial number, GTIN, batch, and expiry date from a single scan.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Two-Scan Workflow</strong>
+              <p>Some products have a separate serial number barcode. If only a serial is detected, a banner appears saying <em>"Serial Captured"</em>. Scan the product label next to complete the entry automatically.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>No-Serial Products</strong>
+              <p>Toggle <strong>Skip Serial</strong> if the product has no individual serial number (e.g. consumables). The app assigns an internal placeholder ID.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>Choose Action</strong>
+              <p>For each scan, select: <em>✓ Verify</em> (audit check), <em>+ Add to Shelf</em> (replenishment), <em>✕ Remove Expired/Recalled</em>, or <em>♥ Used on Patient</em>.</p>
+            </div>
+          </li>
+        </ol>
+        <div class="guide-tip">
+          <strong>💡 Tip — Pinch to Zoom</strong>
+          Use two fingers to pinch-zoom the camera view on mobile for small barcodes.
+        </div>
+        <div class="guide-warn">
+          <strong>⚠️ Duplicate Prevention</strong>
+          The same serial number cannot be scanned twice in the same session. The app will alert you if a duplicate is detected.
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">✅</span>
+        <span class="gs-title">Completing &amp; Submitting a Session</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Review Scanned Products</strong>
+              <p>After scanning, click <strong>Finish</strong> to go to the Review step. Check the product list — you can remove any incorrect entries.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Add Session Notes (optional)</strong>
+              <p>Type any notes or observations about the visit. These appear in the session record for the manager to see.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Submit the Session</strong>
+              <p>Click <strong>Complete &amp; Submit</strong>. The session moves to <em>Awaiting Confirmation</em> status and the manager is notified.</p>
+            </div>
+          </li>
+        </ol>
+        <div class="guide-tip">
+          <strong>💡 What happens next?</strong>
+          A manager will review the session and either close it (confirmed) or reject it back to you for corrections.
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">🔄</span>
+        <span class="gs-title">H2H Transfers (Hospital-to-Hospital)</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Start a Transfer</strong>
+              <p>Open the <strong>Scanner</strong> and set <strong>Session Type</strong> to <strong>🔄 H2H Transfer</strong>. Select the source hospital (Hospital) and the destination hospital (Destination Hospital).</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Scan Items Being Transferred</strong>
+              <p>Scan each product that is moving from one hospital to the other. The transfer ID is auto-generated (e.g. DDMMYY-REP-FROM-TO).</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Complete the Transfer</strong>
+              <p>Click <strong>Complete Transfer</strong> when all items are scanned. The manager can then upload a confirmation document to close the transfer.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">📊</span>
+        <span class="gs-title">Rep Performance Dashboard</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <p style="font-size:.9rem;color:var(--mt-gray-700);margin-bottom:12px;">
+          Your personal performance dashboard shows your activity for the current and past months.
+        </p>
+        <div class="guide-ref-wrap">
+          <table class="guide-ref">
+            <tr><th>Metric</th><th>What it shows</th></tr>
+            <tr><td><strong>Assigned Hospitals</strong></td><td>Total hospitals mapped to your email</td></tr>
+            <tr><td><strong>Visited</strong></td><td>Hospitals with at least one session this month</td></tr>
+            <tr><td><strong>Pending</strong></td><td>Assigned hospitals not yet visited this month</td></tr>
+            <tr><td><strong>Visit Rate %</strong></td><td>Visited ÷ Assigned × 100</td></tr>
+            <tr><td><strong>Units Scanned</strong></td><td>Total scan-log entries across sessions</td></tr>
+          </table>
+        </div>
+        <div class="guide-tip">
+          <strong>💡 My Scans Tab</strong>
+          Download your scanned products as Excel from the <em>My Scans</em> tab, with expiry highlighted by colour level.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /role-rep -->
+
+  <!-- ════ MANAGER CONTENT ════════════════════════════════════════════════════ -->
+  <div class="role-mgr" style="display:none;">
+
+    <div class="guide-section">
+      <div class="guide-section-head open" onclick="toggleSection(this)">
+        <span class="gs-icon">📋</span>
+        <span class="gs-title">Dashboard Overview</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body open">
+        <p style="font-size:.9rem;color:var(--mt-gray-700);margin-bottom:14px;">
+          The MeriTrack Dashboard gives you a real-time view of all consignment activity across hospitals.
+        </p>
+        <div class="guide-ref-wrap">
+          <table class="guide-ref">
+            <tr><th>Stat Card</th><th>Meaning</th></tr>
+            <tr><td>🔄 Active Sessions</td><td>Sessions currently being scanned by reps</td></tr>
+            <tr><td>⏳ Awaiting Confirmation</td><td>Submitted sessions waiting for manager close</td></tr>
+            <tr><td>✅ Completed</td><td>Closed/confirmed sessions</td></tr>
+            <tr><td>📦 Total On Shelf</td><td>Consigned products with status = on_shelf</td></tr>
+            <tr><td>⚠️ Expired on Shelf</td><td>Products past their expiry date still on shelf</td></tr>
+            <tr><td>🔔 Expiring ≤30 Days</td><td>Products expiring within 30 days</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">🔍</span>
+        <span class="gs-title">Filtering Sessions</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Type Filter Pills</strong>
+              <p>Click <em>All Types / Audit / Replenishment / Removal / Transfer</em> to narrow the session cards by session type.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Advanced Filters (⚙ Filters button)</strong>
+              <p>Click the <strong>⚙ Filters</strong> button to open the filter panel. Filter by: Year, Month, Specific Date, Rep email, or Hospital name. A badge shows how many filters are active.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Clear Filters</strong>
+              <p>Click <strong>✕ Clear All</strong> in the filter panel to reset all advanced filters at once.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">⚙️</span>
+        <span class="gs-title">Session Lifecycle &amp; Manager Actions</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <div class="guide-ref-wrap">
+          <table class="guide-ref" style="margin-bottom:16px;">
+            <tr><th>Status</th><th>Meaning</th><th>Actions available</th></tr>
+            <tr>
+              <td><span class="badge-s badge-active">Active</span></td>
+              <td>Rep is scanning</td>
+              <td>✅ Force Complete, 🚫 Terminate</td>
+            </tr>
+            <tr>
+              <td><span class="badge-s badge-awaiting">Awaiting</span></td>
+              <td>Submitted, pending manager review</td>
+              <td>🔒 Close, ↩ Reject, ⏸ Hold</td>
+            </tr>
+            <tr>
+              <td><span class="badge-s badge-onhold">On Hold</span></td>
+              <td>Paused — awaiting hospital paperwork</td>
+              <td>▶ Resume</td>
+            </tr>
+            <tr>
+              <td><span class="badge-s badge-closed">Confirmed</span></td>
+              <td>Closed and confirmed</td>
+              <td>View only</td>
+            </tr>
+            <tr>
+              <td><span class="badge-s badge-cancel">Cancelled</span></td>
+              <td>Terminated</td>
+              <td>View only</td>
+            </tr>
+          </table>
+        </div>
+        <div class="guide-tip">
+          <strong>↩ Reject vs 🚫 Terminate</strong>
+          <em>Reject</em> sends the session back to <em>Active</em> so the rep can add/remove items. <em>Terminate</em> cancels it permanently.
+        </div>
+        <div class="guide-tip">
+          <strong>⏸ Hold / ▶ Resume</strong>
+          Use Hold when you're waiting on hospital paperwork and don't want follow-up notifications. Resume moves it back to Awaiting.
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">⚠️</span>
+        <span class="gs-title">Expiry Alert Management</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <p style="font-size:.9rem;color:var(--mt-gray-700);margin-bottom:14px;">
+          The <strong>Expiry Alert</strong> tab shows all consigned products on shelf that are expiring or already expired.
+        </p>
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Filter by Urgency</strong>
+              <p>Use the tier pills: <em>Expired / ≤1 Week / ≤1 Month / ≤3 Months / ≤6 Months / Upcoming</em> to focus on the most critical items.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Acknowledge Items</strong>
+              <p>Click <strong>Ack</strong> next to an item to mark it as acknowledged. This creates a paper trail confirming you're aware of the expiry.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Export CSV</strong>
+              <p>Click <strong>⬇ Export CSV</strong> to download the current expiry list for reporting or SAP reconciliation.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">🏥</span>
+        <span class="gs-title">Hospital &amp; Product Catalog Management</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <ol class="guide-steps">
+          <li>
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Import / Export Hospitals</strong>
+              <p>Go to <strong>Hospitals → Hospital Master</strong>. Import a CSV/Excel to bulk-create or update hospitals. Export the template to get the correct column format.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Assign Rep to Hospital</strong>
+              <p>Set the <em>Salesperson Email</em> field on each hospital to assign a rep. That rep will see only their assigned hospitals in the scanner.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Product Catalog</strong>
+              <p>Go to <strong>Product Catalog</strong> to manage the master list of Meril products. Import from Excel or add/edit individually. GTIN codes in the catalog are used to auto-fill product names during scanning.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="guide-section">
+      <div class="guide-section-head" onclick="toggleSection(this)">
+        <span class="gs-icon">📈</span>
+        <span class="gs-title">Analytics &amp; Rep Performance</span>
+        <span class="gs-chevron">▼</span>
+      </div>
+      <div class="guide-section-body">
+        <p style="font-size:.9rem;color:var(--mt-gray-700);margin-bottom:12px;">
+          Use <strong>Analytics</strong> for SAP movement trends, inventory status breakdowns, and top hospitals by volume. Use <strong>Rep Performance</strong> for individual rep visit rates and monthly targets.
+        </p>
+        <div class="guide-ref-wrap">
+          <table class="guide-ref">
+            <tr><th>Feature</th><th>Where to find it</th></tr>
+            <tr><td>Monthly SAP movement chart</td><td>Analytics → Movement Trends</td></tr>
+            <tr><td>Expiry urgency breakdown</td><td>Analytics → Expiry Breakdown</td></tr>
+            <tr><td>Top hospitals by on-shelf volume</td><td>Analytics → Top Hospitals</td></tr>
+            <tr><td>Rep visit rate &amp; pending hospitals</td><td>Rep Performance Dashboard</td></tr>
+            <tr><td>Hospital sessions drill-down</td><td>Rep Performance → click hospital row</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /role-mgr -->
+
+  <!-- Back link -->
+  <div style="margin-top:32px;">
+    <a href="{% url 'meritrack:dashboard' %}" class="mtd-btn mtd-btn-ghost" style="text-decoration:none;">← Back to Dashboard</a>
+    <a href="{% url 'product_scanning:feedback_portal' %}" class="mtd-btn mtd-btn-ghost" style="text-decoration:none;margin-left:.5rem;" target="_blank" rel="noopener">💬 Submit Feedback</a>
+  </div>
+
+</div>
+
+<script>
+const guidePage = document.getElementById('guidePage');
+
+function setRole(role, pill) {
+    document.querySelectorAll('.guide-role-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    guidePage.classList.remove('show-rep', 'show-mgr');
+    guidePage.classList.add('show-' + role);
+    document.querySelector('.role-rep').style.display = role === 'rep' ? 'block' : 'none';
+    document.querySelector('.role-mgr').style.display = role === 'mgr' ? 'block' : 'none';
+}
+
+function toggleSection(head) {
+    const body = head.nextElementSibling;
+    const open = head.classList.toggle('open');
+    if (open) body.classList.add('open'); else body.classList.remove('open');
+}
+
+// Default: show rep content
+document.querySelector('.role-rep').style.display = 'block';
+document.querySelector('.role-mgr').style.display = 'none';
+{% if is_manager %}
+// Auto-show manager view for managers
+setRole('mgr', document.querySelector('.guide-role-pill.mgr'));
+{% endif %}
+</script>
+<script src="{% static 'meritrack/js/meritrack-ui.js' %}" defer></script>
+{% endblock %}

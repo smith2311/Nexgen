@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Production Review Completed — {{ batch.reference_number|default:batch.pk }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#064e3b 0%,#065f46 100%);border-radius:12px 12px 0 0;padding:32px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:50%;width:56px;height:56px;line-height:56px;text-align:center;margin-bottom:14px;">
+              <span style="font-size:26px;">&#10003;</span>
+            </div>
+            <h1 style="margin:0 0 6px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Production Review Completed</h1>
+            <p style="margin:0;color:#6ee7b7;font-size:14px;">Material Rework — {{ batch.reference_number|default:batch.pk }}</p>
+          </td>
+        </tr>
+
+        <!-- Greeting -->
+        <tr>
+          <td style="background:#ffffff;padding:28px 36px 0;">
+            <p style="margin:0 0 6px;color:#06152b;font-size:16px;font-weight:600;">Hello,</p>
+            <p style="margin:0;color:#5f6c7d;font-size:14px;line-height:1.6;">
+              The production team has completed their review for the material rework request
+              <strong style="color:#06152b;">{{ batch.reference_number|default:batch.pk }}</strong>.
+              Please find the details below.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Batch Info -->
+        <tr>
+          <td style="background:#ffffff;padding:20px 36px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+              <tr>
+                <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;">
+                  <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Reference #</span><br>
+                  <span style="font-size:15px;font-weight:700;color:#1d4ed8;font-family:monospace;">{{ batch.reference_number|default:batch.pk }}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;width:50%;">
+                        <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Vertical</span><br>
+                        <span style="font-size:14px;font-weight:600;color:#06152b;">{{ batch.vertical.name }}</span>
+                      </td>
+                      <td style="padding:14px 18px;border-bottom:1px solid #e2e8f0;width:50%;">
+                        <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Department</span><br>
+                        <span style="font-size:14px;font-weight:600;color:#06152b;">{{ batch.department.name }}</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:14px 18px;border-right:1px solid #e2e8f0;width:50%;">
+                        <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Uploaded By</span><br>
+                        <span style="font-size:14px;font-weight:600;color:#06152b;">{{ batch.uploaded_by_name }}</span>
+                        <span style="font-size:12px;color:#64748b;"> &lt;{{ batch.uploaded_by_email }}&gt;</span>
+                      </td>
+                      <td style="padding:14px 18px;width:50%;">
+                        <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Requested By</span><br>
+                        <span style="font-size:14px;font-weight:600;color:#06152b;">
+                          {% if batch.requested_by %}{{ batch.requested_by.name }}{% elif batch.source %}{{ batch.get_source_display }}{% else %}—{% endif %}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Items Table -->
+        <tr>
+          <td style="background:#ffffff;padding:20px 36px 0;">
+            <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#06152b;text-transform:uppercase;letter-spacing:0.06em;">
+              Items Reviewed ({{ items|length }})
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;border-collapse:collapse;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">#</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Material</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Country</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Code</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Batch</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Mfg Date</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Exp Date</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">From Storage</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">To Storage</th>
+                  <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:#0076c8;border-bottom:1px solid #e2e8f0;">Accepted Qty</th>
+                  <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:#8b5cf6;border-bottom:1px solid #e2e8f0;">Pending (WH)</th>
+                  <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;border-bottom:1px solid #e2e8f0;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for item in items %}
+                <tr style="background:{% cycle '#ffffff' '#f8fafc' %};">
+                  <td style="padding:10px 14px;font-size:12px;color:#94a3b8;border-bottom:1px solid #f1f5f9;">{{ forloop.counter }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#374151;border-bottom:1px solid #f1f5f9;">{{ item.serial_number|default:"—" }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#374151;border-bottom:1px solid #f1f5f9;">{{ item.country|default:"—" }}</td>
+                  <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+                    <span style="font-size:13px;font-weight:600;color:#06152b;">{{ item.material }}</span>
+                    {% if item.production_remarks %}<br><span style="font-size:11px;color:#64748b;font-style:italic;">{{ item.production_remarks }}</span>{% endif %}
+                  </td>
+                  <td style="padding:10px 14px;font-size:12px;color:#374151;border-bottom:1px solid #f1f5f9;">{{ item.batch_no|default:"—" }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;">{{ item.mfg_date|default:"—" }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;">{{ item.exp_date|default:"—" }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#374151;border-bottom:1px solid #f1f5f9;">{{ item.from_storage_location|default:"—" }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#374151;border-bottom:1px solid #f1f5f9;">{{ item.to_storage_location|default:"—" }}</td>
+                  <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:700;color:#0076c8;border-bottom:1px solid #f1f5f9;">{{ item.accepted_qty|floatformat:0 }}</td>
+                  <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:700;color:#8b5cf6;border-bottom:1px solid #f1f5f9;">{{ item.pending_qty|floatformat:0 }}</td>
+                  <td style="padding:10px 14px;font-size:12px;color:#64748b;border-bottom:1px solid #f1f5f9;white-space:nowrap;">{{ item.item_date|default:"—" }}</td>
+                  <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+                    {% if item.status == 'pending_warehouse' %}
+                      <span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">Pending Warehouse</span>
+                    {% elif item.status == 'accepted' %}
+                      <span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">Accepted</span>
+                    {% elif item.status == 'rejected' %}
+                      <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">Rejected</span>
+                    {% else %}
+                      <span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;">{{ item.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#ffffff;padding:24px 36px 32px;">
+            <div style="margin:0 0 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;">
+              <p style="margin:0;color:#9a3412;font-size:12px;line-height:1.55;font-weight:700;">
+                Confidential email: Do not forward this email to anyone. If this email is forwarded and accessed by another person, the forwarder will be responsible and liable for any misuse of the information.
+              </p>
+            </div>
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from the NexGen Material Rework system.<br>
+              Please do not reply to this email.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Bottom bar -->
+        <tr>
+          <td style="background:#f1f5f9;border-radius:0 0 12px 12px;padding:14px 36px;text-align:center;">
+            <span style="font-size:12px;color:#94a3b8;">NexGen &mdash; Material Rework</span>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

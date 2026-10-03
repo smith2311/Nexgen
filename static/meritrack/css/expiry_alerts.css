@@ -1,0 +1,197 @@
+/* Expiry Alerts — uses meritrack-core.css design system */
+
+/* ── Tier Summary Row ─────────────────────────────────────────────────────── */
+.ea-tier-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.ea-tier {
+    text-align: center;
+    padding: 16px 10px 14px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    border: 2px solid transparent;
+    user-select: none;
+}
+.ea-tier:hover  { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
+.ea-tier.active { border-color: var(--mt-gray-800); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+.ea-tier-val  { font-size: 2em; font-weight: 800; line-height: 1; }
+.ea-tier-lbl  { font-size: 0.78em; font-weight: 600; margin-top: 5px; opacity: 0.85; }
+.ea-tier-lbl i { margin-right: 3px; }
+
+.ea-tier.expired  { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.ea-tier.week     { background: var(--mt-orange-light); color: var(--mt-orange-text); }
+.ea-tier.month    { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.ea-tier.months3  { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.ea-tier.months6  { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.ea-tier.ok       { background: var(--mt-success-light); color: var(--mt-success-dark); }
+
+/* ── Filter bar ───────────────────────────────────────────────────────────── */
+.ea-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.ea-filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+.ep-filter {
+    padding: 7px 15px;
+    border-radius: 20px;
+    border: 1.5px solid var(--mt-gray-200);
+    background: var(--mt-gray-50);
+    color: var(--mt-gray-600);
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.ep-filter:hover  { border-color: var(--mt-danger); color: var(--mt-danger); }
+.ep-filter.active { background: var(--mt-danger-dark); color: #fff; border-color: var(--mt-danger-dark); }
+
+.ea-search {
+    padding: 9px 14px;
+    border: 1px solid var(--mt-gray-200);
+    border-radius: 10px;
+    font-size: 0.85em;
+    min-width: 240px;
+    max-width: 320px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.ea-search:focus { border-color: var(--mt-primary); }
+
+/* ── Count bar ────────────────────────────────────────────────────────────── */
+.ea-count-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.84em;
+    color: var(--mt-gray-600);
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+.ea-ack-pct {
+    background: var(--mt-success-light);
+    color: var(--mt-success-dark);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.9em;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.ea-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--mt-radius-md);
+    position: relative;
+}
+.ea-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.ea-table thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 0.75em;
+    color: var(--mt-gray-600);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--mt-gray-200);
+    background: var(--mt-gray-50);
+    white-space: nowrap;
+}
+.ea-table tbody td {
+    padding: 10px 12px;
+    font-size: 0.86em;
+    color: var(--mt-gray-800);
+    border-bottom: 1px solid var(--mt-gray-100);
+    vertical-align: middle;
+}
+.ea-table tbody tr:hover { background: var(--mt-gray-50); }
+.ea-table .row-acked { opacity: 0.6; }
+
+.ea-num   { color: var(--mt-gray-400); font-size: 0.8em; text-align: right; padding-right: 6px; }
+.ea-serial { font-family: monospace; font-size: 0.85em; background: var(--mt-gray-100); padding: 2px 6px; border-radius: 4px; }
+.ea-product { max-width: 200px; }
+.ea-pname   { display: block; font-weight: 600; }
+.ea-small   { font-size: 0.82em; color: var(--mt-gray-600); }
+
+/* ── Tier badges inside table ─────────────────────────────────────────────── */
+.ea-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72em; font-weight: 700; margin-top: 3px; }
+.expired-badge  { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.week-badge     { background: var(--mt-orange-light); color: var(--mt-orange-text); }
+.month-badge    { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.months3-badge  { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.months6-badge  { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.ok-badge       { background: var(--mt-success-light); color: var(--mt-success-dark); }
+
+/* ── Days column ──────────────────────────────────────────────────────────── */
+.ea-days { font-weight: 600; font-size: 0.85em; }
+.expired-days { color: var(--mt-danger-dark); font-weight: 800; }
+
+/* ── Ack button & states ──────────────────────────────────────────────────── */
+.ea-ack-btn {
+    padding: 5px 12px;
+    background: var(--mt-primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.78em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.ea-ack-btn:hover    { background: var(--mt-primary-dark); }
+.ea-ack-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.ea-acked  { color: var(--mt-success-dark); font-size: 0.82em; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+.ea-no-ack { color: var(--mt-gray-400); font-size: 0.82em; }
+
+/* ── Loading / empty states ───────────────────────────────────────────────── */
+.ea-loading { text-align: center; padding: 48px; color: var(--mt-gray-400); display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ea-empty   { text-align: center; padding: 48px; color: var(--mt-gray-400); }
+
+/* ── Expiry color classes (shared with dashboard) ─────────────────────────── */
+.mtd-exp-expired  { color: var(--mt-danger) !important; }
+.mtd-exp-1w       { color: var(--mt-danger-dark) !important; }
+.mtd-exp-1m       { color: var(--mt-orange-dark) !important; }
+.mtd-exp-3m       { color: var(--mt-warning-dark) !important; }
+.mtd-exp-6m       { color: var(--mt-warning-dark) !important; }
+.mtd-exp-upcoming { color: var(--mt-gray-600) !important; }
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .ea-tier-row { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .ea-tier-row { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .ea-tier { padding: 12px 8px 10px; }
+    .ea-tier-val { font-size: 1.6em; }
+    .ea-tier-lbl { font-size: 0.72em; }
+
+    .ea-filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+    .ea-filter-pills { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+    .ea-filter-pills::-webkit-scrollbar { display: none; }
+    .ep-filter { flex-shrink: 0; }
+    .ea-search { min-width: 0; max-width: 100%; }
+}
+
+@media (max-width: 480px) {
+    .ea-tier-row { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .ea-tier-val { font-size: 1.4em; }
+    .ea-table thead th, .ea-table tbody td { padding: 8px 8px; font-size: 0.78em; }
+}

@@ -1,0 +1,30 @@
+{% load merilv_ui %}
+{% comment %}
+Shared mode switcher across every scanning console. In the legacy tool these
+were one screen with mode toggles (bt-scanner.js's toggleBTMode(),
+zva05-mode.js's injected button, both layered on outbound-scanner.js) — the
+client's own words for Row 7 were "It is also a part of outbound scanner like
+BT mode," and Row 3.10's "switch between modules simultaneously" is the same
+ask generalised to the rest of the scanning suite. The underlying data
+genuinely differs per mode (delivery-line+batch matching vs material-only
+against a plan/order/receipt vs a raw barcode parse), so each still keeps its
+own session/plan/dump/receipt — nothing here merges those — but a picker now
+reaches all five from one tab bar instead of hunting through separate
+top-level nav items, and never loses a session by switching: everything here
+is a plain link to that mode's own landing page, so whatever session was open
+is exactly where it was left.
+
+ZVA05 and BT Scanning are deliberately absent: neither is a console of its own
+any more — both are modes *inside* the Outbound Scanner (views.OUTBOUND_MODES),
+reached from the dropdown on that tab. Listing either here as a sibling would
+contradict that.
+
+Include with `mv_scan_mode` set to one of:
+"outbound" | "branch_transfer" | "inbound" | "extractor".
+{% endcomment %}
+<div class="mv-tabs mv-scan-modes">
+    <a href="{% url 'merilv:outbound' %}" class="mv-tab{% if mv_scan_mode == 'outbound' %} is-active{% endif %}">{% icon "scan" 14 %}<span>Outbound Scanner</span></a>
+    <a href="{% url 'merilv:branch_transfer' %}" class="mv-tab{% if mv_scan_mode == 'branch_transfer' %} is-active{% endif %}">{% icon "transfer" 14 %}<span>Branch Transfer</span></a>
+    <a href="{% url 'merilv:inbound' %}" class="mv-tab{% if mv_scan_mode == 'inbound' %} is-active{% endif %}">{% icon "inbox" 14 %}<span>Inbound Scanner</span></a>
+    <a href="{% url 'merilv:extractor' %}" class="mv-tab{% if mv_scan_mode == 'extractor' %} is-active{% endif %}">{% icon "wand" 14 %}<span>Barcode Extractor</span></a>
+</div>

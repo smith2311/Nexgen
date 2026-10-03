@@ -1,0 +1,168 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Reports — throughput, top materials, entity split and picker activity.
+
+Charts are the vendored Highcharts build via static/merilv/js/mv_charts.js.
+This screen used to say "the platform has none vendored" and drew .mv-progress
+bars instead; that premise was simply wrong — static/lib/highcharts has been
+there all along, and the CSS bars could not show a trend. A window with one
+busy day rendered as a single full-width bar, and "By entity" / "Top pickers"
+each rendered a whole card for one line of text.
+
+Nothing is fetched at runtime. The grocery dashboard this look is modelled on
+pulls chart.js off a CDN; that is the one thing from it deliberately not copied
+(see the header of mv_charts.js).
+
+Layout follows the grocery dashboard's shape: KPI row, then one full-width
+trend, then the breakdowns side by side.
+{% endcomment %}
+
+{% block mv_title %}Reports{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Reports</span>
+{% endblock %}
+{% block mv_heading %}Reports{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Throughput, top materials and picker activity — last {{ days }} days.</p>{% endblock %}
+{% block mv_actions %}
+<form method="get" class="mv-row">
+    <select class="mv-select" name="days" onchange="this.form.submit()">
+        <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+        <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+        <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+    </select>
+</form>
+{% comment %}
+Admin-only, and hidden rather than shown-and-refused: the target view is behind
+`admin_required`, so a picker following this link would only land on a redirect.
+`is_mv_admin` comes from views._ctx and is True for superusers too.
+{% endcomment %}
+{% if is_mv_admin %}
+<a href="{% url 'merilv:user_activity' %}?days={{ days }}" class="mv-btn mv-btn--primary">
+    {% icon "users" %} User Activity
+</a>
+{% endif %}
+{% endblock %}
+
+{% block mv_body %}
+{% if not charts.has_data %}
+{% comment %}
+#10 — the page-level empty state, in the client's own words. `charts.has_data`
+was already computed and nothing read it, so a brand-new install rendered four
+zero KPIs and four empty charts with no explanation: indistinguishable from a
+reporting module that is broken.
+
+The per-chart "No X in this window" notes stay — they answer a different
+question (this filter is empty) from this one (nothing has happened yet), and a
+window with no deliveries inside a system that HAS them should still say the
+former.
+{% endcomment %}
+<div class="mv-alert mv-alert--info" style="margin-bottom:var(--mv-4);">
+    {% icon "info" %}
+    <div>
+        <strong>No data yet — reports populate as deliveries complete.</strong>
+        <div class="mv-t-caption" style="margin-top:4px;">
+            Nothing has been dispatched in the last {{ days }} days.
+            The figures below fill in on their own once picking starts &mdash;
+            <strong>nothing to configure here.</strong>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "truck" %}</span><span class="mv-kpi__label">Deliveries</span><span class="mv-kpi__value">{{ summary.deliveries }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Scans</span><span class="mv-kpi__value">{{ summary.scans }}</span></div>
+    <div class="mv-kpi{% if summary.partial %} mv-kpi--warn{% endif %}"><span class="mv-kpi__icon">{% icon "alert" %}</span><span class="mv-kpi__label">Partial Exports</span><span class="mv-kpi__value">{{ summary.partial }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Boxes Used</span><span class="mv-kpi__value">{{ summary.boxes }}</span></div>
+</div>
+
+{# Throughput first and full width — it is the only view of change over time. #}
+<div class="mv-card mv-chart-card">
+    <div class="mv-card__head">
+        <h2 class="mv-card__title">{% icon "chart" %} Deliveries by day</h2>
+        <span class="mv-chart-note">Quiet days included, so gaps read as gaps</span>
+    </div>
+    <div id="mvChartTrend" class="mv-chart mv-chart--tall"></div>
+</div>
+
+<div class="mv-grid-2col mv-chart-grid">
+    <div class="mv-card mv-chart-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "package" %} Top materials scanned</h2>
+            <span class="mv-chart-note">Top {{ top_materials|length }}</span>
+        </div>
+        <div id="mvChartMaterials" class="mv-chart"></div>
+    </div>
+
+    <div class="mv-card mv-chart-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "building" %} By entity</h2>
+        </div>
+        <div id="mvChartEntities" class="mv-chart"></div>
+    </div>
+
+    <div class="mv-card mv-chart-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "users" %} Top pickers</h2>
+            <span class="mv-chart-note">Closed deliveries per picker</span>
+        </div>
+        <div id="mvChartPickers" class="mv-chart"></div>
+    </div>
+
+    {% comment %}
+    The material codes stay available as text alongside the chart: a picker
+    reading a code off the screen to type into SAP needs to select it, and
+    Highcharts renders axis labels as SVG text that is awkward to copy.
+    {% endcomment %}
+    <div class="mv-card">
+        <div class="mv-card__head">
+            <h2 class="mv-card__title">{% icon "list" %} Material codes</h2>
+        </div>
+        {% if top_materials %}
+        <div class="mv-codelist">
+            {% for row in top_materials %}
+            <div class="mv-codelist__row">
+                <span class="mv-mono">{{ row.material|default:"—" }}</span>
+                <span class="mv-mono mv-t-strong">{{ row.n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="mv-t-caption">No scans in this window.</p>
+        {% endif %}
+    </div>
+</div>
+
+{{ charts|json_script:"mvReportData" }}
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'lib/highcharts/highcharts.js' %}"></script>
+<script src="{% static 'merilv/js/mv_charts.js' %}"></script>
+<script>
+(function () {
+    if (!window.mvCharts || !window.mvCharts.applyTheme()) { return; }
+    var data = window.mvCharts.readPayload('mvReportData');
+    if (!data) { return; }
+
+    window.mvCharts.trend('mvChartTrend', data.trend, {
+        seriesName: 'Deliveries',
+        emptyText: 'No deliveries closed in this window.'
+    });
+    window.mvCharts.rankedBar('mvChartMaterials', data.materials.labels, data.materials.values, {
+        seriesName: 'Scans', emptyText: 'No scans in this window.'
+    });
+    window.mvCharts.donut('mvChartEntities', data.entities, {
+        centreLabel: 'deliveries', emptyText: 'No deliveries in this window.'
+    });
+    // palette() resolves the token to a real hex — Highcharts cannot take a
+    // var(), it would silently render the series black.
+    window.mvCharts.rankedBar('mvChartPickers', data.pickers.labels, data.pickers.values, {
+        seriesName: 'Deliveries', color: window.mvCharts.palette().teal,
+        emptyText: 'No closed deliveries in this window.'
+    });
+}());
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% comment %}
+  Same fields and same POST target as Django's login template. The only change
+  is rendering labels by hand instead of via `label_tag`, which appends a
+  colon — that reads wrong at the small uppercase size the theme sets them in.
+  `for`/`id_for_label` is kept so clicking a label still focuses its field.
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/login.css" %}">
+{{ form.media }}
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} login{% endblock %}
+
+{% block usertools %}{% endblock %}
+{% block nav-global %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+{% if form.errors and not form.non_field_errors %}
+  <p class="errornote">
+    {% blocktranslate count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
+  </p>
+{% endif %}
+
+{% for error in form.non_field_errors %}
+  <p class="errornote">{{ error }}</p>
+{% endfor %}
+
+<div id="content-main">
+
+  {% if user.is_authenticated %}
+    <p class="errornote">
+      {% blocktranslate trimmed %}
+        You are signed in as {{ username }}, which cannot access this page.
+        Sign in with an account that has admin access.
+      {% endblocktranslate %}
+    </p>
+  {% endif %}
+
+  <form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
+    <div class="form-row">
+      {{ form.username.errors }}
+      <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+      {{ form.username }}
+    </div>
+    <div class="form-row">
+      {{ form.password.errors }}
+      <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+      {{ form.password }}
+      <input type="hidden" name="next" value="{{ next }}">
+    </div>
+
+    {% url 'admin_password_reset' as password_reset_url %}
+    {% if password_reset_url %}
+      <div class="password-reset-link">
+        <a href="{{ password_reset_url }}">{% translate 'Forgotten your password or username?' %}</a>
+      </div>
+    {% endif %}
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="{% translate 'Log in' %}">
+    </div>
+  </form>
+
+</div>
+{% endblock %}

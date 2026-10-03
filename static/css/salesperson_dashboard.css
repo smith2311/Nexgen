@@ -1,0 +1,254 @@
+/* ── SP Dashboard specific styles ────────────────────────────── */
+:root{
+  --sp-primary:#0771f4;
+  --sp-success:#10b981;
+  --sp-warning:#f59e0b;
+  --sp-danger:#ef4444;
+  --sp-info:#6366f1;
+  --sp-pending:#94a3b8;
+  --sp-bg:#f8fafc;
+  --sp-card:#ffffff;
+  --sp-border:#e2e8f0;
+  --sp-text:#1e293b;
+  --sp-muted:#64748b;
+  --sp-radius:12px;
+  --sp-shadow:0 1px 4px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+}
+
+/* ── Layout ── */
+.sp-page{background:var(--sp-bg);min-height:100vh;padding:0 0 48px;}
+.sp-header{background:linear-gradient(135deg,#0771f4 0%,#0956c8 100%);color:#fff;padding:28px 20px 32px;margin-bottom:-20px;}
+.sp-header h1{margin:0 0 4px;font-size:1.5rem;font-weight:700;}
+.sp-header p{margin:0;opacity:.85;font-size:.93rem;}
+.sp-header-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+.btn-header{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:.85rem;font-weight:600;text-decoration:none;border:none;cursor:pointer;transition:all .18s;}
+.btn-header-white{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3);}
+.btn-header-white:hover{background:rgba(255,255,255,.28);color:#fff;}
+.btn-header-solid{background:#fff;color:#0771f4;}
+.btn-header-solid:hover{background:#f0f6ff;color:#0771f4;}
+
+.sp-inner{max-width:1400px;margin:0 auto;padding:20px 16px 0;}
+
+/* ── Controls bar ── */
+.sp-controls{background:#fff;border-radius:var(--sp-radius);box-shadow:var(--sp-shadow);padding:16px 20px;margin-bottom:20px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+.sp-controls label{font-size:.85rem;font-weight:600;color:var(--sp-muted);white-space:nowrap;}
+.sp-select{padding:8px 12px;border:1.5px solid var(--sp-border);border-radius:8px;font-size:.9rem;color:var(--sp-text);background:#fff;min-width:160px;cursor:pointer;outline:none;}
+.sp-select:focus{border-color:var(--sp-primary);box-shadow:0 0 0 3px rgba(7,113,244,.12);}
+.sp-month-nav{display:flex;align-items:center;gap:8px;}
+.month-nav-btn{width:32px;height:32px;border:1.5px solid var(--sp-border);border-radius:8px;background:#fff;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.month-nav-btn:hover{border-color:var(--sp-primary);color:var(--sp-primary);}
+.month-label{font-weight:700;font-size:.95rem;color:var(--sp-text);min-width:110px;text-align:center;}
+
+/* ── Stats row ── */
+.sp-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.sp-stat{background:#fff;border-radius:var(--sp-radius);box-shadow:var(--sp-shadow);padding:18px 16px;border-top:3px solid transparent;text-align:center;}
+.sp-stat-val{font-size:2rem;font-weight:800;line-height:1;}
+.sp-stat-label{font-size:.78rem;color:var(--sp-muted);margin-top:5px;font-weight:500;}
+.sp-stat-sub{font-size:.75rem;color:var(--sp-muted);margin-top:2px;}
+.stat-blue{border-top-color:var(--sp-primary);}    .stat-blue .sp-stat-val{color:var(--sp-primary);}
+.stat-green{border-top-color:var(--sp-success);}   .stat-green .sp-stat-val{color:var(--sp-success);}
+.stat-amber{border-top-color:var(--sp-warning);}   .stat-amber .sp-stat-val{color:var(--sp-warning);}
+.stat-red{border-top-color:var(--sp-danger);}      .stat-red .sp-stat-val{color:var(--sp-danger);}
+.stat-violet{border-top-color:var(--sp-info);}     .stat-violet .sp-stat-val{color:var(--sp-info);}
+
+/* ── Progress bar ── */
+.progress-card{background:#fff;border-radius:var(--sp-radius);box-shadow:var(--sp-shadow);padding:20px;margin-bottom:20px;}
+.progress-card h3{margin:0 0 14px;font-size:1rem;font-weight:700;color:var(--sp-text);}
+.progress-bar-track{height:14px;background:#e2e8f0;border-radius:7px;overflow:hidden;margin-bottom:8px;}
+.progress-bar-fill{height:100%;border-radius:7px;transition:width .6s ease;background:linear-gradient(90deg,var(--sp-success),#34d399);}
+.progress-bar-fill.warn{background:linear-gradient(90deg,var(--sp-warning),#fbbf24);}
+.progress-bar-fill.danger{background:linear-gradient(90deg,var(--sp-danger),#f87171);}
+.progress-meta{display:flex;justify-content:space-between;font-size:.82rem;color:var(--sp-muted);}
+
+/* ── Tabs ── */
+.sp-tabs-outer{background:#fff;border-radius:var(--sp-radius);box-shadow:var(--sp-shadow);margin-bottom:20px;overflow:visible;}
+.sp-tabs{display:flex;overflow-x:auto;border-bottom:2px solid var(--sp-border);scrollbar-width:none;}
+.sp-tabs::-webkit-scrollbar{display:none;}
+.sp-tab-btn{padding:13px 18px;border:none;background:transparent;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--sp-muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .18s;display:flex;align-items:center;gap:5px;}
+.sp-tab-btn.active{color:var(--sp-primary);border-bottom-color:var(--sp-primary);}
+.sp-tab-btn:hover:not(.active){color:var(--sp-text);background:#f8fafc;}
+.sp-tab-content{display:none;padding:20px;}
+.sp-tab-content.active{display:block;}
+
+/* ── Badge ── */
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.75rem;font-weight:600;}
+.badge-green{background:#dcfce7;color:#166534;}
+.badge-amber{background:#fef3c7;color:#92400e;}
+.badge-red{background:#fee2e2;color:#991b1b;}
+.badge-blue{background:#dbeafe;color:#1e40af;}
+.badge-gray{background:#f1f5f9;color:#475569;}
+
+/* ── Hospital table ── */
+.hosp-tbl-wrap{overflow-x:auto;margin-top:4px;}
+.hosp-tbl{width:100%;border-collapse:collapse;font-size:.88rem;}
+.hosp-tbl thead th{padding:10px 14px;text-align:left;background:#f8fafc;font-weight:700;color:var(--sp-muted);border-bottom:2px solid var(--sp-border);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.hosp-tbl tbody td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--sp-text);vertical-align:middle;}
+.hosp-tbl tbody tr:hover td{background:#f8fafc;}
+.hosp-tbl .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.hosp-tbl .dot-pending{background:var(--sp-danger);}
+.hosp-tbl .dot-in_progress{background:var(--sp-warning);}
+.hosp-tbl .dot-completed{background:var(--sp-success);}
+.hosp-tbl .hosp-name-cell{font-weight:600;color:var(--sp-text);}
+.hosp-tbl .link-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;background:#eff6ff;color:#0771f4;border:none;cursor:pointer;font-size:.8rem;font-weight:600;text-decoration:none;transition:background .15s;}
+.hosp-tbl .link-btn:hover{background:#dbeafe;}
+
+/* ── Session detail modal ── */
+#sessionModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);align-items:flex-end;justify-content:center;}
+#sessionModal.open{display:flex;}
+.session-modal-inner{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:800px;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.18);animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.session-modal-hdr{padding:18px 20px 14px;border-bottom:1px solid var(--sp-border);display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
+.session-modal-hdr h3{margin:0;font-size:1rem;font-weight:700;color:var(--sp-text);}
+.session-modal-hdr p{margin:3px 0 0;font-size:.8rem;color:var(--sp-muted);}
+.session-modal-close{background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--sp-muted);line-height:1;padding:2px 6px;border-radius:6px;transition:background .15s;}
+.session-modal-close:hover{background:#f1f5f9;color:var(--sp-text);}
+.session-modal-body{overflow-y:auto;padding:16px 20px 24px;flex:1;}
+.session-row{border:1.5px solid var(--sp-border);border-radius:10px;padding:14px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;transition:border-color .15s;}
+.session-row:hover{border-color:var(--sp-primary);}
+.session-row-left{flex:1;min-width:0;}
+.session-row-title{font-weight:700;font-size:.92rem;color:var(--sp-text);margin-bottom:4px;}
+.session-row-meta{font-size:.78rem;color:var(--sp-muted);display:flex;flex-wrap:wrap;gap:10px;}
+.session-row-right{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+.session-modal-loading{text-align:center;padding:32px;color:var(--sp-muted);font-size:.9rem;}
+
+/* ── History table ── */
+.history-tbl{width:100%;border-collapse:collapse;font-size:.88rem;}
+.history-tbl th{padding:10px 14px;text-align:left;background:#f8fafc;font-weight:700;color:var(--sp-muted);border-bottom:2px solid var(--sp-border);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;}
+.history-tbl td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--sp-text);}
+.history-tbl tr:hover td{background:#f8fafc;}
+.history-tbl .rate-cell{font-weight:700;}
+
+/* ── Salesperson cards (warehouse overview) ── */
+.sp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:4px;}
+.sp-card{background:#fff;border-radius:var(--sp-radius);box-shadow:var(--sp-shadow);padding:20px;border-top:4px solid var(--sp-primary);cursor:pointer;transition:all .18s;}
+.sp-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(7,113,244,.14);}
+.sp-card-name{font-size:1rem;font-weight:700;color:var(--sp-text);margin-bottom:2px;}
+.sp-card-email{font-size:.8rem;color:var(--sp-muted);margin-bottom:12px;}
+.sp-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.sp-card-stat{text-align:center;padding:8px 4px;border-radius:8px;background:#f8fafc;}
+.sp-card-stat-val{font-size:1.3rem;font-weight:800;}
+.sp-card-stat-lbl{font-size:.7rem;color:var(--sp-muted);font-weight:500;}
+
+/* ── Empty state ── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--sp-muted);}
+.empty-state .icon{font-size:3rem;margin-bottom:12px;}
+.empty-state p{font-size:.93rem;}
+
+/* ── Loading ── */
+.loading-spinner{display:inline-block;width:20px;height:20px;border:3px solid #e2e8f0;border-top-color:var(--sp-primary);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay{display:flex;align-items:center;justify-content:center;gap:10px;padding:32px;color:var(--sp-muted);font-size:.9rem;}
+
+/* ── DataTables scroll (history / hospitals tables) ── */
+.dataTables_scrollBody,
+.dataTables_scrollHead,
+.dataTables_scrollHeadInner { overflow-x:auto!important; }
+.dataTables_wrapper .dataTables_scroll { overflow-x:auto!important; }
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .sp-stats{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:768px){
+  .sp-page{padding-bottom:80px;}
+  .sp-header{padding:20px 16px 28px;}
+  .sp-header h1{font-size:1.2rem;}
+  .sp-header-actions{gap:6px;}
+  .btn-header{padding:8px 12px;font-size:.8rem;}
+  .sp-inner{padding:12px 12px 0;}
+  .sp-controls{flex-direction:column;align-items:stretch;gap:10px;}
+  .sp-select{min-width:0;width:100%;font-size:16px;}
+  .sp-month-nav{justify-content:space-between;}
+  .month-nav-btn{width:44px;height:44px;font-size:1.2rem;}
+  .month-label{font-size:.9rem;}
+  .sp-stats{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .sp-stat{padding:14px 12px;}
+  .sp-stat-val{font-size:1.7rem;}
+  .progress-card{padding:14px;}
+  .sp-cards{grid-template-columns:1fr;}
+  .sp-tabs-outer{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+  .sp-tabs-outer::-webkit-scrollbar{display:none;}
+  .sp-tabs{flex-wrap:nowrap;gap:0;}
+  .sp-tab-btn{flex-shrink:0;padding:12px 14px;font-size:.78rem;min-height:48px;}
+  .history-tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .hosp-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .hosp-tbl{min-width:600px;}
+  .sp-card-stats{grid-template-columns:repeat(3,1fr);}
+  .session-modal-inner{border-radius:16px 16px 0 0;max-height:90vh;}
+  /* Hide lower-priority table columns on mobile */
+  .hosp-tbl thead th:nth-child(3),.hosp-tbl tbody td:nth-child(3){display:none;}
+  .ms-scan-tbl .col-gtin,.ms-scan-tbl .col-lot,.ms-scan-tbl .col-material{display:none;}
+  .hosp-scan-body{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .batch-tracker{padding:.75rem 1rem;}
+  .tracker-line{width:24px;}
+}
+@media(max-width:480px){
+  .sp-stats{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .sp-stat{padding:12px 10px;}
+  .sp-stat-val{font-size:1.4rem;}
+  .sp-card-stats{grid-template-columns:1fr 1fr;}
+  .btn-header{padding:7px 10px;font-size:.78rem;}
+  .sp-tab-btn{font-size:.72rem;padding:10px 10px;}
+  /* Hide SAP code column on tiny screens */
+  .hosp-tbl thead th:nth-child(4),.hosp-tbl tbody td:nth-child(4){display:none;}
+  .sp-header h1{font-size:1.05rem;}
+}
+
+/* ---- My Scans filter pills ---- */
+.ms-filter{
+  background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:20px;
+  padding:3px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.ms-filter:hover{background:#e2e8f0;}
+.ms-filter.active{background:#0771F4;color:#fff;border-color:#0771F4;}
+
+/* ---- Batch status tracker ---- */
+.batch-tracker{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+.batch-tracker-header{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.batch-tracker-title{font-size:.9rem;font-weight:700;color:#1e293b;}
+.batch-tracker-meta{font-size:.78rem;color:#64748b;}
+.tracker-steps{display:flex;align-items:center;gap:0;}
+.tracker-step{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.tracker-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;}
+.tracker-dot.done{background:#0771F4;color:#fff;}
+.tracker-dot.current{background:#f59e0b;color:#fff;box-shadow:0 0 0 3px #fef3c7;}
+.tracker-dot.pending{background:#e2e8f0;color:#94a3b8;}
+.tracker-dot.cancelled{background:#fee2e2;color:#dc2626;}
+.tracker-line{height:2px;width:40px;background:#e2e8f0;margin-bottom:18px;}
+.tracker-line.done{background:#0771F4;}
+.tracker-label{font-size:.7rem;color:#64748b;margin-top:2px;text-align:center;white-space:nowrap;}
+.tracker-label.active-label{color:#f59e0b;font-weight:700;}
+.tracker-label.done-label{color:#0771F4;font-weight:600;}
+
+/* ── Hospital Scan Sections (My Scans accordion) ── */
+.hosp-scan-section{border:1.5px solid #e2e8f0;border-radius:10px;margin-bottom:.75rem;overflow:hidden;}
+.hosp-scan-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#f8fafc;cursor:pointer;gap:12px;transition:background .15s;user-select:none;}
+.hosp-scan-header:hover{background:#eff6ff;}
+.hosp-scan-name{font-weight:700;font-size:.92rem;color:#1e293b;}
+.hosp-scan-chevron{color:#64748b;font-size:.82rem;min-width:14px;display:inline-block;transition:transform .2s;}
+.hosp-scan-body{padding:0;border-top:1px solid #e2e8f0;}
+
+/* ── My Scans inner table — fixed layout with truncation ── */
+.ms-scan-tbl{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.82rem;}
+.ms-scan-tbl thead th{padding:9px 12px;text-align:left;background:#f8fafc;font-weight:700;color:var(--sp-muted);border-bottom:2px solid var(--sp-border);font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-scan-tbl tbody td{padding:9px 12px;border-bottom:1px solid #f1f5f9;color:var(--sp-text);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-scan-tbl tbody tr:hover td{background:#f8fafc;}
+/* column widths */
+.ms-scan-tbl .col-product  {width:180px;}
+.ms-scan-tbl .col-serial   {width:130px;}
+.ms-scan-tbl .col-gtin     {width:120px;}
+.ms-scan-tbl .col-lot      {width:100px;}
+.ms-scan-tbl .col-material {width:100px;}
+.ms-scan-tbl .col-expiry   {width:115px;overflow:visible;white-space:normal;}
+.ms-scan-tbl .col-batchid  {width:150px;}
+.ms-scan-tbl .col-session  {width:100px;overflow:visible;white-space:normal;}
+.ms-scan-tbl .col-scanned  {width:130px;}
+
+/* ── Batch Status hospital group headers ── */
+.batch-hosp-header{display:flex;align-items:center;gap:10px;padding:.45rem 0 .5rem;margin:.85rem 0 .5rem;border-bottom:2px solid #e2e8f0;}
+.batch-hosp-header:first-child{margin-top:0;}
+.batch-hosp-title{font-size:.95rem;font-weight:700;color:#1e293b;}
+
+/* ── SP card action button ── */
+.sp-card-view-btn{margin-top:12px;width:100%;padding:8px;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;color:#475569;transition:all .15s;}
+.sp-card-view-btn:hover{border-color:#0771f4;color:#0771f4;}

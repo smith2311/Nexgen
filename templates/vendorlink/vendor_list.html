@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% load static vm_extras %}
+
+{% block title %}Vendor Directory{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <!-- Breadcrumb + header -->
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:vm_home' %}">Vendor Master</a>
+                <span class="sep">/</span>
+                <span class="current">Directory</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">Vendor Directory</h1>
+                <span class="vlx-count-badge">{{ result_count }} vendor{{ result_count|pluralize }}</span>
+            </div>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:export_excel' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-download"></i> Export</a>
+            {% if is_vm_admin %}
+            <button type="button" class="vlx-btn vlx-btn--outline" onclick="vmOpenImport()"><i class="fas fa-upload"></i> Import</button>
+            <a href="{% url 'vendorlink:vendor_create' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-plus"></i> Add Vendor</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Search & filters -->
+    <form method="get" class="vlx-toolbar" id="vmFilterForm">
+        <div class="vlx-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ q }}" placeholder="Search vendors…">
+        </div>
+        <div class="vlx-toolbar__filters">
+            {% comment %}
+            Continent first, then country. The country select lists only the
+            countries vendors are actually filed under (narrowed server-side to
+            the chosen continent), so it can never offer an option that returns
+            nothing. data-vl-autosubmit lets the cascade script resubmit when
+            the continent changes, matching how the other filters behave.
+            {% endcomment %}
+            <select name="continent" class="vlx-select" data-vl-continent="country"
+                    onchange="document.getElementById('vmFilterForm').submit()">
+                {% for code, name in continent_choices %}
+                <option value="{{ code }}" {% if code == continent %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <select name="country" class="vlx-select" data-vl-country="1"
+                    onchange="document.getElementById('vmFilterForm').submit()">
+                <option value="">All Countries</option>
+                {% for c in countries %}
+                <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <select name="capability" class="vlx-select" onchange="document.getElementById('vmFilterForm').submit()">
+                <option value="">Any Capability</option>
+                {% for field, label, icon in capability_fields %}
+                <option value="{{ field }}" {% if field == capability %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <span class="vlx-vrule"></span>
+            <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-filter"></i> Filter</button>
+            {% if q or continent or country or capability %}
+            <a href="{% url 'vendorlink:vendor_list' %}" class="vlx-btn vlx-btn--ghost vlx-btn--sm">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Table card -->
+    <div class="vlx-card vlx-card--flush">
+        <!-- Capability legend strip -->
+        <div class="vlx-cap-legend">
+            {% for field, label, icon in capability_fields %}
+            <span class="vlx-cap-legend__item" title="{{ label }}">
+                <i class="fas {{ icon }}"></i> {{ label }}
+            </span>
+            {% endfor %}
+            <span class="vlx-cap-legend__note">{{ capability_total }} capability dimension{{ capability_total|pluralize }} tracked per vendor</span>
+        </div>
+
+        {% if vendors %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Country</th>
+                    <th>State</th>
+                    <th>City</th>
+                    <th>Contact</th>
+                    <th>Capabilities</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vendors %}
+                <tr>
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ v.vendor_name|first|upper }}</span>
+                            <div class="vlx-stack0">
+                                <span class="vlx-cell__title">{{ v.vendor_name }}</span>
+                                {% if v.warehouse_location %}<span class="vlx-cell__sub">{{ v.warehouse_location|truncatechars:40 }}</span>{% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="vlx-loc"><i class="fas fa-location-dot"></i> {{ v.country }}</span></td>
+                    <td>{{ v.state|default:"—" }}</td>
+                    <td>{{ v.city|default:"—" }}</td>
+                    <td>
+                        <div class="vlx-stack0">
+                            {% if v.contact_person %}<span class="vlx-cell__title">{{ v.contact_person }}</span>{% endif %}
+                            {% if v.email %}<span class="vlx-cell__sub">{{ v.email }}</span>{% elif not v.contact_person %}<span class="vlx-muted">—</span>{% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="vlx-caps">
+                            {% for field, label, icon in capability_fields %}
+                            <span class="vlx-cap {% if v|attr:field %}vlx-cap--on{% endif %}" title="{{ label }}{% if v|attr:field %}: Yes{% else %}: No{% endif %}"><i class="fas {{ icon }}"></i></span>
+                            {% endfor %}
+                            <span class="vlx-cap-count">{{ v.capability_count }}/{{ capability_total }}</span>
+                        </div>
+                    </td>
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            <a href="{% url 'vendorlink:vendor_detail' v.pk %}" class="vlx-iconbtn" title="View details"><i class="fas fa-eye"></i></a>
+                            {% if is_vm_admin %}
+                            <a href="{% url 'vendorlink:vendor_edit' v.pk %}" class="vlx-iconbtn" title="Edit vendor"><i class="fas fa-pen"></i></a>
+                            <button type="button" class="vlx-iconbtn vlx-iconbtn--danger" title="Delete vendor"
+                                    onclick="vmConfirmDelete('{% url 'vendorlink:vendor_delete' v.pk %}', '{{ v.vendor_name|escapejs }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-folder-open"></i></div>
+            <h3>No vendors found</h3>
+            <p>{% if q or continent or country or capability %}Try adjusting your search or filters.{% else %}Get started by adding your first 3PL vendor.{% endif %}</p>
+            {% if is_vm_admin and not q and not country and not capability %}
+            <a href="{% url 'vendorlink:vendor_create' %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-plus"></i> Add Vendor</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+{% comment %}
+Both modals must stay inside .vlx: every --vlx-* custom property (including
+--vlx-surface, which the modal card's background depends on) is declared on
+.vlx itself, not on :root — see the token block at the top of
+vendorlink-ds.css. These used to render as siblings of .vlx because the
+wrapper's closing tags came before this block, so var(--vlx-surface) resolved
+to nothing and the modal card had no background at all: on top of the
+backdrop's blur+dark tint, that read as the whole dialog being washed out and
+barely legible, not just transparent.
+{% endcomment %}
+{% if is_vm_admin %}
+<!-- Delete confirm modal -->
+<div class="vlx-modal-overlay" id="vmDeleteModal">
+    <div class="vlx-modal">
+        <div class="vlx-modal__head"><h3><i class="fas fa-triangle-exclamation" style="color:var(--vlx-danger);"></i> Delete vendor?</h3>
+            <button type="button" class="vlx-modal__close" onclick="vmCloseModal('vmDeleteModal')">&times;</button>
+        </div>
+        <div class="vlx-modal__body">You are about to permanently delete <b id="vmDeleteName"></b>. This action cannot be undone.</div>
+        <div class="vlx-modal__foot">
+            <button type="button" class="vlx-btn vlx-btn--outline vlx-btn--sm" onclick="vmCloseModal('vmDeleteModal')">Cancel</button>
+            <form method="post" id="vmDeleteForm" style="margin:0;">{% csrf_token %}
+                <button type="submit" class="vlx-btn vlx-btn--danger vlx-btn--sm"><i class="fas fa-trash"></i> Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import modal -->
+<div class="vlx-modal-overlay" id="vmImportModal">
+    <div class="vlx-modal">
+        <div class="vlx-modal__head"><h3><i class="fas fa-file-import" style="color:var(--vlx-secondary);"></i> Bulk import vendors</h3>
+            <button type="button" class="vlx-modal__close" onclick="vmCloseModal('vmImportModal')">&times;</button>
+        </div>
+        <form method="post" enctype="multipart/form-data" action="{% url 'vendorlink:import_excel' %}" id="vmImportForm">
+            {% csrf_token %}
+            <div class="vlx-modal__body">
+                Upload an <b>.xlsx</b> file. Existing vendors (matched by name) are updated; new ones are added.
+                <label class="vlx-dropzone" id="vmDrop">
+                    <input type="file" name="file" accept=".xlsx" id="vmFileInput" hidden required>
+                    <div id="vmDropText"><i class="fas fa-cloud-arrow-up" style="font-size:1.6rem;display:block;margin-bottom:8px;color:var(--vlx-secondary);"></i>Click to choose a file</div>
+                </label>
+                <a href="{% url 'vendorlink:import_template' %}" class="vlx-link" style="display:inline-flex;gap:6px;align-items:center;margin-top:12px;font-size:.84rem;"><i class="fas fa-download"></i> Download template</a>
+            </div>
+            <div class="vlx-modal__foot">
+                <button type="button" class="vlx-btn vlx-btn--outline vlx-btn--sm" onclick="vmCloseModal('vmImportModal')">Cancel</button>
+                <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-upload"></i> Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+<script>
+function vmCloseModal(id){ document.getElementById(id).classList.remove('open'); }
+function vmConfirmDelete(url, name){
+    var f = document.getElementById('vmDeleteForm');
+    f.setAttribute('action', url);
+    document.getElementById('vmDeleteName').textContent = name;
+    document.getElementById('vmDeleteModal').classList.add('open');
+}
+function vmOpenImport(){ document.getElementById('vmImportModal').classList.add('open'); }
+/* ?import=1 opens the import dialog straight away, so "Bulk import" on the
+   Capability Matrix lands on the upload form rather than on this list with the
+   dialog still shut and nothing to show for the click. */
+if (new URLSearchParams(window.location.search).get('import') === '1') {
+    document.addEventListener('DOMContentLoaded', vmOpenImport);
+}
+document.querySelectorAll('.vlx-modal-overlay').forEach(function(o){
+    o.addEventListener('click', function(e){ if (e.target === o) o.classList.remove('open'); });
+});
+// File picker label
+var fi = document.getElementById('vmFileInput');
+if (fi) fi.addEventListener('change', function(){
+    if (fi.files.length) document.getElementById('vmDropText').innerHTML = '<i class="fas fa-file-excel" style="font-size:1.6rem;display:block;margin-bottom:8px;color:#16a34a;"></i>' + fi.files[0].name;
+});
+// Auto-open import if hash present
+if (window.location.hash === '#import') vmOpenImport();
+</script>
+{% endblock %}

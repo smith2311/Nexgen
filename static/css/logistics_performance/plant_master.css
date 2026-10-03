@@ -1,0 +1,18 @@
+/* ═══════════════════════════════════════════════════════
+   plant_master.css — Plant Master grid overrides
+   Page shell  → components/master_page/master_page.css
+   Table/util  → components/data_table/data_table.css
+   Modal       → components/modal/modal.css
+   Only the per-module column widths live here.
+═══════════════════════════════════════════════════════ */
+
+/* ── LIST TABLE COLUMNS: ID | Plant Name | Company | Email | Address | Actions ── */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 80px 1.2fr 1fr 1.2fr 1.4fr 120px;
+}
+
+/* ── SCHEMA ROW COLUMNS: Column | Type | Description ── */
+.lm-page .schema-row {
+  grid-template-columns: 150px 90px 1fr;
+}

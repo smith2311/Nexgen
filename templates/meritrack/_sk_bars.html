@@ -1,0 +1,14 @@
+{% comment %}
+Shimmering placeholder for a CSS bar chart, so analytics cards have shape
+while their data loads instead of a lone spinner.
+Usage: {% include 'meritrack/_sk_bars.html' with bars="12345" %}
+{% endcomment %}
+<div class="mt-sk-bars" aria-hidden="true">
+    {% for _ in bars|default:"1234" %}
+    <div class="bar-row">
+        <div class="mt-sk" style="width:88px;height:11px;flex-shrink:0;"></div>
+        <div class="mt-sk" style="flex:1;height:20px;border-radius:999px;"></div>
+        <div class="mt-sk" style="width:30px;height:11px;flex-shrink:0;"></div>
+    </div>
+    {% endfor %}
+</div>

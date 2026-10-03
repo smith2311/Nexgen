@@ -1,0 +1,518 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Outbound Scanner Console — the hot path. A picker stares at this for 8 hours a
+day; every scan needs an unmistakable visual + audio signal, and the scan input
+must survive everything short of a modal being open.
+
+Domain rules this template must not break (see merilv/DATA_MODEL.md §12):
+  - box capacity is per-entity; max_qty=0 renders as "Unlimited", never "0"
+  - focus can lock to a delivery OR a customer, never both
+  - every scan is logged, accepted or rejected, with a machine-readable reason
+  - courier resolution order is CustomerCourierMapping -> CustomerMaster -> operator
+  - partial exports are gated by entity.allow_partial_export
+{% endcomment %}
+
+{% block mv_title %}{{ session }} — Outbound Scanner{% endblock %}
+
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:outbound' %}">Outbound Scanner</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current mv-mono">{{ session }}</span>
+{% endblock %}
+
+{% block mv_heading %}{{ session }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ session.entity.name }} · started {{ session.created_at|date:"d M, H:i" }}</p>{% endblock %}
+
+{% block mv_actions %}
+{% comment %}
+One button for everything to do with sound: mute, volume, and a play button per
+outcome. It was two — a mute toggle and a separate "Test sounds" — which put two
+near-identical speaker buttons side by side in the header for one concern.
+
+The label carries the state, so whether audio is on is readable without opening
+anything. Opening the panel is also what unblocks audio: browsers refuse sound
+until the page has had a real click, and this is that click.
+{% endcomment %}
+<button type="button" class="mv-btn mv-sound-btn" data-mv="sound-settings"
+        aria-expanded="false" title="Scan sounds — mute, volume and a preview of each cue">
+    {% icon "volume" 16 %}<span data-mv="sound-label">Sound on</span>
+</button>
+{% comment %}
+The focused delivery when there is one, the whole session otherwise — the same
+scope the screen below is showing. The label says which, because "Export" alone
+over a console narrowed to one delivery leaves the reader to guess whether they
+are about to get one sheet or twenty-four. Each delivery card carries its own
+export too, and clearing the focus turns this back into the combined one.
+{% endcomment %}
+<a href="{% url 'merilv:outbound_export' session.pk %}{% if payload.focus_delivery %}?delivery_no={{ payload.focus_delivery|urlencode }}{% endif %}"
+   class="mv-btn">
+    {% icon "download" %} {% if payload.focus_delivery %}Export {{ payload.focus_delivery }}{% else %}Export all{% endif %}
+</a>
+{% comment %}
+The invoice sheet for the focused delivery — the same fourteen columns Delivery
+History exports, reachable where the delivery was picked, so an operator who
+has just closed one does not leave the session and find it again in history.
+
+Off until the delivery is finished AND its courier paperwork is in, because
+those are the columns: docket, box count, weight, vehicle. Rendered in its
+settled state and kept there by scanner.js, which reads `invoiceable` off the
+delivery. Pressing it while it is off answers with which of the two steps is
+outstanding rather than doing nothing — a control that ignores a click reads as
+broken, and "not yet" is the useful half of the answer.
+{% endcomment %}
+<a href="{% url 'merilv:outbound_invoice_export' session.pk %}{% if payload.focus_delivery %}?delivery_no={{ payload.focus_delivery|urlencode }}{% endif %}"
+   class="mv-btn mv-btn--invoice" data-mv="invoice-export"
+   {% if not payload.focus_delivery %}data-mv-invoice-off="nofocus"{% endif %}>
+    {% icon "scroll" %} Invoice
+</a>
+{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="outbound" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-console" data-mv-scanner='{
+        "scanUrl":   "{% url "merilv:outbound_scan" session.pk %}",
+        "bulkUrl":   "{% url "merilv:outbound_bulk_scan" session.pk %}",
+        "bulkFinishUrl": "{% url "merilv:outbound_bulk_finish" session.pk %}",
+        "undoUrl":   "{% url "merilv:outbound_undo" session.pk %}",
+        "focusUrl":  "{% url "merilv:outbound_focus" session.pk %}",
+        "stateUrl":  "{% url "merilv:outbound_state" session.pk %}",
+        "editUrl":   "{% url "merilv:outbound_edit_scan" session.pk %}",
+        "deleteUrl": "{% url "merilv:outbound_scan_delete" session.pk %}",
+        "clearUrl":  "{% url "merilv:outbound_clear_scans" session.pk %}",
+        "deliveryDeleteUrl": "{% url "merilv:outbound_delivery_delete" session.pk %}",
+        "exportUrl": "{% url "merilv:outbound_export" session.pk %}",
+        "batchUrl":  "{% url "merilv:outbound_line_batch" session.pk %}",
+        "invoiceUrl": "{% url "merilv:outbound_invoice_export" session.pk %}",
+        {% comment %}
+        Row-level permissions, and what each one DRAWS — never what it allows.
+        Every endpoint re-checks on the server, so a console posting to one by
+        hand is refused whatever these say. Two tiers, because they need
+        different things from the same table:
+
+          admin   full edit and delete on any row
+          picker  batch and serial change, no deletions
+
+        canEdit is the operate tier rather than the picker group by name: a
+        manager and an admin both operate, and all three may correct a row.
+        Viewers reach this screen too (outbound_session is @access_required, so
+        history stays auditable) and get neither — without this they saw edit
+        controls that answered with a login redirect, which reads as the screen
+        being broken rather than as a permission they do not have.
+
+        Deleting stays a supervisor's call — undo is the picker's tool and
+        reaches the last scan, while removing a specific row found an hour
+        later is not — but it is now the Delete A Scan Row capability rather
+        than "is admin", so a manager holds it by default and an admin can
+        move it. Clearing a whole delivery's log is its own capability again,
+        because it is a much bigger action than removing one row.
+        {% endcomment %}
+        "canEdit":   {% if request.user|can_operate_merilv %}true{% else %}false{% endif %},
+        "canDelete": {% if mv_can_delete_scan %}true{% else %}false{% endif %},
+        "canClear":  {% if mv_can_clear_scans %}true{% else %}false{% endif %},
+        "canBatch":  {% if mv_can_batch_correction %}true{% else %}false{% endif %},
+        "startedAt": "{{ session.created_at|date:"c" }}",
+        "audioBase": "{% static "merilv/audio/" %}",
+        "useAudioFiles": false
+     }'>
+
+    {% comment %}
+    ── Left rail: five standing blocks ─────────────────────────────────────
+    Session · Progress · Focus · Receptacle · Actions, in that order, because
+    that is the order a picker asks the questions in: how long have I been on
+    this, how much is left, which delivery am I locked to, which carton am I
+    filling, what can I do about it.
+
+    Every one of the five is always rendered. A block that appears and
+    disappears with configuration makes the rail a different shape per entity,
+    and an operator who has learned where the pending count sits then has to
+    hunt for it on the next screen. Where a block has nothing to say it says so
+    instead of vanishing.
+    {% endcomment %}
+    <div class="mv-console__left">
+
+        {# 1 ── Session #}
+        <div class="mv-card mv-rail__block">
+            <div class="mv-rail__head">
+                <span class="mv-rail__title">Session</span>
+                {% if request.user|is_merilv_admin %}<span class="mv-tier mv-tier--admin">Admin</span>{% else %}<span class="mv-tier mv-tier--picker">Picker</span>{% endif %}
+            </div>
+            <div class="mv-session-timer">
+                {% icon "clock" 18 %}<span data-mv="timer">00:00:00</span>
+            </div>
+            <div class="mv-t-caption mv-rail__sub">{{ session.entity.name }} · started {{ session.created_at|date:"d M, H:i" }}</div>
+        </div>
+
+        {% comment %}
+        2 ── Progress. The three numbers a picker is actually working towards,
+        on the screen rather than behind a click, and repainted by the same
+        two-second poll as everything else (scanner.js:renderProgress). The
+        server has always computed them — _session_payload's `totals` — and
+        until now nothing displayed them; the console showed a delivery COUNT
+        in the footer, which answers a different question from "how many units
+        are left to pick".
+
+        Server-rendered first, so the numbers are right before the first poll
+        lands rather than flashing zeroes on every page load.
+        {% endcomment %}
+        <div class="mv-card mv-rail__block">
+            <div class="mv-rail__head">
+                <span class="mv-rail__title">Progress</span>
+                <span class="mv-rail__pct mv-mono" data-mv="progress-pct">{{ payload.totals.percent|floatformat:"-1" }}%</span>
+            </div>
+            <div class="mv-qtygrid" data-mv="progress">
+                <div class="mv-qtygrid__cell">
+                    <span class="mv-qtygrid__n mv-mono" data-mv="qty-required">{{ payload.totals.required|floatformat:"-2" }}</span>
+                    <span class="mv-qtygrid__k">Total</span>
+                </div>
+                <div class="mv-qtygrid__cell mv-qtygrid__cell--ok">
+                    <span class="mv-qtygrid__n mv-mono" data-mv="qty-scanned">{{ payload.totals.scanned|floatformat:"-2" }}</span>
+                    <span class="mv-qtygrid__k">Scanned</span>
+                </div>
+                <div class="mv-qtygrid__cell mv-qtygrid__cell--pending">
+                    <span class="mv-qtygrid__n mv-mono" data-mv="qty-pending">{{ payload.totals.pending|floatformat:"-2" }}</span>
+                    <span class="mv-qtygrid__k">Pending</span>
+                </div>
+            </div>
+            <div class="mv-progbar" role="progressbar" aria-label="Units scanned"
+                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ payload.totals.percent|floatformat:"-1" }}">
+                <span class="mv-progbar__fill" data-mv="progress-fill" style="width:{{ payload.totals.percent|floatformat:"-1" }}%"></span>
+            </div>
+        </div>
+
+        {% comment %}
+        3 ── Focus, the picking lock. Two faces of one block: the prompt while
+        nothing is focused (scanning is refused server-side until then, so this
+        is the console naming the missing step rather than letting a picker
+        fire a gun into a rejection), and the focused delivery once one is.
+        The scan input stays usable while blocked — a dead box answers a gun
+        with silence, which is the shape of "the scanner is broken" — but it is
+        tinted, and Enter says why the scan did not land.
+        {% endcomment %}
+        <div class="mv-card mv-rail__block mv-rail__block--focus">
+            <div class="mv-rail__head">
+                <span class="mv-rail__title">Focus</span>
+            </div>
+            {% comment %}
+            Both halves are rendered in their settled state, not hidden and
+            then corrected: scanner.js repaints this on the first poll, and a
+            block that starts empty and fills in a moment later shows a picker
+            an empty Focus card on every page load — on the one screen where
+            "is anything focused?" decides whether they can work at all.
+            {% endcomment %}
+            <div class="mv-alert mv-alert--warn mv-focus-prompt" data-mv="focus-prompt" {% if payload.can_scan %}hidden{% endif %}>
+                {% icon "alert" 16 %}
+                <div>
+                    <div class="mv-t-strong">No delivery focused</div>
+                    <div class="mv-t-caption">Click a delivery below to start scanning. Nothing can be scanned or pasted until one is focused.</div>
+                </div>
+            </div>
+            <div class="mv-focus-banner" data-mv="focus-banner" {% if not payload.can_scan %}hidden{% endif %}>
+                {% icon "arrow-right" 16 %}
+                <div style="flex:1;min-width:0;">
+                    <div class="mv-t-caption" style="color:rgba(255,255,255,.75);">Scanning locked to</div>
+                    <div class="mv-focus-banner__key mv-mono" data-mv="focus-key">{% if payload.focus_delivery %}Delivery: {{ payload.focus_delivery }}{% elif payload.focus_customer %}Customer: {{ payload.focus_customer }}{% endif %}</div>
+                    {% comment %}Row 2.4 — the legacy screen's "Focus Pending" counter, scoped to whichever delivery/customer is focused rather than the whole session.{% endcomment %}
+                    <div class="mv-t-caption" style="color:rgba(255,255,255,.75);" data-mv="focus-pending" hidden></div>
+                </div>
+                <button type="button" data-mv="clear-focus">Clear</button>
+            </div>
+        </div>
+
+        {% comment %}
+        4 ── Receptacle. Always shown, for every entity: the selected box is
+        stamped onto every OutboundScan and rides the export, whether or not
+        the entity enforces a capacity (see outbound_scan in merilv/views.py).
+        Only the capacity LINE is conditional, because a maximum is the one
+        part that means nothing when nothing is enforced.
+        {% endcomment %}
+        <div class="mv-card mv-rail__block">
+            <div class="mv-rail__head">
+                <span class="mv-rail__title">Receptacle</span>
+            </div>
+            <div class="mv-receptacle__code mv-mono">{{ session.selected_box|default:"—" }}</div>
+            {% with box=boxes|box_by_code:session.selected_box %}
+            <div class="mv-receptacle__meta mv-t-caption">
+                {% if box %}
+                    {{ box.length_cm }}×{{ box.width_cm }}×{{ box.height_cm }} cm ·
+                    {{ box.volumetric_weight }} kg vol.{% if session.entity.enforce_box_capacity %} ·
+                    Max {{ box.max_qty|box_capacity }}{% endif %}
+                {% else %}
+                    {% comment %}
+                    No "Change" link here, deliberately. The one this block used
+                    to carry was an <a href="#"> with no handler anywhere — the
+                    console has never posted a box for a session, and
+                    session.selected_box is only ever written by a scan that
+                    carries one. Cartons are counted in Finish Delivery, which
+                    is where the box chips live, so that is what this says
+                    instead of offering a control that does nothing.
+                    {% endcomment %}
+                    No box on this session. Cartons are counted when the
+                    delivery is finished.
+                {% endif %}
+            </div>
+            {% endwith %}
+        </div>
+
+        {# 5 ── Actions #}
+        <div class="mv-card mv-rail__block">
+            <div class="mv-rail__head">
+                <span class="mv-rail__title">Actions</span>
+            </div>
+            <div class="mv-console__left-actions">
+                <button type="button" class="mv-btn mv-btn--block" data-mv="undo-btn">
+                    {% icon "undo" %} Undo Last Scan
+                </button>
+                {% comment %}
+                Clears every scan on the focused delivery at once. Undo already
+                removes them one at a time, so this is the same right in bulk —
+                what it replaces is deleting the upload and re-importing the
+                YVL06 to correct one delivery. Disabled until a delivery is
+                focused, because there is deliberately no "clear everything".
+                {% endcomment %}
+                <button type="button" class="mv-btn mv-btn--block mv-btn--tint-warn"
+                        data-mv="clear-scans-btn" disabled>
+                    {% icon "close" %} Clear Scans on Delivery
+                </button>
+                <button type="button" class="mv-btn mv-btn--primary mv-btn--block" data-mv="finish-btn"
+                        data-mv-open-modal="mvFinishModal">
+                    Finish Delivery
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% comment %}
+    ── Scan band: the input, across the top ─────────────────────────────────
+    Its own full-width band, the way the legacy Outbound Scanner had it: the
+    one control a picker uses every few seconds is not something to go looking
+    for in a column. Mode tabs, the input and the outcome of the last scan —
+    nothing else, so the band stays shallow and the deliveries below it get the
+    screen.
+
+    The log used to live in here. It is beside the deliveries now (see the
+    Recent scans panel below), which is where a running list belongs: reading
+    it is checking on the picking, not checking on the last scan.
+    {% endcomment %}
+    <div class="mv-console__middle">
+        <div class="mv-card mv-scanframe">
+            {% comment %}
+            Scan / Bulk Paste — the legacy tool's own two-tab layout
+            (switchScanTab(), outbound-scanner.js:1562-1576). Bulk paste runs
+            every pasted code through the same engine as a single scan, in
+            order, so results are identical to scanning one at a time — just
+            repainted once. These two are a genuine either/or (one input or the
+            other), which is the only thing left that a tab is the right
+            control for.
+            {% endcomment %}
+            <div class="mv-scanframe__head">
+                <div class="mv-viewswitch" role="group" aria-label="Scan input mode">
+                    <button type="button" data-mv="tab-scan" aria-pressed="true">{% icon "scan" %}<span>Scan</span></button>
+                    <button type="button" data-mv="tab-bulk" aria-pressed="false">{% icon "layers" %}<span>Bulk Paste</span></button>
+                </div>
+                <div class="mv-scan-statusline">
+                    <svg class="mv-poll-spinner" data-mv="poll-spinner" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M21 12a9 9 0 1 1-2.6-6.4"/>
+                    </svg>
+                    <span data-mv="scan-status">Ready to scan. Keyboard input is focused.</span>
+                </div>
+            </div>
+
+            <div data-mv="scan-panel">
+                <input type="text" class="mv-scan-input" data-mv="scan-input" autocomplete="off" autofocus
+                       placeholder="SCAN BARCODE" aria-label="Scan barcode">
+            </div>
+
+            <div data-mv="bulk-panel" hidden>
+                <textarea class="mv-input" data-mv="bulk-input" rows="5" style="width:100%;font-family:var(--mv-font-mono,monospace);"
+                          placeholder="Paste or scan many codes — one per line, or separated by commas, tabs, semicolons or spaces. Anything after a # is treated as a note and ignored."></textarea>
+                <div class="mv-row" style="justify-content:space-between;margin-top:var(--mv-2);">
+                    <span class="mv-t-caption" data-mv="bulk-status">Ctrl+Enter processes the paste. Codes 5 characters or shorter, and anything after a #, are ignored.</span>
+                    <button type="button" class="mv-btn mv-btn--primary mv-btn--sm" data-mv="bulk-submit">{% icon "check" 14 %} Process pasted codes</button>
+                </div>
+            </div>
+
+            {% comment %}
+            The outcome of the last scan, sized to be read from the far side of
+            a packing bench. A toast lives in a corner and a log row is one line
+            of many; neither answers "did that go through?" at arm's length,
+            which is the question being asked every couple of seconds. Colour is
+            never the only signal — the state word and the sound carry it too.
+            {% endcomment %}
+            <div class="mv-scanresult" data-mv="scan-result" role="status" aria-live="assertive" hidden>
+                <div class="mv-scanresult__state" data-mv="result-state"></div>
+                <div class="mv-scanresult__body">
+                    <div class="mv-scanresult__headline" data-mv="result-headline"></div>
+                    <div class="mv-scanresult__detail" data-mv="result-detail"></div>
+                </div>
+                <code class="mv-scanresult__serial mv-mono" data-mv="result-serial" hidden></code>
+            </div>
+
+        </div>
+    </div>
+
+    {# ── Right column: delivery filter + view switcher + deliveries ──────── #}
+    {% comment %}
+    A card, like the Recent scans panel beside it. It was bare content — a
+    filter bar, a list and a footer floating on the page ground — while its
+    neighbour had a border and a background, so the two sat at the same height
+    without reading as two panels at the same level. Both are grid items on the
+    work band and stretch to it, so matching their frames is all that was
+    missing.
+    {% endcomment %}
+    <div class="mv-console__right mv-card mv-workpanel">
+        <div class="mv-deliveries__bar">
+            <div class="mv-search">
+                {% icon "search" %}
+                <input type="text" class="mv-input" data-mv="delivery-filter" placeholder="Filter by delivery, customer code or name…" aria-label="Filter deliveries by delivery number, customer code or customer name">
+            </div>
+            {% comment %}Row 2.4 — quick status filter alongside the search box, matching the legacy screen's All/Pending/Scanned buttons.{% endcomment %}
+            <div class="mv-viewswitch" role="group" aria-label="Filter deliveries by status">
+                <button type="button" data-mv-delivery-status="all" aria-pressed="true">All</button>
+                <button type="button" data-mv-delivery-status="pending" aria-pressed="false">Pending</button>
+                <button type="button" data-mv-delivery-status="scanned" aria-pressed="false">Scanned</button>
+            </div>
+            {% comment %}
+            The chosen view is remembered in localStorage, so a picker who
+            prefers the table doesn't have to re-pick it after every scan
+            session. aria-pressed carries the state — these are toggle buttons,
+            not links, so a screen reader announces which one is active.
+            {% endcomment %}
+            {% comment %}
+            Icons only, from --icons. Four labelled buttons plus the search box
+            and the three status buttons did not fit one row of this column, so
+            the bar wrapped — and a wrapped bar is ~38px taken off the list
+            below it, which is a row of the table. The names stay in title and
+            aria-label, which is where a screen reader and a hesitant mouse
+            both look; the pressed state carries which one is active.
+            {% endcomment %}
+            <div class="mv-viewswitch mv-viewswitch--icons" role="group" aria-label="Delivery view">
+                <button type="button" data-mv-view="card"   aria-pressed="true"  title="Card view" aria-label="Card view">{% icon "grid" %}<span>Cards</span></button>
+                <button type="button" data-mv-view="table"  aria-pressed="false" title="Table view" aria-label="Table view">{% icon "table" %}<span>Table</span></button>
+                <button type="button" data-mv-view="kanban" aria-pressed="false" title="Kanban view" aria-label="Kanban view">{% icon "columns" %}<span>Kanban</span></button>
+                <button type="button" data-mv-view="lines"  aria-pressed="false" title="Material &amp; serial detail per line" aria-label="Lines view">{% icon "layers" %}<span>Lines</span></button>
+            </div>
+        </div>
+        {% comment %}
+        What the list below is narrowed to. A focused delivery is a picking
+        lock — nothing else can be scanned while it is set (see _focus_gate in
+        merilv/views.py) — so the list, the status filter and the scan log all
+        show that delivery alone. Said out loud here, with the one click back
+        out, because a list of one that does not explain itself reads as a
+        session that lost its other deliveries. Painted by scanner.js.
+        {% endcomment %}
+        <div class="mv-alert mv-alert--info mv-lines-scope" data-mv="scope-bar" hidden></div>
+
+        {% comment %}
+        Row 2.4 — the legacy screen's "N delivered selected — Finish & Export
+        Selected" bulk bar, for the Table view's checkboxes. Hidden until at
+        least one delivery is selected.
+        {% endcomment %}
+        <div class="mv-alert mv-alert--info" data-mv="bulk-finish-bar" hidden style="align-items:center;">
+            <span data-mv="bulk-finish-count" style="flex:1;"></span>
+            <button type="button" class="mv-btn mv-btn--sm" data-mv="bulk-finish-clear">Clear</button>
+            <button type="button" class="mv-btn mv-btn--primary mv-btn--sm" data-mv-open-modal="mvBulkFinishModal">
+                {% icon "check" 14 %} Finish Selected
+            </button>
+        </div>
+        <div class="mv-delivery-list" data-mv="deliveries"></div>
+        <div class="mv-console-footer" data-mv="totals"></div>
+    </div>
+
+    {% comment %}
+    ── Recent scans: concise, beside the deliveries ─────────────────────────
+    A narrow column, not a full-width panel: it is a running list of one-line
+    facts, and every scan's detail is a click away in the row itself. The
+    deliveries beside it are the thing that needs width — nine columns of
+    material, batch, plant and progress — so this takes the narrow side and
+    renders its rows in the concise variant (see .mv-scanlog--concise).
+    {% endcomment %}
+    <div class="mv-console__log">
+        {% include "merilv/_shell/scan_log.html" %}
+    </div>
+</div>
+
+{% comment %}
+── Scan error popup ─────────────────────────────────────────────────────────
+One node, reused for every error, never cloned. That is the whole answer to
+"multiple errors could trigger multiple popups, potential crash": a paste of
+2,000 codes with 400 rejections cannot open 400 of anything, because there is
+only ever this one element and the last error rewrites it.
+
+Deliberately NOT a .mv-modal-scrim. That class is what refocusScanInput() and
+the console's keydown handler check before giving the keyboard back, so a real
+modal here would take the scan input away from a picker holding a gun — they
+would have to put it down and click to carry on. This floats above the page,
+takes no focus, and the next scan replaces it.
+{% endcomment %}
+<div class="mv-errorpop" data-mv="error-pop" role="alert" aria-live="assertive" hidden>
+    <div class="mv-errorpop__card">
+        <div class="mv-errorpop__head">
+            <span class="mv-errorpop__title" data-mv="error-title"></span>
+            <button type="button" class="mv-errorpop__close" data-mv="error-close" aria-label="Dismiss">
+                {% icon "close" 16 %}
+            </button>
+        </div>
+        <div class="mv-errorpop__msg" data-mv="error-message"></div>
+        {% comment %}
+        The serial the error is about, given a line of its own above the
+        barcode rather than being left inside the message text.
+
+        A picker reads this with a carton in their hand. The serial is what is
+        printed on that carton; the raw barcode is a forty-character string
+        that is not on it at all. Shown for refusals as much as for a duplicate
+        — "wrong batch" is only actionable once you know which unit was wrong.
+        Hidden, not blank, for an item whose label carries no serial.
+        {% endcomment %}
+        <div class="mv-errorpop__serial mv-mono" data-mv="error-serial" hidden></div>
+        {% comment %}
+        The scrollable half. One error fills it with the code that was scanned;
+        a paste fills it with a group per error type and the codes under each,
+        which is what keeps a hundred rejections to one popup.
+        {% endcomment %}
+        <div class="mv-errorpop__detail" data-mv="error-detail" hidden></div>
+        <div class="mv-errorpop__foot">
+            <span class="mv-t-caption" data-mv="error-hint">Scan the next item to dismiss.</span>
+            {% comment %}
+            The way out of a cross-session block, on the error that caused it.
+
+            "Serial X is already assigned in delivery Y (session #139). Undo it
+            there before packing it here" named the session and gave no way to
+            reach it: the landing page lists the twenty newest sessions and the
+            one holding the serial is, by definition, an older one somebody
+            left open. The operator was told what to do and could not do it.
+
+            Rendered empty and filled by showErrorPop when the rejection
+            carries a blocking_session_id, so it never shows on the errors it
+            has nothing to say about.
+            {% endcomment %}
+            <a class="mv-btn mv-btn--sm" data-mv="error-action" href="#" hidden target="_blank" rel="noopener"></a>
+            {% comment %}
+            "Skip this one" lives here rather than in a banner of its own.
+
+            A rejected scan puts the session on hold — the same code cannot be
+            rescanned until it is corrected or deliberately left out — and that
+            used to be announced by a second element built in JavaScript and
+            inserted above the runtime log. That log is gone, so the bar fell
+            through to appending itself at the end of the console: an unrelated
+            block below the delivery list, saying the same thing as the popup
+            already on screen. The decision belongs with the error that caused
+            it.
+            {% endcomment %}
+            <button type="button" class="mv-btn mv-btn--sm" data-mv="error-skip" hidden>Skip this one</button>
+            <button type="button" class="mv-btn mv-btn--sm" data-mv="error-dismiss">Dismiss</button>
+        </div>
+    </div>
+</div>
+
+{% include "merilv/_shell/finish_modal.html" %}
+{% include "merilv/_shell/bulk_finish_modal.html" %}
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'merilv/js/offline_queue.js' %}" defer></script>
+<script src="{% static 'merilv/js/scanner.js' %}" defer></script>
+{% endblock %}

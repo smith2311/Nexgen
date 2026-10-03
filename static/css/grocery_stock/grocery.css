@@ -1,0 +1,1004 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Grocery Stock & Cost Management
+   Shares the palette and rhythm of the Logistics / VAT / Visa modules so the
+   module does not read as a bolt-on. Layout classes prefixed gs- to avoid
+   collisions; the page frame reuses the shared master_page component
+   (.lm-page / .lm-header / .lm-inner) and modal component (.lmodal-*).
+═══════════════════════════════════════════════════════════════════════ */
+
+.gs-wrap,
+.gs-master {
+    --gs-navy:      #0b1f3a;
+    --gs-blue:      #0076c8;
+    --gs-blue-lt:   #e6f2fb;
+    --gs-teal:      #00c2a8;
+    --gs-teal-lt:   #e0f8f5;
+    --gs-green:     #10b981;
+    --gs-green-lt:  #d1fae5;
+    --gs-amber:     #f59e0b;
+    --gs-amber-lt:  #fef3c7;
+    --gs-red:       #ef4444;
+    --gs-red-lt:    #fee2e2;
+    --gs-purple:    #8b5cf6;
+    --gs-purple-lt: #ede9fe;
+    --gs-text:      #0b1f3a;
+    --gs-text-2:    #4a5568;
+    --gs-muted:     #9ca3af;
+    --gs-bg:        #f0f4f9;
+    --gs-surface:   #ffffff;
+    --gs-border:    rgba(11, 31, 58, 0.10);
+    --gs-border-md: rgba(11, 31, 58, 0.16);
+    --gs-radius:    12px;
+    --gs-radius-sm: 8px;
+}
+
+/* The module hides and shows panels with the `hidden` attribute. The browser's
+   default `[hidden] { display: none }` lives in the UA stylesheet, so ANY
+   author rule that sets `display` on the same element wins over it — e.g.
+   `.gs-chart-empty { display: flex }` kept every chart's empty state painted
+   underneath the rendered chart. Restate the rule at author origin. */
+.gs-wrap [hidden],
+.gs-master [hidden] { display: none !important; }
+
+/* ═══ MODULE HOME ═══════════════════════════════════════════════════════ */
+
+.gs-wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 28px 24px 56px;
+    color: var(--gs-text);
+}
+
+.gs-home-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 26px 28px;
+    margin-bottom: 30px;
+    border-radius: 16px;
+    background: linear-gradient(120deg, var(--gs-navy) 0%, #123a63 60%, #0d4f6d 100%);
+    color: #fff;
+    box-shadow: 0 10px 30px rgba(11, 31, 58, 0.20);
+}
+
+.gs-home-title h1 {
+    margin: 0 0 6px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.gs-home-title h1 i { color: var(--gs-teal); }
+
+.gs-home-title p {
+    margin: 0;
+    font-size: 13.5px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.gs-home-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.gs-hstat {
+    min-width: 108px;
+    padding: 12px 18px;
+    text-align: center;
+    border-radius: var(--gs-radius);
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.gs-hstat-val { font-size: 22px; font-weight: 700; line-height: 1.1; }
+
+.gs-hstat-lbl {
+    margin-top: 3px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.66);
+}
+
+.gs-section-hdr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 30px 0 14px;
+}
+
+.gs-section-hdr h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gs-text);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.gs-section-hdr h2 i { color: var(--gs-blue); font-size: 14px; }
+
+.gs-section-note {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: var(--gs-green);
+    background: var(--gs-green-lt);
+}
+
+.gs-section-note-soon { color: var(--gs-amber); background: var(--gs-amber-lt); }
+
+.gs-section-hdr::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gs-border);
+}
+
+.gs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+/* Cards follow the logistics-performance / VAT-reconciliation home look:
+   white surface, per-card colour tone tinting the icon square, and a 3px
+   accent bar in the tone colour revealed along the bottom edge on hover.
+   The card's `color` IS the tone — icon tint and accent bar both read it. */
+.gs-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px;
+    border-radius: 16px;
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    text-decoration: none;
+    color: var(--gs-blue);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gs-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+a.gs-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 16px rgba(11, 31, 58, 0.10);
+    border-color: var(--gs-border-md);
+}
+
+a.gs-card:hover::after { opacity: 1; }
+
+/* Card tones — the same rotation the logistics / VAT home pages use. */
+.gs-tone-blue   { color: var(--gs-blue); }
+.gs-tone-teal   { color: var(--gs-teal); }
+.gs-tone-green  { color: var(--gs-green); }
+.gs-tone-amber  { color: var(--gs-amber); }
+.gs-tone-purple { color: var(--gs-purple); }
+.gs-tone-red    { color: var(--gs-red); }
+.gs-tone-navy   { color: var(--gs-navy); }
+
+.gs-card-icon {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    font-size: 17px;
+    background: var(--gs-blue-lt);
+    color: var(--gs-blue);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Icon tint per tone — coloured glyph on its light wash, exactly like the
+   .lph-icon / .vath-icon pairs on the logistics and VAT home pages. */
+.gs-tone-blue   .gs-card-icon { background: var(--gs-blue-lt);   color: var(--gs-blue); }
+.gs-tone-teal   .gs-card-icon { background: var(--gs-teal-lt);   color: var(--gs-teal); }
+.gs-tone-green  .gs-card-icon { background: var(--gs-green-lt);  color: var(--gs-green); }
+.gs-tone-amber  .gs-card-icon { background: var(--gs-amber-lt);  color: var(--gs-amber); }
+.gs-tone-purple .gs-card-icon { background: var(--gs-purple-lt); color: var(--gs-purple); }
+.gs-tone-red    .gs-card-icon { background: var(--gs-red-lt);    color: var(--gs-red); }
+.gs-tone-navy   .gs-card-icon { background: #e6ebf2;             color: var(--gs-navy); }
+
+a.gs-card:hover .gs-card-icon { transform: scale(1.08); }
+
+.gs-card-body { flex: 1; min-width: 0; }
+
+.gs-card-body h3 {
+    margin: 0 0 5px;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--gs-text);
+}
+
+.gs-card-body p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gs-text-2);
+}
+
+.gs-card-meta {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.gs-count {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gs-navy);
+    line-height: 1;
+}
+
+.gs-chip {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.gs-chip-edit { color: var(--gs-green); background: var(--gs-green-lt); }
+.gs-chip-read { color: var(--gs-muted); background: #f1f5f9; }
+
+/* Phase-2 placeholder cards */
+.gs-card-soon { opacity: 0.62; cursor: default; border-style: dashed; }
+.gs-card-soon .gs-card-icon { background: #f1f5f9; color: var(--gs-muted); }
+
+/* ═══ MASTER PAGE ═══════════════════════════════════════════════════════ */
+
+.gs-master { color: var(--gs-text); }
+
+/* ── Filter bar ── */
+.gs-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.gs-search-wrap {
+    position: relative;
+    flex: 1 1 300px;
+    max-width: 460px;
+}
+
+.gs-search-wrap > i {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12.5px;
+    color: var(--gs-muted);
+    pointer-events: none;
+}
+
+.gs-search-wrap input {
+    width: 100%;
+    padding: 9px 34px 9px 34px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--gs-text);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border-md);
+    border-radius: var(--gs-radius-sm);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.gs-search-wrap input:focus {
+    outline: none;
+    border-color: var(--gs-blue);
+    box-shadow: 0 0 0 3px rgba(0, 118, 200, 0.12);
+}
+
+.gs-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: var(--gs-text-2);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gs-search-clear:hover { background: var(--gs-red-lt); color: var(--gs-red); }
+
+.gs-pills { display: flex; gap: 6px; }
+
+.gs-pill {
+    padding: 7px 15px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--gs-text-2);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border-md);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.gs-pill:hover { border-color: var(--gs-blue); color: var(--gs-blue); }
+
+.gs-pill.active {
+    background: var(--gs-navy);
+    border-color: var(--gs-navy);
+    color: #fff;
+}
+
+/* ── Actions bar ── */
+.gs-actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.gs-actions-left,
+.gs-actions-right { display: flex; align-items: center; gap: 8px; }
+
+.gs-select-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--gs-text-2);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border-md);
+    border-radius: var(--gs-radius-sm);
+    cursor: pointer;
+}
+
+.gs-record-count {
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--gs-text-2);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* ── Table ── */
+.gs-tbl-wrap {
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    border-radius: var(--gs-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04);
+}
+
+.gs-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.gs-tbl thead th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gs-text-2);
+    background: #f6f9fc;
+    border-bottom: 1px solid var(--gs-border);
+    white-space: nowrap;
+}
+
+.gs-tbl thead th.gs-sortable { cursor: pointer; user-select: none; }
+.gs-tbl thead th.gs-sortable:hover { color: var(--gs-blue); }
+.gs-tbl thead th .gs-sort-ind { margin-left: 5px; opacity: 0.45; font-size: 10px; }
+.gs-tbl thead th.gs-sorted .gs-sort-ind { opacity: 1; color: var(--gs-blue); }
+
+.gs-tbl tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(11, 31, 58, 0.06);
+    vertical-align: middle;
+}
+
+.gs-tbl tbody tr:last-child td { border-bottom: none; }
+.gs-tbl tbody tr:hover { background: #f8fbfe; }
+
+.gs-cell-muted { color: var(--gs-text-2); }
+.gs-cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+.gs-cell-code { font-weight: 600; color: var(--gs-navy); }
+
+.gs-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 20px;
+}
+
+.gs-badge-on  { color: var(--gs-green); background: var(--gs-green-lt); }
+.gs-badge-off { color: var(--gs-muted); background: #f1f5f9; }
+
+.gs-row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+.gs-icon-btn {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--gs-border-md);
+    border-radius: 7px;
+    background: var(--gs-surface);
+    color: var(--gs-text-2);
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.gs-icon-btn:hover { border-color: var(--gs-blue); color: var(--gs-blue); background: var(--gs-blue-lt); }
+.gs-icon-btn.gs-danger:hover { border-color: var(--gs-red); color: var(--gs-red); background: var(--gs-red-lt); }
+
+.gs-loading,
+.gs-empty {
+    padding: 46px 20px !important;
+    text-align: center;
+    color: var(--gs-muted);
+    font-size: 13px;
+}
+
+.gs-empty i { display: block; font-size: 30px; margin-bottom: 10px; opacity: 0.4; }
+
+.gs-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 7px;
+    vertical-align: -2px;
+    border: 2px solid var(--gs-border-md);
+    border-top-color: var(--gs-blue);
+    border-radius: 50%;
+    animation: gs-spin 0.7s linear infinite;
+}
+
+@keyframes gs-spin { to { transform: rotate(360deg); } }
+
+/* ── Pagination ── */
+.gs-pagi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-top: 1px solid var(--gs-border);
+    background: #fbfdff;
+}
+
+.gs-pagi-info { font-size: 12px; color: var(--gs-text-2); }
+.gs-pagi-btns { display: flex; gap: 5px; }
+
+.gs-pagi-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--gs-text-2);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border-md);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.gs-pagi-btn:hover:not(:disabled) { border-color: var(--gs-blue); color: var(--gs-blue); }
+.gs-pagi-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.gs-pagi-btn.active { background: var(--gs-navy); border-color: var(--gs-navy); color: #fff; }
+
+/* ═══ MODAL ════════════════════════════════════════════════════════════
+   The form itself uses the shared .form-grid / .form-field / .form-input
+   family from the data_table component, exactly as the logistics masters do,
+   so the two modules stay visually identical and there is one set of input
+   styles to maintain. Only the pieces the component does not cover live here.
+═══════════════════════════════════════════════════════════════════════ */
+
+.gs-modal-wide { max-width: 860px; }
+
+/* .lmodal-hdr is styled red by the modal component because it was written for
+   the delete dialog. An edit form gets the blue treatment instead — the same
+   override the logistics edit modals apply inline. */
+.gs-modal-edit .lmodal-hdr    { background: var(--blue-lt); }
+.gs-modal-edit .lmodal-icon   { background: var(--blue); }
+.gs-modal-edit .lmodal-hdr h3 { color: var(--blue); }
+.gs-modal-edit .lmodal-hdr p  { color: var(--navy); }
+
+/* Long master forms (the item master has 19 fields) scroll inside the modal
+   rather than pushing the footer buttons off-screen. */
+.gs-modal-edit .lmodal-body { max-height: 65vh; overflow-y: auto; }
+
+.lmodal-x {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.lmodal-x:hover { color: var(--red); }
+
+/* A grouping heading inside .form-grid (Stock control, Costing, …). */
+.gs-form-section {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--blue);
+}
+
+/* No shared checkbox pattern exists, so this one is built to match the
+   surrounding .form-input styling rather than invent a second look. */
+.gs-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    cursor: pointer;
+}
+
+.gs-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); }
+.gs-check span  { font-size: 13px; color: var(--text-primary); }
+
+/* ═══ RESPONSIVE ════════════════════════════════════════════════════════ */
+
+@media (max-width: 860px) {
+    .lmodal .form-grid { grid-template-columns: 1fr; }
+    .lmodal .form-field.span-2 { grid-column: auto; }
+}
+
+@media (max-width: 700px) {
+    .gs-wrap { padding: 20px 14px 44px; }
+    .gs-grid { grid-template-columns: 1fr; }
+    .gs-home-header { padding: 20px; }
+    .gs-home-stats { width: 100%; }
+    .gs-hstat { flex: 1; min-width: 0; }
+    .gs-tbl-wrap { overflow-x: auto; }
+    .gs-tbl { min-width: 640px; }
+    .gs-filter-bar,
+    .gs-actions-bar { flex-direction: column; align-items: stretch; }
+    .gs-search-wrap { max-width: none; }
+    .gs-actions-right { justify-content: space-between; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 2 — documents and reports
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── extra badge tones ── */
+.gs-badge-draft  { color: #7c4a03; background: var(--gs-amber-lt); }
+.gs-badge-warn   { color: var(--gs-amber); background: var(--gs-amber-lt); }
+.gs-badge-danger { color: var(--gs-red);   background: var(--gs-red-lt); }
+
+.gs-pos { color: var(--gs-green); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gs-neg { color: var(--gs-red);   font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── clickable list rows ── */
+.gs-row-link { cursor: pointer; }
+.gs-row-link:hover { background: var(--gs-blue-lt) !important; }
+
+/* ── date-range inputs in a toolbar ── */
+.gs-daterange {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--gs-text-2);
+    white-space: nowrap;
+}
+
+.gs-filter-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.gs-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--gs-text-2);
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border-md);
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+.gs-toggle input { accent-color: var(--gs-blue); cursor: pointer; }
+.gs-toggle:hover { border-color: var(--gs-blue); color: var(--gs-blue); }
+
+/* ── document form panels ── */
+.gs-panel {
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    border-radius: var(--gs-radius);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04);
+    margin-bottom: 18px;
+    overflow: hidden;
+}
+
+.gs-panel-hdr {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--gs-text-2);
+    background: #f6f9fc;
+    border-bottom: 1px solid var(--gs-border);
+}
+
+.gs-panel-hdr i { color: var(--gs-blue); }
+.gs-panel-hdr .btn { margin-left: auto; }
+
+.gs-panel-body { padding: 18px; }
+.gs-panel-body-flush { padding: 0; }
+
+.btn-xs {
+    padding: 5px 11px !important;
+    font-size: 11.5px !important;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ── header actions ── */
+.gs-doc-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.gs-status-chip {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 3px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 20px;
+    vertical-align: middle;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.gs-chip-posted    { background: var(--gs-green); color: #fff; }
+.gs-chip-draft     { background: var(--gs-amber); color: #fff; }
+.gs-chip-cancelled { background: #64748b; color: #fff; }
+
+/* ── line editor ── */
+.gs-lines-scroll { overflow-x: auto; }
+
+.gs-lines-tbl { min-width: 900px; }
+.gs-lines-tbl thead th { position: sticky; top: 0; z-index: 1; }
+.gs-lines-tbl tbody td { padding: 6px 8px; }
+
+/* Inputs sit flush inside the grid so the row reads as a spreadsheet line
+   rather than a stack of separate form controls. */
+.gs-lines-tbl .form-input,
+.gs-lines-tbl .form-select {
+    padding: 6px 8px;
+    font-size: 12.5px;
+    border-radius: 6px;
+}
+
+.gs-lines-tbl .form-input:focus,
+.gs-lines-tbl .form-select:focus { position: relative; z-index: 2; }
+
+.gs-lines-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--gs-muted);
+}
+
+.gs-lines-empty i { display: block; font-size: 28px; margin-bottom: 10px; opacity: 0.4; }
+.gs-lines-empty p { margin: 0; font-size: 13px; }
+
+/* ── totals ── */
+.gs-totals {
+    max-width: 420px;
+    margin-left: auto;
+    padding: 16px 18px;
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    border-radius: var(--gs-radius);
+}
+
+.gs-totals:empty { display: none; }
+
+.gs-total-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 7px 0;
+    font-size: 13px;
+    color: var(--gs-text-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.gs-total-strong {
+    margin-top: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gs-border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gs-navy);
+}
+
+.gs-total-note {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--gs-border);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--gs-muted);
+}
+
+.gs-total-note i { margin-top: 2px; color: var(--gs-blue); }
+
+@media (max-width: 700px) {
+    .gs-totals { max-width: none; }
+    .gs-doc-actions { width: 100%; }
+    .gs-doc-actions .btn { flex: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PHASE 3 — dashboard
+═══════════════════════════════════════════════════════════════════════ */
+
+.gs-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.gs-kpi {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 16px;
+    background: var(--gs-surface);
+    border: 1px solid var(--gs-border);
+    border-radius: var(--gs-radius);
+    box-shadow: 0 1px 2px rgba(11, 31, 58, 0.04);
+    text-decoration: none;
+    color: inherit;
+}
+
+.gs-kpi-link { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+
+.gs-kpi-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(11, 31, 58, 0.11);
+    border-color: var(--gs-blue);
+}
+
+.gs-kpi-loading {
+    grid-column: 1 / -1;
+    justify-content: center;
+    color: var(--gs-muted);
+    font-size: 13px;
+}
+
+.gs-kpi-icon {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    font-size: 15px;
+}
+
+.gs-kpi-body { display: flex; flex-direction: column; min-width: 0; }
+
+.gs-kpi-value {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--gs-navy);
+    font-variant-numeric: tabular-nums;
+    /* Long rupee figures must not push the tile wider than its grid cell. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gs-kpi-label {
+    margin-top: 3px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--gs-muted);
+}
+
+/* Tone variants shared by KPI icons */
+.gs-tone-blue   { background: var(--gs-blue-lt);  color: var(--gs-blue); }
+.gs-tone-teal   { background: var(--gs-teal-lt);  color: #059c88; }
+.gs-tone-green  { background: var(--gs-green-lt); color: var(--gs-green); }
+.gs-tone-amber  { background: var(--gs-amber-lt); color: var(--gs-amber); }
+.gs-tone-red    { background: var(--gs-red-lt);   color: var(--gs-red); }
+.gs-tone-purple { background: #ede9fe;            color: #8b5cf6; }
+.gs-tone-slate  { background: #f1f5f9;            color: #64748b; }
+
+/* ── chart grid ── */
+.gs-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 18px;
+}
+
+.gs-chart-grid .gs-panel { margin-bottom: 0; }
+.gs-chart-wide { grid-column: 1 / -1; }
+
+/* Fixed height: Chart.js with maintainAspectRatio:false needs a sized parent,
+   otherwise the canvas grows on every resize event. */
+.gs-chart-box { position: relative; height: 280px; }
+
+.gs-chart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 280px;
+    color: var(--gs-muted);
+}
+
+.gs-chart-empty i { font-size: 30px; margin-bottom: 10px; opacity: 0.35; }
+.gs-chart-empty p { margin: 0; font-size: 13px; }
+
+@media (max-width: 700px) {
+    .gs-kpi-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+    .gs-kpi { padding: 13px; gap: 10px; }
+    .gs-kpi-value { font-size: 16px; }
+    .gs-chart-box, .gs-chart-empty { height: 240px; }
+}
+
+/* ── Buttons sitting on the dark page header ────────────────────────────────
+   .btn-ghost is a light-surface control (white fill, grey text). On the navy
+   .lm-header gradient it reads as a heavy white slab, and it disappears
+   entirely if data_table.css is not loaded. This variant is built for the dark
+   header instead: translucent fill, white text, no dependency on the shared
+   token set. Apply it alongside .btn — never instead of .btn.                */
+
+.gs-doc-actions .btn,
+.btn.gs-on-dark {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.gs-doc-actions .btn:hover,
+.btn.gs-on-dark:hover {
+    background: rgba(255, 255, 255, 0.26);
+    border-color: rgba(255, 255, 255, 0.45);
+    color: #ffffff;
+}
+
+.gs-doc-actions .btn:active,
+.btn.gs-on-dark:active { transform: translateY(1px); }
+
+.gs-doc-actions .btn:disabled,
+.btn.gs-on-dark:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Post is the primary action on a document — keep it solid so it still reads
+   as the confident choice against the translucent secondaries. */
+.gs-doc-actions .btn-green {
+    background: var(--gs-green, #10b981);
+    border-color: transparent;
+}
+
+.gs-doc-actions .btn-green:hover {
+    background: #059669;
+    border-color: transparent;
+}
+
+.gs-doc-actions .gs-spinner {
+    border-color: rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+}
+
+/* ── Home cards: per-card tone, matching logistics / VAT / visa ─────────────
+   These cards were briefly flattened to a single green, which made every icon
+   square identical and lost the one cue that tells the grid apart at a glance.
+   The tone now comes from the page spec (pages.py / pages_txn.py) rather than
+   a template {% cycle %}, so a given master keeps its colour no matter how
+   many cards the viewer's role can see — the .gs-tone-* rules above do the
+   colouring, exactly as .lph-icon / .vath-icon / .vmh-icon do in the
+   logistics, VAT and visa home pages.
+
+   Only the count and the hover lift are asserted here; the icon tint is left
+   to the .gs-tone-* block so there is one place that owns it. Scoped to
+   .gs-wrap so the dashboard KPI tiles, which use .gs-tone-* to signal state,
+   are untouched.                                                            */
+
+.gs-wrap .gs-card { background: var(--gs-surface); }
+
+.gs-wrap a.gs-card:hover {
+    border-color: currentColor;
+    box-shadow: 0 12px 28px rgba(11, 31, 58, 0.12);
+}
+
+.gs-wrap .gs-count {
+    font-size: 20px;
+    color: var(--gs-navy);
+}
+
+/* Planned cards stay deliberately muted — re-asserted here because this block
+   comes after the original .gs-card-soon rule and would otherwise tone them. */
+.gs-wrap .gs-card-soon .gs-card-icon {
+    background: #f1f5f9;
+    color: var(--gs-muted);
+}
+
+/* ═══ BULK UPLOAD (logistics-style tabs) ═════════════════════════════════
+   The drop zone, schema table, preview stats and confirm bar all come from
+   the shared data_table component; only the per-module schema grid — the
+   Column | Type | Description widths — lives here, exactly as each
+   logistics master CSS defines its own. */
+.gs-master .schema-row { grid-template-columns: 150px 90px 1fr; }

@@ -1,0 +1,304 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → Materials. Scan-code-to-SAP-code mapping, per entity — the table
+every scan resolves through. Import and Clear stay scoped to the entity picked
+in the toolbar, so neither can reach across business units by accident.
+{% endcomment %}
+
+{% block mv_title %}Materials — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Materials</span>
+{% endblock %}
+{% block mv_heading %}Materials{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Scan code → SAP material code mapping, per entity.</p>{% endblock %}
+
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-mx-card__head">
+        {% url 'merilv:masters_material_create' as mv_add_url %}
+        {% include "merilv/_shell/masters_card_head.html" with title="Material Master" icon="package" count=result_count key="materials" entity=entity_code add_url=mv_add_url add_label="Add Material" %}
+        <div data-mv-layout-manager data-screen-key="masters_materials" data-table="#mvMaterialsTable"></div>
+    </div>
+
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search">
+            {% icon "search" %}
+            <input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Search code or description…">
+        </div>
+        <select class="mv-select" name="entity" style="width:auto;min-width:160px;">
+            <option value="">All entities</option>
+            {% for e in entities %}
+            <option value="{{ e.code }}" {% if e.code == entity_code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>
+            {% endfor %}
+        </select>
+        {% comment %}
+        Grouping dropdowns for material group and product-hierarchy level 1. Both
+        are populated from the values actually present for the chosen entity, so
+        neither can offer a filter that returns nothing.
+        {% endcomment %}
+        {% if groups %}
+        <select class="mv-select" name="group" style="width:auto;min-width:150px;">
+            <option value="">All material groups</option>
+            {% for value in groups %}
+            <option value="{{ value }}" {% if value == group_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% if hierarchies %}
+        <select class="mv-select" name="ph" style="width:auto;min-width:140px;">
+            <option value="">All PH Level 01</option>
+            {% for value in hierarchies %}
+            <option value="{{ value }}" {% if value == ph_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        {% comment %}
+        Plant and the two management flags, from the YMM061 restructure. The
+        flags are tri-state: an empty value means "either", so the default view
+        shows every material rather than quietly hiding half the master.
+        {% endcomment %}
+        {% if plants %}
+        <select class="mv-select" name="plant" style="width:auto;min-width:110px;">
+            <option value="">All plants</option>
+            {% for value in plants %}
+            <option value="{{ value }}" {% if value == plant_filter %}selected{% endif %}>{{ value }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <select class="mv-select" name="batch_managed" style="width:auto;min-width:140px;">
+            <option value="">Batch: either</option>
+            <option value="1" {% if batch_filter == "1" %}selected{% endif %}>Batch managed</option>
+            <option value="0" {% if batch_filter == "0" %}selected{% endif %}>Not batch managed</option>
+        </select>
+        <select class="mv-select" name="serial_managed" style="width:auto;min-width:145px;">
+            <option value="">Serial: either</option>
+            <option value="1" {% if serial_filter == "1" %}selected{% endif %}>Serial managed</option>
+            <option value="0" {% if serial_filter == "0" %}selected{% endif %}>Not serial managed</option>
+        </select>
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing <strong class="mv-fg-2">{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong class="mv-fg-2">{{ page_obj.paginator.count }}</strong></span>
+    </form>
+
+    {% if q or entity_code or group_filter or ph_filter or plant_filter or batch_filter or serial_filter %}
+    <div class="mv-filterbar">
+        <span class="mv-label" style="margin:0;">Active filters</span>
+        {% if q %}<a href="?{% if entity_code %}entity={{ entity_code|urlencode }}{% endif %}" class="mv-filter-chip">{{ q|truncatechars:24 }} {% icon "close" 12 %}</a>{% endif %}
+        {% if entity_code %}<a href="?{% if q %}q={{ q|urlencode }}{% endif %}" class="mv-filter-chip">{{ entity_code }} {% icon "close" 12 %}</a>{% endif %}
+        {% if group_filter %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if entity_code %}entity={{ entity_code|urlencode }}{% endif %}" class="mv-filter-chip">Group {{ group_filter }} {% icon "close" 12 %}</a>{% endif %}
+        {% if ph_filter %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if entity_code %}entity={{ entity_code|urlencode }}{% endif %}" class="mv-filter-chip">PH {{ ph_filter }} {% icon "close" 12 %}</a>{% endif %}
+        <a href="{% url 'merilv:masters_materials' %}" class="mv-link-btn mv-t-caption">Clear all</a>
+    </div>
+    {% endif %}
+
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense" id="mvMaterialsTable">
+        <thead>
+            <tr>
+                <th data-col="material_code">Material Code</th><th data-col="scan_code">Scan Code</th>
+                <th data-col="gtin">GTIN</th><th data-col="ean_upc">EAN / UPC</th>
+                <th data-col="material_description">Description</th><th data-col="material_group">Material Group</th>
+                <th data-col="material_type">Material Type</th><th data-col="division">Division</th>
+                <th data-col="plant">Plant</th><th data-col="storage_location">Storage Loc.</th>
+                <th data-col="batch_managed">Batch Mgd</th><th data-col="serial_managed">Serial Mgd</th>
+                <th data-col="ph_level_01">PH Level 01</th><th data-col="ph_level_01_desc">PH Level 01 Desc.</th>
+                <th data-col="ph_level_02">PH Level 02</th><th data-col="ph_level_02_desc">PH Level 02 Desc.</th>
+                <th data-col="ph_level_03">PH Level 03</th><th data-col="ph_level_03_desc">PH Level 03 Desc.</th>
+                <th data-col="ph_level_04">PH Level 04</th><th data-col="ph_level_04_desc">PH Level 04 Desc.</th>
+                <th data-col="ph_level_05">PH Level 05</th><th data-col="ph_level_05_desc">PH Level 05 Desc.</th>
+                <th>Product Hierarchy</th>
+                <th data-col="entity">Entity</th><th style="width:96px;" data-col="updated_at">Updated</th>
+                <th class="mv-col-actions mv-col-actions--pair">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in page_obj %}
+            <tr data-pk="{{ r.pk }}" data-scan="{{ r.scan_code }}" data-code="{{ r.material_code }}"
+                data-desc="{{ r.material_description }}" data-gtin="{{ r.gtin }}"
+                data-group="{{ r.material_group }}" data-entity="{{ r.entity.code }}"
+                data-plant="{{ r.plant }}" data-storage="{{ r.storage_location }}"
+                data-serialprofile="{{ r.serial_profile }}" data-batch="{{ r.batch_managed|yesno:"1," }}">
+                <td class="mv-mono mv-t-strong" data-col="material_code">{{ r.material_code }}</td>
+                <td class="mv-mono" data-col="scan_code">
+                    {{ r.scan_code }}
+                    {% if r.scan_code != r.material_code %}<span class="mv-flag" title="Label code differs from the SAP code" style="margin-left:4px;">MAPPED</span>{% endif %}
+                </td>
+                <td class="mv-mono mv-fg-3" data-col="gtin">{{ r.gtin|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="ean_upc">{{ r.ean_upc|default:"—" }}</td>
+                <td data-col="material_description">{{ r.material_description|default:"—"|truncatechars:56 }}</td>
+                <td class="mv-fg-3" data-col="material_group">
+                    {{ r.material_group|default:"—" }}
+                    {% if r.material_group_desc %}<div class="mv-t-caption">{{ r.material_group_desc|truncatechars:28 }}</div>{% endif %}
+                </td>
+                {% comment %}
+                Row 17/3.8 "dynamic Material Master columns" — the YMM061 import
+                carries these but they were never given anywhere to appear;
+                hidden by default via the Layout Manager, not left off entirely.
+                {% endcomment %}
+                <td class="mv-fg-3" data-col="material_type" hidden>{{ r.material_type|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="division" hidden>{{ r.division|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="plant" hidden>{{ r.plant|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="storage_location" hidden>{{ r.storage_location|default:"—" }}</td>
+                {% comment %}Chips rather than True/False — the list is read at a
+                glance and a bare "False" reads as an error rather than a fact.{% endcomment %}
+                <td data-col="batch_managed" hidden>
+                    {% if r.batch_managed %}<span class="mv-chip mv-chip--ok">Yes</span>
+                    {% else %}<span class="mv-chip mv-chip--neutral">No</span>{% endif %}
+                </td>
+                <td data-col="serial_managed" hidden>
+                    {% if r.serial_managed %}<span class="mv-chip mv-chip--ok">Yes</span>
+                    {% else %}<span class="mv-chip mv-chip--neutral">No</span>{% endif %}
+                </td>
+                <td class="mv-mono mv-fg-3" data-col="ph_level_01" hidden>{{ r.ph_level_01|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="ph_level_01_desc" hidden>{{ r.ph_level_01_desc|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="ph_level_02" hidden>{{ r.ph_level_02|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="ph_level_02_desc" hidden>{{ r.ph_level_02_desc|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="ph_level_03" hidden>{{ r.ph_level_03|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="ph_level_03_desc" hidden>{{ r.ph_level_03_desc|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="ph_level_04" hidden>{{ r.ph_level_04|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="ph_level_04_desc" hidden>{{ r.ph_level_04_desc|default:"—" }}</td>
+                <td class="mv-mono mv-fg-3" data-col="ph_level_05" hidden>{{ r.ph_level_05|default:"—" }}</td>
+                <td class="mv-fg-3" data-col="ph_level_05_desc" hidden>{{ r.ph_level_05_desc|default:"—" }}</td>
+                <td class="mv-t-caption mv-fg-3">{{ r.product_hierarchy_path|default:"—" }}</td>
+                <td data-col="entity"><span class="mv-badge mv-badge--neutral">{{ r.entity.code }}</span></td>
+                <td class="mv-t-caption" data-col="updated_at">{{ r.updated_at|date:"d M Y" }}</td>
+                {% include "merilv/_shell/masters_row_actions.html" with key="materials" pk=r.pk noun="material" label=r.scan_code on_edit="mvEditMaterial(this.closest('tr'))" %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "search-x" 48 %}
+        <div class="mv-empty__title">No materials found</div>
+        <p class="mv-empty__text">{% if q or entity_code %}Try a different search term or entity.{% else %}Import a material master file to map scan codes to SAP codes.{% endif %}</p>
+        {% if q or entity_code %}<a href="{% url 'merilv:masters_materials' %}" class="mv-btn mv-empty__action">Clear filters</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% include "merilv/_shell/masters_import_modal.html" with key="materials" label="materials" match_on="scan code" needs_entity=1 allow_replace=1 entity=entity_code %}
+
+{% comment %}
+Edit only — adding goes through the dedicated page, which has room to explain the
+entity/scan-code pairing. The entity is shown read-only: moving a material
+between business units changes its natural key, so that is a delete-and-re-add,
+not an edit.
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvMaterialModal">
+    <div class="mv-modal" role="dialog" aria-modal="true" aria-labelledby="mvMaterialModalTitle">
+        <form method="post" action="{% url 'merilv:masters_material_save' %}" id="mvMaterialForm">
+            {% csrf_token %}
+            <input type="hidden" name="pk" value="">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvMaterialModalTitle">Edit material</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+            </div>
+            <div class="mv-modal__body">
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label">Entity</label>
+                        <input class="mv-input mv-input--mono" id="mvMatEntity" disabled>
+                        <span class="mv-hint">Fixed — part of this row's identity.</span>
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatScan">Scan code <span class="mv-req">*</span></label>
+                        <input class="mv-input mv-input--mono" id="mvMatScan" name="scan_code" required>
+                    </div>
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvMatCode">SAP material code</label>
+                    <input class="mv-input mv-input--mono" id="mvMatCode" name="material_code">
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvMatDesc">Description</label>
+                    <input class="mv-input" id="mvMatDesc" name="material_description">
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatGtin">GTIN / EAN</label>
+                        <input class="mv-input mv-input--mono" id="mvMatGtin" name="gtin">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatGroup">Material group</label>
+                        <input class="mv-input" id="mvMatGroup" name="material_group">
+                    </div>
+                </div>
+                {% comment %}
+                YMM061 restructure. "Serial managed" has no input of its own —
+                it is derived from the serial profile, so showing a checkbox
+                the user could contradict would be a lie about where the truth
+                lives. The hidden marker beside the batch checkbox is what lets
+                an *unchecked* box mean "off": a bare unchecked checkbox posts
+                nothing, and the save applies only keys that are present.
+                {% endcomment %}
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatPlant">Plant</label>
+                        <input class="mv-input mv-input--mono" id="mvMatPlant" name="plant">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatStorage">Storage location</label>
+                        <input class="mv-input mv-input--mono" id="mvMatStorage" name="storage_location">
+                    </div>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvMatSerialProfile">Serial no. profile</label>
+                        <input class="mv-input mv-input--mono" id="mvMatSerialProfile" name="serial_profile"
+                               placeholder="e.g. 0001">
+                        <p class="mv-hint">A material counts as serial-managed when this is set.</p>
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label">Batch management</label>
+                        <input type="hidden" name="batch_managed_present" value="1">
+                        <label class="mv-check">
+                            <input type="checkbox" class="mv-chk" id="mvMatBatch" name="batch_managed" value="X">
+                            <span>Batch managed</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function mvEditMaterial(row) {
+    var f = document.getElementById('mvMaterialForm');
+    f.pk.value = row.dataset.pk;
+    document.getElementById('mvMatEntity').value = row.dataset.entity || '';
+    document.getElementById('mvMatScan').value = row.dataset.scan || '';
+    document.getElementById('mvMatCode').value = row.dataset.code || '';
+    document.getElementById('mvMatDesc').value = row.dataset.desc || '';
+    document.getElementById('mvMatGtin').value = row.dataset.gtin || '';
+    document.getElementById('mvMatGroup').value = row.dataset.group || '';
+    document.getElementById('mvMatPlant').value = row.dataset.plant || '';
+    document.getElementById('mvMatStorage').value = row.dataset.storage || '';
+    document.getElementById('mvMatSerialProfile').value = row.dataset.serialprofile || '';
+    document.getElementById('mvMatBatch').checked = row.dataset.batch === '1';
+    document.getElementById('mvMaterialModal').classList.add('is-open');
+}
+</script>
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'merilv/js/layout_manager.js' %}" defer></script>
+{% endblock %}

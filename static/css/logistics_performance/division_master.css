@@ -1,0 +1,37 @@
+/* ═══════════════════════════════════════════════════════
+   division_master.css — Division Master grid overrides
+   Reuses location_master.css for all page chrome (header, tabs,
+   drawer, modal, toast). Only the column layouts differ here.
+═══════════════════════════════════════════════════════ */
+
+/* ── LIST TABLE COLUMNS: ID | Company | Division | Code | Created By | Created Date | Actions ── */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 70px 1.4fr 1fr 90px 1fr 130px 110px;
+}
+
+/* ── SCHEMA ROW COLUMNS: Column | Type | Description ── */
+.lm-page .schema-row {
+  grid-template-columns: 160px 80px 1fr;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .lm-page .tbl-head,
+  .lm-page .tbl-row {
+    grid-template-columns: 1.4fr 1fr 110px;
+  }
+  /* keep Company | Division | Actions; hide ID, Code, Created By, Created Date */
+  .lm-page .tbl-head > *:nth-child(1),
+  .lm-page .tbl-row  > *:nth-child(1),
+  .lm-page .tbl-head > *:nth-child(4),
+  .lm-page .tbl-row  > *:nth-child(4),
+  .lm-page .tbl-head > *:nth-child(5),
+  .lm-page .tbl-row  > *:nth-child(5),
+  .lm-page .tbl-head > *:nth-child(6),
+  .lm-page .tbl-row  > *:nth-child(6) { display: none; }
+  /* re-show Actions (col 7) */
+  .lm-page .tbl-head > *:nth-child(7) { display: block; }
+  .lm-page .tbl-row  > *:nth-child(7) { display: flex; }
+  .lm-header-stats { display: none; }
+}

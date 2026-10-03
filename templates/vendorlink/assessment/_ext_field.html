@@ -1,0 +1,8 @@
+<div class="vl-ext-field{% if field.errors %} vl-ext-field--err{% endif %}">
+    <label class="vl-ext-label" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if required %} <span class="vl-required">*</span>{% endif %}
+    </label>
+    {% if hint %}<p class="vl-ext-hint">{{ hint }}</p>{% endif %}
+    {{ field }}
+    {% if field.errors %}<span class="vl-error">{{ field.errors.0 }}</span>{% endif %}
+</div>

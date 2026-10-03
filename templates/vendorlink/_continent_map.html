@@ -1,0 +1,17 @@
+{% comment %}
+Continent → country cascade: the data and the script that drives it.
+
+Include once per page that has a continent select. Both halves live here so a
+page cannot end up with one and not the other — an embedded map with no script
+does nothing, and the script with no map silently stops narrowing, which looks
+exactly like the old single-level picker and is the harder of the two to spot.
+
+Requires `continent_country_map` in the context. Every VendorLink `_ctx` helper
+supplies it (views, tier3views, commercial, admin console), so a page that
+extends one of those gets it without asking.
+
+Usage:  {% include "vendorlink/_continent_map.html" %}
+{% endcomment %}
+{% load static %}
+<script type="application/json" id="vl-continent-map">{{ continent_country_map|safe }}</script>
+<script src="{% static 'vendorlink/js/vl-continent-country.js' %}" defer></script>

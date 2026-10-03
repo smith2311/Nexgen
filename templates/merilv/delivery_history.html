@@ -1,0 +1,466 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Delivery History — the legacy screen's three tabs restored: Delivery Log,
+Summary Analytics and Finished Deliveries.
+
+All three are views of ONE filtered queryset (views._filtered_deliveries), so
+they cannot disagree with each other and the exports cannot disagree with what
+is on screen — the legacy version duplicated its filter logic per export and
+they drifted apart.
+
+Filtering, sorting and pagination are server-side. The old screen did all three
+in the browser over an array it had loaded whole, which is why it capped out.
+Tabs are the only client-side thing here, because switching them is a view of
+data already fetched.
+{% endcomment %}
+
+{% block mv_title %}Delivery History — Meril-V{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Delivery History</span>
+{% endblock %}
+{% block mv_heading %}Delivery History{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Completed deliveries, dispatch records and throughput.</p>{% endblock %}
+
+{% block mv_actions %}
+<a href="{% url 'merilv:delivery_history' %}?{{ request.GET.urlencode }}" class="mv-btn">{% icon "history" %} Refresh</a>
+<a href="{% url 'merilv:delivery_export' %}?{{ request.GET.urlencode }}" class="mv-btn mv-btn--tint-ok">{% icon "sheet" %} Export Excel</a>
+<a href="{% url 'merilv:delivery_invoice_export' %}?{{ request.GET.urlencode }}" class="mv-btn mv-btn--tint-blue">{% icon "sheet" %} Invoice Format</a>
+<a href="{% url 'merilv:delivery_packing_list' %}?{{ request.GET.urlencode }}" class="mv-btn mv-btn--tint-violet" id="mvPackBtn">{% icon "download" %} Packing List</a>
+{% endblock %}
+
+{% block mv_body %}
+
+{% if messages %}
+<div class="mv-alerts">
+    {% for message in messages %}
+    <div class="mv-alert mv-alert--{{ message.tags|default:'info' }}">{% icon "alert" %}<div>{{ message }}</div></div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="mv-tabs" role="tablist">
+    <a href="?{% mv_qs tab='log' %}" class="mv-tab {% if tab == 'log' %}is-active{% endif %}">
+        {% icon "list" 14 %} Delivery Log
+    </a>
+    <a href="?{% mv_qs tab='analytics' %}" class="mv-tab {% if tab == 'analytics' %}is-active{% endif %}">
+        {% icon "chart" 14 %} Summary Analytics
+    </a>
+    <a href="?{% mv_qs tab='finished' %}" class="mv-tab {% if tab == 'finished' %}is-active{% endif %}">
+        {% icon "truck" 14 %} Finished Deliveries
+        {% if pending_count %}<span class="mv-tab__badge">{{ pending_count }}</span>{% endif %}
+    </a>
+</div>
+
+{% comment %}Filters are shared by every tab, so they sit above the tab panels.{% endcomment %}
+<form method="get" class="mv-table-toolbar" style="flex-wrap:wrap;">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div class="mv-search">
+        {% icon "search" %}
+        <input type="text" class="mv-input" name="q" value="{{ q }}"
+               placeholder="Delivery, customer, docket, courier or plant…">
+    </div>
+    <select class="mv-select" name="entity" style="width:auto;min-width:130px;">
+        <option value="">All entities</option>
+        {% for e in entities %}
+        <option value="{{ e.code }}" {% if e.code == entity_code %}selected{% endif %}>{{ e.code }}</option>
+        {% endfor %}
+    </select>
+    {% if plants %}
+    <select class="mv-select" name="plant" style="width:auto;min-width:110px;">
+        <option value="">All plants</option>
+        {% for value in plants %}
+        <option value="{{ value }}" {% if value == plant %}selected{% endif %}>{{ value }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+    <select class="mv-select" name="status" style="width:auto;min-width:150px;">
+        <option value="">Any status</option>
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <label class="mv-t-caption" style="display:flex;align-items:center;gap:4px;">From
+        <input type="date" class="mv-input mv-input--sm" name="from" value="{{ date_from }}" style="width:140px;">
+    </label>
+    <label class="mv-t-caption" style="display:flex;align-items:center;gap:4px;">To
+        <input type="date" class="mv-input mv-input--sm" name="to" value="{{ date_to }}" style="width:140px;">
+    </label>
+    <select class="mv-select" name="sort" style="width:auto;min-width:150px;">
+        {% for value, label in sort_choices %}
+        <option value="{{ value }}" {% if value == sort %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select class="mv-select" name="per_page" style="width:auto;min-width:90px;">
+        {% for size in page_sizes %}
+        <option value="{{ size }}" {% if size == per_page %}selected{% endif %}>{{ size }} / page</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+    <a href="{% url 'merilv:delivery_history' %}?tab={{ tab }}" class="mv-btn mv-btn--sm mv-btn--ghost">Clear</a>
+    <div class="mv-table-toolbar__spacer"></div>
+    <span class="mv-t-caption">{{ result_count }} deliver{{ result_count|pluralize:"y,ies" }}</span>
+</form>
+
+{% if tab == "analytics" %}
+{# ── Summary Analytics ──────────────────────────────────────────────────── #}
+<div class="mv-kpis" style="margin-bottom:var(--mv-space-5);">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "truck" %}</span><span class="mv-kpi__label">Total Deliveries</span><span class="mv-kpi__value">{{ analytics.deliveries }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Total Scans</span><span class="mv-kpi__value">{{ analytics.scans }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "package" %}</span><span class="mv-kpi__label">Unique Products</span><span class="mv-kpi__value">{{ analytics.unique_products }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "chart" %}</span><span class="mv-kpi__label">Avg Scans / Delivery</span><span class="mv-kpi__value">{{ analytics.avg_scans }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Total Boxes</span><span class="mv-kpi__value">{{ analytics.boxes }}</span></div>
+</div>
+
+<div class="mv-analytics-grid">
+    <div class="mv-card mv-card--flush">
+        <div class="mv-mx-card__head"><h3 class="mv-t-h2">{% icon "package" %} Top Outbound Materials</h3></div>
+        {% if analytics.top_materials %}
+        <table class="mv-table mv-table--dense">
+            <thead><tr><th>#</th><th>Material</th><th class="mv-num">Scans</th></tr></thead>
+            <tbody>
+                {% for row in analytics.top_materials %}
+                <tr><td class="mv-fg-3">{{ forloop.counter }}</td>
+                    <td class="mv-mono">{{ row.material|default:"—" }}</td>
+                    <td class="mv-num mv-t-strong">{{ row.qty }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="mv-empty"><p class="mv-empty__text">No scans in this selection.</p></div>{% endif %}
+    </div>
+
+    <div class="mv-card mv-card--flush">
+        <div class="mv-mx-card__head"><h3 class="mv-t-h2">{% icon "users" %} Top Pickers</h3></div>
+        {% if analytics.top_pickers %}
+        <table class="mv-table mv-table--dense">
+            <thead><tr><th>#</th><th>Picker</th><th class="mv-num">Deliveries</th><th class="mv-num">Scans</th></tr></thead>
+            <tbody>
+                {% for row in analytics.top_pickers %}
+                <tr><td class="mv-fg-3">{{ forloop.counter }}</td>
+                    <td>{{ row.picker__first_name }} {{ row.picker__last_name }}
+                        <span class="mv-t-caption mv-fg-3">{{ row.picker__username }}</span></td>
+                    <td class="mv-num">{{ row.deliveries }}</td>
+                    <td class="mv-num mv-t-strong">{{ row.scans|default:0 }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="mv-empty"><p class="mv-empty__text">No pickers in this selection.</p></div>{% endif %}
+    </div>
+
+    <div class="mv-card mv-card--flush">
+        <div class="mv-mx-card__head"><h3 class="mv-t-h2">{% icon "history" %} Date-wise Summary</h3></div>
+        {% if analytics.by_day %}
+        <table class="mv-table mv-table--dense">
+            <thead><tr><th>Date</th><th class="mv-num">Deliveries</th><th class="mv-num">Scans</th></tr></thead>
+            <tbody>
+                {% for row in analytics.by_day %}
+                <tr><td>{{ row.day|date:"d M Y" }}</td>
+                    <td class="mv-num">{{ row.deliveries }}</td>
+                    <td class="mv-num">{{ row.scans|default:0 }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="mv-empty"><p class="mv-empty__text">Nothing in this date range.</p></div>{% endif %}
+    </div>
+</div>
+
+{% else %}
+{# ── Delivery Log / Finished Deliveries ─────────────────────────────────── #}
+{% comment %}
+One table serves both tabs. "Finished Deliveries" adds the dispatch columns
+(courier, docket, boxes A-F, weight) and the Fill action; the Log is the shorter
+operational view. Same rows either way, so a delivery can never appear on one
+tab and not the other.
+{% endcomment %}
+<div class="mv-card mv-card--flush">
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead>
+            <tr>
+                <th style="width:32px;"><input type="checkbox" class="mv-chk" id="mvSelectAll"
+                        onchange="mvToggleAll(this.checked)" aria-label="Select all"></th>
+                <th>Date</th>
+                <th class="mv-num">Session #</th>
+                <th>Delivery No</th>
+                <th>Customer</th>
+                <th>Plant</th>
+                {% if tab == "finished" %}
+                <th>Courier No</th>
+                <th>Docket</th>
+                <th class="mv-num">Boxes</th>
+                <th class="mv-num">A</th><th class="mv-num">B</th><th class="mv-num">C</th>
+                <th class="mv-num">D</th><th class="mv-num">E&amp;F</th>
+                <th class="mv-num">Weight</th>
+                {% else %}
+                <th>Picker</th>
+                <th class="mv-num">Lines</th>
+                <th class="mv-num">Scans</th>
+                {% endif %}
+                <th>Status</th>
+                <th class="mv-col-actions">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in page_obj %}
+            {% with boxes=d.box_breakdown %}
+            <tr>
+                <td><input type="checkbox" class="mv-chk mv-row-chk" value="{{ d.pk }}"
+                        aria-label="Select {{ d.delivery_no }}"></td>
+                <td class="mv-t-caption">{{ d.created_at|date:"d M Y" }}<div class="mv-fg-3">{{ d.created_at|date:"H:i" }}</div></td>
+                <td class="mv-num mv-t-caption">{% if d.session_id %}{{ d.session_id }}{% else %}—{% endif %}</td>
+                <td class="mv-mono mv-t-strong"><a href="{% url 'merilv:delivery_detail' d.pk %}">{{ d.delivery_no }}</a></td>
+                <td>{{ d.customer_name|default:"—"|truncatechars:28 }}
+                    <div class="mv-t-caption mv-mono mv-fg-3">{{ d.customer_code }}</div></td>
+                <td class="mv-mono">{{ d.plant|default:"—" }}</td>
+                {% if tab == "finished" %}
+                <td class="mv-mono">{{ d.courier_number|default:"—" }}
+                    {% if d.courier_partner %}<div class="mv-t-caption mv-fg-3">{{ d.courier_partner|truncatechars:18 }}</div>{% endif %}</td>
+                <td class="mv-mono">{{ d.docket_no|default:"—" }}</td>
+                <td class="mv-num mv-t-strong">{{ d.box_count }}</td>
+                <td class="mv-num">{{ boxes.A|default:"—" }}</td>
+                <td class="mv-num">{{ boxes.B|default:"—" }}</td>
+                <td class="mv-num">{{ boxes.C|default:"—" }}</td>
+                <td class="mv-num">{{ boxes.D|default:"—" }}</td>
+                <td class="mv-num">{{ boxes.others|default:"—" }}</td>
+                <td class="mv-num">{{ d.weight_kg|default:"—" }}</td>
+                {% else %}
+                {% comment %}
+                An if/else, not a chain of `default:` filters. Django evaluates a
+                filter's argument eagerly, so `default:d.picker.username` raises
+                on a delivery with no picker rather than falling through — and
+                unassigned deliveries are real (they predate user tracking).
+                {% endcomment %}
+                <td class="mv-t-caption">
+                    {% if d.picker %}{{ d.picker.get_full_name|default:d.picker.username }}{% else %}—{% endif %}
+                </td>
+                <td class="mv-num">{{ d.line_count }}</td>
+                <td class="mv-num">{{ d.scanned_count }}</td>
+                {% endif %}
+                <td>
+                    {% if d.is_pending_courier %}
+                    <span class="mv-badge mv-badge--warn">Pending Courier</span>
+                    {% else %}
+                    <span class="mv-badge mv-badge--ok">Complete</span>
+                    {% endif %}
+                    {% if d.is_partial %}<div class="mv-t-caption" style="color:var(--mv-danger);">short</div>{% endif %}
+                </td>
+                <td class="mv-col-actions">
+                    {% comment %}
+                    Three controls, by tier.
+
+                    Fill/Edit posts to delivery_courier_update either way — that
+                    endpoint has always rewritten every paperwork field on any
+                    record, and only this markup limited it to rows still
+                    pending a courier. An admin correcting a docket typed wrong
+                    on a completed delivery had nowhere to do it; the button is
+                    labelled for which of the two jobs it is.
+
+                    Delete is admin-only, and it is the reason this row could be
+                    stuck: a dispatch record could not be removed at all, and
+                    deleting the SESSION behind it is refused precisely because
+                    that would orphan this row rather than resolve it. It also
+                    releases the serials the delivery burned — see
+                    views.delivery_delete for why that is the only coherent
+                    reading of removing a dispatch.
+                    {% endcomment %}
+                    <div class="mv-row-actions">
+                        {% comment %}
+                        Two different rights, deliberately kept apart. Filling
+                        in a pick that is still waiting for its courier is
+                        ordinary operator work (can_operate). EDITING one that
+                        is already complete is Courier Edit — a manager holds it
+                        by default and an admin can move it, rather than it
+                        being welded to "is admin".
+                        {% endcomment %}
+                        {% if can_operate and d.is_pending_courier or mv_can_courier_edit %}
+                        <button type="button" class="mv-btn mv-btn--sm{% if d.is_pending_courier %} mv-btn--tint-warn{% endif %}"
+                                data-mv-fill="{{ d.pk }}"
+                                data-mv-delivery="{{ d.delivery_no }}"
+                                data-mv-courier="{{ d.courier_partner }}"
+                                data-mv-couriernum="{{ d.courier_number }}"
+                                onclick="mvOpenFill(this)">{% icon "edit" 14 %} {% if d.is_pending_courier %}Fill{% else %}Edit{% endif %}</button>
+                        {% endif %}
+                        <a href="{% url 'merilv:delivery_detail' d.pk %}" class="mv-btn mv-btn--sm">View</a>
+                        {% if is_mv_admin %}
+                        <form method="post" action="{% url 'merilv:delivery_delete' d.pk %}"
+                              class="mv-row-delete" data-mv-async>
+                            {% csrf_token %}
+                            <button type="submit" class="mv-btn mv-btn--sm mv-btn--icon mv-btn--danger"
+                                    title="Remove this dispatch record and release its serials"
+                                    data-mv-confirm="Remove the dispatch record for {{ d.delivery_no }}? {% if d.serial_count %}Its {{ d.serial_count }} dispatched serial(s) go back into circulation and the stock can be picked again.{% else %}It has no dispatched serials.{% endif %} The removal itself stays in the activity log."
+                                    data-mv-confirm-title="Remove this dispatch record?"
+                                    data-mv-confirm-ok="Remove">{% icon "trash" 14 %}</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    {% comment %}
+    Gated on paginator.count, not on page_obj — a Django Page defines __len__ but
+    not __bool__, so an empty page is falsy and testing the page itself hid the
+    table headers and the pagination controls while still printing
+    "Showing 0-0 of 0" above them. That combination is exactly what the client
+    reported as "no table structure at all".
+    {% endcomment %}
+    <div class="mv-empty">
+        {% icon "truck" 48 %}
+        <div class="mv-empty__title">No deliveries found</div>
+        <p class="mv-empty__text">
+            {% if q or entity_code or status or plant or date_from or date_to %}
+            No delivery matches these filters. Try widening the date range or clearing the search.
+            {% else %}
+            Deliveries appear here once a picker finishes one on the Outbound Scanner.
+            {% endif %}
+        </p>
+        {% if q or entity_code or status or plant or date_from or date_to %}
+        <a href="{% url 'merilv:delivery_history' %}?tab={{ tab }}" class="mv-btn mv-empty__action">Clear filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if can_operate %}
+{% comment %}
+The same eleven values as the Finish Delivery modal, and it was still the tall
+single-column version after that one was tightened — so the sibling form for the
+same job scrolled on a warehouse laptop while the original did not. Given the
+compact rules it already has: mv-modal--compact for the width, mv-form--compact
+for the row and label spacing, and the box inputs on one tight row rather than a
+six-cell grid.
+
+Nothing is removed or hidden behind a disclosure — every field is still present
+and in the same order, which is the point: readability over redesign.
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvFillModal">
+    <div class="mv-modal mv-modal--compact" role="dialog" aria-modal="true" aria-labelledby="mvFillTitle">
+        <form method="post" id="mvFillForm">
+            {% csrf_token %}
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvFillTitle">Courier details</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+            </div>
+            <div class="mv-modal__body mv-form--compact">
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFillCourierNum">Courier number <span class="mv-req">*</span></label>
+                        <input class="mv-input mv-input--mono" id="mvFillCourierNum" name="courier_number" required>
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFillCourier">Courier partner</label>
+                        <input class="mv-input" id="mvFillCourier" name="courier_partner">
+                    </div>
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label" for="mvFillDocket">Docket / tracking number <span class="mv-req">*</span></label>
+                    <input class="mv-input mv-input--mono" id="mvFillDocket" name="docket_no" required
+                           autocomplete="off" spellcheck="false" placeholder="Scan or type the docket barcode">
+                    <span class="mv-hint">Barcode scan supported.</span>
+                </div>
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFillVehicle">Vehicle number</label>
+                        <input class="mv-input mv-input--mono" id="mvFillVehicle" name="vehicle_number">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFillVehicleType">Vehicle type</label>
+                        <input class="mv-input" id="mvFillVehicleType" name="vehicle_type" placeholder="e.g. R">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFillWeight">Weight (kg)</label>
+                        <input class="mv-input mv-input--mono" type="number" step="0.01" min="0"
+                               id="mvFillWeight" name="weight_kg">
+                    </div>
+                </div>
+                <div class="mv-field">
+                    <label class="mv-label">Boxes used</label>
+                    <div class="mv-boxchip-editor mv-boxchip-editor--tight">
+                        {% for label in "ABCDEF"|make_list %}
+                        <div class="mv-boxchip">
+                            <label for="mvFillBox{{ label }}">{{ label }}</label>
+                            <input type="number" min="0" value="0"
+                                   id="mvFillBox{{ label }}" name="box_{{ label }}"
+                                   oninput="mvUpdateBoxTotal()">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <span class="mv-hint" id="mvBoxTotal">0 boxes total</span>
+                </div>
+            </div>
+            <div class="mv-modal__foot">
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary">{% icon "check" %} Save courier details</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Row selection feeds the three export links: they carry the ticked ids as
+// ?pks=, and the server intersects those with the already-scoped queryset, so a
+// forged id cannot reach another team's delivery.
+function mvToggleAll(checked) {
+    document.querySelectorAll('.mv-row-chk').forEach(function (box) { box.checked = checked; });
+    mvSyncExportLinks();
+}
+
+function mvSyncExportLinks() {
+    var picked = Array.prototype.slice.call(document.querySelectorAll('.mv-row-chk:checked'))
+        .map(function (box) { return box.value; });
+    var suffix = picked.map(function (id) { return 'pks=' + encodeURIComponent(id); }).join('&');
+    document.querySelectorAll('a[href*="/deliveries/export/"], a[href*="/deliveries/invoice/"], a[href*="/deliveries/packing-list/"]')
+        .forEach(function (link) {
+            var base = link.getAttribute('href').split('#')[0].replace(/([?&])pks=[^&]*/g, '$1').replace(/[?&]$/, '');
+            var join = base.indexOf('?') === -1 ? '?' : '&';
+            link.setAttribute('href', suffix ? base + join + suffix : base);
+        });
+}
+document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('mv-row-chk')) { mvSyncExportLinks(); }
+});
+
+{% if can_operate %}
+var MV_FILL_URL = "{% url 'merilv:delivery_courier_update' 0 %}";
+
+function mvOpenFill(button) {
+    var d = button.dataset;
+    var form = document.getElementById('mvFillForm');
+    form.setAttribute('action', MV_FILL_URL.replace(/0\/courier\/$/, d.mvFill + '/courier/'));
+    document.getElementById('mvFillTitle').textContent = 'Courier details — ' + d.mvDelivery;
+    document.getElementById('mvFillCourier').value = d.mvCourier || '';
+    document.getElementById('mvFillCourierNum').value = d.mvCouriernum || '';
+    document.getElementById('mvFillModal').classList.add('is-open');
+    // The docket is the field a scanner gun fires into, so it takes focus.
+    setTimeout(function () { document.getElementById('mvFillDocket').focus(); }, 120);
+}
+
+// A scanner gun ends its transmission with Enter. Left alone that submits the
+// form the moment the docket is read, before the box counts are entered.
+document.getElementById('mvFillDocket').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('mvFillBoxA').focus(); }
+});
+
+function mvUpdateBoxTotal() {
+    var total = 0;
+    'ABCDEF'.split('').forEach(function (letter) {
+        var field = document.getElementById('mvFillBox' + letter);
+        total += Math.max(0, parseInt(field && field.value, 10) || 0);
+    });
+    document.getElementById('mvBoxTotal').textContent = total + ' box' + (total === 1 ? '' : 'es') + ' total';
+}
+{% endif %}
+</script>
+{% endblock %}

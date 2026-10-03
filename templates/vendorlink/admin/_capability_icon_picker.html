@@ -1,0 +1,71 @@
+{% comment %}
+Icon picker for the Capability Master.
+
+The form's `icon` is a HiddenInput; this is what sets it. A trigger button shows
+the icon currently chosen, and opens a drawer of the curated 3PL palette from
+constants.CAPABILITY_ICON_GROUPS — grouped by what a capability actually is
+(certification, storage, cold chain, transport, customs, systems, handling,
+service) and filterable by typing.
+
+Only a palette icon can be picked, so a class Font Awesome cannot render — which
+shows on every screen as a blank square — is not reachable from the UI. The form
+enforces the same thing server-side; this is the half that makes it usable.
+
+Needs in context: `form` (with an `icon` field) and `icon_groups`.
+
+Usage:  {% include "vendorlink/admin/_capability_icon_picker.html" %}
+{% endcomment %}
+<div class="vl-field vl-iconpick" data-vl-iconpick>
+  <span class="vl-field__label">Icon</span>
+
+  {{ form.icon }}
+
+  <button type="button" class="vl-iconpick__trigger" data-vl-iconpick-trigger
+          aria-haspopup="dialog" aria-expanded="false">
+    <span class="vl-iconpick__current" data-vl-iconpick-preview>
+      <i class="fas {{ form.icon.value|default:'fa-circle-check' }}"></i>
+    </span>
+    <span class="vl-iconpick__label" data-vl-iconpick-name>Choose an icon</span>
+    <i class="fas fa-chevron-down vl-iconpick__chev" aria-hidden="true"></i>
+  </button>
+  <span class="vl-field__hint">Shown next to this capability on every screen.</span>
+  {% for e in form.icon.errors %}<span class="vl-field__err">{{ e }}</span>{% endfor %}
+
+  {% comment %}
+  The drawer. Rendered inline and hidden rather than fetched, because the whole
+  palette is ~86 static entries — a round trip to show them would be slower and
+  could fail.
+  {% endcomment %}
+  <div class="vl-iconpick__drawer" data-vl-iconpick-drawer hidden
+       role="dialog" aria-label="Choose an icon">
+    <div class="vl-iconpick__search">
+      <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+      <input type="search" placeholder="Search icons — cold, truck, customs…"
+             data-vl-iconpick-search aria-label="Search icons" autocomplete="off">
+      <button type="button" class="vl-iconpick__close" data-vl-iconpick-close
+              aria-label="Close">&times;</button>
+    </div>
+
+    <div class="vl-iconpick__scroll">
+      {% for group_label, icons in icon_groups %}
+      <div class="vl-iconpick__group" data-vl-iconpick-group>
+        <h4 class="vl-iconpick__grouphd">{{ group_label }}</h4>
+        <div class="vl-iconpick__grid">
+          {% for icon_class, icon_label in icons %}
+          <button type="button" class="vl-iconpick__opt"
+                  data-vl-iconpick-opt="{{ icon_class }}"
+                  data-vl-iconpick-terms="{{ icon_label|lower }} {{ icon_class }} {{ group_label|lower }}"
+                  title="{{ icon_label }}" aria-label="{{ icon_label }}">
+            <i class="fas {{ icon_class }}" aria-hidden="true"></i>
+            <span>{{ icon_label }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      <p class="vl-iconpick__empty" data-vl-iconpick-empty hidden>
+        No icon matches that. Try a plainer word — "cold", "truck", "document".
+      </p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,44 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → Add Entity. Only identity is captured here — barcode rules,
+expiry thresholds and matching behaviour all take the model's defaults and are
+tuned on the full config page right after creation.
+{% endcomment %}
+
+{% block mv_title %}Add Entity — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters_entities' %}">Entities</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Add</span>
+{% endblock %}
+{% block mv_heading %}Add Entity{% endblock %}
+
+{% block mv_body %}
+<div class="mv-card" style="max-width:560px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="mv-field">
+            <label class="mv-label" for="mvCode">Entity code <span class="mv-req">*</span></label>
+            <input class="mv-input mv-input--mono" id="mvCode" name="code" required maxlength="20" style="text-transform:uppercase;">
+            <span class="mv-hint">Short, unique — e.g. MHPL, MLSIPL, CARDIO.</span>
+        </div>
+        <div class="mv-field">
+            <label class="mv-label" for="mvName">Name</label>
+            <input class="mv-input" id="mvName" name="name">
+            <span class="mv-hint">Defaults to the code if left blank.</span>
+        </div>
+        <div class="mv-field">
+            <label class="mv-label" for="mvCompany">Legal company name</label>
+            <input class="mv-input" id="mvCompany" name="company_name">
+        </div>
+        <div class="mv-card__footer">
+            <a href="{% url 'merilv:masters_entities' %}" class="mv-btn">Cancel</a>
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "plus" %} Create &amp; configure</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,302 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logging Out - NexGen Automation</title>
+    <link rel="stylesheet" href="{% static 'css/helvetica-neue-fonts.css' %}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(rgba(0, 45, 110, 0.52), rgba(0, 60, 130, 0.52)),
+                        url("{% static 'img/Meril_park.jpg' %}") center / cover no-repeat fixed;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .logout-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.97);
+            padding: 60px 40px;
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+            width: 90%;
+            animation: slideIn 0.5s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logout-icon {
+            font-size: 64px;
+            margin-bottom: 30px;
+            animation: fadeInScale 0.6s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        h1 {
+            color: #1f2937;
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .logout-message {
+            color: #6b7280;
+            font-size: 16px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        /* Loader Styles */
+        .loader-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            height: 60px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #0076c8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loader-text {
+            color: #0076c8;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        .dots {
+            display: inline-block;
+            width: 20px;
+            text-align: left;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #0076c8;
+            margin: 0 3px;
+            animation: dotAnimation 1.4s infinite;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes dotAnimation {
+            0%,
+            60%,
+            100% {
+                opacity: 0.3;
+                transform: translateY(0);
+            }
+            30% {
+                opacity: 1;
+                transform: translateY(-10px);
+            }
+        }
+
+        .redirect-info {
+            color: #9ca3af;
+            font-size: 13px;
+            margin-top: 20px;
+        }
+
+        .brand-logo {
+            margin-bottom: 30px;
+        }
+
+        .brand-logo img {
+            max-width: 80px;
+            height: auto;
+            opacity: 0.9;
+            border-radius: 12px;
+        }
+
+        /* Pulsing animation for security indicator */
+        .security-check {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e5e7eb;
+            gap: 8px;
+            color: #22c55e;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .security-check::before {
+            content: "✓";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: #22c55e;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="logout-container">
+        <div class="brand-logo">
+            <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril Logo">
+        </div>
+
+        <div class="logout-icon">👋</div>
+
+        <h1>Logging Out</h1>
+
+        <p class="logout-message">
+            Securely ending your session and clearing all data...
+        </p>
+
+        <div class="loader-wrapper">
+            <div class="spinner"></div>
+        </div>
+
+        <div class="loader-text">
+            Clearing session
+            <span class="dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </span>
+        </div>
+
+        <div class="redirect-info">
+            You will be redirected shortly
+        </div>
+
+        <div class="security-check">
+            Session cleared securely
+        </div>
+    </div>
+
+    <script>
+        // Set logout marker for other pages to detect
+        localStorage.setItem('last_logout', new Date().getTime());
+        
+        // Clear browser cache and session storage
+        window.addEventListener('beforeunload', function() {
+            // Clear any sensitive data from local storage
+            const keysToRemove = [
+                'auth_token',
+                'user_data',
+                'session_id',
+                'zoho_session',
+                'zoho_authenticated',
+                'zoho_user',
+                'translator_state'
+            ];
+            
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                sessionStorage.removeItem(key);
+            });
+        });
+
+        // Clear session storage immediately
+        sessionStorage.clear();
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        localStorage.removeItem('zoho_session');
+        localStorage.removeItem('zoho_authenticated');
+        localStorage.removeItem('zoho_user');
+
+        // Set headers to prevent caching
+        fetch('', {
+            method: 'HEAD',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        }).catch(err => console.log('Cache buster executed'));
+
+        // Redirect to login after 2.5 seconds with cache-busting parameter
+        setTimeout(function() {
+            // Redirect with cache-busting parameter and force fresh login
+            window.location.href = '/?nocache=' + new Date().getTime() + '&forceLogin=true';
+        }, 2500);
+
+        // Fallback redirect if page doesn't load
+        setTimeout(function() {
+            window.location.href = '/';
+        }, 3500);
+    </script>
+
+{% include "_matomo.html" %}
+</body>
+</html>

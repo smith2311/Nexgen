@@ -1,0 +1,30 @@
+/* Reconciliation Detail — uses meritrack-core.css design system */
+
+.mt-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); margin-bottom: 20px; }
+.mt-card h3 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+.mt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--mt-gray-200); text-align: center; }
+.stat-card .stat-value { font-size: 1.7em; font-weight: 700; line-height: 1; }
+.stat-card .stat-label { font-size: 0.78em; color: var(--mt-gray-600); margin-top: 4px; }
+.mt-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.mt-table th { text-align: left; padding: 10px 12px; background: var(--mt-gray-50); color: var(--mt-gray-600); font-weight: 600; border-bottom: 2px solid var(--mt-gray-200); }
+.mt-table td { padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); }
+.mt-table tr:hover { background: var(--mt-gray-50); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-700); }
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85em; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-mt-primary { background: var(--mt-primary); color: #fff; }
+.btn-mt-primary:hover { background: var(--mt-primary-dark); }
+.accuracy-display { text-align: center; padding: 20px; }
+.accuracy-value { font-size: 3em; font-weight: 800; }
+.filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-tab { padding: 6px 14px; border-radius: 20px; font-size: 0.82em; font-weight: 600; border: none; cursor: pointer; background: var(--mt-gray-100); color: var(--mt-gray-700); }
+.filter-tab.active { background: var(--mt-primary); color: #fff; }
+.info-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; font-size: 0.88em; }
+.info-item { display: flex; gap: 6px; }
+.info-item .label { color: var(--mt-gray-600); }
+.info-item .value { font-weight: 600; color: var(--mt-gray-800); }

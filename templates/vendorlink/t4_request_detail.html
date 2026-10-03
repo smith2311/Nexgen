@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 4.1b — Request detail.
+
+Wireframe
+    breadcrumb / subject + window chip / [Compare] [Evaluation]
+    ┌ bid window progress bar + mono countdown ─────────────────────┐
+    ┌ tabs: Scope · Recipients · Bids · Timeline · Attachments ─────┐
+
+The progress bar only renders when the request actually has both a bid_open_at
+and a bid_close_at. A bar drawn without real endpoints would have to invent
+them, and a bar sitting at some arbitrary position reads as information.
+
+Recipients come from the snapshot stored on the request, not from a live vendor
+query — showing today's vendor list against a months-old RFI would misrepresent
+who was actually invited.
+
+States: no bids, no attachments, no window set, evaluation not run.
+{% endcomment %}
+
+{% block title %}{{ vendor_request.subject }} — Request{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:t4_request_list' %}">Requests</a>
+                <span class="sep">/</span><span class="current">RFI #{{ vendor_request.pk }}</span>
+            </nav>
+            <h1 class="vl-title">{{ vendor_request.subject }}</h1>
+            <p class="vl-subtitle" style="display:flex;align-items:center;gap:var(--vl-2);flex-wrap:wrap;">
+                {% if vendor_request.bid_window_status == "open" %}<span class="vl-chip vl-chip--approved">Bid window open</span>
+                {% elif vendor_request.bid_window_status == "closed" %}<span class="vl-chip vl-chip--expired">Closed</span>
+                {% else %}<span class="vl-chip vl-chip--pending">Not started</span>{% endif %}
+                <span class="vl-meta">{{ vendor_request.country }} · {{ recipient_count }} recipient{{ recipient_count|pluralize }} · {{ bid_count }} bid{{ bid_count|pluralize }}</span>
+            </p>
+        </div>
+        <div class="vl-pagehead__actions">
+            {% if bid_count %}
+            <a class="vl-btn" href="{% url 'vendorlink:bid_heatmap' vendor_request.pk %}">Compare bids</a>
+            <a class="vl-btn" href="{% url 'vendorlink:evaluation_detail' vendor_request.pk %}">AI evaluation</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if window %}
+    <div class="vl-card" style="margin-bottom:var(--vl-4);">
+        <div class="vl-card__body">
+            <div style="display:flex;justify-content:space-between;font-size:var(--vl-t-sm);margin-bottom:var(--vl-2);">
+                <span>Bid window</span>
+                <span class="vl-mono" style="font-weight:600;">{{ window.countdown }}</span>
+            </div>
+            <div class="vl-rank__bar" style="width:100%;height:8px;">
+                <span style="width:{{ window.pct }}%;"></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:var(--vl-1);">
+                <span class="vl-meta">{{ window.opens|date:"d M Y H:i" }}</span>
+                <span class="vl-meta">{{ window.closes|date:"d M Y H:i" }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="vl-card" style="padding:0;">
+        <div class="vl-tabs" role="tablist">
+            <button class="vl-tab" role="tab" data-vl-tab="scope" aria-selected="true">Scope</button>
+            <button class="vl-tab" role="tab" data-vl-tab="recipients" aria-selected="false">Recipients <span class="vl-rail__n">{{ recipient_count }}</span></button>
+            <button class="vl-tab" role="tab" data-vl-tab="bids" aria-selected="false">Bids <span class="vl-rail__n">{{ bid_count }}</span></button>
+            <button class="vl-tab" role="tab" data-vl-tab="timeline" aria-selected="false">Timeline</button>
+            <button class="vl-tab" role="tab" data-vl-tab="attachments" aria-selected="false">Attachments <span class="vl-rail__n">{{ attachments|length }}</span></button>
+        </div>
+
+        <div class="vl-card__body">
+            <div data-vl-panel="scope">
+                <dl style="margin:0 0 var(--vl-4);display:grid;grid-template-columns:auto 1fr;gap:var(--vl-2) var(--vl-3);font-size:var(--vl-t-sm);">
+                    <dt class="vl-meta">WAREHOUSE</dt><dd style="margin:0;">{{ vendor_request.warehouse_space_from|default:"—" }} – {{ vendor_request.warehouse_space_to|default:"—" }} sqm</dd>
+                    <dt class="vl-meta">STORAGE TEMP</dt><dd style="margin:0;">{{ vendor_request.storage_temp_from|default:"—" }} – {{ vendor_request.storage_temp_to|default:"—" }}</dd>
+                    <dt class="vl-meta">MONTHLY</dt><dd style="margin:0;">{{ vendor_request.monthly_shipment_from|default:"—" }} – {{ vendor_request.monthly_shipment_to|default:"—" }}</dd>
+                    <dt class="vl-meta">VERTICALS</dt><dd style="margin:0;">{{ vendor_request.product_verticals|default:"—" }}</dd>
+                </dl>
+                {% if vendor_request.scope_of_work %}
+                <h3 style="font-size:var(--vl-t-sm);margin:0 0 var(--vl-2);">Scope of work</h3>
+                <div style="font-size:var(--vl-t-sm);">{{ vendor_request.scope_of_work|safe }}</div>
+                {% else %}
+                <p class="vl-meta">No scope of work recorded.</p>
+                {% endif %}
+            </div>
+
+            <div data-vl-panel="recipients" hidden>
+                {% if recipients %}
+                <p class="vl-meta" style="margin:0 0 var(--vl-2);">
+                    Snapshot taken when the request was sent, so it stays accurate even if a
+                    vendor's email later changes.
+                </p>
+                <ul style="margin:0;padding:0;list-style:none;display:grid;gap:2px;">
+                    {% for r in recipients %}
+                    <li class="vl-mono" style="font-size:var(--vl-t-sm);">{{ r }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="vl-empty">
+                    <div class="vl-empty__title">No recipients recorded</div>
+                    <div class="vl-empty__hint">This request reached no vendors — no active vendor matched its country.</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div data-vl-panel="bids" hidden>
+                {% if bids %}
+                <table class="vl-table">
+                    <thead><tr><th>Vendor</th><th>Cur.</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
+                    <tbody>
+                        {% for b in bids %}
+                        <tr>
+                            <td>{{ b.vendor_registration.vendor_name|default:b.submitted_by.username|default:"Unknown" }}
+                                <div class="vl-meta">bid #{{ b.bid_number }}</div></td>
+                            <td class="vl-mono">{{ b.currency }}</td>
+                            <td>
+                                <span class="vl-chip vl-chip--{{ b.status|default:'submitted' }}">{{ b.get_status_display }}</span>
+                                {% if b.is_selected %}<span class="vl-chip vl-chip--selected">Chosen revision</span>{% endif %}
+                            </td>
+                            <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ b.submitted_at|date:"d M Y H:i" }}</td>
+                            <td style="text-align:right;"><a class="vl-btn vl-btn--sm" href="{% url 'vendorlink:bid_detail' b.pk %}">Open</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="vl-empty">
+                    <div class="vl-empty__title">No bids yet</div>
+                    <div class="vl-empty__hint">Vendors' responses appear here as they arrive.</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div data-vl-panel="timeline" hidden>
+                <ol class="vl-timeline">
+                    {% for t in timeline %}
+                    <li class="vl-timeline__item">
+                        <span class="vl-timeline__dot vl-timeline__dot--{{ t.kind }}"></span>
+                        <div>
+                            <div style="font-size:var(--vl-t-sm);">{{ t.text }}</div>
+                            <div class="vl-meta">{{ t.when|date:"d M Y H:i" }}</div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+
+            <div data-vl-panel="attachments" hidden>
+                {% if attachments %}
+                <ul style="margin:0;padding:0;list-style:none;display:grid;gap:var(--vl-1);">
+                    {% for a in attachments %}
+                    <li style="display:flex;align-items:center;gap:var(--vl-2);font-size:var(--vl-t-sm);">
+                        <a href="{% url 'vendorlink:attachment_download' a.pk %}">{{ a.original_name|default:"attachment" }}</a>
+                        <span class="vl-meta">{{ a.uploaded_at|date:"d M Y" }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="vl-empty">
+                    <div class="vl-empty__title">No attachments</div>
+                    <div class="vl-empty__hint">Nothing was attached to this request.</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.vl-tab');
+    tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t === tab)); });
+            document.querySelectorAll('[data-vl-panel]').forEach(function (p) {
+                p.hidden = p.dataset.vlPanel !== tab.dataset.vlTab;
+            });
+        });
+    });
+}());
+</script>
+{% endblock %}

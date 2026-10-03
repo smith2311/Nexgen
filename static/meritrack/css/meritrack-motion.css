@@ -1,0 +1,793 @@
+/* ================================================================
+   MERITRACK MOTION LAYER
+   Animation, micro-interaction and feedback system.
+   Loaded AFTER meritrack-core.css and after each page's own CSS so
+   it can polish components without every page having to opt in.
+
+   Paired with: meritrack-ui.js  (adds .mt-reveal / .is-in, ripples,
+   count-up, skeletons, modal transitions, toasts).
+   ================================================================ */
+
+/* ── Motion tokens ─────────────────────────────────────────────── */
+:root {
+    --mt-spring:       cubic-bezier(0.34, 1.56, 0.64, 1);
+    --mt-out:          cubic-bezier(0.16, 1, 0.3, 1);
+    --mt-in-out:       cubic-bezier(0.65, 0, 0.35, 1);
+    --mt-dur-xs:       120ms;
+    --mt-dur-sm:       180ms;
+    --mt-dur:          280ms;
+    --mt-dur-lg:       420ms;
+    --mt-dur-xl:       620ms;
+    --mt-stagger:      55ms;
+    --mt-lift:         0 10px 30px -8px rgba(0, 54, 112, 0.22);
+    --mt-lift-soft:    0 6px 18px -6px rgba(0, 54, 112, 0.16);
+    --mt-ring:         0 0 0 3px rgba(0, 86, 179, 0.25);
+}
+
+/* ── Keyframe library ──────────────────────────────────────────── */
+@keyframes mtFadeOnly  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mtRise      { from { opacity: 0; transform: translate3d(0, 18px, 0); }  to { opacity: 1; transform: none; } }
+@keyframes mtRiseSm    { from { opacity: 0; transform: translate3d(0, 8px, 0); }   to { opacity: 1; transform: none; } }
+@keyframes mtFall      { from { opacity: 0; transform: translate3d(0, -14px, 0); } to { opacity: 1; transform: none; } }
+@keyframes mtSlideL    { from { opacity: 0; transform: translate3d(-22px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes mtSlideR    { from { opacity: 0; transform: translate3d(22px, 0, 0); }  to { opacity: 1; transform: none; } }
+@keyframes mtPop       { 0% { opacity: 0; transform: scale(.9); } 60% { opacity: 1; transform: scale(1.02); } 100% { transform: scale(1); } }
+@keyframes mtSheen     { 0% { transform: translateX(-120%) skewX(-18deg); } 100% { transform: translateX(320%) skewX(-18deg); } }
+@keyframes mtShimmer   { 0% { background-position: -320px 0; } 100% { background-position: 320px 0; } }
+@keyframes mtSpin      { to { transform: rotate(360deg); } }
+@keyframes mtBreathe   { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: .82; } }
+@keyframes mtRipple    { to { transform: scale(2.6); opacity: 0; } }
+@keyframes mtBarSlide  { 0% { left: -35%; width: 35%; } 60% { left: 100%; width: 40%; } 100% { left: 100%; width: 40%; } }
+@keyframes mtNudgeX    { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes mtHalo      { 0% { box-shadow: 0 0 0 0 rgba(0,86,179,.35); } 70% { box-shadow: 0 0 0 12px rgba(0,86,179,0); } 100% { box-shadow: 0 0 0 0 rgba(0,86,179,0); } }
+@keyframes mtCheckPop  { 0% { transform: scale(0) rotate(-25deg); } 70% { transform: scale(1.18) rotate(0); } 100% { transform: scale(1); } }
+@keyframes mtDriftY    { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* ================================================================
+   1. SCROLL REVEAL  (JS adds .mt-reveal, then .is-in)
+   ================================================================ */
+.mt-reveal {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+    transition:
+        opacity var(--mt-dur-lg) var(--mt-out),
+        transform var(--mt-dur-lg) var(--mt-out);
+    transition-delay: calc(var(--mt-i, 0) * var(--mt-stagger));
+    will-change: opacity, transform;
+}
+.mt-reveal.is-in {
+    opacity: 1;
+    transform: none;
+}
+/* Once revealed, drop will-change so we don't pin layers forever */
+.mt-reveal.is-done { will-change: auto; transition-delay: 0ms; }
+
+.mt-reveal-left  { transform: translate3d(-24px, 0, 0); }
+.mt-reveal-right { transform: translate3d(24px, 0, 0); }
+.mt-reveal-zoom  { transform: scale(.94); }
+.mt-reveal-left.is-in,
+.mt-reveal-right.is-in,
+.mt-reveal-zoom.is-in { transform: none; }
+
+/* Page shell entrance. Fade only — a transform here would turn the page
+   into the containing block for the fixed bottom nav / toasts. */
+.mt-page,
+.mt-scanner,
+.guide-page {
+    animation: mtFadeOnly var(--mt-dur-lg) var(--mt-out) both;
+}
+
+/* ================================================================
+   2. HEADER
+   ================================================================ */
+/* The gradient drift comes from meritrack-core; it must be re-declared
+   here because this file loads later and `animation` is a shorthand.
+   Deliberately opacity-only: animating `transform` on the header would
+   make it a containing block for position:fixed descendants mid-flight. */
+.mtd-header {
+    animation:
+        mtdHdrGradient 8s ease infinite,
+        mtFadeOnly var(--mt-dur-lg) var(--mt-out) both;
+}
+.mt-hero-header {
+    animation:
+        mtdHdrGradient 8s ease infinite,
+        mtFadeOnly var(--mt-dur-lg) var(--mt-out) both;
+}
+/* Title + subtitle cascade in behind the header */
+.mtd-header-title h1,
+.mt-hero-header h1 { animation: mtSlideL var(--mt-dur-lg) var(--mt-out) both; animation-delay: 90ms; }
+.mtd-header-title p,
+.mt-hero-header p  { animation: mtSlideL var(--mt-dur-lg) var(--mt-out) both; animation-delay: 160ms; }
+.mtd-header-actions,
+.mt-hero-header .hero-actions { animation: mtSlideR var(--mt-dur-lg) var(--mt-out) both; animation-delay: 140ms; }
+
+/* Header compacts once the page is scrolled (JS adds .mt-scrolled) */
+.mtd-header,
+.mt-hero-header {
+    transition:
+        padding var(--mt-dur) var(--mt-out),
+        box-shadow var(--mt-dur) var(--mt-out);
+}
+.mtd-header.mt-scrolled .mtd-header-inner { padding-top: 14px; }
+.mtd-header.mt-scrolled { padding-bottom: 10px; }
+.mt-hero-header.mt-scrolled { padding-top: 22px; padding-bottom: 22px; }
+.mtd-header.mt-scrolled .mtd-header-title p,
+.mt-hero-header.mt-scrolled p {
+    opacity: .62;
+    transition: opacity var(--mt-dur) var(--mt-out);
+}
+
+/* Icon in the heading gets a slow drift so the header never feels dead */
+.mtd-header-title h1 > i,
+.mt-hero-header h1 > i { animation: mtDriftY 4.5s ease-in-out infinite; }
+
+/* ================================================================
+   3. NAVIGATION
+   ================================================================ */
+.mt-nav a {
+    position: relative;
+    transition:
+        background var(--mt-dur-sm) var(--mt-out),
+        color var(--mt-dur-sm) var(--mt-out),
+        transform var(--mt-dur-sm) var(--mt-spring);
+    -webkit-tap-highlight-color: transparent;
+}
+.mt-nav a i { transition: transform var(--mt-dur-sm) var(--mt-spring); }
+.mt-nav a:active { transform: scale(.94); }
+
+@media (hover: hover) and (pointer: fine) {
+    .mt-nav a:hover i { transform: translateY(-2px) scale(1.12); }
+}
+
+/* Active tab underline that grows in */
+.mt-nav a.active::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    height: 2px;
+    width: 0;
+    border-radius: 2px;
+    background: currentColor;
+    opacity: .55;
+    transform: translateX(-50%);
+    animation: mtNavUnderline var(--mt-dur-lg) var(--mt-out) forwards;
+}
+@keyframes mtNavUnderline { to { width: 42%; } }
+
+/* ================================================================
+   4. CARDS / STAT TILES
+   ================================================================ */
+.mt-card, .card, .chart-card,
+.mtd-session-card, .mtd-stat-card,
+.stat-card, .sp-stat, .sp-card,
+.tier-card, .meta-card, .ea-tier {
+    transition:
+        transform var(--mt-dur) var(--mt-out),
+        box-shadow var(--mt-dur) var(--mt-out),
+        border-color var(--mt-dur) var(--mt-out);
+    will-change: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .mt-card:hover, .card:hover, .chart-card:hover,
+    .sp-card:hover, .meta-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--mt-lift);
+    }
+    /* Session cards lift the same way but carry their own status-coloured
+       glow — see .mtd-session-card:hover in dashboard.css. */
+    .mtd-session-card:hover { transform: translateY(-3px); }
+    .mtd-stat-card:hover, .stat-card:hover, .sp-stat:hover,
+    .tier-card:hover, .ea-tier:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--mt-lift);
+    }
+}
+
+/* Light sheen sweep across stat tiles on hover — cheap and premium */
+.mtd-stat-card, .stat-card, .sp-stat, .ea-tier {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+.mtd-stat-card::after, .stat-card::after, .sp-stat::after, .ea-tier::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 45%;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .78), transparent);
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+    .mtd-stat-card:hover::after, .stat-card:hover::after,
+    .sp-stat:hover::after, .ea-tier:hover::after {
+        opacity: 1;
+        animation: mtSheen 760ms var(--mt-out);
+    }
+}
+
+/* Numbers land with a pop when the count-up finishes */
+.mtd-stat-val, .stat-value, .sp-stat-val,
+.stats-row .stat-card .num, .tier-count, .ea-tier-val {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+    transition: color var(--mt-dur) var(--mt-out);
+}
+.mt-num-settled { animation: mtPop 340ms var(--mt-spring); }
+/* While counting, dim very slightly so the settle reads as "done" */
+.mt-num-running { opacity: .92; }
+
+/* Session / list cards enter with a stagger when JS injects them */
+.mt-enter {
+    animation: mtRise var(--mt-dur-lg) var(--mt-out) both;
+    animation-delay: calc(var(--mt-i, 0) * 42ms);
+}
+
+/* ================================================================
+   5. BUTTONS — press, ripple, loading
+   ================================================================ */
+.btn-mt, .mt-btn, .mtd-btn, .hero-btn, .filter-tab,
+.mtd-filter-btn, .ep-filter, .ms-filter, .mt-pill-tab,
+.mtd-action-btn, .mt-action-btn, .btn-header, .sp-tab-btn,
+.mtd-tab, .dash-tab, .tab-btn, .month-nav-btn, .modal-close {
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        transform var(--mt-dur-xs) var(--mt-out),
+        background-color var(--mt-dur-sm) var(--mt-out),
+        border-color var(--mt-dur-sm) var(--mt-out),
+        color var(--mt-dur-sm) var(--mt-out),
+        box-shadow var(--mt-dur-sm) var(--mt-out);
+}
+.btn-mt:active, .mt-btn:active, .mtd-btn:active, .hero-btn:active,
+.filter-tab:active, .mtd-filter-btn:active, .ep-filter:active,
+.ms-filter:active, .mt-pill-tab:active, .mtd-action-btn:active,
+.mt-action-btn:active, .btn-header:active, .month-nav-btn:active {
+    transform: scale(.96);
+}
+
+/* Ripple element injected by meritrack-ui.js */
+.mt-ripple {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    background: currentColor;
+    opacity: .28;
+    transform: scale(0);
+    animation: mtRipple 560ms var(--mt-out) forwards;
+    mix-blend-mode: multiply;
+}
+.hero-btn .mt-ripple,
+.mtd-btn-ghost .mt-ripple,
+.btn-mt-primary .mt-ripple,
+.btn-mt-success .mt-ripple,
+.btn-mt-danger .mt-ripple,
+.mt-btn-primary .mt-ripple,
+.mt-btn-success .mt-ripple,
+.mt-pill-tab.active .mt-ripple,
+.filter-tab.active .mt-ripple,
+.mtd-filter-btn.active .mt-ripple {
+    background: #fff;
+    opacity: .34;
+    mix-blend-mode: screen;
+}
+
+/* Busy state — set by JS or markup: <button class="is-busy"> */
+.is-busy { pointer-events: none; opacity: .72; position: relative; }
+.is-busy::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent);
+    background-size: 320px 100%;
+    animation: mtShimmer 1.05s linear infinite;
+}
+
+/* Icon nudges on hover for directional buttons */
+@media (hover: hover) and (pointer: fine) {
+    .mt-back-btn:hover i { transform: translateX(-3px); }
+    .mt-back-btn i { transition: transform var(--mt-dur-sm) var(--mt-spring); }
+    .hero-btn:hover, .mtd-btn:hover { transform: translateY(-1px); }
+}
+
+/* ================================================================
+   6. FORM CONTROLS
+   ================================================================ */
+input, select, textarea {
+    transition:
+        border-color var(--mt-dur-sm) var(--mt-out),
+        box-shadow var(--mt-dur-sm) var(--mt-out),
+        background-color var(--mt-dur-sm) var(--mt-out);
+}
+.mt-page input:focus-visible,
+.mt-page select:focus-visible,
+.mt-page textarea:focus-visible,
+.mt-scanner input:focus-visible,
+.mt-scanner select:focus-visible,
+.mt-scanner textarea:focus-visible {
+    outline: none;
+    box-shadow: var(--mt-ring);
+}
+/* Keyboard-only focus ring on interactive elements */
+.mt-page a:focus-visible,
+.mt-page button:focus-visible,
+.mt-scanner a:focus-visible,
+.mt-scanner button:focus-visible,
+.guide-page a:focus-visible,
+.guide-page button:focus-visible {
+    outline: 2px solid var(--mt-primary, var(--mt-primary));
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+/* Invalid field shake (JS toggles .mt-shake) */
+.mt-shake { animation: mtNudgeX 380ms var(--mt-in-out); }
+.mt-field-error {
+    border-color: var(--mt-danger, var(--mt-danger)) !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, .18) !important;
+}
+
+/* Drop zones */
+.import-panel, .attachment-area {
+    transition:
+        border-color var(--mt-dur) var(--mt-out),
+        background-color var(--mt-dur) var(--mt-out),
+        transform var(--mt-dur) var(--mt-spring);
+}
+.import-panel.dragover, .attachment-area.dragover {
+    border-color: var(--mt-primary, var(--mt-primary));
+    background: var(--mt-primary-lighter, var(--mt-primary-lighter));
+    transform: scale(1.015);
+}
+.import-panel i, .attachment-area i { transition: transform var(--mt-dur) var(--mt-spring); }
+.import-panel.dragover i, .attachment-area.dragover i { transform: translateY(-5px) scale(1.1); }
+
+/* ================================================================
+   7. TABS — content crossfade
+   ================================================================ */
+.mtd-tab-content.active,
+.sp-tab-content.active,
+.tab-content.active,
+.dash-tab-content:not(.hidden) {
+    animation: mtRiseSm var(--mt-dur) var(--mt-out) both;
+}
+.mtd-tab, .sp-tab-btn, .dash-tab, .tab-btn, .mt-pill-tab { position: relative; }
+/* Sliding underline for the underline-style tab rows */
+.mtd-tab::after, .sp-tab-btn::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -2px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform var(--mt-dur) var(--mt-spring);
+}
+.mtd-tab.active::after, .sp-tab-btn.active::after { transform: scaleX(1); }
+
+/* ================================================================
+   8. TABLES
+   ================================================================ */
+.mt-table tbody tr,
+.mtd-product-tbl tbody tr,
+.ea-table tbody tr,
+.hosp-tbl tbody tr,
+.history-tbl tbody tr,
+.items-table tbody tr,
+.recon-table tbody tr {
+    transition: background-color var(--mt-dur-sm) linear, box-shadow var(--mt-dur-sm) var(--mt-out);
+}
+/* New rows fade in when JS repaints a tbody */
+tbody.mt-rows-in > tr {
+    animation: mtRiseSm 320ms var(--mt-out) both;
+    animation-delay: calc(var(--mt-i, 0) * 26ms);
+}
+/* Row highlight pulse — e.g. after an inline save */
+.mt-row-flash { animation: mtRowFlash 1.15s var(--mt-out); }
+@keyframes mtRowFlash {
+    0%   { background: rgba(40, 167, 69, .22); }
+    100% { background: transparent; }
+}
+
+/* Scroll affordance on horizontal table wrappers */
+.mt-tscroll, .table-responsive-wrap, .table-scroll-wrap {
+    position: relative;
+    scroll-behavior: smooth;
+}
+.mt-tscroll::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--mt-dur) var(--mt-out);
+    background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, .92));
+}
+.mt-tscroll.can-scroll::after { opacity: 1; }
+.mt-tscroll.scroll-end::after { opacity: 0; }
+
+/* ================================================================
+   9. SKELETON LOADERS
+   ================================================================ */
+.mt-sk {
+    position: relative;
+    overflow: hidden;
+    background: var(--mt-gray-100, var(--mt-gray-100));
+    border-radius: 8px;
+}
+.mt-sk::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
+    background-size: 320px 100%;
+    background-repeat: no-repeat;
+    animation: mtShimmer 1.15s linear infinite;
+}
+.mt-sk-line   { height: 12px; margin-bottom: 9px; }
+.mt-sk-line:last-child { margin-bottom: 0; width: 62%; }
+.mt-sk-title  { height: 18px; width: 45%; margin-bottom: 14px; }
+.mt-sk-pill   { height: 26px; width: 84px; border-radius: 999px; }
+.mt-sk-num    { height: 30px; width: 62%; margin-bottom: 8px; }
+.mt-sk-card {
+    padding: 18px;
+    border: 1px solid var(--mt-gray-200, var(--mt-gray-200));
+    border-radius: 14px;
+    background: #fff;
+}
+.mt-sk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+.mt-sk-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--mt-gray-100, var(--mt-gray-100));
+}
+.mt-sk-row > .mt-sk { flex: 1; height: 11px; margin: 0; }
+.mt-sk-row > .mt-sk:nth-child(1) { flex: 0 0 26px; }
+.mt-sk-row > .mt-sk:nth-child(3) { flex: 0 0 20%; }
+.mt-sk-row > .mt-sk:nth-child(4) { flex: 0 0 14%; }
+
+/* Placeholder rows fade down the list so the top reads as "arriving first" */
+.mt-sk-tr { animation: mtFadeOnly 300ms var(--mt-out) both; }
+.mt-sk-tr:nth-child(n+3) .mt-sk-row { opacity: .75; }
+.mt-sk-tr:nth-child(n+5) .mt-sk-row { opacity: .5; }
+.mt-sk-tr:nth-child(n+7) .mt-sk-row { opacity: .3; }
+.mt-sk-tr:last-child .mt-sk-row { border-bottom: none; }
+
+/* Bar-chart placeholder */
+.mt-sk-bars { animation: mtFadeOnly 300ms var(--mt-out) both; }
+.mt-sk-bars .bar-row:nth-child(2) { opacity: .8; }
+.mt-sk-bars .bar-row:nth-child(3) { opacity: .6; }
+.mt-sk-bars .bar-row:nth-child(4) { opacity: .4; }
+
+/* Placeholder card shell reuses the real card chrome */
+.mt-sk-shell { animation: mtFadeOnly 300ms var(--mt-out) both; }
+.mt-sk-shell:nth-child(n+3) { opacity: .78; }
+.mt-sk-shell:nth-child(n+5) { opacity: .5; }
+@media (hover: hover) and (pointer: fine) {
+    .mt-sk-shell:hover { transform: none; box-shadow: inherit; }
+}
+
+/* Nicer spinners everywhere */
+.mtd-spinner, .loading-spinner i, .mt-spinner {
+    animation: mtSpin .72s linear infinite;
+}
+.loading-spinner, .mtd-empty-state, .empty-state, .loading-overlay {
+    animation: mtRiseSm var(--mt-dur) var(--mt-out) both;
+}
+/* Dot pulse used by the JS toast / inline loaders */
+.mt-dots { display: inline-flex; gap: 4px; align-items: center; }
+.mt-dots i {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; display: block;
+    animation: mtBreathe 1.05s ease-in-out infinite;
+}
+.mt-dots i:nth-child(2) { animation-delay: .14s; }
+.mt-dots i:nth-child(3) { animation-delay: .28s; }
+
+/* ================================================================
+   10. MODALS / SHEETS
+   ================================================================ */
+.modal-overlay {
+    transition: opacity var(--mt-dur) var(--mt-out);
+    opacity: 1;
+}
+.modal-overlay.mt-closing { opacity: 0; }
+.modal-box {
+    animation: mtModalIn var(--mt-dur-lg) var(--mt-spring) both;
+}
+@keyframes mtModalIn {
+    from { opacity: 0; transform: translateY(18px) scale(.965); }
+    to   { opacity: 1; transform: none; }
+}
+.modal-overlay.mt-closing .modal-box {
+    animation: mtModalOut var(--mt-dur-sm) var(--mt-in-out) both;
+}
+@keyframes mtModalOut {
+    to { opacity: 0; transform: translateY(12px) scale(.975); }
+}
+.modal-close { transition: transform var(--mt-dur-sm) var(--mt-spring), background var(--mt-dur-sm) linear; }
+@media (hover: hover) and (pointer: fine) {
+    .modal-close:hover { transform: rotate(90deg); }
+}
+
+/* ================================================================
+   11. TOASTS
+   ================================================================ */
+.mt-toast-host {
+    position: fixed;
+    left: 50%;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 4000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    width: min(440px, calc(100vw - 24px));
+    pointer-events: none;
+}
+.mt-toast {
+    pointer-events: auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: .88rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--mt-gray-900);
+    box-shadow: 0 12px 34px -8px rgba(33, 37, 41, .45);
+    animation: mtToastIn 340ms var(--mt-spring) both;
+}
+.mt-toast.mt-toast-out { animation: mtToastOut 220ms var(--mt-in-out) both; }
+@keyframes mtToastIn  { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes mtToastOut { to   { opacity: 0; transform: translateY(10px) scale(.97); } }
+.mt-toast i { flex-shrink: 0; font-size: 1.05em; }
+.mt-toast-success { background: linear-gradient(135deg, var(--mt-success), var(--mt-success-dark)); }
+.mt-toast-error   { background: linear-gradient(135deg, var(--mt-danger), var(--mt-danger-dark)); }
+.mt-toast-warning { background: linear-gradient(135deg, var(--mt-warning-dark), var(--mt-warning-text)); }
+.mt-toast-info    { background: linear-gradient(135deg, var(--mt-primary), var(--mt-primary-dark)); }
+.mt-toast-close {
+    margin-left: auto;
+    background: rgba(255, 255, 255, .18);
+    border: none;
+    color: #fff;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: .8em;
+    flex-shrink: 0;
+}
+
+/* Legacy inline toast element (#toast) — keep, just animate it nicer */
+.toast:not(.hidden) { animation: mtToastIn 320ms var(--mt-spring) both; }
+
+/* ================================================================
+   12. TOP PROGRESS BAR (route/fetch feedback)
+   ================================================================ */
+.mt-progress-top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    z-index: 5000;
+    background: transparent;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity var(--mt-dur-sm) linear;
+    pointer-events: none;
+}
+.mt-progress-top.is-on { opacity: 1; }
+.mt-progress-top::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--mt-primary), var(--mt-secondary), var(--mt-primary));
+    animation: mtBarSlide 1.1s var(--mt-in-out) infinite;
+}
+
+/* ================================================================
+   13. BACK TO TOP
+   ================================================================ */
+.mt-to-top {
+    position: fixed;
+    right: 16px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, .28);
+    background: linear-gradient(135deg, var(--mt-primary), var(--mt-primary-dark));
+    color: #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    /* Under the app sidebar/overlay (199/200) and the bottom nav (150) so an
+       open sidebar dims it instead of it floating on top. */
+    z-index: 140;
+    box-shadow: 0 10px 26px -8px rgba(0, 54, 112, .55);
+    opacity: 0;
+    transform: translateY(14px) scale(.85);
+    pointer-events: none;
+    transition:
+        opacity var(--mt-dur) var(--mt-out),
+        transform var(--mt-dur) var(--mt-spring);
+}
+.mt-to-top.is-on {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+    .mt-to-top:hover { transform: translateY(-3px); }
+}
+
+/* ================================================================
+   14. STATUS / BADGE MOTION
+   ================================================================ */
+.badge, .status-badge, .mtd-status-badge, .mtd-type-badge,
+.mtd-tab-badge, .stat-chip {
+    transition: transform var(--mt-dur-sm) var(--mt-spring), background-color var(--mt-dur-sm) linear;
+}
+.mt-badge-in { animation: mtPop 320ms var(--mt-spring) both; }
+
+/* Live/pulsing indicators */
+.sync-dot, .mt-live-dot { animation: mtBreathe 1.9s ease-in-out infinite; }
+.mtd-tab-badge:not(:empty) { animation: mtPop 300ms var(--mt-spring) both; }
+
+/* Attention halo — draw the eye to a primary CTA once */
+.mt-attention { animation: mtHalo 1.8s var(--mt-out) 2; }
+
+/* Success check bounce (used in scanner / transfer completion) */
+.mt-check-pop { display: inline-block; animation: mtCheckPop 520ms var(--mt-spring) both; }
+
+/* ================================================================
+   15. PROGRESS BARS
+   ================================================================ */
+.progress-fill, .progress-bar-fill, .bar-fill, .trend-bar {
+    transition: width var(--mt-dur-xl) var(--mt-out), height var(--mt-dur-xl) var(--mt-out);
+}
+.progress-bar, .progress-bar-track { overflow: hidden; position: relative; }
+.progress-bar-fill::after, .progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent);
+    background-size: 220px 100%;
+    animation: mtShimmer 1.6s linear infinite;
+}
+.progress-bar-fill, .progress-fill { position: relative; overflow: hidden; }
+
+/* Bar chart rows grow in */
+.bar-row .bar-fill { animation: mtBarGrow var(--mt-dur-xl) var(--mt-out) both; }
+@keyframes mtBarGrow { from { transform: scaleX(0); } to { transform: none; } }
+.bar-row .bar-fill { transform-origin: left center; }
+
+/* ================================================================
+   16. SCANNER-SPECIFIC MOTION
+   ================================================================ */
+.mt-step {
+    transition:
+        background-color var(--mt-dur) var(--mt-out),
+        color var(--mt-dur) var(--mt-out),
+        transform var(--mt-dur) var(--mt-spring),
+        box-shadow var(--mt-dur) var(--mt-out);
+}
+.mt-step.active { transform: translateY(-2px); }
+.mt-section.active { animation: mtRise var(--mt-dur-lg) var(--mt-out) both; }
+
+/* Camera viewport gets a scanning sweep line so it reads as "live" */
+.mt-scanner-container { position: relative; }
+.mt-scanner-container::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--mt-secondary), transparent);
+    box-shadow: 0 0 12px rgba(23, 162, 184, .8);
+    animation: mtScanSweep 2.4s var(--mt-in-out) infinite;
+    pointer-events: none;
+    z-index: 3;
+}
+@keyframes mtScanSweep {
+    0%   { top: 6%;  opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: 94%; opacity: 0; }
+}
+/* Paused state kills the sweep (JS toggles .is-paused) */
+.mt-scanner-container.is-paused::after { animation: none; opacity: 0; }
+
+.mt-pending-banner, .mt-awaiting-banner { animation: mtRise var(--mt-dur) var(--mt-out) both; }
+.mt-product-item { animation: mtSlideR 320ms var(--mt-out) both; }
+.mt-alert { animation: mtRise var(--mt-dur) var(--mt-out) both; }
+
+/* Serial-number bottom sheet */
+.mt-serial-overlay { transition: opacity var(--mt-dur) var(--mt-out); }
+
+/* ================================================================
+   17. ACCORDIONS / DISCLOSURES
+   ================================================================ */
+.hospital-header, .hosp-scan-header, .mt-manual-panel summary {
+    transition: background-color var(--mt-dur-sm) linear;
+    -webkit-tap-highlight-color: transparent;
+}
+.hospital-body.open, .mt-manual-panel[open] .mt-manual-body {
+    animation: mtRiseSm var(--mt-dur) var(--mt-out) both;
+}
+.hospital-header i.chev, .hosp-scan-chevron,
+.mt-manual-panel summary::before {
+    transition: transform var(--mt-dur) var(--mt-spring);
+}
+.hospital-item.open .hospital-header i.chev,
+.hosp-scan-section.open .hosp-scan-chevron { transform: rotate(90deg); }
+
+/* ================================================================
+   18. LINKS
+   ================================================================ */
+.mtd-card-link, .btn-link, .mt-link {
+    position: relative;
+    transition: color var(--mt-dur-sm) var(--mt-out);
+}
+.mtd-card-link::after, .btn-link::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -2px;
+    height: 1.5px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--mt-dur) var(--mt-out);
+}
+@media (hover: hover) and (pointer: fine) {
+    .mtd-card-link:hover::after, .btn-link:hover::after { transform: none; }
+}
+
+/* ================================================================
+   19. REDUCED MOTION — full opt-out
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        transition-delay: 0ms !important;
+        scroll-behavior: auto !important;
+    }
+    .mt-reveal { opacity: 1 !important; transform: none !important; }
+    .mt-scanner-container::after,
+    .mt-progress-top::before,
+    .mtd-stat-card::after, .stat-card::after,
+    .sp-stat::after, .ea-tier::after,
+    .progress-bar-fill::after, .progress-fill::after,
+    .is-busy::after,
+    .mt-sk::after { display: none; }
+    .mtd-header-title h1 > i,
+    .mt-hero-header h1 > i { animation: none; }
+}

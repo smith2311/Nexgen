@@ -1,0 +1,170 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Session Detail — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/session_detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-clipboard-check"></i> Session Detail</h1>
+<p>View scan log, remarks, and session documents</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    {% if can_use_scanner %}
+    <a href="{% url 'meritrack:scanner' %}" class="hero-btn"><i class="fas fa-qrcode"></i> New Scan</a>
+    {% endif %}
+    <button class="hero-btn hero-btn-solid" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Export CSV</button>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <!-- Force Complete Banner (active sessions) -->
+    <div id="forceCompleteBanner" style="display:none;margin-bottom:16px;">
+        <div style="background:var(--mt-warning-light);border:1px solid var(--mt-warning);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div>
+                <strong style="color:var(--mt-warning-text);"><i class="fas fa-exclamation-triangle"></i> Session In Progress</strong>
+                <span style="color:var(--mt-warning-text);font-size:0.88em;margin-left:8px;">The rep has not completed this session yet. As a manager, you can force-complete it.</span>
+            </div>
+            <button class="btn-mt btn-warning" onclick="forceCompleteSession()"><i class="fas fa-check-double"></i> Force Complete</button>
+        </div>
+    </div>
+
+    <!-- Manager Actions Banner (awaiting/on_hold sessions) -->
+    <div id="managerActionsBanner" style="display:none;margin-bottom:16px;">
+        <div style="background:var(--mt-primary-lighter);border:1px solid var(--mt-info-border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <div>
+                <strong style="color:var(--mt-primary-dark);"><i class="fas fa-tasks"></i> Manager Actions</strong>
+                <span id="managerBannerMsg" style="color:var(--mt-primary-dark);font-size:0.88em;margin-left:8px;"></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="btnReject" class="btn-mt" style="background:var(--mt-warning-light);color:var(--mt-warning-text);border:1.5px solid var(--mt-warning);" onclick="rejectSessionDetail()"><i class="fas fa-undo"></i> Reject</button>
+                <button id="btnHold" class="btn-mt" style="background:var(--mt-purple-light);color:var(--mt-purple-dark);border:1.5px solid var(--mt-purple-border);" onclick="holdSessionDetail()"><i class="fas fa-pause"></i> Hold</button>
+                <button id="btnResume" class="btn-mt" style="background:var(--mt-success-light);color:var(--mt-success-dark);border:1.5px solid var(--mt-success-border);display:none;" onclick="resumeSessionDetail()"><i class="fas fa-play"></i> Resume</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Info Card -->
+    <div class="card" id="sessionInfo">
+        <div class="info-grid" aria-hidden="true">
+            <div class="info-item"><div class="mt-sk mt-sk-line" style="width:44%;"></div><div class="mt-sk mt-sk-line" style="width:76%;margin:0;"></div></div>
+            <div class="info-item"><div class="mt-sk mt-sk-line" style="width:52%;"></div><div class="mt-sk mt-sk-line" style="width:64%;margin:0;"></div></div>
+            <div class="info-item"><div class="mt-sk mt-sk-line" style="width:38%;"></div><div class="mt-sk mt-sk-line" style="width:82%;margin:0;"></div></div>
+            <div class="info-item"><div class="mt-sk mt-sk-line" style="width:48%;"></div><div class="mt-sk mt-sk-line" style="width:58%;margin:0;"></div></div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card">
+        <h2 style="margin-bottom:14px;font-size:1.05em;font-weight:700;color:var(--mt-gray-800);"><i class="fas fa-barcode" style="color:var(--mt-primary)"></i> Scanned Products</h2>
+        <div style="overflow-x:auto;">
+            <table id="productsTable" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Serial Number</th>
+                        <th>GTIN Code</th>
+                        <th>Lot / Batch</th>
+                        <th>Product</th>
+                        <th>Ref #</th>
+                        <th>Expiry</th>
+                        <th>Prod. Date</th>
+                        <th>Material</th>
+                        <th>Qty</th>
+                        <th>Scanned At</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody id="productsBody">
+                    {% include 'meritrack/_sk_rows.html' with cols=12 rows="123456" %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Session Remarks -->
+    <div id="sessionRemarksSection" class="card" style="margin-top:0;">
+        <h2 style="margin-bottom:14px;font-size:1.05em;font-weight:700;color:var(--mt-gray-800);"><i class="fas fa-comments" style="color:var(--mt-purple)"></i> Session Remarks</h2>
+        <div id="sessionRemarksList" style="margin-bottom:14px;min-height:20px;"></div>
+        <div style="background:var(--mt-purple-light);border:1px solid var(--mt-purple-border);border-radius:10px;padding:14px;">
+            <label style="font-size:0.85em;font-weight:600;color:var(--mt-purple);display:block;margin-bottom:6px;">Add a Remark</label>
+            <textarea id="newSessionRemark" placeholder="Add a remark about this session…"
+                style="width:100%;padding:10px 12px;border:1.5px solid var(--mt-purple-border);border-radius:6px;font-size:0.88em;resize:vertical;min-height:64px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;"
+                onfocus="this.style.borderColor='var(--mt-purple)'" onblur="this.style.borderColor='var(--mt-purple-border)'"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                <button class="btn-mt btn-primary" onclick="addSessionRemark()"><i class="fas fa-paper-plane"></i> Save Remark</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Section (completed sessions without attachment) -->
+    <div id="uploadSection" class="card" style="display:none;">
+        <h2 style="margin-bottom:6px;font-size:1.05em;font-weight:700;color:var(--mt-gray-800);"><i class="fas fa-upload" style="color:var(--mt-success)"></i> Upload Confirmation Document</h2>
+        <p style="color:var(--mt-gray-600);font-size:0.88em;margin-bottom:14px;">Upload the signed confirmation document from the hospital to close this session.</p>
+        <div class="import-panel" id="uploadDropzone"
+             onclick="document.getElementById('attachmentFile').click()"
+             ondrop="handleAttachmentDrop(event)"
+             ondragover="handleAttachmentDragOver(event)"
+             ondragleave="handleAttachmentDragLeave(event)">
+            <i class="fas fa-file-upload"></i>
+            <p><strong>Click to select or drag &amp; drop</strong></p>
+            <p style="font-size:0.82em;color:var(--mt-gray-600);">PDF, images, or documents up to 50 MB</p>
+            <p id="uploadFilename" style="color:var(--mt-primary);font-weight:600;margin-top:6px;"></p>
+        </div>
+        <input type="file" id="attachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.bmp,.tiff" style="display:none;" onchange="onAttachmentSelected(event)">
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <button class="btn-mt btn-success" id="uploadSubmitBtn" disabled onclick="submitAttachment()"><i class="fas fa-upload"></i> Upload &amp; Close Session</button>
+        </div>
+    </div>
+
+    <!-- Document Preview (closed sessions with attachment) -->
+    <div id="docPreviewSection" class="card" style="display:none;">
+        <h2 style="margin-bottom:14px;font-size:1.05em;font-weight:700;color:var(--mt-gray-800);"><i class="fas fa-file-alt" style="color:var(--mt-primary)"></i> Confirmation Document</h2>
+        <div id="docPreviewContent"></div>
+    </div>
+
+<!-- Product Remarks Modal (bottom sheet) -->
+<div id="productRemarkModal" style="display:none;position:fixed;inset:0;background:rgba(33,37,41,0.6);z-index:1500;backdrop-filter:blur(3px);" onclick="if(event.target===this)closeRemarkModal()">
+    <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(600px,100%);max-height:85vh;overflow-y:auto;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,0.25);padding:0 0 env(safe-area-inset-bottom,0) 0;">
+        <div style="text-align:center;padding:12px 0 4px;"><div style="width:36px;height:4px;background:var(--mt-gray-200);border-radius:2px;display:inline-block;"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 18px 14px;border-bottom:1px solid var(--mt-gray-100);">
+            <div>
+                <div style="font-weight:800;font-size:1em;color:var(--mt-gray-900);">Product Remarks</div>
+                <div id="remarkModalSubtitle" style="font-size:0.75em;color:var(--mt-gray-400);margin-top:2px;"></div>
+            </div>
+            <button onclick="closeRemarkModal()" style="background:var(--mt-gray-100);color:var(--mt-gray-600);border:none;width:34px;height:34px;border-radius:50%;font-size:1.1em;cursor:pointer;font-weight:700;">&#x2715;</button>
+        </div>
+        <div style="padding:16px 18px;">
+            <div id="productRemarksList" style="margin-bottom:16px;min-height:40px;"></div>
+            <div style="background:var(--mt-purple-light);border:1px solid var(--mt-purple-border);border-radius:8px;padding:12px;">
+                <label style="font-size:0.82em;font-weight:600;color:var(--mt-purple);display:block;margin-bottom:6px;">Add a Remark</label>
+                <textarea id="newProductRemark" placeholder="Your remark about this item…"
+                    style="width:100%;padding:10px 12px;border:1.5px solid var(--mt-purple-border);border-radius:6px;font-size:0.88em;resize:vertical;min-height:60px;font-family:inherit;outline:none;background:#fff;box-sizing:border-box;"
+                    onfocus="this.style.borderColor='var(--mt-purple)'" onblur="this.style.borderColor='var(--mt-purple-border)'"></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <button class="btn-mt btn-primary" onclick="submitProductRemark()"><i class="fas fa-paper-plane"></i> Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const SESSION_KEY = '{{ session_key }}';
+const CSRF = '{{ csrf_token }}';
+const IS_MANAGER = {{ is_manager|yesno:"true,false" }};
+</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'meritrack/js/session_detail.js' %}"></script>
+{% endblock %}

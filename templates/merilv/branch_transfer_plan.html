@@ -1,0 +1,104 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Branch Transfer console. Reconciles from the server's `state` payload after
+every scan (and every 2s poll), the same pattern as the Outbound console —
+so the pending/picked figures, the plant summary and the recommended batches
+stay exactly what the server computed instead of a client-side guess or a
+full-page reload.
+{% endcomment %}
+
+{% block mv_title %}{{ plan }} — Branch Transfer{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:branch_transfer' %}">Branch Transfer</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ plan }}</span>
+{% endblock %}
+{% block mv_heading %}{{ plan }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">{{ plan.entity.name }} · material-only matching — no batch or delivery check</p>{% endblock %}
+{% block mv_actions %}<a href="{% url 'merilv:branch_transfer_export' plan.pk %}" class="mv-btn">{% icon "download" %} Export</a>{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="branch_transfer" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+<div class="mv-bt" data-mv-bt='{
+        "scanUrl":       "{% url "merilv:branch_transfer_scan" plan.pk %}",
+        "bulkUrl":       "{% url "merilv:branch_transfer_bulk_scan" plan.pk %}",
+        "stateUrl":      "{% url "merilv:branch_transfer_state" plan.pk %}",
+        "autoAssignUrl": "{% url "merilv:branch_transfer_auto_assign" plan.pk %}",
+        "lineBatchUrl":  "{% url "merilv:branch_transfer_line_batch" plan.pk %}"
+     }'>
+
+<div class="mv-kpis">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "package" %}</span><span class="mv-kpi__label">Required</span><span class="mv-kpi__value" data-mv="kpi-required">{{ totals.required|floatformat:0 }}</span></div>
+    <div class="mv-kpi mv-kpi--ok"><span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Picked</span><span class="mv-kpi__value" data-mv="kpi-picked">{{ totals.picked|floatformat:0 }}</span></div>
+    <div class="mv-kpi{% if totals.pending %} mv-kpi--warn{% endif %}"><span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Pending</span><span class="mv-kpi__value" data-mv="kpi-pending">{{ totals.pending|floatformat:0 }}</span></div>
+    <div class="mv-kpi mv-kpi--active"><span class="mv-kpi__icon">{% icon "chart" %}</span><span class="mv-kpi__label">Progress</span><span class="mv-kpi__value" data-mv="kpi-percent">{{ totals.percent }}%</span></div>
+</div>
+
+<div class="mv-card">
+    <input type="text" class="mv-scan-input" id="mvBtScanInput" autocomplete="off" autofocus placeholder="SCAN BARCODE" aria-label="Scan barcode">
+    <div class="mv-scan-statusline" style="margin-top:var(--mv-2);"><span id="mvBtStatus">Ready to scan. Keyboard input is focused.</span></div>
+    <div class="mv-scanlog" id="mvBtLog" style="margin-top:var(--mv-4);"></div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "upload" %} Bulk scan upload</h2>
+    <form data-mv="bt-bulk-form" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Processing bulk scans"
+          data-mv-loading-message="Uploading the scan file and matching it to the transfer plan.">
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtBulkFile">Scan workbook</label>
+                <label class="mv-dropzone mv-dropzone--compact">
+                    <input type="file" id="mvBtBulkFile" name="scan_file" accept=".xlsx,.xls,.csv,.txt">
+                    {% icon "file" 32 %}<span class="mv-dropzone__label">Choose scan file</span><span class="mv-t-caption">Excel, CSV or text</span>
+                </label>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtBulkText">Paste scans</label>
+                <textarea class="mv-input mv-input--mono" id="mvBtBulkText" name="raw_text" rows="5" placeholder="One barcode per line"></textarea>
+            </div>
+        </div>
+        <div class="mv-card__footer">
+            <span class="mv-hint" data-mv="bt-bulk-result"></span>
+            <div class="mv-table-toolbar__spacer"></div>
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Process scans</button>
+        </div>
+    </form>
+</div>
+
+{% comment %}
+"Plan Summary" — the client's Row 4.3 complaint ("doesn't show actual
+requirements"). Ported from bt-scanner.js:653-790 (renderBTSummaryTable):
+plant -> colour-zone -> plan/dispatched/pending/percent, plus a grand total.
+{% endcomment %}
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "chart" %} Plan Summary — by receiving plant</h2>
+    </div>
+    <div class="mv-table-wrap" data-mv="bt-summary">
+        {% include "merilv/_shell/bt_summary_table.html" with summary=summary %}
+    </div>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;justify-content:space-between;">
+        <h2 class="mv-card__title">{% icon "list" %} Transfer lines</h2>
+        <button type="button" class="mv-btn mv-btn--sm" data-mv="auto-assign"
+                title="Recommend a batch for every unpicked, unassigned line from the uploaded stock dump">
+            {% icon "wand" 14 %} Auto-assign batches
+        </button>
+    </div>
+    <div class="mv-table-wrap" data-mv="bt-lines">
+        {% include "merilv/_shell/bt_lines_table.html" with lines=lines %}
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'merilv/js/branch_transfer.js' %}" defer></script>
+{% endblock %}

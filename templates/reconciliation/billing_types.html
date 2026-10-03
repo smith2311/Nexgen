@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% load static recon_tags %}
+
+{% comment %}
+Billing Type Master — the rules the classifier judges rows against.
+
+Editing here changes nothing already imported. The numbers only move when the
+rules are re-run from the Records page, which is a separate and deliberate
+action: a master edit can silently re-label several thousand rows, and that
+should never happen as a side effect of pressing Save on one of them.
+{% endcomment %}
+
+{% block title %}Billing type master — 3 Way Reconciliation{% endblock %}
+{% block page_title %}Billing type master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reconciliation/recon.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="rc-app" id="rcBtApp">
+
+  <header class="rc-header">
+    <div class="rc-header-inner">
+      <a href="{% url 'reconciliation:records' %}" class="rc-back">
+        <i class="fas fa-arrow-left"></i> Records
+      </a>
+      <div class="rc-header-top">
+        <div>
+          <h1><i class="fas fa-list-check"></i> Billing type master</h1>
+          <p>
+            {{ rows|length }} SAP billing codes &mdash; which of GST / E-Invoice /
+            E-Way Bill each one must carry, and what to call a row that carries them
+          </p>
+        </div>
+        <div class="rc-header-actions">
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:dashboard' %}">
+            <i class="fas fa-chart-column"></i> Filing summary
+          </a>
+          <a class="rc-btn rc-btn-ghost" href="{% url 'reconciliation:sales_types' %}">
+            <i class="fas fa-tags"></i> Sales type master
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="rc-inner">
+
+    <section class="rc-card">
+      <div class="rc-card-body" style="padding-bottom:6px">
+        <div class="rc-note" style="max-width:none;margin:0">
+          <b>&ldquo;NA&rdquo; means not mandatory, not forbidden.</b>
+          A source marked NA that turns out to be present is never flagged &mdash;
+          checked against the real 10,424-row export, at least eight billing types
+          carry an NA source on almost every row (every ZCFU consignment challan has
+          an E-Invoice despite EINV = NA). Only a <em>missing</em> mandatory source
+          counts against a document. An NA source is also left out of the amount
+          comparison, which is what stops 711 perfectly normal branch-transfer
+          challans &mdash; GST deliberately Rs 0, E-Way Bill carrying the real goods
+          value &mdash; from reading as mismatches.
+        </div>
+      </div>
+    </section>
+
+    <section class="rc-card">
+      <div class="rc-card-hdr">
+        <h2><i class="fas fa-table-list"></i> Rules</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="search" class="rc-input" id="rcBtSearch"
+                 placeholder="Filter by code, description or remark" style="width:280px">
+          {% if recon_perms.import %}
+          <span class="rc-count-badge">Re-run the rules on Records to apply edits</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="rc-table-wrap">
+        <table class="rc-table rc-bt-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Type</th>
+              <th>Applicable</th>
+              <th>Final remark</th>
+              <th title="Overrides the default 'Dispatched Pending' wording when set">Pending remark</th>
+              <th>Health</th>
+              <th class="rc-num">Rows</th>
+              <th style="text-align:right">&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody id="rcBtBody">
+            {% for rule in rows %}
+            <tr data-code="{{ rule.code }}" data-id="{{ rule.pk }}"
+                data-conditions="{{ rule.other_conditions }}"
+                class="{% if not rule.is_active %}rc-inactive{% endif %}">
+              <td><span class="rc-bt-code">{{ rule.code }}</span></td>
+              <td>{{ rule.description }}</td>
+              <td>{{ rule.doc_type }}</td>
+              <td>
+                <span class="rc-flags">
+                  <span class="rc-flag {% if rule.gst_applicable %}on{% endif %}">GST</span>
+                  <span class="rc-flag {% if rule.einv_applicable %}on{% endif %}">EINV</span>
+                  <span class="rc-flag {% if rule.ewb_applicable %}on{% endif %}">EWB</span>
+                </span>
+              </td>
+              <td>{{ rule.final_remark }}</td>
+              <td data-pending="1">
+                {% if rule.pending_remark %}{{ rule.pending_remark }}
+                {% else %}<span class="rc-dash">&mdash;</span>{% endif %}
+              </td>
+              <td><span class="rc-chip {{ rule.health }}">{{ rule.get_health_display }}</span></td>
+              <td class="rc-num" data-usage="{{ rule.code }}">&mdash;</td>
+              <td>
+                <div class="rc-row-actions">
+                  {% if recon_perms.masters %}
+                  <button type="button" class="rc-icon-btn" data-edit="{{ rule.pk }}"
+                          title="Edit this rule"><i class="fas fa-pen-to-square"></i></button>
+                  {% else %}
+                  <span class="rc-dash">read only</span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9">
+              <div class="rc-empty">
+                <i class="fas fa-list-check"></i>
+                <h3>The master is empty</h3>
+                <p>Run <code>python manage.py migrate reconciliation</code> to seed
+                   the 53 codes it ships with.</p>
+              </div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="rc-toasts" id="rcToasts"></div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+{% if recon_perms.masters %}
+<div class="rc-modal" id="rcBtModal" hidden>
+  <div class="rc-modal-box">
+    <div class="rc-modal-hdr">
+      <h2><i class="fas fa-pen-to-square"></i> <span id="rcBtTitle">Edit rule</span></h2>
+      <button type="button" class="rc-icon-btn" data-bt-close aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="rc-modal-body">
+      <div class="rc-form-grid">
+        <div class="rc-field rc-span-2">
+          <label for="btDescription">Description</label>
+          <input type="text" class="rc-input" id="btDescription">
+        </div>
+        <div class="rc-field">
+          <label for="btDocType">Type</label>
+          <select class="rc-select" id="btDocType">
+            {% for option in doc_types %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="btFinalRemark">Final remark for a fully-compliant row</label>
+          <input type="text" class="rc-input" id="btFinalRemark">
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="btPendingRemark">Pending remark &mdash; overrides &ldquo;Dispatched Pending&rdquo;</label>
+          <input type="text" class="rc-input" id="btPendingRemark"
+                 placeholder="Leave blank to use the shipped wording">
+        </div>
+        <div class="rc-field">
+          <label for="btHealth">Health</label>
+          <select class="rc-select" id="btHealth">
+            <option value="ok">Clear</option>
+            <option value="warn">Watch</option>
+            <option value="bad">Exception</option>
+          </select>
+        </div>
+        <div class="rc-field rc-span-2">
+          <label>Sources this billing type must carry</label>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;padding-top:4px">
+            <label class="rc-check"><input type="checkbox" id="btGst"> GST</label>
+            <label class="rc-check"><input type="checkbox" id="btEinv"> E-Invoice</label>
+            <label class="rc-check"><input type="checkbox" id="btEwb"> E-Way Bill</label>
+            <label class="rc-check"><input type="checkbox" id="btActive"> Rule is active</label>
+          </div>
+        </div>
+        <div class="rc-field rc-span-2">
+          <label for="btConditions">Other conditions (notes only &mdash; not enforced)</label>
+          <textarea class="rc-input" id="btConditions"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="rc-modal-foot">
+      <span class="rc-kpi-hint">
+        Saving changes the rule. Records already imported keep their current remark
+        until the rules are re-run.
+      </span>
+      <span class="rc-spacer"></span>
+      <button type="button" class="rc-btn" data-bt-close>Cancel</button>
+      <button type="button" class="rc-btn rc-btn-primary" id="btSave">
+        <i class="fas fa-floppy-disk"></i> Save rule
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{{ usage|json_script:"rcBtUsage" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    var usage = JSON.parse(document.getElementById('rcBtUsage').textContent);
+    var group = new Intl.NumberFormat('en-IN');
+    var editing = null;
+
+    function $(id) { return document.getElementById(id); }
+
+    function csrf() {
+        var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function toast(message, kind) {
+        var el = document.createElement('div');
+        el.className = 'rc-toast ' + (kind || 'ok');
+        el.innerHTML = '<i class="fas fa-circle-check"></i><div></div>';
+        el.querySelector('div').textContent = message;
+        $('rcToasts').appendChild(el);
+        setTimeout(function () { el.remove(); }, 7000);
+    }
+
+    // How many stored documents each code is actually carrying — the number
+    // that says whether an edit here matters or is theoretical.
+    document.querySelectorAll('[data-usage]').forEach(function (cell) {
+        var n = usage[cell.dataset.usage];
+        cell.innerHTML = n ? group.format(n) : '<span class="rc-dash">&mdash;</span>';
+    });
+
+    var search = $('rcBtSearch');
+    if (search) {
+        search.addEventListener('input', function () {
+            var needle = search.value.trim().toLowerCase();
+            document.querySelectorAll('#rcBtBody tr[data-code]').forEach(function (row) {
+                row.hidden = needle !== '' &&
+                    row.textContent.toLowerCase().indexOf(needle) === -1;
+            });
+        });
+    }
+
+    var modal = $('rcBtModal');
+    if (!modal) { return; }
+
+    function close() { modal.hidden = true; editing = null; }
+    document.querySelectorAll('[data-bt-close]').forEach(function (el) {
+        el.addEventListener('click', close);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !modal.hidden) { close(); }
+    });
+
+    document.getElementById('rcBtBody').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-edit]');
+        if (!button) { return; }
+        var row = button.closest('tr');
+        editing = row.dataset.id;
+
+        // Read the current values straight off the rendered row, so the form
+        // always opens showing what the table shows.
+        var cells = row.children;
+        $('rcBtTitle').textContent = 'Edit ' + row.dataset.code;
+        $('btDescription').value = cells[1].textContent.trim();
+        $('btDocType').value = cells[2].textContent.trim();
+        $('btFinalRemark').value = cells[4].textContent.trim();
+
+        // The Pending remark cell renders an em-dash when the field is blank;
+        // read the data attribute if the cell is a dash so we never put the
+        // dash itself into the input.
+        var pendingText = cells[5].textContent.trim();
+        $('btPendingRemark').value = pendingText === '—' ? '' : pendingText;
+
+        var flags = cells[3].querySelectorAll('.rc-flag');
+        $('btGst').checked = flags[0].classList.contains('on');
+        $('btEinv').checked = flags[1].classList.contains('on');
+        $('btEwb').checked = flags[2].classList.contains('on');
+        $('btActive').checked = !row.classList.contains('rc-inactive');
+
+        var chip = cells[6].querySelector('.rc-chip');
+        $('btHealth').value = chip ? chip.className.replace('rc-chip', '').trim() : 'ok';
+        $('btConditions').value = row.dataset.conditions || '';
+
+        modal.hidden = false;
+        $('btDescription').focus();
+    });
+
+    $('btSave').addEventListener('click', function () {
+        if (!editing) { return; }
+        var payload = {
+            description: $('btDescription').value,
+            doc_type: $('btDocType').value,
+            final_remark: $('btFinalRemark').value,
+            pending_remark: $('btPendingRemark').value,
+            health: $('btHealth').value,
+            gst_applicable: $('btGst').checked,
+            einv_applicable: $('btEinv').checked,
+            ewb_applicable: $('btEwb').checked,
+            is_active: $('btActive').checked,
+            other_conditions: $('btConditions').value
+        };
+        fetch('/reconciliation/api/billing-type/' + editing + '/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.ok === false) { throw new Error(data.error); }
+            toast(data.message);
+            close();
+            // Reloaded rather than patched in place: the rendered row carries
+            // several derived bits (flags, chip, active styling), and one of
+            // them getting out of step with the database is exactly the kind
+            // of drift this screen exists to stop.
+            setTimeout(function () { window.location.reload(); }, 700);
+        }).catch(function (err) { toast(err.message || 'Could not save.', 'bad'); });
+    });
+}());
+</script>
+{% endblock %}

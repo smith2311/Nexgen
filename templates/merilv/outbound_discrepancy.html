@@ -1,0 +1,43 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Outbound Discrepancy Report — shown instead of a redirect when a delivery is
+short and the entity does not allow partial export (rule 13: partial exports
+are gated by entity.allow_partial_export). The picker must go back and either
+finish picking or explicitly tick "proceed anyway" on the Finish modal.
+{% endcomment %}
+
+{% block mv_title %}Discrepancy — {{ delivery_no }}{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:outbound_session' session.pk %}">{{ session }}</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Discrepancy</span>
+{% endblock %}
+{% block mv_heading %}Delivery {{ delivery_no }} is short{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">This entity does not allow exporting an incomplete delivery. Finish picking, or go back and tick "proceed anyway".</p>{% endblock %}
+{% block mv_actions %}<a href="{% url 'merilv:outbound_session' session.pk %}" class="mv-btn mv-btn--primary">{% icon "arrow-left" %} Back to console</a>{% endblock %}
+
+{% block mv_body %}
+<div class="mv-alert mv-alert--danger">{% icon "alert" %}<div>{{ gaps|length }} line{{ gaps|length|pluralize }} short of the required quantity.</div></div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead><tr><th>Item</th><th>Material</th><th>Batch</th><th class="mv-num">Required</th><th class="mv-num">Scanned</th><th class="mv-num">Pending</th></tr></thead>
+        <tbody>
+            {% for line in gaps %}
+            <tr>
+                <td class="mv-mono">{{ line.item_no }}</td>
+                <td class="mv-mono mv-t-strong">{{ line.material }}</td>
+                <td class="mv-mono">{{ line.batch|default:"—" }}</td>
+                <td class="mv-num">{{ line.required_qty|floatformat:0 }}</td>
+                <td class="mv-num">{{ line.scanned_qty|floatformat:0 }}</td>
+                <td class="mv-num"><span class="mv-fg-danger mv-t-strong">{{ line.pending_qty|floatformat:0 }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

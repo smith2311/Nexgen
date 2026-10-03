@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Review — {{ app.ref_no }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-clipboard-check"></i> {{ app.ref_no }} <span class="vm-pill {{ app.status }}">{{ app.status_label }}</span></h1>
+          <p>{{ app.applicant_name }} — {{ app.country.name }}</p>
+        </div>
+        {% if app.status == 'pending_hod' %}
+        <div class="lm-header-stats">
+          <!-- Approval now carries a remark, so send the reviewer to the review
+               panel rather than approving straight from the header. -->
+          <button class="btn btn-green btn-sm" onclick="visaFocusReview()">
+            <i class="fas fa-check"></i> Approve
+          </button>
+          <button class="btn btn-red btn-sm" onclick="Modal.open('rejectModal')">
+            <i class="fas fa-times"></i> Reject
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner error"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="vm-detail-grid">
+
+      <!-- Left: details -->
+      <div>
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-user"></i> Applicant</div>
+          <div class="form-block-body">
+            <div class="vm-detail-row"><span class="vm-detail-label">Name</span><span class="vm-detail-val">{{ app.applicant_name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Email</span><span class="vm-detail-val">{{ app.applicant_email }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Designation</span><span class="vm-detail-val">{{ app.designation }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Company</span><span class="vm-detail-val">{{ app.company.name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Joining Date</span><span class="vm-detail-val">{{ app.joining_date|date:"d F Y" }}</span></div>
+          </div>
+        </div>
+
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-plane"></i> Travel Details</div>
+          <div class="form-block-body">
+            <div class="vm-detail-row"><span class="vm-detail-label">Country</span><span class="vm-detail-val">{{ app.country.name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Travel Dates</span><span class="vm-detail-val">{{ app.visit_start_date|date:"d F Y" }} — {{ app.visit_end_date|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Entry Type</span><span class="vm-detail-val">{{ app.get_entry_type_display }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Host Company</span><span class="vm-detail-val">{{ app.host_company_name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Host Address</span><span class="vm-detail-val" style="white-space:pre-line">{{ app.host_company_address }}</span></div>
+            {% if app.purpose_of_visit %}<div class="vm-detail-row"><span class="vm-detail-label">Purpose</span><span class="vm-detail-val">{{ app.purpose_of_visit }}</span></div>{% endif %}
+          </div>
+        </div>
+
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-id-card"></i> Passport</div>
+          <div class="form-block-body">
+            <div class="vm-detail-row"><span class="vm-detail-label">Name on Passport</span><span class="vm-detail-val">{{ app.passport_name }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Passport No.</span><span class="vm-detail-val vm-mono">{{ app.passport_number }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">DOB</span><span class="vm-detail-val">{{ app.date_of_birth|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Issue Date</span><span class="vm-detail-val">{{ app.passport_issue_date|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Expiry Date</span><span class="vm-detail-val">{{ app.passport_expiry_date|date:"d F Y" }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Place of Issue</span><span class="vm-detail-val">{{ app.place_of_issue }}</span></div>
+            <div class="vm-detail-row"><span class="vm-detail-label">Nationality</span><span class="vm-detail-val">{{ app.nationality }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: review panel + remarks + log -->
+      <div>
+        {% if app.status == 'pending_hod' %}
+        <!-- Review panel — highlighted and sticky so the decision controls stay
+             on screen while the details on the left are scrolled through. -->
+        <div class="vm-review-panel" style="margin-bottom:20px">
+          <div class="form-block-hdr"><i class="fas fa-clipboard-check"></i> Your Review</div>
+          <div class="form-block-body">
+            <p class="vm-review-hint">
+              Approving forwards this request to the Visa Department and generates the invitation letter.
+            </p>
+            <form method="post" action="{% url 'visa:hod_approve' app.pk %}" id="approveForm">
+              {% csrf_token %}
+              <div class="form-field">
+                <label class="form-label">Remark</label>
+                <textarea class="form-textarea" name="remark" id="hodRemark" rows="3"
+                  placeholder="Add a remark for this application (optional)"></textarea>
+                <span class="form-hint">Recorded in the activity log and shown to the Visa Department</span>
+              </div>
+              <button type="submit" class="btn btn-green" style="width:100%;margin-top:10px">
+                <i class="fas fa-check"></i> Approve Application
+              </button>
+            </form>
+            <button class="btn btn-red" style="width:100%;margin-top:8px" onclick="Modal.open('rejectModal')">
+              <i class="fas fa-times"></i> Reject Application
+            </button>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Stage remarks -->
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-comment-dots"></i> Remarks</div>
+          <div class="form-block-body">
+            {% if app.applicant_remark or app.hod_remark or app.visa_dept_remark %}
+              {% if app.applicant_remark %}
+              <div class="vm-remark applicant">
+                <div class="vm-remark-who">Applicant — {{ app.applicant_name }}</div>
+                <div class="vm-remark-text">{{ app.applicant_remark }}</div>
+              </div>
+              {% endif %}
+              {% if app.hod_remark %}
+              <div class="vm-remark hod">
+                <div class="vm-remark-who">HOD — {{ app.hod_name }}</div>
+                <div class="vm-remark-text">{{ app.hod_remark }}</div>
+              </div>
+              {% endif %}
+              {% if app.visa_dept_remark %}
+              <div class="vm-remark dept">
+                <div class="vm-remark-who">Visa Department</div>
+                <div class="vm-remark-text">{{ app.visa_dept_remark }}</div>
+              </div>
+              {% endif %}
+            {% else %}
+            <div class="vm-remark-empty">No remarks recorded yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-block">
+          <div class="form-block-hdr"><i class="fas fa-history"></i> Activity Log</div>
+          <div class="form-block-body">
+            {% if logs %}
+            <ul class="vm-log">
+              {% for log in logs %}
+              <li class="vm-log-item">
+                <span class="vm-log-dot {{ log.action }}"></span>
+                <div style="flex:1">
+                  <div class="vm-log-action">{{ log.get_action_display }}</div>
+                  <div class="vm-log-by">by {{ log.performed_by.get_full_name|default:log.performed_by.username }}</div>
+                  {% if log.notes %}<div class="vm-log-notes">{{ log.notes }}</div>{% endif %}
+                </div>
+                <div class="vm-log-time">{{ log.timestamp|date:"d M Y H:i" }}</div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div style="color:var(--text-muted);font-size:13px">No activity yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="lmodal-overlay" id="rejectModal">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-times"></i></div>
+      <div>
+        <h3>Reject Application</h3>
+        <p>This will notify the employee by email</p>
+      </div>
+      <button onclick="Modal.close('rejectModal')" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted)">×</button>
+    </div>
+    <form method="post" action="{% url 'visa:hod_reject' app.pk %}">
+      {% csrf_token %}
+      <div class="lmodal-body">
+        <div class="form-field">
+          <label class="form-label">Rejection Reason <span class="req">*</span></label>
+          <textarea class="form-textarea" name="reason" rows="4" required
+            placeholder="Please provide the reason for rejection..."></textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Remark</label>
+          <textarea class="form-textarea" name="remark" id="hodRejectRemark" rows="2"
+            placeholder="Additional remark (optional)"></textarea>
+        </div>
+      </div>
+      <div class="lmodal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Modal.close('rejectModal')">Cancel</button>
+        <button type="submit" class="btn btn-red"><i class="fas fa-times"></i> Confirm Rejection</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+<script>
+  // A remark typed into the review panel would be lost when the reviewer then
+  // chooses Reject (a separate form in the modal). Carry it across on open,
+  // unless the modal already has its own text.
+  // Header "Approve" scrolls to the review panel and focuses the remark box —
+  // approving is a two-field action now, not a one-click one.
+  function visaFocusReview() {
+    var panel = document.querySelector('.vm-review-panel');
+    var remark = document.getElementById('hodRemark');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (remark) remark.focus({ preventScroll: true });
+  }
+
+  (function () {
+    var panel = document.getElementById('hodRemark');
+    var modal = document.getElementById('hodRejectRemark');
+    if (!panel || !modal) return;
+    document.querySelectorAll('[onclick*="rejectModal"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (panel.value.trim() && !modal.value.trim()) modal.value = panel.value;
+      });
+    });
+  })();
+</script>
+{% endblock %}

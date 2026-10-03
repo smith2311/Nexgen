@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <div class="md-header">
+        <h1><i class="fas fa-recycle"></i> Material Rework</h1>
+        <p>Upload, approve and track material rework through the complete workflow.</p>
+    </div>
+
+    <div class="md-grid">
+        {% if is_requester or can_manage %}
+        <a href="{% url 'material_rework:upload' %}" class="md-card">
+            <span class="md-card-icon"><i class="fas fa-upload"></i></span>
+            <span class="md-card-content">
+                <h2>Upload Data</h2>
+                <p>Upload an Excel file to start the disposition workflow.</p>
+            </span>
+        </a>
+
+        <a href="{% url 'material_rework:my_uploads' %}" class="md-card">
+            <span class="md-card-icon orange"><i class="fas fa-list-alt"></i></span>
+            <span class="md-card-content">
+                <h2>My Uploads</h2>
+                <p>Track the status of your submitted batches.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if is_om and not is_admin or can_manage %}
+        <a href="{% url 'material_rework:om_list' %}" class="md-card">
+            <span class="md-card-icon" style="background:#7c3aed;"><i class="fas fa-file-signature"></i></span>
+            <span class="md-card-content">
+                <h2>Order Management Review</h2>
+                <p>Review batches waiting at the OM gate before they move on.</p>
+            </span>
+            {% if pending_om_count %}
+            <span class="md-badge">{{ pending_om_count }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+
+        {% if is_ppic and not is_admin or can_manage %}
+        <a href="{% url 'material_rework:ppic_list' %}" class="md-card">
+            <span class="md-card-icon" style="background:#0369a1;"><i class="fas fa-clipboard-check"></i></span>
+            <span class="md-card-content">
+                <h2>PPIC Review</h2>
+                {% comment %}
+                No longer "before HOD approval": what follows PPIC is whatever
+                the batch's own flow says, which is Production on both seeded
+                flows and is configurable per rule.
+                {% endcomment %}
+                <p>Review batches at the PPIC gate before they move to the next stage.</p>
+            </span>
+            {% if pending_ppic_count %}
+            <span class="md-badge">{{ pending_ppic_count }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+
+        {% if is_hod and not is_admin or can_manage %}
+        <a href="{% url 'material_rework:hod_inbox' %}" class="md-card">
+            <span class="md-card-icon" style="background:#f59e0b;"><i class="fas fa-inbox"></i></span>
+            <span class="md-card-content">
+                <h2>HOD Inbox</h2>
+                <p>Review requests assigned to the HOD queue when they are pending.</p>
+            </span>
+            {% if pending_hod_count %}
+            <span class="md-badge">{{ pending_hod_count }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+
+        {% if is_production and not is_admin or can_manage %}
+        <a href="{% url 'material_rework:production_list' %}" class="md-card">
+            <span class="md-card-icon green"><i class="fas fa-industry"></i></span>
+            <span class="md-card-content">
+                <h2>Production Review</h2>
+                <p>Accept or move quantities to pending for HOD-approved batches.</p>
+            </span>
+            {% if pending_production_count %}
+            <span class="md-badge">{{ pending_production_count }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+
+        {% if is_warehouse and not is_admin or can_manage %}
+        <a href="{% url 'material_rework:warehouse' %}" class="md-card">
+            <span class="md-card-icon purple"><i class="fas fa-warehouse"></i></span>
+            <span class="md-card-content">
+                <h2>Warehouse Pending</h2>
+                <p>Receive pending quantities flagged by production.</p>
+            </span>
+            {% if pending_warehouse_count %}
+            <span class="md-badge">{{ pending_warehouse_count }}</span>
+            {% endif %}
+        </a>
+        {% endif %}
+
+        {% if is_admin or can_manage %}
+        <a href="{% url 'material_rework:report' %}" class="md-card">
+            <span class="md-card-icon red"><i class="fas fa-chart-bar"></i></span>
+            <span class="md-card-content">
+                <h2>Full Report</h2>
+                <p>Complete report — all batches, quantities, approvals and status.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if is_admin or can_manage %}
+        <a href="{% url 'material_rework:masters' %}" class="md-card">
+            <span class="md-card-icon" style="background:#374151;"><i class="fas fa-cog"></i></span>
+            <span class="md-card-content">
+                <h2>Masters</h2>
+                <p>Manage Verticals and Departments.</p>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if is_admin or can_manage %}
+        <a href="{% url 'material_rework:md_users' %}" class="md-card">
+            <span class="md-card-icon" style="background:#0e7490;"><i class="fas fa-users-cog"></i></span>
+            <span class="md-card-content">
+                <h2>User Management</h2>
+                <p>Assign roles, create users and manage module access.</p>
+            </span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

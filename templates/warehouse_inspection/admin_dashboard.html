@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Warehouse Inspection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .dashboard-header {
+        margin-bottom: 3rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.8rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .stat-box:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .stat-box.completed {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .stat-box.failed {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    }
+
+    .stat-box.avg {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .admin-menu {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .menu-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+        border: 2px solid transparent;
+    }
+
+    .menu-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        border-color: #667eea;
+    }
+
+    .menu-icon {
+        font-size: 2.5rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .menu-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .menu-description {
+        font-size: 0.85rem;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .recent-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .recent-section h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 1rem;
+    }
+
+    .inspection-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background 0.2s ease;
+    }
+
+    .inspection-row:last-child {
+        border-bottom: none;
+    }
+
+    .inspection-row:hover {
+        background: #f9fafb;
+    }
+
+    .inspection-info {
+        flex-grow: 1;
+    }
+
+    .inspection-warehouse {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .inspection-meta {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.3rem;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    .status-badge.pending {
+        background: #fef3c7;
+        color: #78350f;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-menu {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+    <!-- Page Header -->
+    <div class="dashboard-header">
+        <h1>
+            <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+        </h1>
+        <p class="text-muted">Overview of all warehouse inspections and operations</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="dashboard-grid">
+        <div class="stat-box">
+            <span class="stat-value">{{ total_warehouses }}</span>
+            <span class="stat-label">Active Warehouses</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ total_inspections }}</span>
+            <span class="stat-label">Total Inspections</span>
+        </div>
+        <div class="stat-box completed">
+            <span class="stat-value">{{ completed_inspections }}</span>
+            <span class="stat-label">Completed</span>
+        </div>
+        <div class="stat-box failed">
+            <span class="stat-value">{{ failed_inspections }}</span>
+            <span class="stat-label">Failed Inspections</span>
+        </div>
+        <div class="stat-box avg">
+            <span class="stat-value">{{ avg_score }}%</span>
+            <span class="stat-label">Average Score</span>
+        </div>
+    </div>
+
+    <!-- Admin Actions Menu -->
+    <div class="admin-menu">
+        <a href="{% url 'warehouse_inspection:warehouses_list' %}" class="menu-card">
+            <i class="fas fa-map-marker-alt menu-icon"></i>
+            <div class="menu-title">Manage Warehouses</div>
+            <div class="menu-description">View and manage all warehouse locations</div>
+        </a>
+        <a href="{% url 'warehouse_inspection:manage_checklists' %}" class="menu-card">
+            <i class="fas fa-file-alt menu-icon"></i>
+            <div class="menu-title">Manage Checklists</div>
+            <div class="menu-description">Create and edit inspection templates</div>
+        </a>
+        <a href="{% url 'warehouse_inspection:inspections_history' %}" class="menu-card">
+            <i class="fas fa-history menu-icon"></i>
+            <div class="menu-title">Inspection History</div>
+            <div class="menu-description">View all inspection records and reports</div>
+        </a>
+        <a href="{% url 'warehouse_inspection:report_recipients_page' %}" class="menu-card">
+            <i class="fas fa-envelope menu-icon"></i>
+            <div class="menu-title">Report Recipients</div>
+            <div class="menu-description">Manage who receives the daily report and summary emails</div>
+        </a>
+    </div>
+
+    <!-- Recent Inspections -->
+    {% if recent_inspections %}
+    <div class="recent-section">
+        <h3>
+            <i class="fas fa-clock"></i> Recent Inspections
+        </h3>
+        {% for inspection in recent_inspections %}
+        <div class="inspection-row">
+            <div class="inspection-info">
+                <div class="inspection-warehouse">
+                    {{ inspection.warehouse.name }}
+                </div>
+                <div class="inspection-meta">
+                    Inspector: <strong>{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}</strong>
+                    • Date: <strong>{{ inspection.inspection_date|date:"M d, Y" }}</strong>
+                    {% if inspection.score %}
+                    • Score: <strong>{{ inspection.score }}%</strong>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <span class="status-badge {% if inspection.status == 'completed' %}completed{% elif inspection.status == 'failed' %}failed{% else %}pending{% endif %}">
+                    {{ inspection.get_status_display }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

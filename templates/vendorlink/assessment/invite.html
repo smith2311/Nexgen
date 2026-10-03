@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Invite an external vendor to fill the 3PL Capability Assessment.{% endcomment %}
+
+{% block title %}Invite Vendor — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+.ai-form { max-width:640px; }
+.ai-field { margin-bottom:18px; }
+.ai-field label { display:block; font-size:.8rem; font-weight:600; color:#334155; margin-bottom:5px; }
+.ai-field .vm-input { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; background:#fff; color:#06152b; transition:border-color .16s, box-shadow .18s; }
+.ai-field .vm-input:focus { outline:none; border-color:var(--vlx-secondary); box-shadow:0 0 0 3px rgba(0,118,200,.13); }
+.ai-field .ai-help { display:block; margin-top:5px; font-size:.78rem; color:#64748b; }
+.ai-field .ai-err { display:block; margin-top:5px; font-size:.78rem; color:var(--vlx-danger); font-weight:600; }
+.ai-foot { display:flex; justify-content:flex-end; padding-top:10px; border-top:1px solid #e6ebf2; margin-top:10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <a href="{% url 'vendorlink:assessment_list' %}">3PL Capability Assessment</a>
+                <span class="sep">/</span>
+                <span class="current">Invite Vendor</span>
+            </div>
+            <div class="vlx-titlerow"><h1 class="vlx-title">Invite External Vendor</h1></div>
+            <p class="vlx-subtitle">A unique assessment link is generated and emailed automatically — the vendor can fill and save the form without creating an account.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:assessment_list' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-arrow-left"></i> Cancel</a>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="vlx-alerts">
+        {% for err in form.non_field_errors %}
+        <div class="vlx-alert vlx-alert--error"><i class="fas fa-triangle-exclamation"></i><div>{{ err }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-card ai-form">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="ai-field">
+                <label for="{{ form.vendor_email.id_for_label }}">{{ form.vendor_email.label }} <span style="color:var(--vlx-danger);">*</span></label>
+                {{ form.vendor_email }}
+                {% for e in form.vendor_email.errors %}<span class="ai-err">{{ e }}</span>{% endfor %}
+            </div>
+            <div class="ai-field">
+                <label for="{{ form.expires_days.id_for_label }}">{{ form.expires_days.label }}</label>
+                {{ form.expires_days }}
+                <span class="ai-help">After this many days the link expires and the vendor can no longer submit.</span>
+                {% for e in form.expires_days.errors %}<span class="ai-err">{{ e }}</span>{% endfor %}
+            </div>
+            <div class="ai-foot">
+                <button type="submit" class="vlx-btn vlx-btn--primary"><i class="fas fa-paper-plane"></i> Generate Link &amp; Send</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

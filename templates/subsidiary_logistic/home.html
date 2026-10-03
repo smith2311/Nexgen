@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Subsidiary Logistics Cost{% endblock %}
+{% block page_title %}Subsidiary Logistics Cost{% endblock %}
+
+{% block extra_css %}
+<style>
+.slh-wrap {
+  --navy:      #0b1f3a; --blue:       #0076c8; --blue-lt:    #e6f2fb;
+  --accent:    #00c2a8; --accent-lt:  #e0f8f5; --amber:      #f59e0b;
+  --amber-lt:  #fef3c7; --green:      #10b981; --green-lt:   #d1fae5;
+  --purple:    #8b5cf6; --purple-lt:  #ede9fe; --red:        #ef4444;
+  --red-lt:    #fee2e2; --text:       #0b1f3a; --muted:      #4a5568;
+  --bg:        #f0f4f9; --surface:    #ffffff; --border:     rgba(11,31,58,.10);
+  --shadow:    0 4px 16px rgba(11,31,58,.10); --radius:     16px;
+  --tr:        all .2s cubic-bezier(.4,0,.2,1);
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--bg); min-height: 100vh; padding: 32px 24px 60px; color: var(--text);
+}
+.slh-header           { margin-bottom: 28px; }
+.slh-header h1        { font-size: 26px; font-weight: 700; color: var(--navy); margin: 0 0 5px; display: flex; align-items: center; gap: 12px; }
+.slh-header p         { font-size: 14px; color: var(--muted); margin: 0; }
+.slh-role-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px; margin-left: 12px; vertical-align: middle;
+}
+.badge-manager { background: var(--blue-lt);   color: var(--blue);   }
+.badge-member  { background: var(--accent-lt); color: var(--accent); }
+
+.slh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+.slh-card {
+  display: flex; align-items: flex-start; gap: 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+  text-decoration: none; color: var(--text); position: relative; overflow: hidden; transition: var(--tr);
+}
+.slh-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: currentColor; opacity: 0; transition: opacity .2s; }
+.slh-card:hover  { transform: translateY(-3px); box-shadow: var(--shadow); text-decoration: none; }
+.slh-card:hover::after { opacity: 1; }
+.slh-card.blue   { color: var(--blue);   }
+.slh-card.accent { color: var(--accent); }
+.slh-card.amber  { color: var(--amber);  }
+.slh-card.green  { color: var(--green);  }
+.slh-card.purple { color: var(--purple); }
+.slh-card.navy   { color: var(--navy);   }
+
+.slh-icon { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: var(--tr); }
+.slh-card.blue   .slh-icon { background: var(--blue-lt);   color: var(--blue);   }
+.slh-card.accent .slh-icon { background: var(--accent-lt); color: var(--accent); }
+.slh-card.amber  .slh-icon { background: var(--amber-lt);  color: var(--amber);  }
+.slh-card.green  .slh-icon { background: var(--green-lt);  color: var(--green);  }
+.slh-card.purple .slh-icon { background: var(--purple-lt); color: var(--purple); }
+.slh-card.navy   .slh-icon { background: #e6ebf2;          color: var(--navy);   }
+.slh-card:hover .slh-icon  { transform: scale(1.08); }
+
+.slh-body h2 { font-size: 15px; font-weight: 600; color: var(--navy); margin: 0 0 5px; }
+.slh-body p  { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; }
+
+@media (max-width: 640px) { .slh-wrap { padding: 20px 16px 48px; } .slh-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="slh-wrap">
+  <div class="slh-header">
+    <h1>
+      <i class="fas fa-globe"></i> Subsidiary Logistics Cost
+      <span class="slh-role-badge {% if sub_role == 'manager' %}badge-manager{% else %}badge-member{% endif %}">
+        <i class="fas fa-{% if sub_role == 'manager' %}user-tie{% else %}user{% endif %}"></i>
+        {{ sub_role|capfirst }}
+      </span>
+    </h1>
+    <p>Track and analyse logistics costs across all subsidiary entities.</p>
+  </div>
+
+  <div class="slh-grid">
+
+    <a href="{% url 'sub:dashboard' %}" class="slh-card blue">
+      <span class="slh-icon"><i class="fas fa-gauge-high"></i></span>
+      <span class="slh-body">
+        <h2>Dashboard</h2>
+        <p>Country-wise logistics cost overview with date period filter.</p>
+      </span>
+    </a>
+
+    {% if sub_role == 'manager' %}
+    <a href="{% url 'sub:upload' %}" class="slh-card accent">
+      <span class="slh-icon"><i class="fas fa-file-arrow-up"></i></span>
+      <span class="slh-body">
+        <h2>Upload Data</h2>
+        <p>Drag &amp; drop Excel sheet — preview rows before saving to database.</p>
+      </span>
+    </a>
+
+    <a href="{% url 'sub:template_download' %}" class="slh-card amber">
+      <span class="slh-icon"><i class="fas fa-file-arrow-down"></i></span>
+      <span class="slh-body">
+        <h2>Download Template</h2>
+        <p>Get the standard .xlsx template with correct column headers.</p>
+      </span>
+    </a>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

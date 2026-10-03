@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Fill PR {{ pr.pr_number }}{% endblock %}
+{% block page_title %}PR Tracker — Fill {{ pr.pr_number }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pr_tracker/pr.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'pr_tracker:my_prs' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        My Assigned PRs
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1>
+            <i class="fas fa-pen-to-square"></i>
+            Fill Details —
+            <span style="font-family:var(--font-mono);">{{ pr.pr_number }}</span>
+            <span class="prt-pill pill-{{ pr.status }}" style="font-size:12px;margin-left:6px;vertical-align:middle;">{{ pr.status_label }}</span>
+          </h1>
+          <p>
+            Assigned by {% if pr.assigned_by %}{{ pr.assigned_by.get_full_name|default:pr.assigned_by.username }}{% else %}—{% endif %}
+            &middot; {% if pr.ageing_days is not None %}{{ pr.ageing_days }} day{{ pr.ageing_days|pluralize }} old{% else %}received date not set{% endif %}
+            &middot; {{ pr.fill_percent }}% complete
+          </p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ pr.fill_percent }}%</div>
+            <div class="lm-hstat-lbl">Complete</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{% if pr.ageing_days is not None %}{{ pr.ageing_days }}d{% else %}—{% endif %}</div>
+            <div class="lm-hstat-lbl">Ageing</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="prt-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if pr.documents.all %}
+    <div class="prt-form-section">
+      <div class="prt-form-section-hdr">
+        <i class="fas fa-paperclip section-icon"></i>
+        <h3>Supporting Documents ({{ pr.documents.all|length }})</h3>
+      </div>
+      <div class="prt-form-body">
+        {% include 'pr_tracker/_document_list.html' with documents=pr.documents.all %}
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <!-- Section 1: Dates & Tracking -->
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-calendar-days section-icon"></i>
+          <h3>Dates &amp; Tracking</h3>
+        </div>
+        <div class="prt-form-body">
+          <div class="prt-form-grid">
+
+            <div class="prt-field">
+              <label class="prt-label">Vertical</label>
+              <input class="prt-input" type="text" name="vertical" value="{{ pr.vertical }}" placeholder="e.g. Cardiology">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">PR Received Date</label>
+              <input class="prt-input" type="date" name="pr_received_date"
+                     value="{{ pr.pr_received_date|date:'Y-m-d' }}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">PR Release Date</label>
+              <input class="prt-input" type="date" name="pr_release_date"
+                     value="{{ pr.pr_release_date|date:'Y-m-d' }}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">Tracking Number</label>
+              <select class="prt-select" name="tracking_number">
+                <option value="">— None —</option>
+                {% for tn in tracking_numbers %}
+                <option value="{{ tn.pk }}" {% if pr.tracking_number_id == tn.pk %}selected{% endif %}>
+                  {{ tn.tracking_number }}{% if tn.description %} — {{ tn.description }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">No. of Line Items</label>
+              <input class="prt-input" type="number" name="no_of_line_items" min="0"
+                     value="{{ pr.no_of_line_items|default:'' }}">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Requester Info -->
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-user section-icon"></i>
+          <h3>Requester Information</h3>
+        </div>
+        <div class="prt-form-body">
+          <div class="prt-form-grid">
+
+            <div class="prt-field">
+              <label class="prt-label">Requester Name</label>
+              <input class="prt-input" type="text" name="requester_name" value="{{ pr.requester_name }}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">Vendors Creation</label>
+              <select class="prt-select" name="vendors_creation">
+                <option value="">— Select —</option>
+                {% for val, lbl in vendor_choices %}
+                <option value="{{ val }}" {% if pr.vendors_creation == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="prt-field full">
+              <label class="prt-label">Request For Use</label>
+              <textarea class="prt-textarea" name="request_for_use" rows="2">{{ pr.request_for_use }}</textarea>
+            </div>
+
+            <div class="prt-field full">
+              <label class="prt-label">Description</label>
+              <textarea class="prt-textarea" name="description" rows="3">{{ pr.description }}</textarea>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: PO & Financial -->
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-receipt section-icon"></i>
+          <h3>PO &amp; Financial</h3>
+        </div>
+        <div class="prt-form-body">
+          <div class="prt-form-grid">
+
+            <div class="prt-field">
+              <label class="prt-label">PO Number</label>
+              <input class="prt-input" type="text" name="po_number" value="{{ pr.po_number }}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">PO Number Ageing Days <span style="color:var(--text-muted);font-weight:400">(auto-calculated)</span></label>
+              <input class="prt-input" type="text" disabled
+                     value="{% if pr.po_number_ageing_days is not None %}{{ pr.po_number_ageing_days }} day{{ pr.po_number_ageing_days|pluralize }}{% if pr.closed_at %} (closed){% endif %}{% else %}Set the PR Release Date to calculate{% endif %}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">Amount (₹)</label>
+              <input class="prt-input" type="number" step="0.01" name="amount"
+                     value="{{ pr.amount|default:'' }}">
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">Regularized / Negotiation</label>
+              <select class="prt-select" name="regularized_negotiation">
+                <option value="">— Select —</option>
+                {% for val, lbl in reg_choices %}
+                <option value="{{ val }}" {% if pr.regularized_negotiation == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">GRN Created</label>
+              <select class="prt-select" name="grn_created">
+                <option value="">— Select —</option>
+                {% for val, lbl in grn_choices %}
+                <option value="{{ val }}" {% if pr.grn_created == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="prt-field">
+              <label class="prt-label">Advance Number</label>
+              <input class="prt-input" type="text" name="advance_number" value="{{ pr.advance_number }}">
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Closure & Status -->
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-flag-checkered section-icon"></i>
+          <h3>Closure &amp; Status</h3>
+        </div>
+        <div class="prt-form-body">
+          <div class="prt-form-grid">
+
+            <div class="prt-field">
+              <label class="prt-label">Status</label>
+              <select class="prt-select" name="status">
+                {% for val, lbl in status_choices %}
+                <option value="{{ val }}" {% if pr.status == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+              </select>
+              <span class="prt-hint">Changing status to "Closed" will notify the responsible person.</span>
+            </div>
+
+            <div class="prt-field full">
+              <label class="prt-label">Closure Notes</label>
+              <textarea class="prt-textarea" name="closure" rows="2">{{ pr.closure }}</textarea>
+            </div>
+
+            <div class="prt-field full">
+              <label class="prt-label">Remark</label>
+              <textarea class="prt-textarea" name="remark" rows="2">{{ pr.remark }}</textarea>
+            </div>
+
+          </div>
+        </div>
+        <div class="prt-form-actions">
+          <button type="submit" class="prt-btn prt-btn-teal">
+            <i class="fas fa-floppy-disk"></i> Save Details
+          </button>
+          <a href="{% url 'pr_tracker:my_prs' %}" class="prt-btn prt-btn-ghost">Cancel</a>
+        </div>
+      </div>
+
+    </form>
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pr_tracker/pr.js' %}"></script>
+{% include 'pr_tracker/_document_viewer.html' %}
+{% endblock %}

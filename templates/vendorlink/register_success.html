@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registration Submitted — Meril VendorLink</title>
+<link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body {
+    margin: 0; padding: 0;
+    background: #F6F8FB;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+}
+.vr-topbar {
+    background: #000618;
+    padding: 0 32px; display: flex; align-items: center; gap: 14px;
+    height: 62px; box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+}
+.vr-topbar-logo {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,.14);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: #fff;
+}
+.vr-topbar-title { font-size: 1.05rem; font-weight: 600; color: #ffffff; }
+.vr-topbar-sub { font-size: 0.8rem; color: rgba(255,255,255,.7); }
+
+.vr-center {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 40px 16px;
+}
+.vr-success-card {
+    background: #fff; border-radius: 16px;
+    border: 1px solid #E5E9F0;
+    box-shadow: 0 10px 30px rgba(15,31,58,.14), 0 2px 8px rgba(15,31,58,.08);
+    padding: 44px 44px 36px; max-width: 560px; width: 100%;
+    text-align: center; position: relative; overflow: hidden;
+}
+.vr-success-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: #16A34A;
+}
+.vr-icon-ring {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: #16A34A;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 22px;
+    box-shadow: 0 8px 24px rgba(22,163,74,.28);
+    font-size: 2rem; color: #fff;
+    animation: vr-pop .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes vr-pop {
+    from { transform: scale(0.4); opacity: 0; color: inherit; }
+    to   { transform: scale(1);   opacity: 1; color: inherit; }
+}
+.vr-success-card h2 {
+    margin: 0 0 10px; font-size: 1.5rem; font-weight: 700; color: #000618;
+}
+.vr-success-card > p {
+    margin: 0 0 20px; font-size: 0.93rem; color: #44474D; line-height: 1.65;
+}
+.vr-steps {
+    text-align: left; background: #F6F8FB;
+    border: 1px solid #E5E9F0; border-radius: 16px;
+    padding: 16px 20px; margin-bottom: 22px;
+}
+.vr-step {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 0.85rem; color: #0B1C30; line-height: 1.5; padding: 7px 0;
+}
+.vr-step + .vr-step { border-top: 1px solid #E5E9F0; }
+.vr-step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #0061A6;
+    color: #fff; font-size: 0.72rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+}
+.vr-step-done .vr-step-num { background: #16A34A; }
+
+/* Countdown bar */
+.vr-countdown-wrap {
+    background: #DCE9FF; border-radius: 10px; overflow: hidden;
+    height: 6px; margin-bottom: 12px;
+}
+.vr-countdown-bar {
+    height: 100%; border-radius: 10px;
+    background: #0061A6;
+    width: 100%;
+    transition: width 1s linear;
+}
+.vr-redirect-note {
+    font-size: 0.8rem; color: #44474D; margin-bottom: 6px;
+}
+.vr-redirect-note strong { color: #0061A6; }
+</style>
+</head>
+<body>
+
+<div class="vr-topbar">
+    <div class="vr-topbar-logo"><i class="fas fa-truck-field"></i></div>
+    <div>
+        <div class="vr-topbar-title">Meril VendorLink</div>
+        <div class="vr-topbar-sub">3PL Vendor Registration Portal</div>
+    </div>
+</div>
+
+<div class="vr-center">
+    <div class="vr-success-card">
+        <div class="vr-icon-ring"><i class="fas fa-check"></i></div>
+        <h2>Registration Submitted!</h2>
+        <p>
+            Thank you for registering with Meril VendorLink.
+            Your application is <strong>pending review</strong> by our Global SCM team.
+            Here's what happens next:
+        </p>
+
+        <div class="vr-steps">
+            <div class="vr-step vr-step-done">
+                <div class="vr-step-num"><i class="fas fa-check" style="font-size:.55rem;"></i></div>
+                <div><strong>Step 1 — Submitted</strong> — Your registration has been saved and our team has been notified by email.</div>
+            </div>
+            <div class="vr-step">
+                <div class="vr-step-num">2</div>
+                <div><strong>Step 2 — Under Review</strong> — Our SCM team will assess your capabilities, location, and certifications. This typically takes 3–5 business days.</div>
+            </div>
+            <div class="vr-step">
+                <div class="vr-step-num">3</div>
+                <div><strong>Step 3 — Decision by Email</strong> — You will receive an approval or rejection email at the address you verified. If approved, you will be contacted about upcoming 3PL opportunities.</div>
+            </div>
+        </div>
+
+        <div class="vr-countdown-wrap">
+            <div class="vr-countdown-bar" id="vr-bar"></div>
+        </div>
+        <div class="vr-redirect-note">
+            Redirecting to the sign-in page in <strong id="vr-secs">10</strong> second<span id="vr-plural">s</span>…
+        </div>
+    </div>
+</div>
+
+<script>
+var total = 10;
+var remaining = total;
+var bar = document.getElementById('vr-bar');
+var secsEl = document.getElementById('vr-secs');
+var pluralEl = document.getElementById('vr-plural');
+
+function tick() {
+    remaining--;
+    secsEl.textContent = remaining;
+    pluralEl.textContent = remaining === 1 ? '' : 's';
+    bar.style.width = (remaining / total * 100) + '%';
+    if (remaining <= 0) {
+        window.location.href = '/';
+    } else {
+        setTimeout(tick, 1000);
+    }
+}
+
+// Start countdown after first render
+setTimeout(tick, 1000);
+</script>
+</body>
+</html>

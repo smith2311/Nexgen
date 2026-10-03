@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Meril - Salesperson Performance Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+<link rel="stylesheet" href="{% static 'css/salesperson_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="sp-page">
+
+  <!-- Header -->
+  <div class="sp-header">
+    <div style="max-width:1200px;margin:0 auto;padding:0 16px;">
+      <h1>📊 Salesperson Performance Dashboard</h1>
+      <p>Monthly hospital visit tracking &amp; scanning coverage</p>
+      <div class="sp-header-actions">
+        {% if can_use_scanner %}
+        <a href="/product_scanning/" class="btn-header btn-header-white">🚀 New Scan</a>
+        {% endif %}
+        {% if can_use_dashboard %}
+        <a href="/product_scanning/dashboard/" class="btn-header btn-header-white">📋 Audit Dashboard</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="sp-inner">
+
+    <!-- Controls -->
+    <div class="sp-controls">
+      {% if is_warehouse %}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label>👤 Salesperson:</label>
+        <select class="sp-select" id="spSelect" onchange="onSpChange()">
+          <option value="">— All Salespersons —</option>
+          {% for sp in sp_list %}
+          <option value="{{ sp.email }}" {% if selected_sp_email == sp.email %}selected{% endif %}>
+            {{ sp.name }} ({{ sp.hospital_count }} hospitals)
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="sp-month-nav" style="margin-left:auto;">
+        <button class="month-nav-btn" onclick="changeMonth(-1)" title="Previous month">‹</button>
+        <span class="month-label" id="monthLabel">Loading…</span>
+        <button class="month-nav-btn" onclick="changeMonth(1)" title="Next month">›</button>
+      </div>
+
+      <button onclick="refreshDashboard()" class="btn-header btn-header-white" style="background:#f1f5f9;color:#475569;border-color:#e2e8f0;">
+        🔄 Refresh
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="sp-stats" id="statsRow">
+      <div class="sp-stat stat-blue">
+        <div class="sp-stat-val" id="statAssigned">—</div>
+        <div class="sp-stat-label">Assigned Hospitals</div>
+      </div>
+      <div class="sp-stat stat-green">
+        <div class="sp-stat-val" id="statVisited">—</div>
+        <div class="sp-stat-label">Visited</div>
+      </div>
+      <div class="sp-stat stat-red">
+        <div class="sp-stat-val" id="statPending">—</div>
+        <div class="sp-stat-label">Pending</div>
+      </div>
+      <div class="sp-stat stat-violet">
+        <div class="sp-stat-val" id="statSessions">—</div>
+        <div class="sp-stat-label">Total Sessions</div>
+      </div>
+      <div class="sp-stat stat-amber">
+        <div class="sp-stat-val" id="statScans">—</div>
+        <div class="sp-stat-label">Units Scanned</div>
+      </div>
+      <div class="sp-stat stat-green">
+        <div class="sp-stat-val" id="statRate">—</div>
+        <div class="sp-stat-label">Visit Rate</div>
+        <div class="sp-stat-sub">% of hospitals</div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-card">
+      <h3>🏥 Hospital Coverage Progress</h3>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progressLeft">Loading…</span>
+        <span id="progressRight"></span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="sp-tabs-outer">
+      <div class="sp-tabs">
+        <button class="sp-tab-btn active" onclick="switchSpTab(event,'tab-hospitals')">
+          🏥 <span>This Month</span>
+        </button>
+        <button class="sp-tab-btn" onclick="switchSpTab(event,'tab-pending')">
+          ⏳ <span>Pending</span>
+          <span id="pendingTabBadge" style="background:#fee2e2;color:#991b1b;border-radius:20px;padding:1px 7px;font-size:.75rem;font-weight:700;"></span>
+        </button>
+        <button class="sp-tab-btn" onclick="switchSpTab(event,'tab-history')">
+          📅 <span>History</span>
+        </button>
+        <button class="sp-tab-btn" onclick="switchSpTab(event,'tab-batch-status')">
+          📊 <span>Batch Status</span>
+        </button>
+        <button class="sp-tab-btn" onclick="switchSpTab(event,'tab-my-scans')">
+          📦 <span>My Scans</span>
+        </button>
+        {% if is_warehouse %}
+        <button class="sp-tab-btn" onclick="switchSpTab(event,'tab-overview')">
+          👥 <span>All Salespersons</span>
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- TAB: This Month hospitals -->
+      <div class="sp-tab-content active" id="tab-hospitals">
+        <div id="hospitalsLoading" class="loading-overlay">
+          <div class="loading-spinner"></div> Loading hospitals…
+        </div>
+        <div class="hosp-tbl-wrap" id="hospitalsTableWrap" style="display:none;">
+          <table class="hosp-tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hospital</th>
+                <th>SAP Code</th>
+                <th>Province</th>
+                <th>Status</th>
+                <th>Sessions</th>
+                <th>Scans</th>
+                <th>Last Visit</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="hospitalsTableBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="hospitalsEmpty" style="display:none;">
+          <div class="icon">🏥</div>
+          <p>No hospitals assigned for this period.</p>
+        </div>
+      </div>
+
+      <!-- TAB: Pending hospitals -->
+      <div class="sp-tab-content" id="tab-pending">
+        <div id="pendingLoading" class="loading-overlay" style="display:none;">
+          <div class="loading-spinner"></div> Loading…
+        </div>
+        <div class="hosp-tbl-wrap" id="pendingTableWrap" style="display:none;">
+          <table class="hosp-tbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hospital</th>
+                <th>SAP Code</th>
+                <th>Province</th>
+                <th>Status</th>
+                <th>Sessions</th>
+                <th>Scans</th>
+                <th>Last Visit</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pendingTableBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="pendingEmpty" style="display:none;">
+          <div class="icon">✅</div>
+          <p>All hospitals visited this month!</p>
+        </div>
+      </div>
+
+      <!-- TAB: History -->
+      <div class="sp-tab-content" id="tab-history">
+        <div id="historyLoading" class="loading-overlay">
+          <div class="loading-spinner"></div> Loading history…
+        </div>
+        <div style="overflow-x:auto;" id="historyTableWrap" style="display:none;">
+          <table class="history-tbl">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Assigned</th>
+                <th>Visited</th>
+                <th>Pending</th>
+                <th>Sessions</th>
+                <th>Scans</th>
+                <th>Coverage</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="historyEmpty" style="display:none;">
+          <div class="icon">📅</div>
+          <p>No historical data available.</p>
+        </div>
+      </div>
+
+      <!-- TAB: Batch Status Tracker -->
+      <div class="sp-tab-content" id="tab-batch-status">
+        <div id="batchStatusLoading" class="loading-overlay" style="display:none;">
+          <div class="loading-spinner"></div> Loading…
+        </div>
+        <div style="padding:.5rem 0 .75rem;">
+          <h3 style="margin:0 0 .25rem;font-size:1.05rem;font-weight:700;color:#1e293b;">Batch Status Tracker</h3>
+          <p style="margin:0;color:#64748b;font-size:.85rem;">Track every batch you submitted — see whether warehouse has confirmed it.</p>
+        </div>
+        <div id="batchStatusList"></div>
+      </div>
+
+      <!-- TAB: My Scans -->
+      <div class="sp-tab-content" id="tab-my-scans">
+        <div id="myScansLoading" class="loading-overlay" style="display:none;">
+          <div class="loading-spinner"></div> Loading…
+        </div>
+
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0 .75rem;flex-wrap:wrap;gap:.5rem;">
+          <div>
+            <h3 style="margin:0 0 .25rem;font-size:1.05rem;font-weight:700;color:#1e293b;">My Scanned Products</h3>
+            <p style="margin:0;color:#64748b;font-size:.85rem;">Hospital-wise view of all products you have scanned. Use ⬇ Excel per hospital to print the audit sheet.</p>
+          </div>
+          <button onclick="downloadMyScansExcel()"
+            style="background:#0771F4;color:#fff;border:none;border-radius:8px;padding:.5rem 1.1rem;font-size:.875rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.4rem;">
+            ⬇ Download All
+          </button>
+        </div>
+
+        <!-- Expiry filter pills -->
+        <div id="myScansFilterBar" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;">
+          <button class="ms-filter active" data-level="all"     onclick="setMyScansFilter(this,'all')">All</button>
+          <button class="ms-filter" data-level="expired"        onclick="setMyScansFilter(this,'expired')">Expired</button>
+          <button class="ms-filter" data-level="1w"             onclick="setMyScansFilter(this,'1w')">≤ 1 Week</button>
+          <button class="ms-filter" data-level="1m"             onclick="setMyScansFilter(this,'1m')">≤ 1 Month</button>
+          <button class="ms-filter" data-level="3m"             onclick="setMyScansFilter(this,'3m')">≤ 3 Months</button>
+          <button class="ms-filter" data-level="6m"             onclick="setMyScansFilter(this,'6m')">≤ 6 Months</button>
+          <button class="ms-filter" data-level="ok"             onclick="setMyScansFilter(this,'ok')">OK</button>
+        </div>
+
+        <!-- Hospital-wise accordion sections -->
+        <div id="myScansHospitalSections"></div>
+      </div>
+
+      {% if is_warehouse %}
+      <!-- TAB: All Salespersons Overview -->
+      <div class="sp-tab-content" id="tab-overview">
+        <div id="overviewLoading" class="loading-overlay" style="display:none;">
+          <div class="loading-spinner"></div> Loading…
+        </div>
+        <div class="sp-cards" id="overviewCards"></div>
+        <div class="empty-state" id="overviewEmpty" style="display:none;">
+          <div class="icon">👥</div>
+          <p>No salesperson data found.</p>
+        </div>
+      </div>
+      {% endif %}
+    </div><!-- /sp-tabs-outer -->
+
+  </div><!-- /sp-inner -->
+</div><!-- /sp-page -->
+
+<!-- Session Detail Modal -->
+<div id="sessionModal" role="dialog" aria-modal="true">
+  <div class="session-modal-inner">
+    <div class="session-modal-hdr">
+      <div>
+        <h3 id="sessionModalTitle">Hospital Sessions</h3>
+        <p id="sessionModalSubtitle"></p>
+      </div>
+      <button class="session-modal-close" onclick="closeSessionModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="session-modal-body" id="sessionModalBody">
+      <div class="session-modal-loading"><div class="loading-spinner" style="display:inline-block;"></div> Loading sessions…</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"isWarehouse":{{ is_warehouse|yesno:"true,false" }},"isSalesperson":{{ is_salesperson|yesno:"true,false" }},"currentUserEmail":"{{ user.email|default:'' }}","selectedSpEmailInit":"{{ selected_sp_email|default:''  }}","apiBase":"/product_scanning/api"}</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/salesperson_dashboard.js' %}"></script>
+{% endblock %}

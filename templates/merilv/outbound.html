@@ -1,0 +1,429 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Outbound Scanner landing — upload a YVL06 delivery dump to open a new session,
+or resume one of up to 20 active sessions.
+{% endcomment %}
+
+{% block mv_title %}Outbound Scanner{% endblock %}
+
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Outbound Scanner</span>
+{% endblock %}
+
+{% block mv_heading %}Outbound Scanner{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Scan and assign serials against delivery requirements.</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:delivery_history' %}" class="mv-btn">{% icon "history" %} Delivery history</a>
+{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="outbound" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+{% comment %}
+Scanning-mode picker. ZVA05 and BT Scanning used to each be their own module in
+the nav, which implied they were different tools; neither is — ZVA05 is the
+same outbound job read from a different source document (open sales orders
+instead of a YVL06 delivery dump), and BT Scanning is a second console onto a
+Branch Transfer plan (this is where a picker fills cartons; the Branch
+Transfer screen is where the plan itself gets set up). Making both modes here
+is what the client asked for, and it keeps the three mutually-exclusive forms
+from sitting on one page pretending otherwise.
+
+Submitted as a GET navigation, not a JS panel swap, so a chosen mode is a real
+bookmarkable URL and the back button works — the same convention as the tab
+bar above (see components.css, "Tabs").
+{% endcomment %}
+<div class="mv-card">
+    <form method="get" class="mv-field-row" style="align-items:flex-end;margin:0;">
+        <div class="mv-field" style="margin:0;">
+            <label class="mv-label" for="mvScanKind">What kind of scanning?</label>
+            <select class="mv-select" id="mvScanKind" name="mode" onchange="this.form.submit()">
+                {% for key, label, hint in modes %}
+                <option value="{{ key }}" {% if mode == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <span class="mv-hint">
+                {% for key, label, hint in modes %}{% if mode == key %}{{ hint }}{% endif %}{% endfor %}
+            </span>
+        </div>
+        {# Kept so switching mode does not silently drop the chosen entity. #}
+        {% if entity %}<input type="hidden" name="entity" value="{{ entity.code }}">{% endif %}
+        <noscript><button type="submit" class="mv-btn">Switch mode</button></noscript>
+    </form>
+</div>
+
+{% if mode == "zva05" %}
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "wand" %} Upload a ZVA05 extract</h2>
+    <form method="post" action="{% url 'merilv:zva05_upload' %}" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Loading ZVA05 extract"
+          data-mv-loading-message="Uploading the extract and creating the session. Please keep this tab open.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvZvaEntity">Entity <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvZvaEntity" name="entity" required>
+                    {% for e in entities %}
+                    <option value="{{ e.code }}" {% if entity and e.code == entity.code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>
+                    {% endfor %}
+                </select>
+                <span class="mv-hint">Matching is on material alone — there is no batch or delivery to check against.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label">ZVA05 open-order extract <span class="mv-req">*</span></label>
+                <label class="mv-dropzone">
+                    <input type="file" name="source_file" accept=".xlsx,.xls,.csv" required>
+                    {% icon "wand" 40 %}
+                    <span class="mv-dropzone__label">Choose the ZVA05 extract</span>
+                    <span class="mv-t-caption">.xlsx, .xls or .csv</span>
+                </label>
+            </div>
+        </div>
+        <div class="mv-field">
+            <label class="mv-label" for="mvZvaName">Name</label>
+            <input class="mv-input" id="mvZvaName" name="name" placeholder="Optional">
+        </div>
+        <div class="mv-card__footer">
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Open ZVA05 session</button>
+        </div>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "box" %} Open ZVA05 extracts</h2>
+        <span class="mv-t-caption">{{ zva05_dumps|length }} of 20 shown</span>
+    </div>
+    {% if zva05_dumps %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead><tr><th>Extract</th><th>Entity</th><th class="mv-num">Lines</th><th>Focus</th><th>Opened</th><th class="mv-col-actions"></th></tr></thead>
+        <tbody>
+            {% for d in zva05_dumps %}
+            <tr data-mv-href="{% url 'merilv:zva05_detail' d.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ d }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ d.entity.code }}</span></td>
+                <td class="mv-num">{{ d.row_count }}</td>
+                <td>{% if d.my_focus %}<span class="mv-mono">{{ d.my_focus|truncatechars:24 }}</span>{% else %}<span class="mv-t-caption">—</span>{% endif %}</td>
+                <td class="mv-t-caption">{{ d.created_at|date:"d M, H:i" }}</td>
+                <td class="mv-col-actions">
+                    <a href="{% url 'merilv:zva05_detail' d.pk %}" class="mv-btn mv-btn--sm mv-btn--primary">Resume</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "wand" 48 %}
+        <div class="mv-empty__title">No open ZVA05 extracts</div>
+        <p class="mv-empty__text">Upload one above to start assigning scans to open orders.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% elif mode == "btscan" %}
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "box" %} Start scanning a branch transfer</h2>
+    {% if bt_plans %}
+    <form method="post" action="{% url 'merilv:btscan_open' %}" data-mv-loading
+          data-mv-loading-title="Opening branch transfer session"
+          data-mv-loading-message="Preparing the transfer session and loading the plan.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtPlan">Transfer plan <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvBtPlan" name="plan" required>
+                    {% for p in bt_plans %}
+                    <option value="{{ p.pk }}">{{ p }} — {{ p.entity.code }}</option>
+                    {% endfor %}
+                </select>
+                <span class="mv-hint">Only open plans are listed. Upload a new one on the Branch Transfer screen.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtName">Session name</label>
+                <input class="mv-input" id="mvBtName" name="name" placeholder="Optional — for example, Trip 2">
+            </div>
+        </div>
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtFocus">Focus on receiving plant</label>
+                <input class="mv-input mv-input--mono" id="mvBtFocus" name="focus_key" placeholder="Leave blank to pick every plant">
+                <span class="mv-hint">Locks both the screen and the engine to one destination, so another plant's requirement cannot be consumed by mistake.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvBtPriority">Location priority</label>
+                <input class="mv-input mv-input--mono" id="mvBtPriority" name="location_priority" placeholder="FG02, FG01, FG03">
+                <span class="mv-hint">Which storage locations to draw from, best first. Blank uses the entity default.</span>
+            </div>
+        </div>
+        <div class="mv-card__footer">
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Open session</button>
+        </div>
+    </form>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "transfer" 48 %}
+        <div class="mv-empty__title">No open transfer plans</div>
+        <p class="mv-empty__text">Upload a BT plan on the Branch Transfer screen first — this console scans against one.</p>
+        <a href="{% url 'merilv:branch_transfer' %}" class="mv-btn mv-btn--primary">{% icon "transfer" %} Go to Branch Transfer</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "box" %} Open BT scanning sessions</h2>
+        <span class="mv-t-caption">{{ bt_sessions|length }} of 20 shown</span>
+    </div>
+    {% if bt_sessions %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead><tr><th>Session</th><th>Plan</th><th>Entity</th><th>Focus</th><th>Opened</th><th class="mv-col-actions"></th></tr></thead>
+        <tbody>
+            {% for s in bt_sessions %}
+            <tr data-mv-href="{% url 'merilv:btscan_detail' s.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ s }}</td>
+                <td>{{ s.plan }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ s.entity.code }}</span></td>
+                <td>{% if s.my_focus %}<span class="mv-mono">{{ s.my_focus }}</span>{% else %}<span class="mv-t-caption">All plants</span>{% endif %}</td>
+                <td class="mv-t-caption">{{ s.created_at|date:"d M, H:i" }}</td>
+                <td class="mv-col-actions">
+                    <a href="{% url 'merilv:btscan_detail' s.pk %}" class="mv-btn mv-btn--sm mv-btn--primary">Resume</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "box" 48 %}
+        <div class="mv-empty__title">No open sessions</div>
+        <p class="mv-empty__text">Open one above to start filling cartons.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "upload" %} Open a new session</h2>
+    <form method="post" action="{% url 'merilv:outbound_upload' %}" enctype="multipart/form-data"
+          data-mv-loading data-mv-loading-title="Uploading delivery dump"
+          data-mv-loading-message="This file can be large. Please wait while the dump is parsed and the session is created.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvEntity">Entity <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvEntity" name="entity" required>
+                    {% for e in entities %}
+                    <option value="{{ e.code }}" {% if entity and e.code == entity.code %}selected{% endif %}>{{ e.code }} — {{ e.name }}</option>
+                    {% endfor %}
+                </select>
+                <span class="mv-hint">Decides parsing rules, box capacity enforcement and courier resolution.</span>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label">YVL06 delivery dump <span class="mv-req">*</span></label>
+                <label class="mv-dropzone">
+                    <input type="file" name="dump_file" accept=".xlsx,.xls,.csv" required>
+                    {% icon "truck" 40 %}
+                    <span class="mv-dropzone__label">Choose the delivery dump</span>
+                    <span class="mv-t-caption">.xlsx, .xls or .csv</span>
+                </label>
+            </div>
+        </div>
+        <div class="mv-card__footer">
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Open session</button>
+        </div>
+    </form>
+</div>
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+        <h2 class="mv-card__title">{% icon "box" %} Active sessions</h2>
+        <span class="mv-t-caption">
+            {% if session_q %}{{ session_total }} matching{% else %}{{ session_total }} open{% endif %}
+            {% if session_page and session_page.paginator.num_pages > 1 %}
+            · page {{ session_page.number }} of {{ session_page.paginator.num_pages }}
+            {% endif %}
+        </span>
+    </div>
+    {% comment %}
+    Search and paging, because "20 of 20 shown" was the whole story: the list
+    was the twenty newest open sessions and nothing reached the ones behind
+    them. An older session somebody left open could not be opened, resumed or
+    cleaned up — and the cross-session serial guard blocks scans against
+    exactly those, telling the operator to go and undo it there.
+
+    GET, and the mode is carried through, so a search does not drop the
+    operator back onto a different tab of this page.
+    {% endcomment %}
+    <form method="get" class="mv-field-row" style="padding:var(--mv-3) var(--mv-6) 0;align-items:flex-end;gap:var(--mv-3);">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        <div class="mv-field" style="flex:1;">
+            <input class="mv-input" type="search" name="sq" value="{{ session_q }}"
+                   placeholder="Find a session by number, name or delivery…">
+        </div>
+        <button type="submit" class="mv-btn">{% icon "search" %} Search</button>
+        {% if session_q %}
+        <a class="mv-btn mv-btn--ghost" href="?mode={{ mode }}">Clear</a>
+        {% endif %}
+    </form>
+    {% if sessions %}
+    <div class="mv-table-wrap">
+    <table class="mv-table">
+        <thead>
+            <tr>
+                <th class="mv-num">#</th>
+                <th>Session</th>
+                <th>Entity</th>
+                <th>Focus</th>
+                <th class="mv-num">Lines</th>
+                <th class="mv-num">Scans</th>
+                {% comment %}
+                Who uploaded it. This list is no longer only your own work: a
+                dump a manager or an admin uploads is shared with the floor
+                that picks at its plant (views.scope_outbound_sessions), so a
+                picker can be looking at four sessions and needs to know which
+                one is the supervisor's.
+                {% endcomment %}
+                <th>Opened by</th>
+                <th>Opened</th>
+                <th class="mv-col-actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sessions %}
+            <tr data-mv-href="{% url 'merilv:outbound_session' s.pk %}" class="mv-row-link">
+                <td class="mv-num mv-t-caption">{{ s.pk }}</td>
+                <td class="mv-t-strong">{{ s }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ s.entity.code }}</span></td>
+                <td>
+                    {% comment %}
+                    Your own focus, not the session's — focus belongs to the
+                    operator now (merilv/focus.py), so a session several people
+                    are picking has one of these per person. Blank means you
+                    have not picked a delivery in it yet.
+                    {% endcomment %}
+                    {% if s.my_focus %}<span class="mv-mono">{{ s.my_focus }}</span>
+                    {% else %}<span class="mv-t-caption">—</span>{% endif %}
+                </td>
+                {% comment %}
+                Both counts are what tells a picker whether the row in front of
+                them is the wrong upload they just made — a 0-scan session with
+                an unexpected line count is exactly that — so they are shown
+                beside the Delete control rather than only inside the console.
+                {% endcomment %}
+                <td class="mv-num mv-t-caption">{{ s.line_count|default:"0" }}</td>
+                <td class="mv-num mv-t-caption">{{ s.scan_count|default:"0" }}</td>
+                {% comment %}
+                "You" rather than the name, for your own: a column of your own
+                username repeated down the page says nothing, and what the
+                reader is scanning for is the rows that are NOT theirs.
+                {% endcomment %}
+                <td class="mv-t-caption">
+                    {% if s.operator_id == request.user.pk %}You
+                    {% elif s.operator %}{{ s.operator.get_full_name|default:s.operator.username }}
+                    {% else %}—{% endif %}
+                </td>
+                <td class="mv-t-caption">{{ s.created_at|date:"d M, H:i" }}</td>
+                <td class="mv-col-actions mv-col-actions--pair">
+                    <div class="mv-row-actions">
+                        <a href="{% url 'merilv:outbound_session' s.pk %}" class="mv-btn mv-btn--sm mv-btn--primary">Resume</a>
+                        {% comment %}
+                        The wrong-file escape hatch. A hard delete with no undo,
+                        so it demands the session name be typed — the same
+                        guard bulk-replace and delete-entity use.
+
+                        The confirm attributes sit on the BUTTON, not the form:
+                        datatable.js submits via `trigger.form`, which only
+                        exists on a form control. On a <form> it falls through
+                        to `trigger.click()`, and clicking a form submits
+                        nothing.
+
+                        A session with a finished delivery is refused by the
+                        view, and a picker may only delete one with no scans;
+                        neither is hidden here, because the view's message
+                        explains the refusal and a disabled button with no
+                        reason is worse than a clear rejection.
+
+                        No data-mv-confirm-type. It used to make the operator
+                        type the session's name — "MHPL 16 Sep 12:08" — before
+                        the button would arm, which on the screen they clear
+                        wrong uploads from is a transcription exercise, not a
+                        safety check. The confirm still names what is about to
+                        go, and the server refuses the dangerous cases outright
+                        whatever the dialog says; typing it out added nothing
+                        either of those does not already do.
+                        {% endcomment %}
+                        {% comment %}
+                        data-mv-async: posted where it stands and answered with
+                        a toast, the row removed on success. It used to submit
+                        normally, which redirected — to the outbound list on
+                        success, and to the SESSION CONSOLE on a refusal — and
+                        printed the outcome in the page-top alert block. So
+                        clicking Delete on a long list took the operator to a
+                        different screen, scrolled to the top of it, to be told
+                        why they could not.
+
+                        Still a real form with a real action: with JavaScript
+                        off it submits and the view still redirects, which is
+                        the fallback the whole confirm mechanism rests on.
+                        {% endcomment %}
+                        <form method="post" action="{% url 'merilv:outbound_session_delete' s.pk %}"
+                              class="mv-row-delete" data-mv-async>
+                            {% csrf_token %}
+                            <button type="submit" class="mv-btn mv-btn--icon mv-btn--danger" title="Delete this session and its uploaded dump"
+                                    data-mv-confirm="Delete session {{ s }} and the dump behind it? This removes {{ s.line_count|default:'0' }} delivery line(s) and {{ s.scan_count|default:'0' }} scan(s) for good. The deletion itself stays in the activity log."
+                                    data-mv-confirm-title="Delete this session?"
+                                    data-mv-confirm-ok="Delete">{% icon "trash" 16 %}</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% if session_page and session_page.paginator.num_pages > 1 %}
+    <div class="mv-field-row" style="padding:var(--mv-3) var(--mv-6) var(--mv-5);justify-content:space-between;align-items:center;">
+        <span class="mv-t-caption">
+            Showing {{ session_page.start_index }}–{{ session_page.end_index }} of {{ session_total }}
+        </span>
+        <span class="mv-field-row" style="gap:var(--mv-2);">
+            {% if session_page.has_previous %}
+            <a class="mv-btn mv-btn--sm" href="?mode={{ mode }}&amp;sq={{ session_q|urlencode }}&amp;spage={{ session_page.previous_page_number }}">Previous</a>
+            {% endif %}
+            {% if session_page.has_next %}
+            <a class="mv-btn mv-btn--sm" href="?mode={{ mode }}&amp;sq={{ session_q|urlencode }}&amp;spage={{ session_page.next_page_number }}">Next</a>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="mv-empty">
+        {% icon "box" 48 %}
+        {% if session_q %}
+        {% comment %}
+        A search that found nothing is not the same as having no sessions, and
+        saying "open one above" to somebody hunting for session #139 sends them
+        to create a second one.
+        {% endcomment %}
+        <div class="mv-empty__title">No open session matches “{{ session_q }}”</div>
+        <p class="mv-empty__text">
+            Try the session number on its own, or a delivery number inside it.
+            A session that has been finished is no longer listed here.
+        </p>
+        <a class="mv-btn mv-btn--sm" href="?mode={{ mode }}">Show all open sessions</a>
+        {% else %}
+        <div class="mv-empty__title">No active sessions</div>
+        <p class="mv-empty__text">Open one above to start scanning.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

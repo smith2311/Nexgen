@@ -1,0 +1,1030 @@
+{% load merilv_ui %}{% comment %}
+Finish Delivery modal. Still a real <form> posting to outbound_finish — that
+is what it falls back to with no JavaScript, and the view still answers such a
+post with a redirect and, on a shortfall, the full outbound_discrepancy page.
+
+The console intercepts the submit and posts it with fetch instead, because a
+session holds a whole dump and a picker works through its deliveries one after
+another: redirecting to the finished delivery's detail page threw them out of
+the session on every finish, and a shortfall did the same via a full page. The
+view answers an XHR with JSON — the outcome, the repainted state, and the
+short lines when there are any — and scanner.js keeps the operator here.
+
+Courier resolution order (rule 12): CustomerCourierMapping -> CustomerMaster ->
+operator input. The view already resolves this when courier_partner is left
+blank, so the field here is an override, not a requirement, and the hint below
+it says exactly that.
+{% endcomment %}
+{% comment %}
+Deliberately NOT --wide any more, and laid out with mv-form--compact: the form
+had one field per row over eight rows and did not fit a warehouse laptop
+without scrolling, so a picker finishing a delivery scrolled past half of it to
+reach the submit button. Every field and every behaviour is unchanged — only
+the density is. See .mv-form--compact in css/screens.css.
+{% endcomment %}
+<div class="mv-modal-scrim" id="mvFinishModal">
+    <div class="mv-modal mv-modal--compact" role="dialog" aria-modal="true" aria-labelledby="mvFinishTitle">
+        <form method="post" action="{% url 'merilv:outbound_finish' session.pk %}">
+            {% csrf_token %}
+            <div class="mv-modal__head">
+                <h2 class="mv-t-h2" id="mvFinishTitle">Finish Delivery</h2>
+                <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal aria-label="Close">
+                    {% icon "close" %}
+                </button>
+            </div>
+            <div class="mv-modal__body mv-form--compact">
+                <div class="mv-field">
+                    <label class="mv-label" for="mvFinishDelivery">Delivery <span class="mv-req">*</span></label>
+                    <select class="mv-select mv-input--mono" id="mvFinishDelivery" name="delivery_no" required>
+                        {% if payload.focus_delivery %}
+                        <option value="{{ payload.focus_delivery }}" selected>{{ payload.focus_delivery }}</option>
+                        {% else %}
+                        <option value="">Choose a delivery…</option>
+                        {% endif %}
+                    </select>
+                    <span class="mv-hint">Populated from the deliveries in this session as they load.</span>
+                </div>
+
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishCourier">Courier <span class="mv-req">*</span></label>
+                        <input class="mv-input" id="mvFinishCourier" name="courier_partner" list="mvCourierList" placeholder="Leave blank to auto-resolve">
+                        {% comment %}
+                        Each option carries its Courier Master row, so choosing
+                        a courier can fill in the number, vehicle and type
+                        rather than leaving the operator to retype what the
+                        master already holds. A datalist option's dataset is
+                        readable even though the control itself is a text input.
+                        {% endcomment %}
+                        <datalist id="mvCourierList">
+                            {% courier_options as mv_couriers %}
+                            {% for c in mv_couriers %}
+                            <option value="{{ c.courier_name }}"
+                                    data-courier-number="{{ c.courier_number }}"
+                                    data-vehicle-number="{{ c.vehicle_number }}"
+                                    data-vehicle-type="{{ c.vehicle_type }}"
+                                    data-gstin="{{ c.gstin }}"
+                                    data-plant="{{ c.plant }}">{% if c.plant %}{{ c.plant }}{% endif %}</option>
+                            {% endfor %}
+                        </datalist>
+                        <span class="mv-hint" data-mv="courier-hint">Pre-filled from customer + plant mapping — override if needed.</span>
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishCourierNo">Courier Number <span class="mv-req">*</span></label>
+                        <input class="mv-input mv-input--mono" id="mvFinishCourierNo" name="courier_number">
+                    </div>
+                </div>
+
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishDocket">Docket Number <span class="mv-req">*</span></label>
+                        <input class="mv-input mv-input--mono" id="mvFinishDocket" name="docket_no">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishVehicle">Vehicle Number</label>
+                        <input class="mv-input mv-input--mono" id="mvFinishVehicle" name="vehicle_number">
+                    </div>
+                </div>
+
+                {% comment %}
+                Mode of transit is pre-selected from the delivery's courier
+                (CourierMaster.mode_of_transit, resolved server-side and carried
+                on the delivery payload), and stays an override: touching a
+                radio marks the group as the operator's and later poll ticks
+                leave it alone. Road remains the fallback when the master says
+                nothing, which is what every dispatch used to get.
+                {% endcomment %}
+                {% comment %}
+                Each option carries its SAP code, because the invoice sheet's
+                TRANS column is coded (M1 air/rail, M2 surface/by hand) and the
+                operator picking "Road" is the person deciding what lands in it.
+                The stored value stays the WORD — a delivery record read a year
+                later should say what happened, not make the reader hold a
+                lookup table — and merilv/transit.py derives the code on export.
+                {% endcomment %}
+                <div class="mv-field">
+                    <label class="mv-label">Mode of Transit</label>
+                    <div class="mv-field-row" data-mv="transit-modes">
+                        {% for value, label in transit_modes %}
+                        <label class="mv-radio-card" style="flex:1;">
+                            <input type="radio" name="mode_of_transit" value="{{ value }}"{% if value == "Road" %} checked{% endif %}> {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <span class="mv-hint" data-mv="transit-hint">Defaults to Road unless the courier master says otherwise. The code after each is what the invoice sheet carries.</span>
+                </div>
+
+                <div class="mv-field-row">
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishVehType">Vehicle Type</label>
+                        <input class="mv-input" id="mvFinishVehType" name="vehicle_type">
+                    </div>
+                    <div class="mv-field">
+                        <label class="mv-label" for="mvFinishWeight">Weight (kg)</label>
+                        <input class="mv-input mv-input--mono" id="mvFinishWeight" name="weight_kg" type="number" step="0.01" min="0">
+                    </div>
+                </div>
+
+                {% comment %}
+                Read-only, and outside the POST: the courier's GSTIN belongs to
+                the master, not to this dispatch, so it is shown for
+                confirmation rather than submitted as an editable value the
+                operator could silently diverge from.
+                {% endcomment %}
+                <div class="mv-field" data-mv="courier-gstin-field" hidden>
+                    <label class="mv-label">Courier GSTIN</label>
+                    <input class="mv-input mv-input--mono" data-mv="courier-gstin" readonly tabindex="-1">
+                    <span class="mv-hint">From Courier Master.</span>
+                </div>
+
+                <div class="mv-field">
+                    <label class="mv-label">Boxes Used</label>
+                    <div class="mv-boxchip-editor mv-boxchip-editor--tight">
+                        {% for label in "ABCDEF"|make_list %}
+                        <div class="mv-boxchip">
+                            <label for="mvBox{{ label }}">{{ label }}</label>
+                            <input type="number" min="0" id="mvBox{{ label }}" name="box_{{ label }}" value="0">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% comment %}
+                Shown when the selected delivery is already closed. A delivery
+                is finished once: the form then stops being a form to fill in
+                and becomes a record of what was filled in, so the fields are
+                greyed and this says when it happened and who did it.
+
+                Edit is drawn for whoever the permission matrix says may edit a
+                finished delivery's documents, NOT for "is this an admin?" —
+                that was a second gate beside the matrix, so changing the rule
+                on Master Data → Roles moved the server and left this button
+                where it was. One source, both halves.
+                {% endcomment %}
+                <div class="mv-alert mv-alert--info" data-mv="finish-closed" hidden>
+                    {% icon "check-circle" %}
+                    <div style="flex:1;min-width:0;">
+                        <div class="mv-t-strong" data-mv="finish-closed-title"></div>
+                        <div class="mv-t-caption" data-mv="finish-closed-detail"></div>
+                    </div>
+                    {% comment %}
+                    Gated on the Document Edit capability, not on "is admin".
+                    A manager holds it by default — correcting a docket or a
+                    box count after the van has gone is supervisor work, and
+                    routing every such correction through an admin is what was
+                    reported as missing document-edit rights. An admin can
+                    grant or revoke it per tier under Roles & Access.
+                    {% endcomment %}
+                    {% if mv_can_document_edit %}
+                    <button type="button" class="mv-btn mv-btn--sm" data-mv="finish-edit">Edit</button>
+                    {% comment %}
+                    Backing out of an edit without leaving the form. Closing the
+                    modal ends the edit too, but "I clicked Edit by mistake"
+                    should not cost the operator their place — and the greying
+                    has to come back the moment they say so, not after a save or
+                    a page refresh, which is how it was reported.
+
+                    Same gate as Edit, deliberately: a person who may not start
+                    an edit has nothing to cancel, and gating the two
+                    differently would leave one of them stranded on screen.
+                    {% endcomment %}
+                    <button type="button" class="mv-btn mv-btn--sm" data-mv="finish-edit-cancel" hidden>Cancel edit</button>
+                    {% endif %}
+                </div>
+
+                <div class="mv-alert mv-alert--warn" data-mv="finish-partial-banner" hidden>
+                    {% icon "alert" %}
+                    <div>This delivery is incomplete (<span data-mv="finish-partial-detail"></span>).</div>
+                </div>
+
+                {% comment %}
+                The shortfall the server refused, listed here rather than on a
+                page of its own. Filled by scanner.js from the 409 the console
+                gets back; the decision it asks for — proceed anyway, or go
+                back and pick the rest — is taken where it arose instead of
+                being answered by navigating back to the console.
+                {% endcomment %}
+                <div class="mv-alert mv-alert--danger mv-finish-short" data-mv="finish-short" hidden>
+                    {% icon "alert" %}
+                    <div style="flex:1;min-width:0;">
+                        <div class="mv-t-strong" data-mv="finish-short-title"></div>
+                        <div class="mv-finish-short__list" data-mv="finish-short-list"></div>
+                        {% comment %}
+                        Says what to do next, because the override is no longer
+                        ticked for the operator. Pressing Finish again with the
+                        box clear gets this same refusal again — which is the
+                        point: dispatching short has to be chosen, not arrived
+                        at by clicking twice.
+                        {% endcomment %}
+                        <div class="mv-t-caption" style="margin-top:.5rem;">
+                            Scan the missing units, or tick
+                            <b>“Proceed anyway”</b> below to dispatch this short
+                            on purpose.
+                        </div>
+                    </div>
+                </div>
+
+                <label class="mv-check">
+                    <input type="checkbox" name="proceed_anyway" value="1">
+                    <span class="mv-t-caption">Proceed anyway and record this as a partial dispatch.</span>
+                </label>
+            </div>
+            <div class="mv-modal__foot">
+                {% comment %}
+                Empty every box in one go, for the operator who opened the form
+                on the wrong delivery's details or wants to retype rather than
+                correct. Its own button because clearing a field at a time was
+                the thing that did not work: the console's two-second poll put
+                the old value straight back (see mvTouched in fillIfFree).
+
+                type="button" — inside a form, a button with no type submits.
+                {% endcomment %}
+                <button type="button" class="mv-btn" data-mv="finish-clear">Clear fields</button>
+                <span style="flex:1;"></span>
+                <button type="button" class="mv-btn" data-mv-close-modal>Cancel</button>
+                <button type="submit" class="mv-btn mv-btn--primary" data-mv="finish-submit">
+                    {% if session.entity.allow_partial_export %}Generate Serial Sheet{% else %}Generate Discrepancy Report{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+/* Keep the delivery dropdown and the partial banner in sync with the live
+ * session state the scanner console already polls — no second request. */
+(function () {
+    var modal = document.getElementById('mvFinishModal');
+    if (!modal) { return; }
+    var select = modal.querySelector('#mvFinishDelivery');
+    var banner = modal.querySelector('[data-mv="finish-partial-banner"]');
+    var detail = modal.querySelector('[data-mv="finish-partial-detail"]');
+    var submitBtn = modal.querySelector('[data-mv="finish-submit"]');
+    var allowPartial = {{ session.entity.allow_partial_export|yesno:"true,false" }};
+
+    /* A barcode scanner types the code and then presses Enter.
+     *
+     * Every box on this form is a scan target — Docket Number above all — and
+     * Enter in a text input submits the form it is in, because that is what
+     * browsers do when a form has a submit button. So scanning a docket
+     * finished the delivery on the spot: the operator saw "Delivery finished"
+     * before they had entered the vehicle, the weight or the boxes, and the
+     * delivery was closed with whatever the form happened to hold.
+     *
+     * Enter therefore does nothing here except on the submit button itself,
+     * which a keyboard user has to be able to reach and press. The scanner's
+     * trailing Enter lands on an input, is swallowed, and the typed code
+     * stays put.
+     *
+     * Bound on the form, not on each box, so a field added later is covered
+     * without anyone remembering to. `keydown` rather than `keypress`: the
+     * latter is deprecated and skipped by some scanner drivers.
+     *
+     * Not `event.stopPropagation()`. The console listens for keystrokes of
+     * its own further up; silencing Enter for them as well would be a second
+     * bug wearing this fix as a disguise. */
+    var form = modal.querySelector('form');
+    if (form) {
+        form.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey) {
+                return;
+            }
+            var target = event.target;
+            if (!target || target === submitBtn) { return; }
+            var tag = (target.tagName || '').toLowerCase();
+            /* A textarea keeps its newlines, and a button keeps its press —
+               including the Cancel and Edit buttons, which are reached by
+               keyboard and activated with Enter like any other button. */
+            if (tag === 'textarea' || tag === 'button') { return; }
+            event.preventDefault();
+        });
+    }
+
+    function sync(payload) {
+        if (!payload || !payload.deliveries) { return; }
+        var current = select.value;
+        select.innerHTML = '';
+        payload.deliveries.forEach(function (d) {
+            var opt = document.createElement('option');
+            opt.value = d.delivery_no;
+            /* "8001234567 - CUST001 - ABC Healthcare", then the progress.
+               The delivery number alone does not say whose stock is in the
+               box, which is what makes picking the right row from a 24-entry
+               list guesswork. The option VALUE stays the bare delivery number
+               — that is what the form posts and what the server matches on. */
+            opt.textContent =
+                [d.delivery_no, d.customer_code, d.customer_name].filter(Boolean).join(' - ') +
+                (d.complete ? '  (complete)' : '  (' + d.scanned + '/' + d.required + ')');
+            opt.selected = d.delivery_no === (current || payload.focus_delivery);
+            opt.dataset.scanned = d.scanned;
+            opt.dataset.required = d.required;
+            opt.dataset.courierMode = d.courier_mode || '';
+            /* The courier this delivery resolves to, so changing the delivery
+               changes the courier with it. */
+            opt.dataset.courier = d.courier || '';
+            opt.dataset.courierNumber = d.courier_number || '';
+            opt.dataset.courierVehicle = d.courier_vehicle || '';
+            opt.dataset.courierVehicleType = d.courier_vehicle_type || '';
+            opt.dataset.courierSource = d.courier_source || '';
+            /* Which plant this delivery ships from, so a courier picked BY
+               HAND resolves to that plant's row of the master rather than to
+               whichever row of that name came first. See optionFor. */
+            opt.dataset.plant = d.plant || '';
+            opt.dataset.finished = d.finished ? '1' : '0';
+            select.appendChild(opt);
+        });
+        updateBanner();
+    }
+    /* The courier for the delivery now selected.
+     *
+     * Only fills a box the operator has not typed in: the courier field is
+     * documented as an override, and overwriting a deliberate entry every
+     * two seconds — this runs on the console's poll tick — would make it
+     * impossible to type at all.
+     *
+     * The name and number come from the delivery's customer + plant mapping,
+     * resolved server-side. Vehicle and type are then filled by applyCourier
+     * from Courier Master, so the two lookups compose rather than repeat. */
+    function fillIfFree(selector, value) {
+        var target = modal.querySelector(selector);
+        if (!target || !value) { return; }
+        /* A box the operator has touched is theirs, EMPTY INCLUDED.
+         *
+         * The old test was `target.value && not autofilled`, which reads as
+         * "leave what they typed alone" and does — until they clear the box.
+         * An empty box failed the first half, so this refilled it, and since
+         * this runs on the console's two-second poll the old value came
+         * straight back: clearing a field was impossible and editing one felt
+         * like the form was fighting you. mvTouched says "a person has been
+         * here", which an empty string cannot. */
+        if (target.dataset.mvTouched === '1') { return; }
+        if (target.value && target.dataset.mvAutofilled !== '1') { return; }
+        if (target.value === value) { return; }
+        target.value = value;
+        target.dataset.mvAutofilled = '1';
+    }
+
+    /* ── Clearing down between deliveries ────────────────────────────────
+     * A picker works a whole dump from this one modal, finishing each
+     * delivery in turn. Nothing used to clear when the selection changed, so
+     * delivery B opened holding A's docket, A's vehicle, A's weight and A's
+     * box counts — and because fillFromRecord deliberately strips the
+     * mvAutofilled flag from a finished delivery's values, the courier
+     * prefill then saw "the operator typed this" and refused to replace them
+     * too. So B showed A's courier as well.
+     *
+     * That is both of the reported faults at once: the wrong customer's
+     * details carried forward, and a docket number silently reused on the
+     * next delivery — which the docket rule then rejects, pointing at a
+     * number the operator never typed.
+     *
+     * Everything the operator fills in is cleared; the delivery selector and
+     * the CSRF token are not, and the transit radios fall back to Road rather
+     * than to nothing, since that is the documented default. */
+    var PAPERWORK = [
+        '#mvFinishCourier', '#mvFinishCourierNo', '#mvFinishDocket',
+        '#mvFinishVehicle', '#mvFinishVehType', '#mvFinishWeight'
+    ];
+
+    function resetPaperwork() {
+        PAPERWORK.forEach(function (selector) {
+            var el = modal.querySelector(selector);
+            if (!el) { return; }
+            el.value = '';
+            delete el.dataset.mvAutofilled;
+            /* mvTouched goes too. It marks a box a person has been in, which
+               stops the poll tick refilling it — correct while they are
+               working, and wrong for the next delivery, whose courier would
+               then never prefill. The Clear button re-claims them afterwards
+               precisely because this does not. */
+            delete el.dataset.mvTouched;
+        });
+        'ABCDEF'.split('').forEach(function (label) {
+            var box = modal.querySelector('[name="box_' + label + '"]');
+            if (box) { box.value = 0; }
+        });
+        var proceed = modal.querySelector('[name="proceed_anyway"]');
+        if (proceed) { proceed.checked = false; }
+        if (gstinField) { gstinField.hidden = true; }
+        if (gstinInput) { gstinInput.value = ''; }
+        /* The transit group is the operator's once they touch it — but that
+           ownership was over the delivery they touched it for, not over every
+           delivery after it. */
+        transitTouched = false;
+        var road = modal.querySelector('[name="mode_of_transit"][value="Road"]');
+        if (road) { road.checked = true; }
+        /* Nothing is stamped on a cleared form, so the next courier picked
+           counts as a change even when it is the one the last delivery used.
+           Without this, applyCourier sees its own previous stamp, decides
+           nothing changed, and leaves the number, vehicle and type blank —
+           the boxes this function just emptied. */
+        stampedCourier = null;
+        clearFinishShortHere();
+    }
+
+    function clearFinishShortHere() {
+        var short = modal.querySelector('[data-mv="finish-short"]');
+        if (short) { short.hidden = true; }
+    }
+
+    function prefillFromDelivery() {
+        var opt = select.options[select.selectedIndex];
+        if (!opt) { return; }
+        var name = opt.dataset.courier || '';
+        var number = opt.dataset.courierNumber || '';
+        var hint = modal.querySelector('[data-mv="courier-hint"]');
+
+        if (!name) {
+            /* No mapping for this customer. Say so, rather than leaving a
+               hint that claims the box was pre-filled when it was not — that
+               wording is exactly what made this look broken. */
+            if (hint) {
+                hint.textContent = 'No courier mapped for this customer — enter one.';
+            }
+            return;
+        }
+
+        var courierBox = modal.querySelector('#mvFinishCourier');
+        var numberBox = modal.querySelector('#mvFinishCourierNo');
+
+        if (courierBox && courierBox.dataset.mvTouched !== '1' &&
+                (!courierBox.value || courierBox.dataset.mvAutofilled === '1')) {
+            /* Only when it actually changes: reassigning the same value on
+               every tick would fight the datalist dropdown and reset the
+               caret while somebody is typing. */
+            if (courierBox.value !== name) {
+                courierBox.value = name;
+                courierBox.dataset.mvAutofilled = '1';
+                /* Let the existing Courier Master autofill take it from here
+                   for the vehicle and type. */
+                /* Vehicle and type come from the row the server resolved, not
+                   from a name lookup in the datalist: "Blue Dart" exists for
+                   more than one plant with different numbers and vehicles, so
+                   matching by name picked the wrong plant's row and left these
+                   blank. applyCourier stays for the manual-pick path, where
+                   the name is the only thing known. */
+                fillIfFree('#mvFinishVehicle', opt.dataset.courierVehicle || '');
+                fillIfFree('#mvFinishVehType', opt.dataset.courierVehicleType || '');
+                /* This courier is now the stamped one. Without this the next
+                   input event on the courier box would read as a change and
+                   overwrite the server's resolution with a name lookup. */
+                stampedCourier = name + '\u0000' + (opt.dataset.plant || '');
+            }
+        }
+        if (number && numberBox && numberBox.dataset.mvTouched !== '1' &&
+            (!numberBox.value || numberBox.dataset.mvAutofilled === '1')) {
+            if (numberBox.value !== number) {
+                numberBox.value = number;
+                numberBox.dataset.mvAutofilled = '1';
+            }
+        }
+        applyTransitMode(opt.dataset.courierMode || '');
+        if (hint) {
+            /* Name the rule that actually fired. The old wording asserted a
+               customer mapping for every value, including ones that came from
+               the plant default -- a hint that misstates its source is what
+               made this read as broken. */
+            var source = opt.dataset.courierSource;
+            if (source === 'plant') {
+                hint.textContent = 'Default courier for this delivery’s plant'
+                    + ' — override if needed.';
+            } else if (source === 'customer') {
+                hint.textContent = 'From this customer’s courier mapping'
+                    + ' — override if needed.';
+            } else {
+                hint.textContent = 'Pre-filled — override if needed.';
+            }
+        }
+    }
+
+    /* ── Mode of transit ─────────────────────────────────────────────────
+     * Selected from the courier master row this delivery resolves to, and
+     * only until the operator picks one themselves — after that the group is
+     * theirs and the 2s poll tick must not keep resetting it. A mode the
+     * master holds that is not one of the standard radios is added as one
+     * more rather than silently dropped: vehicle_type is free text for the
+     * same reason and partners use their own vocabulary. The server has
+     * already folded the known synonyms in (SURFACE -> Road), so what reaches
+     * here unmatched really is a word this app does not know. */
+    var transitGroup = modal.querySelector('[data-mv="transit-modes"]');
+    var transitHint = modal.querySelector('[data-mv="transit-hint"]');
+    var transitTouched = false;
+    if (transitGroup) {
+        transitGroup.addEventListener('change', function () {
+            transitTouched = true;
+            if (transitHint) { transitHint.textContent = 'Set by you for this dispatch.'; }
+        });
+    }
+
+    function applyTransitMode(mode) {
+        if (!transitGroup || transitTouched) { return; }
+        var wanted = (mode || '').trim();
+        if (!wanted) {
+            if (transitHint) {
+                transitHint.textContent = 'No mode on this courier’s master row — defaulting to Road.';
+            }
+            return;
+        }
+        var radios = transitGroup.querySelectorAll('input[type="radio"]');
+        var match = null;
+        Array.prototype.forEach.call(radios, function (radio) {
+            if (radio.value.toLowerCase() === wanted.toLowerCase()) { match = radio; }
+        });
+        if (!match) {
+            var label = document.createElement('label');
+            label.className = 'mv-radio-card';
+            label.style.flex = '1';
+            var input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'mode_of_transit';
+            input.value = wanted;
+            label.appendChild(input);
+            label.appendChild(document.createTextNode(' ' + wanted));
+            transitGroup.appendChild(label);
+            match = input;
+        }
+        if (!match.checked) { match.checked = true; }
+        if (transitHint) {
+            transitHint.textContent = 'From the courier master — change it if this dispatch differs.';
+        }
+    }
+
+    /* ── A delivery that is already closed ───────────────────────────────
+     * A delivery is finished ONCE. Selecting one that already is turns this
+     * form from something to fill in into a record of what was filled in: the
+     * fields carry what went on the docket, they are read-only, and the
+     * Finish button is gone.
+     *
+     * The values come from window.mvFinishedPaperwork, which scanner.js
+     * publishes off the session payload — keyed by delivery number, with
+     * field names matching the inputs' own `name` attributes so nothing here
+     * has to keep a second mapping in step with the markup.
+     *
+     * Edit exists for a Meril-V admin only (the button is not rendered for
+     * anyone else) and unlocks the fields for THIS delivery. Changing the
+     * selection locks them again: an unlock is a decision about one delivery,
+     * not a mode the modal stays in.
+     */
+    var closedBanner = modal.querySelector('[data-mv="finish-closed"]');
+    var closedTitle = modal.querySelector('[data-mv="finish-closed-title"]');
+    var closedDetail = modal.querySelector('[data-mv="finish-closed-detail"]');
+    var editBtn = modal.querySelector('[data-mv="finish-edit"]');
+    var cancelEditBtn = modal.querySelector('[data-mv="finish-edit-cancel"]');
+    var unlocked = '';
+    /* Restored whenever the modal leaves edit mode, so "Save changes" does not
+       stick around on the next delivery the operator finishes. */
+    var defaultSubmitLabel = submitBtn ? submitBtn.textContent.trim() : '';
+
+    function paperworkFor(deliveryNo) {
+        var all = window.mvFinishedPaperwork || {};
+        return all[deliveryNo] || null;
+    }
+
+    /* Every control the operator fills in. The delivery selector is NOT one of
+       them — locking it would trap them on the closed delivery with no way to
+       pick another. */
+    /* Anything a person edits in this form becomes theirs, and stays theirs
+     * even when they empty it, until the form is cleared or the delivery
+     * changes. Bound once on the body rather than per field, so a box added
+     * later is covered without anyone remembering to. `change` as well as
+     * `input` because a checkbox and a radio only fire the former. */
+    ['input', 'change'].forEach(function (name) {
+        modal.addEventListener(name, function (event) {
+            var target = event.target;
+            if (!target || !target.closest) { return; }
+            if (target === select || !target.closest('.mv-modal__body')) { return; }
+            target.dataset.mvTouched = '1';
+            delete target.dataset.mvAutofilled;
+        });
+    });
+
+    function formFields() {
+        return modal.querySelectorAll(
+            '.mv-modal__body input, .mv-modal__body select, .mv-modal__body textarea'
+        );
+    }
+
+    /* Clear every box and leave them cleared.
+     *
+     * For the operator who would rather retype the paperwork than correct it
+     * field by field. resetPaperwork drops mvTouched along with the values,
+     * which would let the very next poll tick refill the courier from the
+     * delivery — exactly what they just undid. So the boxes are claimed again
+     * straight after: empty, and theirs until they say otherwise. */
+    var clearBtn = modal.querySelector('[data-mv="finish-clear"]');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            resetPaperwork();
+            Array.prototype.forEach.call(formFields(), function (el) {
+                if (el === select) { return; }
+                el.dataset.mvTouched = '1';
+            });
+            var first = modal.querySelector('#mvFinishCourier');
+            if (first && !first.disabled) { first.focus(); }
+        });
+    }
+
+    function setLocked(locked) {
+        Array.prototype.forEach.call(formFields(), function (el) {
+            if (el === select) { return; }
+            /* readOnly rather than disabled where the control supports it: a
+               disabled input is not submitted, and an admin's edit has to post
+               the whole form back. Checkboxes and radios have no readOnly, so
+               those are disabled and re-enabled together. */
+            if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') {
+                el.disabled = locked;
+            } else {
+                el.readOnly = locked;
+            }
+            el.classList.toggle('is-locked', locked);
+        });
+        submitBtn.hidden = locked;
+        /* Clear goes with Save. On a locked form the boxes are a record of
+           what shipped, and a button offering to empty them is an invitation
+           to an action the form will not take. */
+        if (clearBtn) { clearBtn.hidden = locked; }
+    }
+
+    function fillFromRecord(record) {
+        Object.keys(record).forEach(function (key) {
+            if (key === 'boxes') { return; }
+            var el = modal.querySelector('[name="' + key + '"]');
+            if (!el || el === select) { return; }
+            if (el.type === 'radio') {
+                var chosen = modal.querySelector(
+                    '[name="' + key + '"][value="' + record[key] + '"]');
+                if (chosen) { chosen.checked = true; }
+                return;
+            }
+            el.value = record[key];
+            /* Not an autofill: these are recorded facts, and tagging them
+               would let the courier prefill overwrite them on the next tick.
+               Marked as touched for the same reason — what shipped is what
+               the row says, until a person changes it. */
+            delete el.dataset.mvAutofilled;
+            el.dataset.mvTouched = '1';
+        });
+        Object.keys(record.boxes || {}).forEach(function (label) {
+            var box = modal.querySelector('[name="box_' + label + '"]');
+            if (box) { box.value = record.boxes[label] || 0; }
+        });
+    }
+
+    function applyClosedState(opt) {
+        var deliveryNo = opt ? opt.value : '';
+        var isClosed = !!(opt && opt.dataset.finished === '1');
+        if (!isClosed) {
+            if (closedBanner) { closedBanner.hidden = true; }
+            setLocked(false);
+            unlocked = '';
+            return false;
+        }
+
+        var isUnlocked = unlocked === deliveryNo;
+        var record = paperworkFor(deliveryNo);
+        /* Only while the record is LOCKED.
+         *
+         * This runs on the console's 2s poll tick. Re-filling an unlocked
+         * delivery meant an admin correcting a docket watched the old value
+         * reappear under the cursor within two seconds, and a field they had
+         * deliberately CLEARED refilled itself — reported as "changed values
+         * revert to the previous stored values". Once the record is unlocked
+         * the form belongs to the person editing it until they save or
+         * change the selection. */
+        if (record && !isUnlocked) { fillFromRecord(record); }
+        if (closedBanner) {
+            closedBanner.hidden = false;
+            closedTitle.textContent = 'Delivery ' + deliveryNo + ' is already finished.';
+            closedDetail.textContent = record
+                ? ('Finished ' + record.finished_at +
+                   (record.finished_by ? ' by ' + record.finished_by : '') +
+                   (record.pending_courier
+                       ? ' — courier paperwork still outstanding, completed from Delivery History.'
+                       : '.'))
+                : 'It cannot be finished a second time.';
+        }
+        /* One value drives the repaint above, the lock, and both buttons,
+           rather than each of them deciding for itself. They disagreed before:
+           the lock was recomputed on every poll tick while the buttons were
+           only ever set by a click, so a cancel or a save left "Edit" hidden
+           behind a form that had already greyed out, until a refresh put it
+           right. isUnlocked is declared once, above, for the same reason. */
+        setLocked(!isUnlocked);
+        if (editBtn) { editBtn.hidden = isUnlocked; }
+        if (cancelEditBtn) { cancelEditBtn.hidden = !isUnlocked; }
+        return true;
+    }
+
+    if (editBtn) {
+        editBtn.addEventListener('click', function () {
+            var opt = select.options[select.selectedIndex];
+            unlocked = opt ? opt.value : '';
+            setLocked(false);
+            editBtn.hidden = true;
+            if (cancelEditBtn) { cancelEditBtn.hidden = false; }
+            /* The submit stays hidden until here on purpose: an admin editing
+               a closed delivery is doing something different from finishing
+               one, and the button says so. */
+            submitBtn.textContent = 'Save changes';
+        });
+    }
+
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', function () {
+            /* Put the recorded values back and grey it out again, here and
+               now — no round trip. updateBanner re-reads the record rather
+               than trusting what is on screen, which is the point of
+               cancelling: whatever was typed is discarded. */
+            unlocked = '';
+            if (submitBtn) { submitBtn.textContent = defaultSubmitLabel; }
+            updateBanner();
+        });
+    }
+
+    function updateBanner() {
+        var opt = select.options[select.selectedIndex];
+        if (!opt) { banner.hidden = true; return; }
+        if (applyClosedState(opt)) {
+            /* No prefill, no shortfall banner: neither is a question about a
+               delivery that has already gone. */
+            banner.hidden = true;
+            return;
+        }
+        prefillFromDelivery();
+        var scanned = Number(opt.dataset.scanned || 0), required = Number(opt.dataset.required || 0);
+        var short = scanned < required;
+        banner.hidden = !short;
+        if (short) { detail.textContent = scanned + ' of ' + required + ' scanned'; }
+        submitBtn.textContent = (short && !allowPartial) ? 'Generate Discrepancy Report' : 'Generate Serial Sheet';
+    }
+
+    function currentPayloadFromCards() {
+        var cards = document.querySelectorAll('[data-mv="delivery-card"]');
+        return {
+            deliveries: Array.prototype.map.call(cards, function (c) {
+                return {
+                    delivery_no: c.dataset.deliveryNo,
+                    complete: c.dataset.complete === '1',
+                    finished: c.dataset.finished === '1',
+                    scanned: parseFloat(c.dataset.scanned) || 0,
+                    required: parseFloat(c.dataset.required) || 0,
+                    courier: c.dataset.courier || '',
+                    courier_number: c.dataset.courierNumber || '',
+                    courier_vehicle: c.dataset.courierVehicle || '',
+                    courier_vehicle_type: c.dataset.courierVehicleType || '',
+                    courier_source: c.dataset.courierSource || '',
+                    courier_mode: c.dataset.courierMode || '',
+                    customer_code: c.dataset.customerCode || '',
+                    customer_name: c.dataset.customerName || ''
+                };
+            }),
+            focus_delivery: '{{ payload.focus_delivery }}'
+        };
+    }
+
+    select.addEventListener('change', function () {
+        /* A new selection is a new decision: whatever was unlocked is not,
+           and nothing the last delivery was carrying belongs to this one. */
+        unlocked = '';
+        if (submitBtn) { submitBtn.textContent = defaultSubmitLabel; }
+        resetPaperwork();
+        updateBanner();
+    });
+    /* Opening the form is a new dispatch too.
+     *
+     * `change` is not enough on its own, and this is the half that was
+     * missing. The operator picks a delivery on the console, not in this
+     * dropdown: sync() assigns the selection with `opt.selected = ...` on the
+     * 2s poll tick, and a programmatic selection fires no `change` event. So
+     * the handler above never ran on the path the floor actually uses, and
+     * delivery B opened holding A's courier, docket, vehicle and weight —
+     * exactly as reported.
+     *
+     * Reset on the click that opens it, rather than waiting for the tick:
+     * "eventually" is its own bug, since the operator is typing over the
+     * stale values before the poll lands. updateBanner() then repaints from
+     * scratch — a finished delivery through applyClosedState/fillFromRecord,
+     * an open one through prefillFromDelivery — so nothing recorded is
+     * lost by clearing first. */
+    document.addEventListener('click', function (e) {
+        var opener = e.target.closest('[data-mv-open-modal="mvFinishModal"]');
+        if (!opener) { return; }
+        unlocked = '';
+        if (submitBtn) { submitBtn.textContent = defaultSubmitLabel; }
+        resetPaperwork();
+        updateBanner();
+    });
+
+    /* The server refused a finish because the delivery was already closed —
+       repaint into the read-only state so the modal stops asking for what it
+       cannot have. */
+    document.addEventListener('mv:finish-refused', function () { updateBanner(); });
+
+    /* Cancel — or any other close — ends an edit.
+     *
+     * An unlock was a decision about one delivery at one moment, not a mode
+     * the modal stays in. Without this, cancelling an edit and reopening the
+     * modal came back with the fields still editable and the button still
+     * reading "Save changes", and only a page refresh put it right; a save
+     * left the same stale state behind. Re-locking here means the greyed-out
+     * state is correct the instant the modal is next opened, both after Cancel
+     * and after Save.
+     *
+     * The paperwork goes with it. A finish that succeeded closes the modal,
+     * and leaving that dispatch's docket and weight sitting in the boxes is
+     * what the next delivery then inherits — belt and braces with the opener
+     * above, so a close that happens without a matching open (Esc, the scrim,
+     * scanner.js closing it after a save) still leaves the form blank. */
+    document.addEventListener('mv:modal-closed', function (e) {
+        /* datatable.js names the modal it closed; scanner.js's own close of
+           THIS modal sends no detail. Anything that names a different modal is
+           not ours to react to. */
+        var id = e && e.detail && e.detail.id;
+        if (id && id !== 'mvFinishModal') { return; }
+        unlocked = '';
+        if (submitBtn) { submitBtn.textContent = defaultSubmitLabel; }
+        resetPaperwork();
+        updateBanner();
+    });
+
+    /* ── Courier autofill ────────────────────────────────────────────────
+     * Picking a courier fills its number, vehicle and type from Courier
+     * Master. Before this the datalist only completed the name and the rest
+     * stayed blank, so every dispatch retyped data the system already held.
+     *
+     * A typed value is matched too, not just a click: a datalist offers no
+     * "selected" event, and an operator who types the name in full expects
+     * the same result as one who picks it from the list.
+     *
+     * Only blank fields are filled. Overwriting what somebody has already
+     * typed would throw away a deliberate override — the courier field is
+     * documented as an override, not a requirement (see rule 12 above). */
+    var courierInput = modal.querySelector('#mvFinishCourier');
+    var courierList = modal.querySelector('#mvCourierList');
+    var gstinField = modal.querySelector('[data-mv="courier-gstin-field"]');
+    var gstinInput = modal.querySelector('[data-mv="courier-gstin"]');
+
+    var FILL = [
+        ['courierNumber', '#mvFinishCourierNo'],
+        ['vehicleNumber', '#mvFinishVehicle'],
+        ['vehicleType', '#mvFinishVehType']
+    ];
+
+    /* The plant the selected delivery ships from, '' when nothing is selected. */
+    function selectedPlant() {
+        var opt = select && select.options[select.selectedIndex];
+        return opt ? (opt.dataset.plant || '').trim().toLowerCase() : '';
+    }
+
+    /* The master row for a courier NAME — but a name is not a courier.
+     *
+     * One carrier is held once per plant, each row with its own partner code,
+     * vehicle and GSTIN, so the datalist legitimately offers "Blue Dart
+     * Express Limited" several times over. Returning the first match meant
+     * picking a courier by hand filled in some other plant's code, and the
+     * invoice sheet's CURR column carried it.
+     *
+     * So the delivery's own plant decides between same-named rows. Falling
+     * back to the first match keeps the case where nothing is selected yet,
+     * or where the master holds only one row for that name, working exactly
+     * as it did. */
+    function optionFor(name) {
+        if (!courierList || !name) { return null; }
+        var wanted = name.trim().toLowerCase();
+        var plant = selectedPlant();
+        var options = courierList.querySelectorAll('option');
+        var fallback = null;
+        for (var i = 0; i < options.length; i++) {
+            var option = options[i];
+            if ((option.value || '').trim().toLowerCase() !== wanted) { continue; }
+            if (plant && (option.dataset.plant || '').trim().toLowerCase() === plant) {
+                return option;
+            }
+            if (!fallback) { fallback = option; }
+        }
+        return fallback;
+    }
+
+    /* The courier whose values are currently stamped on the form, as
+       name + plant. Null until something stamps one. */
+    var stampedCourier = null;
+
+    function courierKey(option) {
+        return (option.value || '') + '\u0000' + (option.dataset.plant || '');
+    }
+
+    function applyCourier() {
+        var option = optionFor(courierInput.value);
+        if (gstinField) { gstinField.hidden = true; }
+        if (!option) { return; }
+
+        /* Changing the courier restamps the fields that belong to it.
+         *
+         * These used to be filled only when blank or still tagged as
+         * autofilled, so an operator who typed a number by hand and THEN
+         * changed the courier kept the old number against the new carrier —
+         * 2480 against Blue Dart — and it went to the invoice sheet's CURR
+         * column that way. "Never overwrite what somebody typed" is the right
+         * rule for the two-second poll tick and for the delivery prefill,
+         * which is where it came from; it is the wrong rule for a deliberate
+         * pick from the courier list, which is itself an instruction to use
+         * that courier's details.
+         *
+         * So the values are restamped when the courier ACTUALLY changes, and
+         * left alone otherwise — an operator correcting the number without
+         * touching the courier still keeps their correction. */
+        var changed = courierKey(option) !== stampedCourier;
+        stampedCourier = courierKey(option);
+
+        FILL.forEach(function (pair) {
+            var target = modal.querySelector(pair[1]);
+            var value = option.dataset[pair[0]] || '';
+            if (!target) { return; }
+            /* `changed` beats mvTouched on purpose: picking a courier from
+               the list is an instruction to use that courier's details, and
+               is the one thing that should overwrite a typed number. */
+            if (changed ||
+                    (target.dataset.mvTouched !== '1' &&
+                     (!target.value || target.dataset.mvAutofilled === '1'))) {
+                target.value = value;
+                if (value) { target.dataset.mvAutofilled = '1'; }
+                else { delete target.dataset.mvAutofilled; }
+            }
+        });
+
+        var gstin = option.dataset.gstin || '';
+        if (gstinInput && gstin) {
+            gstinInput.value = gstin;
+            if (gstinField) { gstinField.hidden = false; }
+        }
+    }
+
+    if (courierInput) {
+        /* An operator who picks or types a courier OWNS that box from then on.
+         *
+         * prefillFromDelivery replaces the courier whenever it is still
+         * flagged as autofilled, and it runs on the 2s poll tick — so without
+         * this the flag survived the operator's own choice and the box snapped
+         * back to the mapped courier a moment later, still showing the
+         * previous courier's number and vehicle beside it. Assigning .value
+         * from script fires no input event, so only a real edit lands here.
+         *
+         * The dependent boxes are released with it: they were filled for the
+         * courier that is being replaced, so anything still carrying an
+         * autofilled value must be free for applyCourier to refill from the
+         * new courier's master row rather than left showing the old one's. */
+        function courierChosen() {
+            delete courierInput.dataset.mvAutofilled;
+            applyCourier();
+        }
+        /* change fires on a datalist pick; input covers typing it out. */
+        courierInput.addEventListener('change', courierChosen);
+        courierInput.addEventListener('input', courierChosen);
+
+        /* An operator editing an autofilled field takes ownership of it.
+         *
+         * Without this the mvAutofilled flag stayed set after they typed over
+         * a value, so re-picking the courier silently overwrote what they had
+         * entered — the exact override the courier field is documented to
+         * allow. Assigning .value from script fires no input event, so only
+         * real typing clears the flag. */
+        FILL.forEach(function (pair) {
+            var target = modal.querySelector(pair[1]);
+            if (!target) { return; }
+            target.addEventListener('input', function () {
+                delete target.dataset.mvAutofilled;
+            });
+        });
+    }
+
+    /* Re-sync whenever the console's poll loop refreshes lastPayload. There is
+     * no event for that yet, so read the DOM the console already renders on the
+     * same interval rather than firing a second network request.
+     *
+     * Read the DATA ATTRIBUTES scanner.js sets on each delivery element, never
+     * the rendered text: the console offers four delivery views
+     * (card/list/table/kanban) whose markup and text layout all differ, so
+     * parsing "12 / 30 scanned" out of a card body would silently yield NaN the
+     * moment the picker switched to table or kanban. */
+    setInterval(function () {
+        var payload = currentPayloadFromCards();
+        if (!payload.deliveries.length) { return; }
+        sync(payload);
+    }, 2000);
+
+    /* A scanner gun ends its transmission with Enter. On the finish form that
+       must only land the docket value, never submit the delivery. */
+    var docketInput = modal.querySelector('#mvFinishDocket');
+    if (docketInput) {
+        docketInput.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') { return; }
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+
+    // Seed the modal immediately so the first open already has the courier,
+    // vehicle and transit values instead of waiting for the first poll tick.
+    sync(currentPayloadFromCards());
+})();
+</script>

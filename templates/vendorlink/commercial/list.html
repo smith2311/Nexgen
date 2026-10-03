@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Commercial Database — Phase 2. Rate card list with search, the most-searched
+vendor shortcuts, expiry flags and both exports.
+
+Rebuilt in the vlx-* design system (vendorlink-ds.css) to match Vendor Master,
+Bid Analytics and the launcher. The previous version of this file used the
+older md-* / material-rework stylesheet, which is why it looked like a
+different product from every screen around it.
+
+Two permission flags drive the controls, matching rbac.py: `can_edit` (add and
+edit — Editor tier and above) and `is_vm_admin` (delete — Admin only).
+{% endcomment %}
+
+{% block title %}Commercial Database — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+<style>
+/* Expiry state colouring. The row tint is deliberately faint — a list where a
+   third of the rows are amber stops reading as a warning — with the strong
+   colour saved for the date pill itself. */
+.vlx-table tr.row-expired { background: #fff5f5; }
+.vlx-table tr.row-soon    { background: #fffaf0; }
+.vlx-expiry { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:999px; font-size:.76rem; font-weight:700; white-space:nowrap; }
+.vlx-expiry--expired { background:#fee2e2; color:#991b1b; }
+.vlx-expiry--soon    { background:#fef3c7; color:#92400e; }
+.vlx-expiry--ok      { background:#dcfce7; color:#166534; }
+.vlx-expiry--none    { background:#f1f5f9; color:#64748b; }
+.vlx-cur { display:inline-block; padding:2px 8px; border-radius:6px; background:#eff6ff; color:#1e40af; font-size:.74rem; font-weight:700; font-variant-numeric:tabular-nums; }
+.vlx-table td.num, .vlx-table th.num { text-align:right; font-variant-numeric:tabular-nums; }
+.vlx-chips { display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+.vlx-chips__lbl { font-size:.78rem; color:#64748b; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+.vlx-chip { text-decoration:none; padding:5px 13px; border-radius:999px; border:1px solid #d1d5db; background:#fff; font-size:.8rem; font-weight:600; color:#475569; display:inline-flex; align-items:center; gap:7px; }
+.vlx-chip:hover { border-color:var(--vlx-secondary); color:var(--vlx-secondary); }
+.vlx-chip.active { background:var(--vlx-secondary); border-color:var(--vlx-secondary); color:#fff; }
+.vlx-chip__n { font-size:.7rem; opacity:.75; }
+
+/* ── Two sources on one table ──────────────────────────────────────────
+   A merged table only works if every row says where it came from, so the
+   source pill is a solid block of colour rather than another faint tint:
+   blue for a negotiated rate card, violet for a point-in-time RFI bid. The
+   row tint stays reserved for expiry, which is the thing that needs acting
+   on — tinting bid rows as well would leave the table with no calm state. */
+.vlx-srctabs { display:flex; gap:4px; margin-bottom:14px; border-bottom:2px solid #e5e7eb; }
+.vlx-srctab { text-decoration:none; padding:9px 16px; font-size:.84rem; font-weight:700; color:#64748b;
+              border-bottom:3px solid transparent; margin-bottom:-2px; display:inline-flex; align-items:center; gap:8px; }
+.vlx-srctab:hover { color:var(--vlx-secondary); }
+.vlx-srctab.active { color:var(--vlx-secondary); border-bottom-color:var(--vlx-secondary); }
+.vlx-srctab__n { font-size:.72rem; font-weight:800; background:#eef2f7; color:#475569; padding:1px 8px; border-radius:999px; }
+.vlx-srctab.active .vlx-srctab__n { background:var(--vlx-secondary); color:#fff; }
+
+.vlx-src { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:6px;
+           font-size:.72rem; font-weight:800; letter-spacing:.02em; white-space:nowrap; }
+.vlx-src--card { background:#e0f2fe; color:#075985; }
+.vlx-src--bid  { background:#ede9fe; color:#5b21b6; }
+
+.vlx-bidstat { display:inline-block; font-size:.68rem; font-weight:700; padding:1px 7px; border-radius:999px; margin-top:2px; }
+.vlx-bidstat--submitted   { background:#f1f5f9; color:#475569; }
+.vlx-bidstat--shortlisted { background:#dcfce7; color:#166534; }
+.vlx-bidstat--rejected    { background:#fee2e2; color:#991b1b; }
+
+.vlx-table tr.row-bid td { background:#fdfcff; }
+.vlx-table tr.row-bid.row-expired td, .vlx-table tr.row-bid.row-soon td { background:transparent; }
+.vlx-na { color:#cbd5e1; font-size:.74rem; font-style:italic; }
+.vlx-kpi--on { outline:2px solid var(--vlx-secondary); outline-offset:-2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-pagehead">
+        <div class="vlx-pagehead__left">
+            <div class="vlx-breadcrumb">
+                <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+                <span class="sep">/</span>
+                <span class="current">Rate Cards</span>
+            </div>
+            <div class="vlx-titlerow">
+                <h1 class="vlx-title">Commercial Database</h1>
+                <span class="vlx-count-badge">{{ result_count }} entr{{ result_count|pluralize:"y,ies" }}</span>
+            </div>
+            <p class="vlx-subtitle">What every 3PL vendor charges — negotiated rate cards and the bids they quoted against your RFIs, side by side.</p>
+        </div>
+        <div class="vlx-actions">
+            <a href="{% url 'vendorlink:bid_analytics' %}" class="vlx-btn vlx-btn--ghost"><i class="fas fa-chart-column"></i> Bid Analytics</a>
+            {% comment %}
+            Every filter is forwarded, not just q. The link used to carry only
+            ?q= while the view read only q, so filtering by status or currency
+            and then exporting quietly handed back the whole table — see
+            commercial.filtered_cards, which both this screen and the export now
+            share so they cannot diverge again.
+            {% endcomment %}
+            <a href="{% url 'vendorlink:commercial_export' %}?q={{ query|urlencode }}&amp;status={{ status|urlencode }}&amp;currency={{ currency|urlencode }}&amp;source={{ source|urlencode }}"
+               class="vlx-btn vlx-btn--outline"><i class="fas fa-file-excel"></i> Export Excel</a>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:commercial_create' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-plus"></i> Add Rate Card</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% comment %}
+    KPI strip. "Expiring" counts cards inside the warning window; "Expired" ones
+    are counted separately rather than folded in, because they need a different
+    response — renegotiate versus stop quoting from this card entirely.
+    {% endcomment %}
+    {% comment %}
+    Two further rules, both borrowed from the grocery dashboard:
+
+    * Every tile links to the filter it names. The first two used to point at
+      the unfiltered list, so they rendered as clickable cards and did nothing.
+    * A zero is grey, not coloured. Colour is reserved for something that needs
+      acting on, so a healthy database reads calm and only real problems draw
+      the eye — an "Expired 0" tile in alarm red trains people to ignore red.
+
+    These counts cover every rate card, not the filtered set, because the strip
+    is navigation into the four states; the badge beside the title reports the
+    filtered count.
+    {% endcomment %}
+    <div class="vlx-kpis" style="margin-bottom:18px;">
+        <a href="?source=cards" class="vlx-kpi{% if source == 'cards' %} vlx-kpi--on{% endif %}">
+            <div class="vlx-kpi__value">{{ kpis.cards }}</div>
+            <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-file-invoice-dollar"></i> Rate Cards</div>
+        </a>
+        <a href="?source=bids" class="vlx-kpi{% if source == 'bids' %} vlx-kpi--on{% endif %}">
+            <div class="vlx-kpi__value">{{ kpis.bids }}</div>
+            <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-gavel"></i> RFI Bids</div>
+        </a>
+        <a href="?" class="vlx-kpi">
+            <div class="vlx-kpi__value">{{ kpis.vendors }}</div>
+            <div class="vlx-kpi__delta" style="margin-top:6px;"><i class="fas fa-truck-field"></i> Vendors Priced</div>
+        </a>
+        <a href="?status=expiring" class="vlx-kpi{% if kpis.expiring %} vlx-kpi--pending{% endif %}">
+            <div class="vlx-kpi__value">{{ kpis.expiring }}</div>
+            <div class="vlx-kpi__delta{% if kpis.expiring %} warn{% endif %}" style="margin-top:6px;"><i class="fas fa-clock"></i> Expiring ≤ {{ warning_days }}d</div>
+        </a>
+        <a href="?status=expired" class="vlx-kpi{% if kpis.expired %} vlx-kpi--rejected{% endif %}">
+            <div class="vlx-kpi__value">{{ kpis.expired }}</div>
+            <div class="vlx-kpi__delta"{% if kpis.expired %} style="margin-top:6px;color:var(--vlx-danger);"{% else %} style="margin-top:6px;"{% endif %}><i class="fas fa-triangle-exclamation"></i> Expired</div>
+        </a>
+    </div>
+
+    {% if top_vendors %}
+    <div class="vlx-chips">
+        <span class="vlx-chips__lbl"><i class="fas fa-fire" style="color:#f59e0b;"></i> Most searched</span>
+        {% for v in top_vendors %}
+        <a href="?q={{ v.name|urlencode }}" class="vlx-chip {% if query == v.name %}active{% endif %}">
+            {{ v.name }}<span class="vlx-chip__n">{{ v.cards }} entr{{ v.cards|pluralize:"y,ies" }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% comment %}
+    Source tabs. The table holds two genuinely different things — negotiated
+    rate cards and point-in-time RFI bids — so the split is offered up front
+    rather than buried in the filter row, and the counts sit on the tabs so you
+    can see there is an RFI half before clicking anything.
+    {% endcomment %}
+    <div class="vlx-srctabs">
+        <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}{% if status %}status={{ status|urlencode }}&amp;{% endif %}{% if currency %}currency={{ currency|urlencode }}{% endif %}"
+           class="vlx-srctab{% if not source %} active{% endif %}">All<span class="vlx-srctab__n">{{ kpis.total }}</span></a>
+        <a href="?source=cards{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status %}&amp;status={{ status|urlencode }}{% endif %}{% if currency %}&amp;currency={{ currency|urlencode }}{% endif %}"
+           class="vlx-srctab{% if source == 'cards' %} active{% endif %}"><i class="fas fa-file-invoice-dollar"></i> Rate Cards<span class="vlx-srctab__n">{{ kpis.cards }}</span></a>
+        <a href="?source=bids{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status %}&amp;status={{ status|urlencode }}{% endif %}{% if currency %}&amp;currency={{ currency|urlencode }}{% endif %}"
+           class="vlx-srctab{% if source == 'bids' %} active{% endif %}"><i class="fas fa-gavel"></i> RFI Bids<span class="vlx-srctab__n">{{ kpis.bids }}</span></a>
+        {% comment %}
+        No query params carried over from the other three tabs on purpose —
+        analytics has its own country/month/year filters (see
+        _bid_analytics_body.html), not the pricing table's q/status/currency,
+        so mixing the two sets would just produce filters that do nothing here.
+        {% endcomment %}
+        <a href="?source=analytics"
+           class="vlx-srctab{% if source == 'analytics' %} active{% endif %}"><i class="fas fa-chart-simple"></i> Bid Analytics</a>
+    </div>
+
+    {% if source == "analytics" %}
+    {% comment %}
+    Same partials and context the standalone Bid Analytics page renders — see
+    views._bid_analytics_context. Kept as three separate includes rather than
+    one, because the JS partial wires up #mgpt-composer unconditionally at
+    include time; the widget partial must always accompany it.
+    {% endcomment %}
+    {% include "vendorlink/_bid_analytics_body.html" %}
+    {% include "vendorlink/_bid_analytics_gpt_widget.html" %}
+    {% else %}
+    <form method="get" class="vlx-toolbar" id="vcFilterForm">
+        {% comment %}
+        The active tab rides along as a hidden field, so filtering inside a tab
+        keeps you in that tab instead of silently throwing you back to All.
+        {% endcomment %}
+        {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+        <div class="vlx-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ query }}" placeholder="Search by vendor, country, RFI subject or insurance…">
+        </div>
+        <div class="vlx-toolbar__filters">
+            {% comment %}
+            Continent → country. The Commercial Database had no geography filter
+            at all: country was a column you scanned by eye, so "what does
+            Europe cost us" could not be asked of this screen. Continent leads
+            because that is the level a rate comparison actually starts at.
+
+            The country list holds only the countries present on a rate card or
+            quote, already narrowed server-side to the chosen continent — the
+            cascade script then keeps the two consistent without a round-trip.
+            {% endcomment %}
+            <select name="continent" class="vlx-select" data-vl-continent="country"
+                    onchange="document.getElementById('vcFilterForm').submit()">
+                {% for code, name in continent_choices %}
+                <option value="{{ code }}" {% if code == continent %}selected{% endif %}>{% if code %}{{ name }}{% else %}Any continent{% endif %}</option>
+                {% endfor %}
+            </select>
+            <select name="country" class="vlx-select" data-vl-country="1"
+                    onchange="document.getElementById('vcFilterForm').submit()">
+                <option value="">Any country</option>
+                {% for c in countries %}
+                <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="vlx-select" onchange="document.getElementById('vcFilterForm').submit()">
+                {% comment %}
+                "Not set" is its own option now. Active used to be built with
+                exclude(), which keeps rows where both dates are NULL — so
+                cards with no validity at all were silently counted as Active.
+                Each option maps to one VendorCommercial.expiry_state value.
+                {% endcomment %}
+                <option value="">Any status</option>
+                <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+                <option value="expiring" {% if status == "expiring" %}selected{% endif %}>Expiring soon</option>
+                <option value="expired" {% if status == "expired" %}selected{% endif %}>Expired</option>
+                <option value="unset" {% if status == "unset" %}selected{% endif %}>No validity set</option>
+            </select>
+            <select name="currency" class="vlx-select" onchange="document.getElementById('vcFilterForm').submit()">
+                <option value="">Any currency</option>
+                {% for c in currencies %}
+                <option value="{{ c }}" {% if c == currency %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <span class="vlx-vrule"></span>
+            <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm"><i class="fas fa-filter"></i> Filter</button>
+            {% if query or status or currency or source or continent or country %}
+            <a href="{% url 'vendorlink:commercial_list' %}" class="vlx-btn vlx-btn--ghost vlx-btn--sm">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="vlx-card vlx-card--flush">
+        {% if cards %}
+        <div class="vlx-table-wrap">
+        <table class="vlx-table" style="min-width:1180px;">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Source</th>
+                    <th>Cur.</th>
+                    <th class="num">Storage</th>
+                    <th class="num">Inbound</th>
+                    <th class="num">Outbound</th>
+                    <th class="num">Pick</th>
+                    <th class="num">Packing</th>
+                    <th class="num">Customs</th>
+                    <th class="num">Last Mile</th>
+                    <th class="num">Manpower</th>
+                    <th>Contract</th>
+                    <th>Validity</th>
+                    <th class="right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cards %}
+                <tr class="{% if c.expiry_state == 'expired' %}row-expired{% elif c.expiry_state == 'soon' %}row-soon{% endif %}{% if c.is_bid %} row-bid{% endif %}">
+                    <td>
+                        <div class="vlx-cell">
+                            <span class="vlx-avatar">{{ c.vendor_name|first|upper }}</span>
+                            <div class="vlx-stack0">
+                                <a href="{{ c.detail_url }}" class="vlx-cell__title vlx-link">{{ c.vendor_name }}</a>
+                                <span class="vlx-cell__sub"><i class="fas fa-location-dot"></i> {{ c.country|default:"—" }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    {% comment %}
+                    The source cell is what stops the merge from being a lie. A
+                    bid names the RFI it answers and carries its own status, so
+                    nobody reads a rejected one-off quote as a negotiated rate.
+                    {% endcomment %}
+                    <td>
+                        {% if c.is_card %}
+                        <span class="vlx-src vlx-src--card"><i class="fas fa-file-invoice-dollar"></i> Rate Card</span>
+                        {% else %}
+                        <div class="vlx-stack0">
+                            <span class="vlx-src vlx-src--bid"><i class="fas fa-gavel"></i> RFI Bid
+                                {% if c.is_selected %}<i class="fas fa-star" title="Chosen revision" style="color:#b45309;"></i>{% endif %}
+                            </span>
+                            <a href="{{ c.detail_url }}" class="vlx-cell__sub vlx-link" title="{{ c.source_detail }}">{{ c.source_detail|truncatechars:38 }}</a>
+                            <span class="vlx-bidstat vlx-bidstat--{{ c.bid_status }}">{{ c.bid_status_label }}</span>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td><span class="vlx-cur">{{ c.currency }}</span></td>
+                    <td class="num">{{ c.obj.storage_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ c.obj.inbound_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ c.obj.outbound_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ c.obj.pick_cost|default_if_none:"—" }}</td>
+                    <td class="num">{{ c.obj.packing_cost|default_if_none:"—" }}</td>
+                    {% comment %}
+                    An RFI bid has no customs field to quote, so the cell says
+                    "n/a" rather than the "—" used for a value simply left blank.
+                    {% endcomment %}
+                    <td class="num">{% if c.is_bid %}<span class="vlx-na">n/a</span>{% else %}{{ c.obj.customs_clearance_cost|default_if_none:"—" }}{% endif %}</td>
+                    <td class="num">{{ c.obj.last_mile_charges|default_if_none:"—" }}</td>
+                    <td class="num">{{ c.obj.manpower_charges|default_if_none:"—" }}</td>
+                    <td>
+                        {% if c.contract_end %}<span class="vlx-cell__sub">{{ c.contract_start|date:"d M y"|default:"—" }} → {{ c.contract_end|date:"d M y" }}</span>
+                        {% elif c.is_bid %}<span class="vlx-cell__sub"><i class="fas fa-paper-plane"></i> quoted {{ c.submitted_at|date:"d M y" }}</span>
+                        {% else %}<span class="vlx-muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if c.expiry_state == "expired" %}
+                        <span class="vlx-expiry vlx-expiry--expired"><i class="fas fa-triangle-exclamation"></i> Expired</span>
+                        {% elif c.expiry_state == "soon" %}
+                        <span class="vlx-expiry vlx-expiry--soon"><i class="fas fa-clock"></i> {{ c.days_to_expiry }}d left</span>
+                        {% elif c.expiry_state == "ok" %}
+                        <span class="vlx-expiry vlx-expiry--ok"><i class="fas fa-circle-check"></i> {{ c.expiry_date|date:"d M y" }}</span>
+                        {% else %}
+                        <span class="vlx-expiry vlx-expiry--none">{% if c.is_bid %}No validity{% else %}Not set{% endif %}</span>
+                        {% endif %}
+                    </td>
+                    <td class="right">
+                        <div class="vlx-rowactions">
+                            {% if c.is_card %}
+                            <a href="{% url 'vendorlink:commercial_detail' c.pk %}" class="vlx-iconbtn" title="View rate card"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'vendorlink:commercial_export_pdf' c.pk %}" class="vlx-iconbtn" title="Download PDF"><i class="fas fa-file-pdf"></i></a>
+                            {% if can_edit %}
+                            <a href="{% url 'vendorlink:commercial_edit' c.pk %}" class="vlx-iconbtn" title="Edit rate card"><i class="fas fa-pen"></i></a>
+                            {% endif %}
+                            {% if is_vm_admin %}
+                            <button type="button" class="vlx-iconbtn vlx-iconbtn--danger" title="Delete rate card"
+                                    onclick="vcConfirmDelete('{% url 'vendorlink:commercial_delete' c.pk %}', '{{ c.vendor_name|escapejs }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                            {% else %}
+                            {% comment %}
+                            A bid is owned by the RFI flow, so this screen reads
+                            it and links out rather than offering edit or delete
+                            controls that would not belong here.
+                            {% endcomment %}
+                            <a href="{{ c.detail_url }}" class="vlx-iconbtn" title="Open the RFI this bid answers"><i class="fas fa-arrow-up-right-from-square"></i></a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        {% comment %}
+        Three genuinely different empty states. The old screen showed "Add the
+        first rate card" whenever the table was empty — including when the
+        database held RFI bids the whole time and the user had simply filtered
+        them out, which read as "there is no pricing here" when there was.
+        {% endcomment %}
+        <div class="vlx-empty">
+            <div class="vlx-empty__icon"><i class="fas fa-file-invoice-dollar"></i></div>
+            {% if query or status or currency %}
+            <h3>Nothing matches those filters</h3>
+            <p>
+                {{ kpis.total }} entr{{ kpis.total|pluralize:"y,ies" }} in the database
+                ({{ kpis.cards }} rate card{{ kpis.cards|pluralize }}, {{ kpis.bids }} RFI bid{{ kpis.bids|pluralize }}).
+                Try widening your search.
+            </p>
+            <a href="{% url 'vendorlink:commercial_list' %}" class="vlx-btn vlx-btn--outline" style="margin-top:16px;">Clear filters</a>
+            {% elif source == "cards" and kpis.bids %}
+            <h3>No rate cards yet</h3>
+            <p>Nothing has been negotiated into a rate card — but {{ kpis.bids }} RFI bid{{ kpis.bids|pluralize }}
+               {{ kpis.bids|pluralize:"has,have" }} been quoted and {{ kpis.bids|pluralize:"is,are" }} already in here.</p>
+            <a href="?source=bids" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-gavel"></i> See the {{ kpis.bids }} RFI bid{{ kpis.bids|pluralize }}</a>
+            {% elif source == "bids" %}
+            <h3>No RFI bids yet</h3>
+            <p>Once vendors respond to a request with pricing, their quotes appear here alongside the rate cards.</p>
+            <a href="{% url 'vendorlink:request_list' %}" class="vlx-btn vlx-btn--outline" style="margin-top:16px;"><i class="fas fa-paper-plane"></i> Go to Requests</a>
+            {% else %}
+            <h3>No commercial data yet</h3>
+            <p>Add a rate card, or raise an RFI and let vendors quote — both land on this screen.</p>
+            {% if can_edit %}
+            <a href="{% url 'vendorlink:commercial_create' %}" class="vlx-btn vlx-btn--primary" style="margin-top:16px;"><i class="fas fa-plus"></i> Add Rate Card</a>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+</div>
+
+{% if is_vm_admin %}
+<div class="vlx-modal-overlay" id="vcDeleteModal">
+    <div class="vlx-modal">
+        <div class="vlx-modal__head">
+            <h3><i class="fas fa-triangle-exclamation" style="color:var(--vlx-danger);"></i> Delete rate card?</h3>
+            <button type="button" class="vlx-modal__close" onclick="vcCloseModal('vcDeleteModal')">&times;</button>
+        </div>
+        <div class="vlx-modal__body">
+            You are about to permanently delete the rate card for <b id="vcDeleteName"></b>.
+            This cannot be undone. The vendor itself is not affected.
+        </div>
+        <div class="vlx-modal__foot">
+            <button type="button" class="vlx-btn vlx-btn--outline vlx-btn--sm" onclick="vcCloseModal('vcDeleteModal')">Cancel</button>
+            <form method="post" id="vcDeleteForm" style="margin:0;">{% csrf_token %}
+                <button type="submit" class="vlx-btn vlx-btn--danger vlx-btn--sm"><i class="fas fa-trash"></i> Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vl-refcopy.js' %}"></script>
+{% if source == "analytics" %}
+{% include "vendorlink/_bid_analytics_js.html" %}
+{% endif %}
+<script>
+function vcCloseModal(id) { document.getElementById(id).classList.remove('open'); }
+function vcConfirmDelete(url, name) {
+    var form = document.getElementById('vcDeleteForm');
+    form.setAttribute('action', url);
+    document.getElementById('vcDeleteName').textContent = name;
+    document.getElementById('vcDeleteModal').classList.add('open');
+}
+document.querySelectorAll('.vlx-modal-overlay').forEach(function (o) {
+    o.addEventListener('click', function (e) { if (e.target === o) o.classList.remove('open'); });
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') { return; }
+    var open = document.querySelector('.vlx-modal-overlay.open');
+    if (open) { open.classList.remove('open'); }
+});
+</script>
+{% endblock %}

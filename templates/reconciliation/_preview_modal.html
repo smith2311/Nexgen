@@ -1,0 +1,42 @@
+{% comment %}
+The look-before-you-take-it modal, shared by every preview in the module:
+the records export, the filing summary export, and the full 204-column view of
+a staged upload.
+
+One piece of markup for all three because they are the same question asked at
+different moments — "is this the file I meant?" — and three modals that
+drifted apart would answer it three different ways. The body is filled with
+HTML built server-side from the exporter's own palette, so the preview is the
+file rather than a rendering of the same data in different colours.
+{% endcomment %}
+<div class="rc-modal rc-preview-modal" id="rcPvModal" hidden>
+  <div class="rc-modal-box rc-preview-box">
+
+    <div class="rc-modal-hdr">
+      <div>
+        <h2><i class="fas fa-eye"></i> <span id="rcPvTitle">Preview</span></h2>
+        <p class="rc-sub" id="rcPvSub"></p>
+      </div>
+      <button type="button" class="rc-icon-btn" data-pv-close aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="rc-preview-host" id="rcPvHost">
+      <div class="rc-preview-loading" id="rcPvLoading">
+        <span class="rc-spinner"></span> Building the preview&hellip;
+      </div>
+      <div class="rc-preview-sheet" id="rcPvSheet"></div>
+    </div>
+
+    <div class="rc-modal-foot">
+      <span class="rc-kpi-hint" id="rcPvNote"></span>
+      <span class="rc-spacer"></span>
+      <button type="button" class="rc-btn" data-pv-close>Close</button>
+      <a class="rc-btn rc-btn-success" id="rcPvDownload" href="#" hidden>
+        <i class="fas fa-file-excel"></i> Download .xlsx
+      </a>
+    </div>
+
+  </div>
+</div>

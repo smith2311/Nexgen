@@ -1,0 +1,67 @@
+# Build mode: builds the image from this checkout and bind-mounts the source,
+# so template/CSS edits are live without a rebuild.
+#
+#   podman-compose up -d
+#
+# Its counterpart is docker-compose.registry.yml, which runs the pre-built
+# image from the GitLab registry instead. The two are MUTUALLY EXCLUSIVE at
+# runtime — same compose project (nexgene-merilin), same container_name
+# (django_app), and both use network_mode: host on port 8020. Only one can be
+# up at a time; `down` from either file stops whichever is running.
+#
+# Keep the two in sync: `command:`, `volumes:`, and env config are duplicated
+# between them on purpose, so a change here usually needs the same change there.
+
+services:
+  db:
+    image: postgres:16
+    container_name: nexgen_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexgen}
+      POSTGRES_USER: ${POSTGRES_USER:-nexgen_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexgen@123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    # Build tags straight into the GitLab registry name, so no manual
+    # `podman tag` step is needed before pushing. Bump APP_TAG in .env
+    # (or export it) to cut a new version.
+    image: registry-gitlab.e-meril.in/nexgen-it/nexgen.e-meril.in/app:${APP_TAG:-v5.1.0}
+    build: .
+    container_name: django_app
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "7000:7000"
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    command: >
+      sh -c "python manage.py heal_squashed_migrations &&
+             python manage.py migrate &&
+             { [ -z \"$AI_AGENT_MYSQL_HOST\" ] || python manage.py migrate --database=ai_sales_agent_dashboard; } &&
+             python manage.py seed_agents &&
+             python manage.py collectstatic --noinput --clear &&
+             exec daphne -b 0.0.0.0 -p 7000 -v 2 core.asgi:application"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+    # Every key in .env reaches the container, so adding a new setting there
+    # never requires editing this file. Matches docker-compose.registry.yml.
+    env_file:
+      - .env
+    environment:
+      # `environment:` wins over `env_file:` for the same key.
+      # "db" is the compose service name — resolves via the compose network.
+      DB_HOST: db
+      DB_PORT: 5432
+      DJANGO_SETTINGS_MODULE: core.settings
+      PYTHONUNBUFFERED: 1
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,gpt.e-meril.in}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+
+volumes:
+  static_volume:
+  postgres_data:

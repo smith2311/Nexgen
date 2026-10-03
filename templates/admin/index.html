@@ -1,0 +1,87 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% comment %}
+  Serves both the admin dashboard and, via Django's admin/app_index.html which
+  extends this file, a single app's index. `app_label` is only present in the
+  app-index context, so it is what switches the header copy and hides the
+  filter (filtering one card is pointless).
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/dashboard.css" %}">{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% if app_label %} nx-app-index{% endif %}{% endblock %}
+
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content_title %}{% endblock %}
+{% block content_subtitle %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <div class="nx-dash-head">
+    <div>
+      {% if app_label %}
+        <p class="nx-eyebrow">{{ app_label }}</p>
+        <h1 class="nx-dash-title">{% for app in app_list %}{{ app.name }}{% endfor %}</h1>
+        {% for app in app_list %}
+          <p class="nx-dash-sub">{% blocktranslate count counter=app.models|length %}{{ counter }} model registered under this app.{% plural %}{{ counter }} models registered under this app.{% endblocktranslate %}</p>
+        {% endfor %}
+      {% else %}
+        <p class="nx-eyebrow">{% translate 'All apps' %}</p>
+        <h1 class="nx-dash-title">{% translate 'NexGen' %} <em>{% translate 'data administration' %}</em></h1>
+        <p class="nx-dash-sub">{% translate 'Every model registered on the platform. Each app carries its own colour so you can find it by sight.' %}</p>
+      {% endif %}
+    </div>
+
+    {% if not app_label %}
+      <div class="nx-grid-filter">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.6" stroke="currentColor" stroke-width="1.8"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input type="search" id="nx-grid-filter" autocomplete="off"
+               placeholder="{% translate 'Filter apps and models — press /' %}"
+               aria-label="{% translate 'Filter apps and models' %}">
+      </div>
+    {% endif %}
+  </div>
+
+  {% include "admin/nexgen_app_grid.html" with app_list=app_list %}
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+  <div class="module" id="recent-actions-module">
+    <h2>{% translate 'Recent actions' %}</h2>
+    <h3>{% translate 'My actions' %}</h3>
+    {% load log %}
+    {% get_admin_log 10 as admin_log for_user user %}
+    {% if not admin_log %}
+      <p>{% translate 'Nothing yet. Changes you make will be listed here.' %}</p>
+    {% else %}
+      <ul class="actionlist">
+        {% for entry in admin_log %}
+          <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+            <span class="visually-hidden">{% if entry.is_addition %}{% translate 'Added:' %}{% elif entry.is_change %}{% translate 'Changed:' %}{% elif entry.is_deletion %}{% translate 'Deleted:' %}{% endif %}</span>
+            {% if entry.is_deletion or not entry.get_admin_url %}
+              {{ entry.object_repr }}
+            {% else %}
+              <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+            {% endif %}
+            <br>
+            {% if entry.content_type %}
+              <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
+            {% else %}
+              <span class="mini quiet">{% translate 'Unknown content' %}</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

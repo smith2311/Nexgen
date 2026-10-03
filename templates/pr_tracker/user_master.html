@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}PR User Master{% endblock %}
+{% block page_title %}PR Tracker — User Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pr_tracker/pr.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'pr_tracker:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        PR Tracker
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-users-gear"></i> User Master</h1>
+          <p>Add or remove users from the PR Tracker. Assign them as Manager or Member.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ users_data|length }}</div>
+            <div class="lm-hstat-lbl">Users</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lm-tabs">
+        <button class="lm-tab-btn {% if not upload_results %}active{% endif %}"
+                data-tab="tab-manage" onclick="switchPrTab('tab-manage')">
+          <i class="fas fa-list"></i> Manage Users
+        </button>
+        <button class="lm-tab-btn" data-tab="tab-add" onclick="switchPrTab('tab-add')">
+          <i class="fas fa-user-plus"></i> Add User
+        </button>
+        <button class="lm-tab-btn {% if upload_results %}active{% endif %}"
+                data-tab="tab-excel" onclick="switchPrTab('tab-excel')">
+          <i class="fas fa-file-excel"></i> Bulk Upload
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="prt-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Add User tab -->
+    <div class="lm-tab-content" id="tab-add">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_user">
+
+        <div class="prt-form-section">
+          <div class="prt-form-section-hdr">
+            <i class="fas fa-user-plus section-icon"></i>
+            <h3>Add a User</h3>
+          </div>
+          <div class="prt-form-body">
+            <div class="prt-form-grid cols-2">
+
+              <div class="prt-field">
+                <label class="prt-label">Email <span class="req">*</span></label>
+                <input class="prt-input" type="email" name="email" placeholder="jane.doe@merillife.com" required>
+                <span class="prt-hint">If this email already has an account, its role will be updated instead.</span>
+              </div>
+
+              <div class="prt-field">
+                <label class="prt-label">PR Role</label>
+                <select class="prt-select" name="role">
+                  <option value="">No Access</option>
+                  <option value="manager">Manager</option>
+                  <option value="member">Member</option>
+                  <option value="both">Both (Manager &amp; Member)</option>
+                </select>
+              </div>
+
+              <div class="prt-field">
+                <label class="prt-label">First Name</label>
+                <input class="prt-input" type="text" name="first_name" placeholder="Jane">
+              </div>
+
+              <div class="prt-field">
+                <label class="prt-label">Last Name</label>
+                <input class="prt-input" type="text" name="last_name" placeholder="Doe">
+              </div>
+
+            </div>
+          </div>
+          <div class="prt-form-actions">
+            <button type="submit" class="prt-btn prt-btn-navy">
+              <i class="fas fa-plus"></i> Add User
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Excel tab -->
+    <div class="lm-tab-content {% if upload_results %}active{% endif %}" id="tab-excel">
+      <div class="prt-form-section">
+        <div class="prt-form-section-hdr">
+          <i class="fas fa-file-excel section-icon"></i>
+          <h3>Bulk Upload via Excel</h3>
+        </div>
+        <div class="prt-form-body">
+
+          <div class="prt-alert warning" style="margin-bottom:16px;">
+            <i class="fas fa-circle-info"></i>
+            <div>
+              Sheet must have <strong>First Name</strong>, <strong>Last Name</strong>, <strong>Email</strong> columns, plus <strong>Manager</strong> / <strong>Member</strong> columns (Y/N).
+              Mark both Manager and Member as Y to grant a user both accesses.
+              New accounts are created automatically for unrecognized emails.
+              <a href="{% url 'pr_tracker:user_template_download' %}" class="prt-btn prt-btn-ghost prt-btn-sm" style="margin-left:10px;">
+                <i class="fas fa-download"></i> Download Template
+              </a>
+            </div>
+          </div>
+
+          <form method="post" enctype="multipart/form-data" id="userExcelUploadForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import_users">
+
+            <div class="prt-upload-zone" id="userUploadZone" onclick="document.getElementById('userExcelFile').click()">
+              <div class="upload-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+              <p id="userUploadLabel">Click or drag &amp; drop your Excel file here</p>
+              <span>.xlsx only</span>
+              <input type="file" id="userExcelFile" name="excel_file" accept=".xlsx" style="display:none"
+                     onchange="document.getElementById('userUploadLabel').textContent=this.files[0]?.name||'Choose file'">
+            </div>
+
+            <div style="margin-top:14px;">
+              <button type="submit" class="prt-btn prt-btn-teal">
+                <i class="fas fa-upload"></i> Upload &amp; Process
+              </button>
+            </div>
+          </form>
+
+          {% if upload_results %}
+          <div style="margin-top:20px;">
+            <h4 style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 10px;">Upload Results ({{ upload_results|length }} rows)</h4>
+            <div class="prt-tbl-wrap">
+              <table class="prt-tbl">
+                <thead>
+                  <tr><th>Row</th><th>Email</th><th>Result</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  {% for r in upload_results %}
+                  <tr>
+                    <td class="prt-mono" style="color:var(--text-muted)">{{ r.row }}</td>
+                    <td class="prt-mono"><strong>{{ r.email }}</strong></td>
+                    <td>
+                      {% if r.status == 'error' %}
+                        <span style="color:var(--red);font-weight:600;"><i class="fas fa-xmark"></i> Error</span>
+                      {% elif r.status == 'Created' %}
+                        <span style="color:var(--green);font-weight:600;"><i class="fas fa-plus"></i> Created</span>
+                      {% else %}
+                        <span style="color:var(--blue);font-weight:600;"><i class="fas fa-check"></i> Updated</span>
+                      {% endif %}
+                    </td>
+                    <td style="font-size:12.5px;color:var(--text-muted)">{{ r.msg|default:"—" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Manage Users tab -->
+    <div class="lm-tab-content {% if not upload_results %}active{% endif %}" id="tab-manage">
+
+    <!-- Role legend + search -->
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;background:var(--blue-lt);color:var(--blue);padding:4px 12px;border-radius:20px;">
+          <i class="fas fa-circle" style="font-size:7px;"></i> PR Manager
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;background:var(--accent-lt);color:var(--accent);padding:4px 12px;border-radius:20px;">
+          <i class="fas fa-circle" style="font-size:7px;"></i> PR Member
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;background:#f1f5f9;color:var(--text-muted);padding:4px 12px;border-radius:20px;">
+          <i class="fas fa-circle" style="font-size:7px;"></i> No Access
+        </span>
+      </div>
+
+      <form method="get" style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <input class="prt-input" type="text" name="q" value="{{ search }}"
+               placeholder="Search name / email / username…" style="min-width:260px;">
+        <button type="submit" class="prt-btn prt-btn-navy prt-btn-sm">
+          <i class="fas fa-search"></i>
+        </button>
+        {% if search %}
+        <a href="{% url 'pr_tracker:user_master' %}" class="prt-btn prt-btn-ghost prt-btn-sm">
+          <i class="fas fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- Table -->
+    <div class="prt-tbl-wrap">
+      {% if users_data %}
+      <div style="overflow-x:auto;">
+        <table class="prt-tbl" id="userTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>PR Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ud in users_data %}
+            <tr>
+              <td class="prt-mono" style="color:var(--text-muted)">{{ forloop.counter }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:32px;height:32px;border-radius:50%;background:{% if ud.pr_role == 'manager' %}var(--blue-lt){% elif ud.pr_role == 'member' %}var(--accent-lt){% else %}#f1f5f9{% endif %};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:{% if ud.pr_role == 'manager' %}var(--blue){% elif ud.pr_role == 'member' %}var(--accent){% else %}var(--text-muted){% endif %};flex-shrink:0;">
+                    {{ ud.user.first_name|first|upper|default:ud.user.username|first|upper }}
+                  </div>
+                  <div>
+                    <div style="font-weight:600;font-size:13.5px;color:var(--navy);">
+                      {{ ud.user.get_full_name|default:ud.user.username }}
+                    </div>
+                    {% if ud.user.get_full_name and ud.user.get_full_name != ud.user.username %}
+                    <div style="font-size:11.5px;color:var(--text-muted);">{{ ud.user.username }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="prt-mono" style="font-size:12.5px;">{{ ud.user.username }}</td>
+              <td style="font-size:12.5px;color:var(--text-muted);">{{ ud.user.email|default:"—" }}</td>
+              <td>
+                {% if ud.pr_role == 'both' %}
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;background:var(--blue-lt);color:var(--blue);padding:3px 10px;border-radius:20px;margin-right:4px;">
+                    <i class="fas fa-user-tie" style="font-size:9px;"></i> Manager
+                  </span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;background:var(--accent-lt);color:var(--accent);padding:3px 10px;border-radius:20px;">
+                    <i class="fas fa-user" style="font-size:9px;"></i> Member
+                  </span>
+                {% elif ud.pr_role == 'manager' %}
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;background:var(--blue-lt);color:var(--blue);padding:3px 10px;border-radius:20px;">
+                    <i class="fas fa-user-tie" style="font-size:9px;"></i> Manager
+                  </span>
+                {% elif ud.pr_role == 'member' %}
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;background:var(--accent-lt);color:var(--accent);padding:3px 10px;border-radius:20px;">
+                    <i class="fas fa-user" style="font-size:9px;"></i> Member
+                  </span>
+                {% else %}
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;background:#f1f5f9;color:var(--text-muted);padding:3px 10px;border-radius:20px;">
+                    <i class="fas fa-ban" style="font-size:9px;"></i> No Access
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  {% if ud.pr_role != 'manager' and ud.pr_role != 'both' %}
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+                    <input type="hidden" name="action" value="make_manager">
+                    <button type="submit" class="prt-btn prt-btn-sm"
+                            style="background:var(--blue-lt);color:var(--blue);border:none;cursor:pointer;"
+                            title="Add PR Manager access">
+                      <i class="fas fa-user-tie"></i> Manager
+                    </button>
+                  </form>
+                  {% endif %}
+
+                  {% if ud.pr_role != 'member' and ud.pr_role != 'both' %}
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+                    <input type="hidden" name="action" value="make_member">
+                    <button type="submit" class="prt-btn prt-btn-sm"
+                            style="background:var(--accent-lt);color:var(--accent);border:none;cursor:pointer;"
+                            title="Add PR Member access">
+                      <i class="fas fa-user"></i> Member
+                    </button>
+                  </form>
+                  {% endif %}
+
+                  {% if ud.pr_role != 'both' %}
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+                    <input type="hidden" name="action" value="make_both">
+                    <button type="submit" class="prt-btn prt-btn-sm"
+                            style="background:var(--navy-lt, #eef2ff);color:var(--navy);border:none;cursor:pointer;"
+                            title="Give both Manager and Member access">
+                      <i class="fas fa-user-group"></i> Both
+                    </button>
+                  </form>
+                  {% endif %}
+
+                  {% if ud.pr_role != 'none' %}
+                  <form method="post" style="display:inline;"
+                        onsubmit="return confirm('Remove {{ ud.user.get_full_name|default:ud.user.username|escapejs }} from PR Tracker?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+                    <input type="hidden" name="action" value="remove">
+                    <button type="submit" class="prt-btn prt-btn-sm"
+                            style="background:var(--red-lt);color:var(--red);border:none;cursor:pointer;"
+                            title="Remove from PR Tracker">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="prt-empty">
+        <i class="fas fa-users"></i>
+        <p>No users found{% if search %} matching "{{ search }}"{% endif %}.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    </div><!-- /#tab-manage -->
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pr_tracker/pr.js' %}"></script>
+{% endblock %}

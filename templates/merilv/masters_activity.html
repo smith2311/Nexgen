@@ -1,0 +1,83 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Master Data → Activity Log. Every mutating action is logged, filterable by action.{% endcomment %}
+
+{% block mv_title %}Activity Log — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Activity Log</span>
+{% endblock %}
+{% block mv_heading %}Activity Log{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Every admin action across Meril-V, newest first.</p>{% endblock %}
+{% block mv_actions %}
+{% comment %}
+Carries the action filter, so the download is whatever the table is showing
+rather than always the whole log. Spelled out instead of via mv_qs because
+`action` is the only facet _filtered_activity reads, and passing ?page= would
+be misleading — the export is never one page.
+{% endcomment %}
+<a href="{% url 'merilv:masters_activity_export' %}{% if action %}?action={{ action|urlencode }}{% endif %}"
+   class="mv-btn mv-btn--primary">
+    {% icon "download" %} {% if action %}Download filtered log{% else %}Download log{% endif %}
+</a>
+{% endblock %}
+
+{% block mv_body %}
+<div class="mv-card mv-card--flush">
+    <form method="get" class="mv-table-toolbar">
+        {# The stored slug stays the submitted value; only the label is humanised. #}
+        <select class="mv-select" name="action" style="width:auto;min-width:220px;" onchange="this.form.submit()">
+            <option value="">All actions</option>
+            {% for a in known_actions %}<option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a|humanise_action }}</option>{% endfor %}
+        </select>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    </form>
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+        <tbody>
+            {% comment %}
+            Details used to print `{{ log.metadata }}` directly. metadata is a
+            JSONField, so that renders Python's repr — `{'lines': 183}`, and a
+            bare `{}` on the many actions that carry no extra detail. It read as
+            a debug dump. activity_details turns it into label/value pairs and
+            gives an honest dash when there is genuinely nothing to show; the
+            expandable row underneath keeps the full payload as real JSON for
+            anyone who needs it.
+            {% endcomment %}
+            {% for log in page_obj %}
+            <tr data-mv-expand="mvActLog{{ log.pk }}" tabindex="0">
+                <td class="mv-t-caption" style="width:130px;">{{ log.created_at|date:"d M, H:i:s" }}</td>
+                <td>{{ log.actor|display_name:"System" }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ log.action|humanise_action }}</span></td>
+                <td class="mv-fg-3">{{ log.target_type }} {{ log.target_id }}</td>
+                <td class="mv-t-caption">
+                    {% with pairs=log.metadata|activity_details %}
+                    {% if pairs %}
+                        {% for pair in pairs %}<span class="mv-detail-pair"><span class="mv-detail-pair__key">{{ pair.label }}</span>{{ pair.value|truncatechars:40 }}</span>{% endfor %}
+                    {% else %}
+                        <span class="mv-fg-3">—</span>
+                    {% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+            <tr class="mv-row-detail" id="mvActLog{{ log.pk }}" hidden>
+                <td colspan="5"><pre class="mv-mono mv-t-caption" style="margin:0;white-space:pre-wrap;">{{ log.metadata|pretty_json }}</pre></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "scroll" 48 %}<div class="mv-empty__title">No activity recorded</div></div>
+    {% endif %}
+</div>
+{% endblock %}

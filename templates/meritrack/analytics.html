@@ -1,0 +1,68 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Analytics — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/analytics.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-chart-bar"></i> Analytics</h1>
+<p>Inventory insights, expiry trends, and scanning activity</p>
+{% endblock %}
+
+{% block page_content %}
+    <!-- ── SECTION 1: INVENTORY OVERVIEW ──────────── -->
+    <div class="section-title"><i class="fas fa-warehouse"></i> &nbsp;Inventory Overview</div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-pie" style="color:var(--mt-purple)"></i> Status Breakdown</h3>
+            <div id="statusBreakdown">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+        <div class="chart-card">
+            <h3><i class="fas fa-hospital" style="color:var(--mt-primary)"></i> Stock by Hospital</h3>
+            <div id="hospitalInventory" style="max-height:300px;overflow-y:auto;">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+    </div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3><i class="fas fa-box" style="color:var(--mt-secondary)"></i> Top Products On Shelf</h3>
+            <div id="topProducts">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+        <div class="chart-card">
+            <h3><i class="fas fa-globe-europe" style="color:var(--mt-purple)"></i> Stock by Country</h3>
+            <div id="countryBreakdown">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+    </div>
+
+    <!-- ── SECTION 2: EXPIRY ANALYSIS ─────────────── -->
+    <div class="section-title"><i class="fas fa-calendar-times"></i> &nbsp;Expiry Analysis</div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3><i class="fas fa-exclamation-triangle" style="color:var(--mt-danger)"></i> Expiry Urgency Breakdown</h3>
+            <div id="expiryBreakdown">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+        <div class="chart-card">
+            <h3><i class="fas fa-hospital-alt" style="color:var(--mt-orange)"></i> At-Risk Stock by Hospital</h3>
+            <div id="expiryByHospital" style="max-height:300px;overflow-y:auto;">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+    </div>
+
+    <!-- ── SECTION 3: SCAN ACTIVITY ───────────────── -->
+    <div class="section-title"><i class="fas fa-qrcode"></i> &nbsp;Scan Activity</div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-bar" style="color:var(--mt-primary)"></i> Sessions by Type</h3>
+            <div id="scanByType">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+        <div class="chart-card">
+            <h3><i class="fas fa-history" style="color:var(--mt-secondary)"></i> Recent Sessions (last 30 days)</h3>
+            <div id="recentSessions" style="max-height:320px;overflow-y:auto;">{% include 'meritrack/_sk_bars.html' with bars="1234" %}</div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'meritrack/js/analytics.js' %}"></script>
+{% endblock %}

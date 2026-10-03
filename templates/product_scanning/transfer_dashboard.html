@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Stock Transfers | Meril SA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/transfer_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>🔄 Stock Transfers</h1>
+        <div style="display:flex; gap:12px; align-items:center;">
+            <a href="{% url 'product_scanning:dashboard' %}" class="nav-link">← Back to Audits</a>
+            {% if can_use_scanner %}
+            <a href="{% url 'product_scanning:transfer_scanner' %}" class="btn-new">➕ New Transfer</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'active')">🟢 Ongoing</button>
+        <button class="tab-btn" onclick="switchTab(event, 'pending')">⚠️ Awaiting Confirmation</button>
+        <button class="tab-btn" onclick="switchTab(event, 'closed')">🔒 Completed</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="activeCount" style="color:#f59e0b;">0</div>
+            <div class="stat-label">🟢 Ongoing</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="pendingCount" style="color:#ef4444;">0</div>
+            <div class="stat-label">⚠️ Awaiting Confirmation</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="closedCount">0</div>
+            <div class="stat-label">🔒 Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="totalProducts">0</div>
+            <div class="stat-label">📦 Total Products</div>
+        </div>
+    </div>
+
+    <!-- Active Tab -->
+    <div id="active" class="tab-content active">
+        <div id="activeList" class="sessions-grid">
+            <div class="spinner" style="grid-column:1/-1;"></div>
+        </div>
+    </div>
+
+    <!-- Pending Tab -->
+    <div id="pending" class="tab-content">
+        <div id="pendingList" class="sessions-grid"></div>
+    </div>
+
+    <!-- Closed Tab -->
+    <div id="closed" class="tab-content">
+        <div id="closedList" class="sessions-grid"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"canUseDashboard":{{ can_use_dashboard|yesno:"true,false" }},"canUseScanner":{{ can_use_scanner|yesno:"true,false" }}}</script>
+<script src="{% static 'js/transfer_dashboard.js' %}"></script>
+{% endblock %}

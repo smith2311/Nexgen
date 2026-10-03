@@ -1,0 +1,72 @@
+{% comment %}
+Matomo tracking, shared by every user-facing page.
+
+Lives here rather than only in base.html because several apps render full HTML
+documents of their own (AI Sales Agent, Shipment Notifications, the auth pages,
+the print/approval views) and so never inherit base.html — those pages were
+invisible to Matomo, which made the per-module breakdown under-count them.
+Include this immediately before </body> in any template that does not extend
+base.html:
+
+    {% include "_matomo.html" %}
+
+`matomo_module` and `MATOMO_ENABLED` come from core.context_processors.app_settings,
+so the include needs no context of its own — but the template must be rendered
+with a request (render(request, ...)), otherwise the context processors never run.
+
+The guard is MATOMO_ENABLED and not Django's `debug`: that variable is only set
+when DEBUG is on AND the request IP is in INTERNAL_IPS, and behind nginx every
+request comes from 127.0.0.1, so on a DEBUG deployment `not debug` silently
+blocked tracking for real visitors.
+
+Note it is the context processor's MATOMO_ENABLED, not settings.MATOMO_ENABLED:
+the setting is only the kill switch, and the processor also requires the request
+host to be a production one (settings.MATOMO_HOSTS). So a dev container is out
+of the analytics by default, without anyone having to configure it.
+{% endcomment %}
+<!-- ── Matomo Analytics ────────────────────────────────── -->
+{% if MATOMO_ENABLED %}
+<script>
+  var _paq = window._paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+
+  {% if user.is_authenticated %}
+  /* Track authenticated user details.
+     Custom dimension IDs are unique per site across scopes, and this site
+     only has 1, 2 and 3 configured — 3 being the Action-scoped "Module"
+     dimension used below. Email (was 3, collided) and role (was 4, never
+     existed) are therefore not sent: Matomo was discarding both anyway.
+     To restore them, create Visit dimensions in Matomo and use the IDs it
+     assigns — do not guess an index, an unconfigured one is dropped. */
+  _paq.push(['setCustomDimension', 1, '{{ user.username }}']);
+  _paq.push(['setCustomDimension', 2, '{{ user.get_full_name|default:user.username }}']);
+  _paq.push(['setUserId', '{{ user.username }}']);
+  {% else %}
+  /* Track anonymous user */
+  _paq.push(['setCustomDimension', 1, 'anonymous']);
+  {% endif %}
+
+  /* Module hits, so the dashboard can break traffic down per app instead of
+     one flat page list. Two mechanisms, because Matomo reports them apart:
+       - dimension 3 drives "Custom Dimensions" totals and segmenting. This
+         is the ID Matomo assigned to the Action-scoped "Module" dimension
+         on site 14; it is site-specific, so a new Matomo site needs its own
+         dimension created and this number updated to match.
+       - prefixing the title makes Matomo's Page Titles report a drill-down
+         tree (it splits titles on "/"), e.g. MeriTrack > MeriTrack Scanner.
+         This one needs no Matomo-side setup. */
+  _paq.push(['setCustomDimension', 3, '{{ matomo_module|escapejs }}']);
+  _paq.push(['setDocumentTitle', '{{ matomo_module|escapejs }}/' + document.title]);
+
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="https://analytics.e-meril.in/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '14']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+{% endif %}

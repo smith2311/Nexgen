@@ -1,0 +1,346 @@
+/* ── Stat Cards ─────────────────────────────────────────── */
+.stat-card {
+    padding: 20px;
+    border-radius: 14px;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    text-align: center;
+    transition: transform 0.2s ease;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card i {
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #3f46ad;
+    margin: 10px 0;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Page Header ─────────────────────────────────────────── */
+.page-header {
+    background: linear-gradient(135deg, #0076c8 0%, #00b5e2 100%);
+    color: white;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-radius: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: white;
+}
+
+.page-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+    color: rgba(255,255,255,0.85);
+}
+
+.page-header .text-muted {
+    color: rgba(255,255,255,0.8) !important;
+}
+
+.page-header .btn-outline-secondary {
+    color: white;
+    border-color: rgba(255,255,255,0.5);
+}
+
+.page-header .btn-outline-secondary:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: white;
+    color: white;
+}
+
+/* ── Delete Page Header ──────────────────────────────────── */
+.page-header.danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+/* ── Tables ──────────────────────────────────────────────── */
+.table thead th {
+    background-color: #f9fafb;
+    border-color: #e5e7eb;
+    font-weight: 600;
+    color: #374151;
+    padding: 12px;
+    white-space: nowrap;
+}
+
+.table tbody td {
+    padding: 12px;
+    border-color: #e5e7eb;
+    vertical-align: middle;
+}
+
+.table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.card-header {
+    font-weight: 600;
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 14px 18px;
+}
+
+/* ── Forms ───────────────────────────────────────────────── */
+.form-control:focus,
+.form-select:focus {
+    border-color: #3f46ad;
+    box-shadow: 0 0 0 0.2rem rgba(63,70,173,0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-group .btn {
+    border-radius: 6px;
+}
+
+/* ── Pagination ──────────────────────────────────────────── */
+.pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.page-link {
+    border-radius: 6px !important;
+}
+
+/* ── Drop Area (Upload) ──────────────────────────────────── */
+.drop-area {
+    border: 2px dashed #0076c8;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.drop-area:hover,
+.drop-area.drag-over {
+    background: rgba(0, 118, 200, 0.05);
+    border-color: #00b5e2;
+}
+
+/* ── Code blocks ─────────────────────────────────────────── */
+code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+══════════════════════════════════════════════════════════ */
+
+/* ── Desktop (1200px+) ───────────────────────────────────── */
+@media (min-width: 1200px) {
+    .stat-value {
+        font-size: 36px;
+    }
+}
+
+/* ── Laptop (992px - 1199px) ─────────────────────────────── */
+@media (max-width: 1199px) {
+    .page-title {
+        font-size: 1.8rem;
+    }
+
+    .stat-value {
+        font-size: 28px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+}
+
+/* ── Tablet (768px - 991px) ──────────────────────────────── */
+@media (max-width: 991px) {
+    .page-header {
+        padding: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .page-title {
+        font-size: 1.6rem;
+    }
+
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-value {
+        font-size: 24px;
+    }
+
+    .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .btn-group .btn {
+        flex: 1;
+    }
+
+    .d-flex.gap-2.flex-wrap {
+        flex-wrap: wrap;
+    }
+}
+
+/* ── Mobile (max 767px) ──────────────────────────────────── */
+@media (max-width: 767px) {
+    .page-header {
+        padding: 1.25rem;
+        border-radius: 8px;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .page-title {
+        font-size: 1.4rem;
+    }
+
+    .page-header p {
+        font-size: 0.95rem;
+    }
+
+    .stat-card {
+        padding: 14px;
+        margin-bottom: 0;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: 8px;
+        font-size: 0.88rem;
+        white-space: normal;
+    }
+
+    .btn,
+    .btn-sm {
+        font-size: 0.88rem;
+        padding: 6px 12px;
+        white-space: normal;
+    }
+
+    .d-flex.gap-2.flex-wrap > .btn {
+        flex: 1 1 100%;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.9rem;
+    }
+
+    .card-header {
+        padding: 12px 14px;
+        font-size: 0.95rem;
+    }
+
+    .drop-area {
+        padding: 1.25rem;
+    }
+
+    .pagination .page-link {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+}
+
+/* ── Small Mobile (max 575px) ────────────────────────────── */
+@media (max-width: 575px) {
+    .page-title {
+        font-size: 1.2rem;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .stat-label {
+        font-size: 11px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: 6px;
+        font-size: 0.82rem;
+    }
+
+    .btn,
+    .btn-sm {
+        font-size: 0.82rem;
+        padding: 5px 10px;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.85rem;
+    }
+
+    .card {
+        border-radius: 8px;
+    }
+}

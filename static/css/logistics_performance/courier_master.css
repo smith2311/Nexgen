@@ -1,0 +1,32 @@
+/* ═══════════════════════════════════════════════════════
+   courier_master.css — Courier Master grid overrides
+   Reuses location_master.css for all page chrome (header, tabs,
+   drawer, modal, toast). Only the column layouts differ here.
+═══════════════════════════════════════════════════════ */
+
+/* ── LIST TABLE COLUMNS: ID | Code | Name | Actions ── */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 80px 1fr 1fr 120px;
+}
+
+/* ── SCHEMA ROW COLUMNS: Column | Type | Description ── */
+.lm-page .schema-row {
+  grid-template-columns: 160px 80px 1fr;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .lm-page .tbl-head,
+  .lm-page .tbl-row {
+    grid-template-columns: 1fr 1fr 110px;
+  }
+  /* hide the ID column on small screens */
+  .lm-page .tbl-head > *:nth-child(1),
+  .lm-page .tbl-row  > *:nth-child(1) { display: none; }
+  /* location_master.css hides cols 4 & 5 (for its 7-col table) — re-show the
+     Actions column (col 4) since the Courier table only has 4 columns */
+  .lm-page .tbl-head > *:nth-child(4) { display: block; }
+  .lm-page .tbl-row  > *:nth-child(4) { display: flex; }
+  .lm-header-stats { display: none; }
+}

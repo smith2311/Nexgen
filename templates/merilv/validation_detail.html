@@ -1,0 +1,335 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Stock Validator Detail — the reconciliation of one physical scan against one
+SAP stock dump.
+
+Domain rule this template must respect (DATA_MODEL.md §12 rule 2): status and
+stock_status are independent axes, and flags is a list — one row renders as a
+badge + a chip + a wrapping row of chips, never collapsed into one label. A row
+can legitimately be "matched" + "near_expiry" + two flags at once.
+
+Filtering (q, status) and pagination (30/page, via merilv/pagination.py) are
+both real GET params the view answers server-side — see
+merilv/views.py:validation_detail — so this is not a client-side toy filter.
+{% endcomment %}
+
+{% block mv_title %}{{ run }} — Stock Validator{% endblock %}
+
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:validator' %}">Stock Validator</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">{{ run }}</span>
+{% endblock %}
+
+{% block mv_heading %}{{ run }}{% endblock %}
+{% block mv_sub %}
+<p class="mv-page-header__sub">
+    {{ run.system_filename|default:"—" }} vs {{ run.scan_filename|default:"—" }} · {{ run.created_at|date:"d M Y, H:i" }}
+</p>
+{% endblock %}
+
+{% block mv_actions %}
+<a href="{% url 'merilv:validation_history' %}" class="mv-btn">{% icon "history" %} All runs</a>
+<a href="{% url 'merilv:validation_export' run.pk %}" class="mv-btn mv-btn--primary">{% icon "download" %} Export</a>
+{% endblock %}
+
+{% block mv_body %}
+
+{% comment %}
+KPI labels below are deliberately worded to match the standalone Inventory
+Validator tool operators already use side-by-side with this screen — Total
+SAP Stock, Total Scanned, Serial Match, Batch Match, Material Only, Variance,
+Remaining SAP, then Damage / Expired / Near Expiry / Short Expiry / Good
+Stock. Same labels, same order, so a number here and the same-named number
+over there are trivially the same thing — that was the whole complaint: two
+screens showing the same reconciliation with different names for each count
+made it impossible to tell them apart.
+
+Three names come from the model as-is (Serial/Batch/Material match are the
+engine's own match_type vocabulary — see match_type in
+merilv/services/validation.py), the rest are relabelled tiles that already
+existed. Nothing computed here is new except splitting one combined
+"Expiry/Near" figure into the three the reference tool always kept separate.
+{% endcomment %}
+<div class="mv-kpis">
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "package" %}</span><span class="mv-kpi__label">Total SAP Stock</span>
+        <span class="mv-kpi__value">{{ run.total_system|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "scan" %}</span><span class="mv-kpi__label">Total Scanned</span>
+        <span class="mv-kpi__value">{{ run.total_scanned|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi mv-kpi--ok">
+        <span class="mv-kpi__icon">{% icon "check-circle" %}</span><span class="mv-kpi__label">Serial Match</span>
+        <span class="mv-kpi__value">{{ run.matched_qty|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "layers" %}</span><span class="mv-kpi__label">Batch Match</span>
+        <span class="mv-kpi__value">{{ run.batch_matched_qty|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "box" %}</span><span class="mv-kpi__label">Material Only</span>
+        <span class="mv-kpi__value">{{ run.material_matched_qty|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi{% if run.variance_qty > 0 %} mv-kpi--danger{% endif %}">
+        <span class="mv-kpi__icon">{% icon "chart" %}</span><span class="mv-kpi__label">Variance</span>
+        <span class="mv-kpi__value">{{ run.variance_qty|floatformat:0 }}</span>
+    </div>
+    <div class="mv-kpi mv-kpi--active">
+        <span class="mv-kpi__icon">{% icon "clipboard" %}</span><span class="mv-kpi__label">Remaining SAP</span>
+        <span class="mv-kpi__value">{{ kpis.remaining_stock|floatformat:0 }}</span>
+    </div>
+</div>
+
+{% comment %}
+Stock condition, second row — links, not plain tiles: each is a question
+("which 45 units are damaged?") whose answer is the filtered table below, and
+the `stock` filter it sets counts rows exactly the way the tile does. Expired
+/ Near Expiry / Short Expiry used to be one combined "Expiry/Near" tile; they
+now split the same way the reference tool always has, onto the same
+`?stock=` values the view already filters on (STOCK_EXPIRED == "expired" etc,
+see merilv/models.py) — no new filtering logic, just three tiles instead of
+one lumped number nobody could tell apart from the others.
+{% endcomment %}
+<div class="mv-kpis" style="margin-top:var(--mv-space-4);">
+    <a class="mv-kpi{% if kpis.damage > 0 %} mv-kpi--danger{% endif %}{% if stock_filter == 'damage' %} mv-kpi--on{% endif %}"
+       href="?stock=damage{% if status_filter %}&status={{ status_filter|urlencode }}{% endif %}">
+        <span class="mv-kpi__icon">{% icon "x-circle" %}</span><span class="mv-kpi__label">Damage</span>
+        <span class="mv-kpi__value">{{ kpis.damage|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi{% if kpis.expired > 0 %} mv-kpi--danger{% endif %}{% if stock_filter == 'expired' %} mv-kpi--on{% endif %}"
+       href="?stock=expired{% if status_filter %}&status={{ status_filter|urlencode }}{% endif %}">
+        <span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Expired</span>
+        <span class="mv-kpi__value">{{ kpis.expired|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi{% if kpis.near_expiry > 0 %} mv-kpi--warn{% endif %}{% if stock_filter == 'near_expiry' %} mv-kpi--on{% endif %}"
+       href="?stock=near_expiry{% if status_filter %}&status={{ status_filter|urlencode }}{% endif %}">
+        <span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Near Expiry</span>
+        <span class="mv-kpi__value">{{ kpis.near_expiry|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi{% if kpis.short_expiry > 0 %} mv-kpi--warn{% endif %}{% if stock_filter == 'short_expiry' %} mv-kpi--on{% endif %}"
+       href="?stock=short_expiry{% if status_filter %}&status={{ status_filter|urlencode }}{% endif %}">
+        <span class="mv-kpi__icon">{% icon "clock" %}</span><span class="mv-kpi__label">Short Expiry</span>
+        <span class="mv-kpi__value">{{ kpis.short_expiry|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi mv-kpi--ok{% if stock_filter == 'good' %} mv-kpi--on{% endif %}"
+       href="?stock=good{% if status_filter %}&status={{ status_filter|urlencode }}{% endif %}">
+        <span class="mv-kpi__icon">{% icon "check" %}</span><span class="mv-kpi__label">Good Stock</span>
+        <span class="mv-kpi__value">{{ kpis.good|floatformat:0 }}</span>
+    </a>
+</div>
+
+{% comment %}
+Scan issues — kept from a previous, separate feedback round ("the six counts
+the feedback asked for": Serial Mismatch / Not Found / Duplicate, alongside
+Batch Mismatch). These are extra detail the reference tool above does not
+break out at all, so they get their own heading rather than sitting in the
+same unlabelled strip as the reconciliation tiles — that adjacency, "Batch
+Mismatch" beside a new "Batch Match" tile meaning something different, is
+exactly the kind of thing that made numbers hard to tell apart. Each is still
+a link into the filter that produced it, unchanged from before.
+{% endcomment %}
+<h3 class="mv-t-h2" style="margin:var(--mv-space-5) 0 var(--mv-space-2);">{% icon "search" %} Scan issues</h3>
+<div class="mv-kpis">
+    <div class="mv-kpi{% if kpis.batch_mismatch > 0 %} mv-kpi--warn{% endif %}">
+        <span class="mv-kpi__icon">{% icon "alert" %}</span><span class="mv-kpi__label">Batch Mismatch</span>
+        <span class="mv-kpi__value">{{ kpis.batch_mismatch|floatformat:0 }}</span>
+    </div>
+    <a class="mv-kpi{% if kpis.serial_mismatch > 0 %} mv-kpi--warn{% endif %}" href="?status=partial">
+        <span class="mv-kpi__icon">{% icon "alert" %}</span><span class="mv-kpi__label">Serial Mismatch</span>
+        <span class="mv-kpi__value">{{ kpis.serial_mismatch|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi{% if kpis.not_found > 0 %} mv-kpi--danger{% endif %}" href="?status=variance">
+        <span class="mv-kpi__icon">{% icon "x-circle" %}</span><span class="mv-kpi__label">Not Found</span>
+        <span class="mv-kpi__value">{{ kpis.not_found|floatformat:0 }}</span>
+    </a>
+    <a class="mv-kpi{% if kpis.duplicate > 0 %} mv-kpi--warn{% endif %}" href="?status=dupe_scan">
+        <span class="mv-kpi__icon">{% icon "layers" %}</span><span class="mv-kpi__label">Duplicate</span>
+        <span class="mv-kpi__value">{{ kpis.duplicate|floatformat:0 }}</span>
+    </a>
+</div>
+
+{% if stock_filter %}
+<div class="mv-filterbar">
+    <span class="mv-label" style="margin:0;">Stock filter</span>
+    <a href="{% url 'merilv:validation_detail' run.pk %}{% if status_filter %}?status={{ status_filter|urlencode }}{% endif %}"
+       class="mv-filter-chip">{{ stock_filter|title }} {% icon "close" 12 %}</a>
+</div>
+{% endif %}
+
+<div class="mv-t-caption" style="margin:-4px 0 16px;">Reconciled {{ run.reconciliation_pct|pct }}</div>
+
+{% if run.warnings %}
+<div class="mv-alerts">
+    {% for w in run.warnings %}
+    <div class="mv-alert mv-alert--warn">{% icon "alert" %}<div>{{ w }}</div></div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search">
+            {% icon "search" %}
+            <input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Material, batch, serial or raw scan…">
+        </div>
+        <select class="mv-select" name="status" style="width:auto;min-width:200px;">
+            <option value="">All statuses ({{ page_obj.paginator.count }})</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                {{ label }} ({{ counts|get_item:value|default:0 }})
+            </option>
+            {% endfor %}
+        </select>
+        <select class="mv-select" name="sort" style="width:auto;min-width:130px;">
+            <option value="">Original order</option>
+            <option value="material" {% if sort == "material" %}selected{% endif %}>Material</option>
+            <option value="physical" {% if sort == "physical" %}selected{% endif %}>Scanned batch</option>
+            <option value="system" {% if sort == "system" %}selected{% endif %}>SAP batch</option>
+            <option value="plant" {% if sort == "plant" %}selected{% endif %}>Plant</option>
+            <option value="qty" {% if sort == "qty" %}selected{% endif %}>Quantity</option>
+            <option value="status" {% if sort == "status" %}selected{% endif %}>Status</option>
+        </select>
+        {% comment %}
+        A single icon button, not a two-option dropdown: the icon shows the
+        direction currently applied, and clicking it submits the form with the
+        opposite value — one click re-sorts instead of open-dropdown-pick-Apply.
+        {% endcomment %}
+        <button type="submit" name="dir" value="{% if direction == 'desc' %}asc{% else %}desc{% endif %}"
+                class="mv-btn mv-btn--icon" aria-label="{% if direction == 'desc' %}Sorted Z to A — click to sort A to Z{% else %}Sorted A to Z — click to sort Z to A{% endif %}"
+                title="{% if direction == 'desc' %}Sorted Z to A — click to sort A to Z{% else %}Sorted A to Z — click to sort Z to A{% endif %}">
+            {% if direction == "desc" %}{% icon "sort-za" 20 %}{% else %}{% icon "sort-az" 20 %}{% endif %}
+        </button>
+        <button type="submit" class="mv-btn mv-btn--sm">{% icon "filter" %} Apply</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing <strong class="mv-fg-2">{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong class="mv-fg-2">{{ page_obj.paginator.count }}</strong></span>
+    </form>
+
+    {% if q or status_filter %}
+    <div class="mv-filterbar">
+        <span class="mv-label" style="margin:0;">Active filters</span>
+        {% if q %}
+        <a href="?{% if status_filter %}status={{ status_filter|urlencode }}{% endif %}" class="mv-filter-chip">
+            {{ q|truncatechars:24 }} {% icon "close" 12 %}
+        </a>
+        {% endif %}
+        {% if status_filter %}
+        <a href="?{% if q %}q={{ q|urlencode }}{% endif %}" class="mv-filter-chip">
+            {{ status_filter|title }} {% icon "close" 12 %}
+        </a>
+        {% endif %}
+        <a href="{% url 'merilv:validation_detail' run.pk %}" class="mv-link-btn mv-t-caption">Clear all</a>
+    </div>
+    {% endif %}
+
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--zebra" id="mvValidationTable">
+        <thead>
+            <tr>
+                <th>Material</th>
+                {% comment %}Row 17 - read from the material master at run time, so a completed run stays evidence of what the master said when the count was taken rather than re-resolving later.{% endcomment %}
+                <th>Group / PH</th>
+                <th>Physical (scanned)</th>
+                <th>System (SAP)</th>
+                <th>Plant</th>
+                <th class="mv-num">Qty</th>
+                <th>Status</th>
+                <th>Stock</th>
+                <th>Flags</th>
+                <th class="mv-col-actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in page_obj %}
+            <tr data-mv-expand="mvRowDetail{{ row.pk }}" tabindex="0" aria-expanded="false">
+                <td>
+                    <div class="mv-mono">{{ row.material }}</div>
+                    {% if row.material_description %}<div class="mv-t-caption">{{ row.material_description|truncatechars:36 }}</div>{% endif %}
+                </td>
+                <td>
+                    {% comment %}
+                    One cell for both, stacked, the same way Material/Description
+                    and Batch/Serial are already paired in this table - two short
+                    codes that are read together, in a table that is already nine
+                    columns wide.
+                    {% endcomment %}
+                    <div class="mv-mono">{{ row.material_group|default:"—" }}</div>
+                    {% if row.ph_level %}<div class="mv-t-caption mv-mono">PH {{ row.ph_level }}</div>{% endif %}
+                </td>
+                <td>
+                    <div class="mv-mono">{{ row.physical_batch|default:"—" }}</div>
+                    {% if row.physical_serial %}<div class="mv-t-caption mv-mono">SN {{ row.physical_serial }}</div>
+                    {% else %}<div class="mv-t-caption mv-fg-3">no serial scanned</div>{% endif %}
+                </td>
+                <td>
+                    <div class="mv-mono">{{ row.system_batch|default:"—" }}</div>
+                    {% if row.system_serial %}<div class="mv-t-caption mv-mono">SN {{ row.system_serial }}</div>{% endif %}
+                    {% comment %}
+                    Spell the alternatives out rather than captioning them
+                    "Available alternatives": the whole point of the column is to
+                    tell the operator which batch to pick instead, and a label
+                    that hides the answer behind a row expansion does not.
+                    {% endcomment %}
+                    {% if row.available_batches %}
+                    <div class="mv-t-caption mv-alt-batches">
+                        Use batch: <span class="mv-mono">{{ row.available_batches|join:", "|truncatechars:44 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if row.available_serials %}
+                    <div class="mv-t-caption mv-alt-batches">
+                        Use serial: <span class="mv-mono">{{ row.available_serials|join:", "|truncatechars:44 }}</span>
+                    </div>
+                    {% endif %}
+                </td>
+                <td class="mv-mono">{{ row.system_plant|default:"—" }}</td>
+                <td class="mv-num">{{ row.scan_qty|floatformat:0 }}</td>
+                <td>{% status_badge row.status %}</td>
+                <td>{% if row.stock_status %}{% stock_chip row.stock_status %}{% else %}<span class="mv-t-caption">—</span>{% endif %}</td>
+                <td>{% flag_chips row.flags %}</td>
+                <td class="mv-col-actions">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+                </td>
+            </tr>
+            <tr class="mv-row-detail" id="mvRowDetail{{ row.pk }}" hidden>
+                {% comment %}Spans the header row, which gained the Group / PH column — a short colspan leaves a stray empty cell at the end.{% endcomment %}
+                <td colspan="10">
+                    <dl class="mv-dl">
+                        <dt>Raw Scan</dt><dd>{{ row.raw_scan|default:"—" }}</dd>
+                        <dt>Material Group</dt><dd>{{ row.material_group|default:"—" }}</dd>
+                        <dt>PH Level</dt><dd>{{ row.ph_level|default:"—" }}</dd>
+                        <dt>Detail</dt><dd>{{ row.detail|default:"—" }}</dd>
+                        <dt>Match Type</dt><dd>{{ row.match_type|default:"—" }}</dd>
+                        <dt>System Location</dt><dd>{{ row.system_location|default:"—" }}</dd>
+                        <dt>System Expiry</dt><dd>{{ row.system_expiry|default:"—" }}</dd>
+                        <dt>Available SAP Batches</dt><dd>{{ row.available_batches|join:", "|default:"—" }}</dd>
+                        <dt>Available SAP Serials</dt><dd>{{ row.available_serials|join:", "|default:"—" }}</dd>
+                        <dt>Barcode Expiry</dt><dd>{{ row.expiry_date|date:"d M Y"|default:"—" }}</dd>
+                        <dt>Target Location</dt><dd>{{ row.target_location|default:"—" }}</dd>
+                        {% if row.customer_name %}<dt>Customer</dt><dd>{{ row.customer_code }} — {{ row.customer_name }}</dd>{% endif %}
+                    </dl>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "search-x" 48 %}
+        <div class="mv-empty__title">No rows match</div>
+        <p class="mv-empty__text">{% if q or status_filter %}Try a different search term or status.{% else %}This run has no rows.{% endif %}</p>
+        {% if q or status_filter %}
+        <a href="{% url 'merilv:validation_detail' run.pk %}" class="mv-btn mv-empty__action">Clear filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

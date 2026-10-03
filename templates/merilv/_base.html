@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Meril-V page frame.
+
+NOTE: {% extends %} must be the very first tag in a Django template, so this
+note sits below it. And it must be {% comment %}, never a multi-line {# #} —
+that form is single-line only, so a multi-line one is not a comment at all: it
+renders as literal text, and text leaked into <head> makes the parser open
+<body> early, turning it into an anonymous flex item that steals width from
+<main> (base.html sets body.with-sidebar { display:flex }).
+
+WHAT THIS FRAME DOES NOT DO
+---------------------------
+No module sidebar and no module topbar. NexGen's base template already renders
+the fixed header and the sibling-module sidebar, and every Meril-V screen is
+reached through them. Module-level navigation is the hover-flyout attached to
+the "Meril-V" sidebar row (static/merilv/js/flyout.js), so the page body never
+repeats it.
+
+Nothing here positions itself against the viewport. <main> already clears the
+fixed header and the sidebar, and it carries overflow-x:hidden — which makes it
+a scroll container on BOTH axes — so 100vh heights and `sticky; top:0` measured
+against the viewport land in the wrong place.
+
+Child templates fill:
+    mv_title      browser title
+    mv_crumb      breadcrumb items after "Meril-V"
+    mv_heading    page <h1> text
+    mv_sub        one-line subtitle under the heading
+    mv_actions    right-hand actions in the header row
+    mv_body       the page content
+    mv_css/mv_js  per-screen assets
+{% endcomment %}
+
+{% block title %}{% block mv_title %}Meril-V{% endblock %}{% endblock %}
+
+{% block extra_css %}
+{% comment %}
+Inter comes from base's css/google-fonts.css and JetBrains Mono from
+css/poppins-fonts.css — both served locally, so no webfont request leaves the
+network. tokens.css must load before the other two, which consume its vars.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/poppins-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'components/modal/modal.css' %}">
+<link rel="stylesheet" href="{% static 'components/adv_filter/adv_filter.css' %}">
+<link rel="stylesheet" href="{% static 'merilv/css/tokens.css' %}">
+<link rel="stylesheet" href="{% static 'merilv/css/shell.css' %}">
+<link rel="stylesheet" href="{% static 'merilv/css/components.css' %}">
+<link rel="stylesheet" href="{% static 'merilv/css/screens.css' %}">
+{% block mv_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+{% is_merilv_admin request.user as mv_is_admin %}{% can_operate_merilv request.user as mv_can_operate %}
+<div class="mv">
+    <div class="mv-page">
+
+        {% comment %}
+        Page header: breadcrumb, then a 40px title row, then a hairline that
+        only appears once the page has scrolled. Inlined directly here rather
+        than {% include %}d from a separate file — Django's block inheritance
+        does NOT cross an {% include %} boundary, so a `{% block mv_crumb %}`
+        defined in an included sub-template can never be overridden by a
+        template that extends _base.html; it would just always render its own
+        default. That silently broke every screen's H1/breadcrumb (they all
+        showed "Meril-V" instead of the page's real title) until this was
+        inlined so mv_crumb/mv_heading/mv_sub/mv_actions are genuinely part of
+        the one extends chain, the same way mv_title/mv_css/mv_js already are.
+        {% endcomment %}
+        <div class="mv-page-header" id="mvPageHeader">
+            <div class="mv-page-header__top">
+                {% comment %}
+                Back walks one step UP the hierarchy, not back through history:
+                /meril-v/outbound/4/ -> /meril-v/outbound/ -> /meril-v/. The
+                target comes from merilv/navigation.py keyed on the current
+                url_name, so it is the same every time regardless of how the
+                page was reached — a plain <a href>, no JS, no referrer
+                guessing. The label names the destination so it is obvious
+                where it goes.
+                {% endcomment %}
+                {% block mv_back %}
+                {% mv_back as mv_parent %}
+                <a href="{{ mv_parent.url }}" class="lp-back mv-back" aria-label="Back to {{ mv_parent.label }}">
+                    <span class="lp-back-icon">{% icon "arrow-left" 12 %}</span>
+                    <span>{{ mv_parent.label }}</span>
+                </a>
+                {% endblock %}
+
+                <nav class="mv-breadcrumb" aria-label="Breadcrumb">
+                    <a href="{% url 'merilv:index' %}">Meril-V</a>
+                    {% block mv_crumb %}{% endblock %}
+                </nav>
+            </div>
+
+            <div class="mv-page-header__row">
+                <div class="mv-page-header__titles">
+                    <h1>{% block mv_heading %}Meril-V{% endblock %}</h1>
+                    {% block mv_sub %}{% endblock %}
+                </div>
+
+                <div class="mv-page-header__actions">
+                    {% block mv_actions %}{% endblock %}
+
+                    {% if entity %}
+                    <span class="mv-entity-selector" title="Active business unit">
+                        {% icon "building" %}<span class="mv-mono">{{ entity.code }}</span>
+                    </span>
+                    {% endif %}
+
+                    {% if mv_is_admin %}
+                    <span class="mv-tier mv-tier--admin">Admin</span>
+                    {% elif mv_can_operate %}
+                    <span class="mv-tier mv-tier--picker">Picker</span>
+                    {% else %}
+                    <span class="mv-tier">Viewer</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mv-page-body">
+            {% if messages %}
+            <div class="mv-alerts">
+                {% for m in messages %}
+                <div class="mv-alert mv-alert--{% if m.tags == 'error' %}danger{% elif m.tags == 'warning' %}warn{% elif m.tags == 'success' %}ok{% else %}info{% endif %}">
+                    {% if m.tags == 'error' %}{% icon "x-circle" %}{% elif m.tags == 'warning' %}{% icon "alert" %}{% elif m.tags == 'success' %}{% icon "check-circle" %}{% else %}{% icon "info" %}{% endif %}
+                    <div>{{ m }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% comment %}
+            #22 -- plant/team scope fails closed now, so a non-admin with no
+            plant mapping and no manager link is scoped to nothing and every
+            list on every screen comes up empty. That is the correct security
+            answer and an awful user-facing one on its own: without this banner
+            the fix reads as "the module is broken", which is exactly how the
+            previous pass at #22 got reported. Driven by rbac.is_unmapped via
+            views._ctx.
+            {% endcomment %}
+            {% if mv_unmapped %}
+            <div class="mv-alerts">
+                <div class="mv-alert mv-alert--warn">
+                    {% icon "alert" %}
+                    <div>
+                        <strong>Your account is not mapped to a plant yet.</strong>
+                        Until a Meril-V admin maps you, these screens will stay empty —
+                        you are only shown data for the plants you are assigned to.
+                        Ask an admin to map you under
+                        <em>Master Data &rarr; Roles &amp; Access</em>
+                        (managers get plants directly; pickers inherit their manager's).
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% block mv_body %}{% endblock %}
+        </div>
+    </div>
+
+    {# Toast host — scanner.js and datatable.js queue into this, one at a time. #}
+    <div class="mv-toasts" id="mvToasts" aria-live="polite" aria-atomic="false"></div>
+
+    <div class="mv-loading-overlay" id="mvLoadingOverlay" hidden aria-hidden="true">
+        <div class="mv-loading-overlay__panel" role="status" aria-live="polite" aria-atomic="true">
+            <div class="mv-loading-overlay__spinner" aria-hidden="true"></div>
+            <div class="mv-loading-overlay__copy">
+                <strong class="mv-loading-overlay__title" data-mv-loading-title>Working…</strong>
+                <span class="mv-loading-overlay__message" data-mv-loading-message>Please wait while the request is processed.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "merilv/_shell/flyout_menu.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'components/data_table/data_table.js' %}" defer></script>
+<script src="{% static 'components/modal/modal.js' %}" defer></script>
+<script src="{% static 'components/adv_filter/adv_filter.js' %}" defer></script>
+<script src="{% static 'merilv/js/flyout.js' %}" defer></script>
+<script src="{% static 'merilv/js/datatable.js' %}" defer></script>
+<script src="{% static 'merilv/js/loading.js' %}" defer></script>
+<script>
+// The header's hairline appears only once there is content scrolled under it.
+(function () {
+    var el = document.getElementById('mvPageHeader');
+    if (!el) { return; }
+    // The scroll container is base.html's <main>, not the window, because
+    // <main> carries overflow-x:hidden and so scrolls on both axes.
+    var scroller = el.closest('main') || window;
+    function onScroll() {
+        var y = scroller === window ? window.scrollY : scroller.scrollTop;
+        el.classList.toggle('is-scrolled', y > 0);
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+
+// The Back button is now a plain link to the parent screen (see the comment on
+// the header above). The previous version intercepted the click and navigated to
+// document.referrer instead, which made Back non-deterministic: the same screen
+// went somewhere different depending on how you arrived, and fell back to the
+// launcher — skipping a level — on a fresh tab or after a POST redirect. A real
+// href also restores ctrl/middle-click-to-new-tab for free.
+(function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.Modal && typeof window.Modal.wire === 'function') {
+            window.Modal.wire();
+        }
+    });
+})();
+</script>
+{% block mv_js %}{% endblock %}
+{% endblock %}

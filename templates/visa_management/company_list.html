@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Company Master — Visa Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-building"></i> Company Master</h1>
+          <p>Manage Meril group entities and signatory details</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ companies|length }}</div>
+            <div class="lm-hstat-lbl">Companies</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'visa:company_create' %}" class="btn btn-navy btn-sm">
+          <i class="fas fa-plus"></i> Add Company
+        </a>
+      </div>
+      <div class="record-count">{{ companies|length }} compan{{ companies|length|pluralize:"y,ies" }}</div>
+    </div>
+
+    <div class="tbl-wrap" style="--cols: 90px 2fr 2fr 1fr 1fr 80px auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Code</div>
+        <div>Company Name</div>
+        <div>Signatory</div>
+        <div>Tel</div>
+        <div>Email</div>
+        <div>Status</div>
+        <div></div>
+      </div>
+      {% for c in companies %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+        <div><span class="vm-mono">{{ c.code }}</span></div>
+        <div>
+          <div class="tbl-name">{{ c.name }}</div>
+          {% if c.cin %}<div class="tbl-sub">CIN: {{ c.cin }}</div>{% endif %}
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--navy)">{{ c.signatory_name }}</div>
+          <div class="tbl-sub">{{ c.signatory_title }}</div>
+        </div>
+        <div style="font-size:12.5px">{{ c.tel|default:"—" }}</div>
+        <div style="font-size:12.5px">{{ c.email|default:"—" }}</div>
+        <div>
+          {% if c.is_active %}
+          <span class="badge badge-green">Active</span>
+          {% else %}
+          <span class="badge badge-muted">Inactive</span>
+          {% endif %}
+        </div>
+        <div class="tbl-actions">
+          <a href="{% url 'visa:company_edit' c.pk %}" class="tbl-btn edit">Edit</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-building"></i>
+        <p>No companies yet. <a href="{% url 'visa:company_create' %}" style="color:var(--blue)">Add the first company →</a></p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

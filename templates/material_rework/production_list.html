@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Production Review — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/production_list.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-industry"></i> Production Review
+            {% if not can_edit %}
+            <span style="margin-left:10px;background:#dbeafe;color:#1e40af;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:10px;vertical-align:middle;letter-spacing:.04em;">
+                <i class="fas fa-eye"></i> VIEW ONLY
+            </span>
+            {% endif %}
+        </h1>
+        <p>{% if can_edit %}HOD-approved batches waiting for production to set accepted quantities.{% else %}You have read-only access to production batches.{% endif %}</p>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;padding:12px 16px;margin-bottom:18px;color:#065f46;font-size:.88rem;">
+        <i class="fas fa-check-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="md-table-wrap">
+        {% if batches %}
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Reference #</th>
+                    <th>Vertical</th>
+                    <th>Department</th>
+                    <th>Requested By</th>
+                    <th>Uploaded By</th>
+                    <th>Upload Date</th>
+                    <th>Subject</th>
+                    <th>HOD Approved</th>
+                    <th>Items</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in batches %}
+            <tr data-batch-id="{{ b.id }}">
+                <td><span style="font-family:monospace;font-size:.82rem;font-weight:700;color:#1d4ed8;background:#eff6ff;padding:2px 7px;border-radius:4px;">{{ b.reference_number|default:b.id }}</span></td>
+                <td>{{ b.vertical.name }}</td>
+                <td>{{ b.department.name }}</td>
+                <td>
+                    {% if b.requested_by %}{{ b.requested_by.name }}{% elif b.source %}<span class="badge-src {{ b.source }}">{{ b.get_source_display }}</span>{% else %}—{% endif %}
+                </td>
+                <td>{{ b.uploaded_by_name }}</td>
+                <td>{{ b.uploaded_at|date:"d M Y" }}</td>
+                <td style="font-size:.78rem;max-width:160px;">{{ b.subject|default:"—"|truncatechars:50 }}</td>
+                <td>{{ b.hod_reviewed_at|date:"d M Y H:i"|default:"—" }}</td>
+                <td><strong>{{ b.item_count }}</strong></td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="btn-preview" onclick="openPreview({{ b.id }})">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <a href="{% url 'material_rework:production_review_batch' b.id %}"
+                           class="btn-review" style="{% if not can_edit %}background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;{% endif %}">
+                            {% if can_edit %}<i class="fas fa-edit"></i> Review{% else %}<i class="fas fa-eye"></i> View{% endif %}
+                        </a>
+                        {% if b.status == 'production_done' or b.status == 'completed' %}
+                        <a href="{% url 'material_rework:print_labels' b.id %}"                            style="padding:6px 10px;background:#f0fdf4;color:#059669;border:1px solid #6ee7b7;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                            <i class="fas fa-tag"></i> Labels
+                        </a>
+                        {% endif %}
+                        {% if can_edit %}
+                        <button type="button" style="padding:6px 9px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;"
+                            onclick="openDelModal({{ b.id }},'{{ b.reference_number|default:b.id|escapejs }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="md-empty">
+            <i class="fas fa-check-double" style="font-size:2.5rem;margin-bottom:12px;display:block;color:#10b981;"></i>
+            No batches pending production review.
+        </div>
+        {% endif %}
+    </div>
+
+{% comment %}
+Leg 3 of the rework round trip: lines warehouse has released and production is
+holding. Per line, not per batch, because they come back at different times.
+Returning fewer than were released is allowed but needs a reason — that is how
+breakage gets recorded instead of silently disappearing from the totals.
+{% endcomment %}
+    {% if in_rework_items %}
+    <p class="section-heading" style="margin-top:8px;">
+        <i class="fas fa-screwdriver-wrench" style="color:#d97706;"></i> In Rework — Return to Warehouse
+        <span class="count-chip">{{ in_rework_items|length }} line{{ in_rework_items|length|pluralize }}</span>
+    </p>
+    <div class="md-table-wrap" style="margin-bottom:22px;">
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Ref #</th><th>Priority</th><th>Code</th><th>Batch No</th>
+                    <th class="qty-col">Released to Us</th>
+                    {% if can_edit %}
+                    <th>Qty Reworked</th>
+                    <th>Loss Reason <span style="color:#9ca3af;font-weight:400;">(if short)</span></th>
+                    <th>Action</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in in_rework_items %}
+            <tr id="rw-inwork-{{ item.pk }}">
+                <td><span class="ref-num">{{ item.batch.reference_number|default:item.batch_id }}</span></td>
+                <td>{{ item.batch.get_priority_display }}</td>
+                <td><strong>{{ item.material }}</strong></td>
+                <td>{{ item.batch_no|default:"—" }}</td>
+                <td class="qty-col"><strong>{{ item.rework_released_qty }}</strong></td>
+                {% if can_edit %}
+                <td>
+                    <input type="number" class="qty-input" id="rwk_qty_{{ item.pk }}"
+                           value="{{ item.rework_released_qty }}" min="0"
+                           max="{{ item.rework_released_qty }}" step="1"
+                           data-released="{{ item.rework_released_qty }}">
+                </td>
+                <td>
+                    <input type="text" class="remark-input" id="rwk_reason_{{ item.pk }}"
+                           placeholder="Required if fewer than released" style="min-width:180px;">
+                </td>
+                <td>
+                    <button type="button" class="btn-primary" style="padding:5px 12px;font-size:.78rem;"
+                            onclick="reworkReturn({{ item.pk }})">
+                        <i class="fas fa-arrow-rotate-left"></i> Send Back
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ── Reviewed Batches (Labels available here) ── -->
+    {% if reviewed_batches %}
+    <p class="section-heading" style="margin-top:8px;">
+        <i class="fas fa-check-circle" style="color:#10b981;"></i> Reviewed Batches
+        <span class="count-chip green">{{ reviewed_batches|length }}</span>
+    </p>
+    <div class="md-table-wrap">
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Ref #</th>
+                    <th>Vertical</th>
+                    <th>Department</th>
+                    <th>Reviewed By</th>
+                    <th>Review Date</th>
+                    <th>Subject</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in reviewed_batches %}
+            <tr>
+                <td><span class="ref-num">{{ b.reference_number|default:b.id }}</span></td>
+                <td>{{ b.vertical.name }}</td>
+                <td>{{ b.department.name }}</td>
+                <td style="font-size:.82rem;">{{ b.production_reviewed_by_name|default:"—" }}</td>
+                <td style="font-size:.8rem;color:#64748b;">{{ b.production_reviewed_at|date:"d M Y H:i"|default:"—" }}</td>
+                <td style="font-size:.78rem;max-width:160px;">{{ b.subject|default:"—"|truncatechars:50 }}</td>
+                <td><strong>{{ b.item_count }}</strong></td>
+                <td>
+                    <span class="badge badge-{{ b.status }}">{{ b.get_status_display }}</span>
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="btn-preview" onclick="openPreview({{ b.id }})">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <a href="{% url 'material_rework:print_labels' b.id %}"                            style="padding:6px 10px;background:#f0fdf4;color:#059669;border:1px solid #6ee7b7;border-radius:5px;font-size:.78rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+                            <i class="fas fa-tag"></i> Print Labels
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+{% include "material_rework/_delete_batch_modal.html" %}
+
+<!-- Batch preview slide panel -->
+<div class="slide-overlay" id="slideOverlay" onclick="if(event.target===this)closePreview()">
+    <div class="slide-panel">
+        <div class="panel-head">
+            <span class="panel-title"><i class="fas fa-clipboard-list" style="color:#0076c8;"></i> Batch Preview</span>
+            <button class="panel-close" onclick="closePreview()">&times;</button>
+        </div>
+        <div class="panel-body" id="panelBody">
+            <div style="text-align:center;padding:48px;color:#9ca3af;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>Loading…</div>
+        </div>
+        <div class="panel-foot" id="panelFoot" style="display:none;">
+            <a href="#" class="btn-go-review" id="panelReviewLink"><i class="fas fa-edit"></i> Open Full Review</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BATCHES = {
+{% for b in batches %}
+    {{ b.id }}: {
+        id: {{ b.id }},
+        reference_number: "{{ b.reference_number|default:b.id|escapejs }}",
+        vertical: "{{ b.vertical.name|escapejs }}",
+        department: "{{ b.department.name|escapejs }}",
+        source: "{{ b.source|escapejs }}",
+        source_display: "{{ b.get_source_display|escapejs }}",
+        uploaded_by: "{{ b.uploaded_by_name|escapejs }}",
+        uploaded_by_email: "{{ b.uploaded_by_email|escapejs }}",
+        uploaded_at: "{{ b.uploaded_at|date:'d M Y H:i' }}",
+        hod_approved: "{{ b.hod_reviewed_at|date:'d M Y H:i'|default:'—' }}",
+        hod_comments: "{{ b.hod_comments|escapejs }}",
+        subject: "{{ b.subject|default:''|escapejs }}",
+        review_url: "{% url 'material_rework:production_review_batch' b.id %}",
+        items: [
+            {% for item in b.items.all %}
+            { material:"{{ item.material|escapejs }}", batch_no:"{{ item.batch_no|default:''|escapejs }}", qty:"{{ item.qty|floatformat:0 }}", box_no:"{{ item.box_no|default:''|escapejs }}", remark:"{{ item.remark|default:''|escapejs }}", serial_number:"{{ item.serial_number|default:''|escapejs }}", country:"{{ item.country|default:''|escapejs }}", mfg_date:"{{ item.mfg_date|default:''|escapejs }}", exp_date:"{{ item.exp_date|default:''|escapejs }}", from_storage_location:"{{ item.from_storage_location|default:''|escapejs }}", to_storage_location:"{{ item.to_storage_location|default:''|escapejs }}", item_date:"{{ item.item_date|default:''|escapejs }}" },
+            {% endfor %}
+        ]
+    },
+{% endfor %}
+{% for b in reviewed_batches %}
+    {{ b.id }}: {
+        id: {{ b.id }},
+        reference_number: "{{ b.reference_number|default:b.id|escapejs }}",
+        vertical: "{{ b.vertical.name|escapejs }}",
+        department: "{{ b.department.name|escapejs }}",
+        source: "{{ b.source|escapejs }}",
+        source_display: "{{ b.get_source_display|escapejs }}",
+        uploaded_by: "{{ b.uploaded_by_name|escapejs }}",
+        uploaded_by_email: "{{ b.uploaded_by_email|escapejs }}",
+        uploaded_at: "{{ b.uploaded_at|date:'d M Y H:i' }}",
+        hod_approved: "{{ b.hod_reviewed_at|date:'d M Y H:i'|default:'—' }}",
+        hod_comments: "{{ b.hod_comments|escapejs }}",
+        subject: "{{ b.subject|default:''|escapejs }}",
+        review_url: "{% url 'material_rework:production_review_batch' b.id %}",
+        items: [
+            {% for item in b.items.all %}
+            { material:"{{ item.material|escapejs }}", batch_no:"{{ item.batch_no|default:''|escapejs }}", qty:"{{ item.qty|floatformat:0 }}", box_no:"{{ item.box_no|default:''|escapejs }}", remark:"{{ item.remark|default:''|escapejs }}", serial_number:"{{ item.serial_number|default:''|escapejs }}", country:"{{ item.country|default:''|escapejs }}", mfg_date:"{{ item.mfg_date|default:''|escapejs }}", exp_date:"{{ item.exp_date|default:''|escapejs }}", from_storage_location:"{{ item.from_storage_location|default:''|escapejs }}", to_storage_location:"{{ item.to_storage_location|default:''|escapejs }}", item_date:"{{ item.item_date|default:''|escapejs }}" },
+            {% endfor %}
+        ]
+    },
+{% endfor %}
+};
+{% comment %}Placeholder id substituted client-side — see warehouse.html for why.{% endcomment %}
+const REWORK_RETURN_URL = "{% url 'material_rework:rework_return' 0 %}";
+</script>
+<script src="{% static 'js/material-rework/production_list.js' %}"></script>
+{% endblock %}

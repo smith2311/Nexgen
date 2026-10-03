@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Warehouse Inspection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .wi-submodule-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+        perspective: 1000px;
+    }
+
+    .wi-module-card {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 16px;
+        padding: 2.5rem;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        min-height: 280px;
+    }
+
+    .wi-module-card:hover {
+        transform: translateY(-12px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+    }
+
+    .wi-module-card.admin {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+    }
+
+    .wi-module-card.checklist {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: #ffffff;
+    }
+
+    .wi-module-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+
+    .wi-module-card:hover .wi-module-icon {
+        transform: scale(1.15) rotateY(360deg);
+    }
+
+    .wi-module-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: -0.5px;
+    }
+
+    .wi-module-description {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .wi-module-cta {
+        display: inline-block;
+        padding: 0.8rem 2rem;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-top: auto;
+    }
+
+    .wi-module-card:hover .wi-module-cta {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateX(5px);
+    }
+
+    .wi-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 3rem 0;
+        margin-bottom: 4rem;
+    }
+
+    .wi-stat-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.8rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .wi-stat-card:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        transform: translateY(-4px);
+    }
+
+    .wi-stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #667eea;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .wi-stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .wi-header {
+        margin-bottom: 2rem;
+    }
+
+    .wi-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .wi-header p {
+        font-size: 1.1rem;
+        color: #6b7280;
+    }
+
+    @media (max-width: 768px) {
+        .wi-submodule-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .wi-module-card {
+            min-height: 240px;
+            padding: 2rem;
+        }
+
+        .wi-module-icon {
+            font-size: 3rem;
+        }
+
+        .wi-module-title {
+            font-size: 1.5rem;
+        }
+
+        .wi-header h1 {
+            font-size: 1.8rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl py-5">
+    <div class="wi-header">
+        <h1>
+            <i class="fas fa-warehouse"></i> Warehouse Inspection Module
+        </h1>
+        <p>Manage warehouse inspections and quality assurance</p>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="wi-stats">
+        <div class="wi-stat-card">
+            <span class="wi-stat-value">{{ total_warehouses }}</span>
+            <span class="wi-stat-label">Active Warehouses</span>
+        </div>
+        <div class="wi-stat-card">
+            <span class="wi-stat-value">{{ total_inspections }}</span>
+            <span class="wi-stat-label">Total Inspections</span>
+        </div>
+        <div class="wi-stat-card">
+            <span class="wi-stat-value">{{ pending_inspections }}</span>
+            <span class="wi-stat-label">Pending Inspections</span>
+        </div>
+        <div class="wi-stat-card">
+            <span class="wi-stat-value">{{ failed_inspections }}</span>
+            <span class="wi-stat-label">Failed Inspections</span>
+        </div>
+    </div>
+
+    <!-- Submodules Grid -->
+    <div class="wi-submodule-grid">
+        <!-- Admin Panel Card -->
+        <a href="{% url 'warehouse_inspection:admin_dashboard' %}" class="wi-module-card admin">
+            <i class="fas fa-sliders-h wi-module-icon"></i>
+            <div class="wi-module-title">Admin Panel</div>
+            <div class="wi-module-description">
+                Manage warehouses, checklists, and view inspection history
+            </div>
+            <div class="wi-module-cta">
+                <i class="fas fa-arrow-right"></i> Access Admin
+            </div>
+        </a>
+
+        <!-- Warehouse Checklist Card -->
+        <a href="{% url 'warehouse_inspection:checklist' %}" class="wi-module-card checklist">
+            <i class="fas fa-clipboard-check wi-module-icon"></i>
+            <div class="wi-module-title">Warehouse Checklist</div>
+            <div class="wi-module-description">
+                Start and complete warehouse inspections
+            </div>
+            <div class="wi-module-cta">
+                <i class="fas fa-arrow-right"></i> View Checklist
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

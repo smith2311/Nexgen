@@ -1,0 +1,83 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}Scan History — every extractor session, filterable by mode.{% endcomment %}
+
+{% block mv_title %}Scan History{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:extractor' %}">Barcode Extractor</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Scan History</span>
+{% endblock %}
+{% block mv_heading %}Scan History{% endblock %}
+{% block mv_actions %}
+<div data-mv-layout-manager data-screen-key="scan_history" data-table="#mvScanHistoryTable" style="display:inline-block;"></div>
+<a href="{% url 'merilv:scan_history_export' %}?{{ request.GET.urlencode }}" class="mv-btn">{% icon "download" %} Export list</a>
+{% endblock %}
+
+{% block mv_body %}
+<div class="mv-card mv-card--flush">
+    <form method="get" class="mv-table-toolbar">
+        <div class="mv-search" style="max-width:280px;">
+            {% icon "search" %}
+            <input type="text" class="mv-input" name="q" value="{{ q }}" placeholder="Search session, entity…" aria-label="Search sessions">
+        </div>
+        <select class="mv-select" name="mode" style="width:auto;min-width:180px;" onchange="this.form.submit()">
+            <option value="">All modes</option>
+            {% for value, label in mode_choices %}<option value="{{ value }}" {% if value == mode %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select class="mv-select" name="status" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="">Any status</option>
+            <option value="open" {% if status == "open" %}selected{% endif %}>Open</option>
+            <option value="finished" {% if status == "finished" %}selected{% endif %}>Finished</option>
+        </select>
+        <select class="mv-select" name="sort" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+            <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest first</option>
+            <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest first</option>
+            <option value="name" {% if sort == "name" %}selected{% endif %}>Name A–Z</option>
+            <option value="found" {% if sort == "found" %}selected{% endif %}>Most found</option>
+        </select>
+        <button type="submit" class="mv-btn">{% icon "search" 14 %} Filter</button>
+        <div class="mv-table-toolbar__spacer"></div>
+        <span class="mv-t-caption">Showing {% if page_obj.paginator.count %}{{ page_obj.start_index }}–{{ page_obj.end_index }}{% else %}0{% endif %} of {{ page_obj.paginator.count }}</span>
+    </form>
+    {% if page_obj.paginator.count %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense" id="mvScanHistoryTable">
+        <thead><tr>
+            <th data-col="name">Session</th><th data-col="mode">Mode</th><th data-col="entity">Entity</th>
+            <th data-col="operator">Operator</th><th class="mv-num" data-col="found">Found</th>
+            <th class="mv-num" data-col="total">Total</th><th class="mv-num" data-col="duplicates">Duplicates</th>
+            <th class="mv-num" data-col="not_found">Not Found</th><th data-col="status">Status</th><th data-col="created">Created</th>
+        </tr></thead>
+        <tbody>
+            {% for s in page_obj %}
+            <tr data-mv-href="{% url 'merilv:scan_session' s.pk %}" class="mv-row-link">
+                <td class="mv-t-strong" data-col="name">{{ s }}</td>
+                <td class="mv-fg-3" data-col="mode">{{ s.get_mode_display }}</td>
+                <td data-col="entity"><span class="mv-badge mv-badge--neutral">{{ s.entity.code }}</span></td>
+                <td class="mv-fg-3" data-col="operator">{{ s.created_by|display_name }}</td>
+                <td class="mv-num" data-col="found">{{ s.found_count }}</td>
+                <td class="mv-num" data-col="total">{{ s.total_count }}</td>
+                <td class="mv-num" data-col="duplicates" hidden>{{ s.duplicate_count }}</td>
+                <td class="mv-num" data-col="not_found" hidden>{{ s.not_found_count }}</td>
+                <td data-col="status">{% if s.is_finished %}<span class="mv-badge mv-badge--ok">Finished</span>{% else %}<span class="mv-badge mv-badge--warn">Open</span>{% endif %}</td>
+                <td class="mv-t-caption" data-col="created">{{ s.created_at|date:"d M, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="mv-table-footer">
+        <span>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+        {% pagination_links page_obj %}
+    </div>
+    {% else %}
+    <div class="mv-empty">{% icon "search-x" 48 %}<div class="mv-empty__title">No sessions found</div></div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block mv_js %}
+<script src="{% static 'merilv/js/layout_manager.js' %}" defer></script>
+{% endblock %}

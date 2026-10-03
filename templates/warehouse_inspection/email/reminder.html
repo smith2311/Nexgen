@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Warehouse Inspection - Still Open</title>
+</head>
+<body style="margin:0; padding:0; background:#eef2f7; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+    {{ rows|length }} warehouse inspection item{{ rows|length|pluralize }} still marked No.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%; background:#eef2f7; padding:28px 0;">
+    <tr>
+      <td align="center" style="padding:0 12px;">
+        <table role="presentation" width="760" cellspacing="0" cellpadding="0" style="max-width:760px; width:100%; background:#ffffff; border:1px solid #dbe3ee; border-radius:14px; overflow:hidden; box-shadow:0 14px 32px rgba(15, 23, 42, 0.10);">
+          <tr>
+            <td style="background:#b91c1c; padding:26px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 8px 0; font-size:12px; line-height:16px; letter-spacing:0.08em; text-transform:uppercase; color:#fecaca; font-weight:700;">Warehouse Inspection</p>
+                    <h1 style="margin:0; font-size:26px; line-height:32px; color:#ffffff; font-weight:700;">Still Open</h1>
+                  </td>
+                  <td align="right" style="vertical-align:top;">
+                    <span style="display:inline-block; padding:7px 12px; border:1px solid rgba(255,255,255,0.35); border-radius:999px; color:#ffffff; font-size:12px; line-height:16px; font-weight:700;">Reminder</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 28px 8px 28px;">
+              <p style="margin:0; font-size:14px; line-height:20px; color:#475569;">The checklist items below are still marked <strong>No</strong> and have not been resolved. This reminder repeats daily until each item is answered <strong>Yes</strong>.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 28px 28px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; width:100%; border:1px solid #dbe3ee; border-radius:12px; overflow:hidden;">
+                <thead>
+                  <tr>
+                    <th align="left" style="background:#f1f5f9; padding:12px 14px; border-bottom:1px solid #e5e7eb; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Checkpoint</th>
+                    <th align="left" style="background:#f1f5f9; padding:12px 10px; border-bottom:1px solid #e5e7eb; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Floor / Condition</th>
+                    <th align="center" style="background:#f1f5f9; padding:12px 10px; border-bottom:1px solid #e5e7eb; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Open From &rarr; To</th>
+                    <th align="center" style="background:#f1f5f9; padding:12px 10px; border-bottom:1px solid #e5e7eb; width:90px; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Days Open</th>
+                    <th align="left" style="background:#f1f5f9; padding:12px 10px; border-bottom:1px solid #e5e7eb; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Last Comment</th>
+                    <th align="center" style="background:#f1f5f9; padding:12px 10px; border-bottom:1px solid #e5e7eb; width:80px; font-size:12px; line-height:16px; color:#475569; text-transform:uppercase; letter-spacing:0.05em;">Proof</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in rows %}
+                  <tr>
+                    <td style="padding:13px 14px; border-bottom:1px solid #edf2f7; font-size:14px; line-height:20px; color:#111827;">{{ row.ticket.checkpoint.checkpoint_name }}</td>
+                    <td style="padding:13px 10px; border-bottom:1px solid #edf2f7; font-size:13px; line-height:19px; color:#334155;">{{ row.ticket.floor.floor_name }}<br><span style="color:#64748b;">{{ row.ticket.condition_category.condition_category_name }}</span></td>
+                    <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7; font-size:12px; line-height:18px; color:#334155; white-space:nowrap;">{{ row.opened_on|date:"d M Y"|default:"-" }}<br><span style="color:#64748b;">&rarr; {{ row.as_of|date:"d M Y" }}</span></td>
+                    <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7;">
+                      <span style="display:inline-block; padding:4px 10px; border-radius:999px; background:#fee2e2; color:#991b1b; font-size:13px; font-weight:700;">{{ row.days_open }}</span>
+                    </td>
+                    <td style="padding:13px 10px; border-bottom:1px solid #edf2f7; font-size:13px; line-height:19px; color:#334155;">{% if row.ticket.last_response.comments %}{{ row.ticket.last_response.comments }}{% else %}-{% endif %}</td>
+                    <td align="center" style="padding:13px 10px; border-bottom:1px solid #edf2f7;">
+                      {% if row.ticket.last_response.photo %}
+                      <a href="{{ row.ticket.last_response.photo_absolute_url }}" style="color:#0f766e; font-weight:700; font-size:13px; text-decoration:none;" target="_blank" rel="noopener">View</a>
+                      {% else %}
+                      <span style="color:#94a3b8; font-size:13px;">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:22px 28px 28px 28px; background:#f8fafc; border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 12px 0; font-size:12px; line-height:18px; color:#64748b;">This is an automated daily reminder. It will stop once every listed item is answered Yes on a later inspection.</p>
+              <p style="margin:0 0 18px 0; font-size:13px; line-height:19px; color:#334155;">
+                For any query, please contact us at
+                <a href="mailto:{{ contact_email }}" style="color:#0f766e; font-weight:700; text-decoration:none;">{{ contact_email }}</a>.
+              </p>
+              {% if brand_logo_cid %}
+              <img src="cid:{{ brand_logo_cid }}" alt="Meril" width="120" style="display:block; width:120px; max-width:120px; height:auto; border:0; outline:none; text-decoration:none;">
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

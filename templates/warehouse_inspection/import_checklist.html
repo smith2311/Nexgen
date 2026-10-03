@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Import Checklist — Warehouse Inspection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+/* ── Reuse admin_conditions dialog/button/card styles ── */
+.warehouse-inspection-page { background:#f8fafc; min-height:100vh; padding:24px; }
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
+.header-content h1 { font-size:2em; font-weight:800; color:#1a202c; margin:0 0 8px; }
+.header-content p  { color:#6b7280; margin:0; font-size:1em; }
+.mt-card { background:white; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,.08); overflow:hidden; margin-bottom:24px; }
+.card-header { padding:24px; border-bottom:2px solid #f0f1f3; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; background:linear-gradient(135deg,#f8fafc,#f0f4f8); }
+.card-header h2 { margin:0; font-size:1.5em; font-weight:800; color:#1a202c; }
+.card-body  { padding:24px; }
+.btn { padding:11px 22px; border:none; border-radius:10px; font-size:.95em; font-weight:700; cursor:pointer; transition:all .2s; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
+.btn-primary  { background:linear-gradient(135deg,#0076c8,#0061a8); color:white; box-shadow:0 4px 12px rgba(0,118,200,.2); }
+.btn-primary:hover { background:linear-gradient(135deg,#0061a8,#004a7f); box-shadow:0 6px 16px rgba(0,118,200,.3); transform:translateY(-1px); }
+.btn-secondary { background:#f3f4f6; color:#374151; border:2px solid #d1d5db; }
+.btn-secondary:hover { background:#e5e7eb; border-color:#9ca3af; }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+.form-row { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:18px; align-items:end; }
+.form-group { margin-bottom:0; }
+.form-group label { display:block; margin-bottom:8px; font-weight:700; color:#1a202c; font-size:.95em; }
+.form-group input, .form-group select { width:100%; padding:12px 14px; border:2px solid #e5e7eb; border-radius:10px; font-size:1em; font-family:inherit; background:#fafbfc; transition:all .2s; box-sizing:border-box; }
+.form-group input[type="file"] { padding:10px 14px; cursor:pointer; }
+.form-group input:focus, .form-group select:focus { outline:none; border-color:#0076c8; background:white; box-shadow:0 0 0 4px rgba(0,118,200,.08); }
+
+/* Info box */
+.import-info { background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:12px; padding:18px 22px; margin-bottom:22px; }
+.import-info h3 { margin:0 0 10px; font-size:1em; color:#1e40af; font-weight:800; }
+.import-info ul { margin:0; padding-left:22px; color:#1e3a8a; font-size:.92em; line-height:1.8; }
+.import-info code { background:#dbeafe; border-radius:4px; padding:1px 5px; font-family:monospace; font-size:.9em; }
+
+/* Stats strip */
+.stats-strip { display:flex; gap:16px; flex-wrap:wrap; }
+.stat-chip { display:flex; align-items:center; gap:8px; background:#f0f4f8; border-radius:10px; padding:10px 18px; font-weight:800; font-size:.92em; color:#1a202c; }
+.stat-chip .stat-num { font-size:1.25em; color:#0076c8; }
+
+/* Preview table */
+.preview-outer { overflow-x:auto; }
+.preview-table { width:100%; border-collapse:collapse; font-size:.88em; }
+.preview-table th { background:#f3f4f6; padding:10px 12px; text-align:left; font-weight:800; color:#374151; font-size:.82em; text-transform:uppercase; letter-spacing:.4px; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
+.preview-table td { padding:9px 12px; border-bottom:1px solid #f0f0f0; vertical-align:top; color:#374151; }
+.preview-table tr:last-child td { border-bottom:none; }
+.preview-table .cond-row td { background:#f8fafc; font-weight:800; color:#1a202c; }
+.preview-table .cp-row:hover td { background:#f9fafb; }
+.cond-label { display:inline-flex; align-items:center; gap:7px; }
+.floor-pill { display:inline-block; padding:3px 9px; border-radius:20px; font-size:.78em; font-weight:700; margin:2px; }
+.floor-pill.yes { background:#d1fae5; color:#065f46; }
+.floor-pill.no  { background:#f1f5f9; color:#94a3b8; }
+.email-tag { font-size:.78em; color:#6b7280; display:block; margin-top:2px; }
+
+/* Import result */
+.result-box { border-radius:12px; padding:20px 24px; font-weight:700; font-size:.97em; margin-top:4px; }
+.result-box.success { background:#d1fae5; color:#065f46; border:1.5px solid #6ee7b7; }
+.result-box.error   { background:#fee2e2; color:#991b1b; border:1.5px solid #fca5a5; }
+.result-box i { margin-right:8px; }
+
+/* File drop zone */
+.drop-zone { border:2.5px dashed #d1d5db; border-radius:12px; padding:30px; text-align:center; cursor:pointer; transition:all .2s; background:#fafbfc; margin-bottom:22px; }
+.drop-zone.drag-over { border-color:#0076c8; background:#eff6ff; }
+.drop-zone i { font-size:2.2em; color:#9ca3af; display:block; margin-bottom:10px; }
+.drop-zone p { margin:0; color:#6b7280; font-weight:600; font-size:.95em; }
+.drop-zone .file-name { color:#0076c8; font-weight:800; margin-top:8px; font-size:.95em; display:none; }
+
+@media(max-width:768px){
+    .form-row { grid-template-columns:1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="warehouse-inspection-page">
+    <div class="page-header">
+        <div class="header-content">
+            <h1><i class="fas fa-file-excel"></i> Import Checklist from Excel</h1>
+            <p>Upload your Excel file to automatically map conditions, checkpoints and floor assignments</p>
+        </div>
+        <a href="{% url 'warehouse_inspection:conditions' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Conditions
+        </a>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="mt-card">
+        <div class="card-header">
+            <h2><i class="fas fa-upload"></i> Upload &amp; Configure</h2>
+        </div>
+        <div class="card-body">
+            <div class="import-info">
+                <h3><i class="fas fa-info-circle"></i> Expected Excel Format</h3>
+                <ul>
+                    <li><strong>Row 1:</strong> Building names, one per floor-column group — e.g. <code>Meril Park 3</code> merged across its 4 floor columns, then <code>Meril Park</code> and <code>Academy</code> each over their own single floor column. A file with only one building can leave row 1 blank except an optional title in cell A1.</li>
+                    <li><strong>Row 2:</strong> Headers — <code>Condition</code> | <code>Check list</code> | <em>[any columns before the email column are ignored]</em> | <code>Internal department Email ID</code> | <em>[one column per floor, named after that floor]</em></li>
+                    <li><strong>Row 3+:</strong> Data — condition name only in the first row of each group; checkpoint text in every row</li>
+                    <li>Every floor column after <code>Internal department Email ID</code> holds that floor's <strong>responsible email directly</strong>: a filled cell means the checkpoint applies to that floor with that owner, a blank cell means it doesn't apply. Buildings, floors, conditions and checkpoints are all created/updated automatically — no manual building name needed.</li>
+                </ul>
+            </div>
+
+            <!-- Drag-and-drop zone -->
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('importFile').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drag &amp; drop your Excel file here, or <strong>click to browse</strong></p>
+                <div class="file-name" id="fileNameDisplay"></div>
+            </div>
+            <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="handleFileSelect(this.files[0])">
+
+            <div class="form-row" style="grid-template-columns:1fr auto;">
+                <div class="form-group">
+                    <label for="importSheet"><i class="fas fa-table"></i> Sheet</label>
+                    <select id="importSheet" onchange="resetPreview()">
+                        <option value="Sheet1">Sheet1</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn btn-primary" id="previewBtn" onclick="runPreview()" disabled>
+                        <i class="fas fa-search"></i> Preview
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result / Error message -->
+    <div id="resultBox" style="display:none;" class="result-box"></div>
+
+    <!-- Preview Card -->
+    <div class="mt-card" id="previewCard" style="display:none;">
+        <div class="card-header">
+            <h2><i class="fas fa-eye"></i> Preview</h2>
+            <div class="stats-strip" id="statsStrip"></div>
+        </div>
+        <div class="card-body">
+            <div class="preview-outer">
+                <table class="preview-table" id="previewTable">
+                    <thead id="previewHead"></thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
+                <button class="btn btn-primary" id="importBtn" onclick="runImport()">
+                    <i class="fas fa-file-import"></i> Confirm Import
+                </button>
+                <span style="color:#6b7280; font-size:.9em;">
+                    Existing records with the same name will be updated; new ones will be created.
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const URLS = {
+    preview: "{% url 'warehouse_inspection:import_checklist_preview' %}",
+    confirm: "{% url 'warehouse_inspection:import_checklist_confirm' %}",
+};
+const CSRF = "{{ csrf_token }}";
+
+let selectedFile = null;
+let previewData  = null;
+
+/* ── Drag & Drop ── */
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+});
+
+function handleFileSelect(file) {
+    if (!file) return;
+    selectedFile = file;
+    document.getElementById('fileNameDisplay').textContent = file.name;
+    document.getElementById('fileNameDisplay').style.display = 'block';
+    document.getElementById('previewBtn').disabled = false;
+    resetPreview();
+}
+
+function resetPreview() {
+    previewData = null;
+    document.getElementById('previewCard').style.display = 'none';
+    document.getElementById('resultBox').style.display = 'none';
+}
+
+/* ── Preview ── */
+async function runPreview() {
+    if (!selectedFile) return;
+
+    const btn = document.getElementById('previewBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Parsing…';
+    resetPreview();
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('sheet', document.getElementById('importSheet').value);
+
+    try {
+        const res  = await fetch(URLS.preview, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showResult('error', data.error || 'Preview failed.');
+            return;
+        }
+
+        previewData = data;
+
+        /* Populate sheet selector */
+        const sheetSel = document.getElementById('importSheet');
+        sheetSel.innerHTML = data.sheets.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+        sheetSel.value = document.getElementById('importSheet').value || data.sheets[0];
+
+        renderPreview(data);
+    } catch (err) {
+        showResult('error', 'Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Preview';
+    }
+}
+
+function groupFloorColsByBuilding(floorCols) {
+    /* Preserves column order - floor_cols already arrives ordered left-to-right. */
+    const groups = [];
+    const byName = new Map();
+    floorCols.forEach(fc => {
+        if (!byName.has(fc.building)) {
+            const group = { building: fc.building, floors: [] };
+            byName.set(fc.building, group);
+            groups.push(group);
+        }
+        byName.get(fc.building).floors.push(fc);
+    });
+    return groups;
+}
+
+function renderPreview(data) {
+    /* Stats */
+    const strip = document.getElementById('statsStrip');
+    strip.innerHTML = [
+        { label: 'Buildings',    num: data.stats.buildings,       icon: 'fa-warehouse'   },
+        { label: 'Conditions',   num: data.stats.conditions,      icon: 'fa-layer-group' },
+        { label: 'Checkpoints',  num: data.stats.checkpoints,     icon: 'fa-list-check'  },
+        { label: 'Floors',       num: data.stats.floors,          icon: 'fa-building'    },
+        { label: 'Assignments',  num: data.stats.floor_assignments, icon: 'fa-user-check' },
+    ].map(s =>
+        `<div class="stat-chip"><i class="fas ${s.icon}" style="color:#0076c8"></i>
+            <span class="stat-num">${s.num}</span> ${s.label}</div>`
+    ).join('');
+
+    /* Table head - two rows: building groups (colspan = its floor count) over
+       the individual floor names, with the fixed leading columns spanning both. */
+    const buildingGroups = groupFloorColsByBuilding(data.floor_cols);
+    const fixedHeaderCells = '<th rowspan="2">#</th><th rowspan="2">Condition</th><th rowspan="2">Checkpoint</th><th rowspan="2">Internal Email</th>';
+    document.getElementById('previewHead').innerHTML = `
+        <tr>${fixedHeaderCells}${buildingGroups.map(g =>
+            `<th colspan="${g.floors.length}" style="text-align:center;background:#e0f2fe;">${esc(g.building)}</th>`
+        ).join('')}</tr>
+        <tr>${buildingGroups.flatMap(g => g.floors.map(fc => `<th>${esc(fc.name)}</th>`)).join('')}</tr>`;
+
+    /* Table body */
+    let rows = '';
+    let condIdx = 0;
+    data.conditions.forEach(cond => {
+        condIdx++;
+        cond.checkpoints.forEach((cp, cpIdx) => {
+            const floorCells = data.floor_cols.map(fc => {
+                const fa = cp.floor_assignments.find(a => a.building === fc.building && a.floor === fc.name);
+                if (!fa || !fa.applicable) {
+                    return `<td><span class="floor-pill no">—</span></td>`;
+                }
+                const email = fa.responsible_email
+                    ? `<span class="email-tag"><i class="fas fa-envelope"></i> ${esc(fa.responsible_email)}</span>`
+                    : '';
+                return `<td><span class="floor-pill yes"><i class="fas fa-check"></i> Yes</span>${email}</td>`;
+            }).join('');
+
+            const condCell = cpIdx === 0
+                ? `<td class="cond-label" rowspan="${cond.checkpoints.length}">
+                     <i class="fas fa-layer-group" style="color:#0076c8"></i> ${esc(cond.name)}
+                   </td>`
+                : '';
+            const numCell = cpIdx === 0
+                ? `<td rowspan="${cond.checkpoints.length}" style="font-weight:800;color:#0076c8;text-align:center;">${condIdx}</td>`
+                : '';
+
+            rows += `<tr class="${cpIdx === 0 ? 'cond-row' : 'cp-row'}">
+                ${numCell}${condCell}
+                <td>${esc(cp.name)}</td>
+                <td>${cp.internal_email ? `<span class="email-tag"><i class="fas fa-building"></i> ${esc(cp.internal_email)}</span>` : '<span style="color:#cbd5e1">—</span>'}</td>
+                ${floorCells}
+            </tr>`;
+        });
+    });
+    document.getElementById('previewBody').innerHTML = rows || '<tr><td colspan="99" style="text-align:center;color:#9ca3af;padding:24px;">No data found in the file.</td></tr>';
+
+    document.getElementById('importBtn').disabled = false;
+    document.getElementById('previewCard').style.display = 'block';
+    document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── Import ── */
+async function runImport() {
+    if (!selectedFile) { alert('Please select a file first.'); return; }
+
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing…';
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('sheet', document.getElementById('importSheet').value);
+
+    try {
+        const res  = await fetch(URLS.confirm, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            showResult('error', data.error || 'Import failed.');
+        } else {
+            showResult('success', data.message);
+            document.getElementById('previewCard').style.display = 'none';
+        }
+    } catch (err) {
+        showResult('error', 'Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-import"></i> Confirm Import';
+    }
+}
+
+/* ── Helpers ── */
+function showResult(type, msg) {
+    const box = document.getElementById('resultBox');
+    box.className = `result-box ${type}`;
+    box.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${esc(msg)}`;
+    box.style.display = 'block';
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

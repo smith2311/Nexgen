@@ -1,0 +1,142 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → Entity Configuration. One form, five grouped sections, matching
+the field groups in Entity itself (merilv/models.py) and the exact set the view
+writes back (ENTITY_TEXT_FIELDS / ENTITY_BOOLEAN_FIELDS / ENTITY_NUMBER_FIELDS
+in merilv/masters.py) — nothing here can drift from what the view accepts
+because both sides read the same model.
+{% endcomment %}
+
+{% block mv_title %}{{ entity.code }} — Entity Configuration{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters_entities' %}">Entities</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current mv-mono">{{ entity.code }}</span>
+{% endblock %}
+{% block mv_heading %}{{ entity.code }} — {{ entity.name }}{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Barcode parsing, expiry classification and matching rules for this business unit.</p>{% endblock %}
+{% block mv_actions %}
+<a href="{% url 'merilv:masters_entities' %}" class="mv-btn">{% icon "arrow-left" %} Entities</a>
+{% endblock %}
+
+{% block mv_body %}
+<form method="post">
+{% csrf_token %}
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "building" %} Identity</h2>
+    <div class="mv-field-row">
+        <div class="mv-field"><label class="mv-label">Code</label><input class="mv-input mv-input--mono" value="{{ entity.code }}" disabled><span class="mv-hint">Codes cannot be changed once created.</span></div>
+        <div class="mv-field"><label class="mv-label" for="mvName">Name</label><input class="mv-input" id="mvName" name="name" value="{{ entity.name }}"></div>
+        <div class="mv-field"><label class="mv-label" for="mvCompanyName">Legal company name</label><input class="mv-input" id="mvCompanyName" name="company_name" value="{{ entity.company_name }}"></div>
+    </div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "barcode" %} Barcode Parsing</h2>
+    <div class="mv-field-row">
+        <label class="mv-check"><input type="checkbox" name="strip_whitespace" value="1" {% if entity.strip_whitespace %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">Strip whitespace before parsing</span><br><span class="mv-t-caption">Some hand scanners inject stray spaces into the barcode string.</span></span></label>
+        <label class="mv-check"><input type="checkbox" name="supports_serial" value="1" {% if entity.supports_serial %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">SAP tracks stock at serial level</span><br><span class="mv-t-caption">Off for units that track stock only to batch level. Gates the Stock Validator’s serial-column requirement; scans still get a serial for the dispatch sheet.</span></span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="ai21_is_material" value="1" {% if entity.ai21_is_material %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">Treat GS1 (21) as material</span><br><span class="mv-t-caption">Non-standard: a few units encode the material in the serial AI.</span></span></label>
+        <label class="mv-check"><input type="checkbox" name="sanitise_batch" value="1" {% if entity.sanitise_batch %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">Strip punctuation from batch</span><br><span class="mv-t-caption">Removes anything outside A-Z, 0-9 and hyphen before comparing.</span></span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="allow_envelope" value="1" {% if entity.allow_envelope %}checked{% endif %}>
+            <span class="mv-t-body mv-t-strong">Accept A…A envelope and ^/~ AI prefixes</span></label>
+        <label class="mv-check"><input type="checkbox" name="positional_walker" value="1" {% if entity.positional_walker %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">Walk unbracketed AIs positionally</span><br><span class="mv-t-caption">Enables parsing of barcodes printed without parentheses.</span></span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="compact_gs1" value="1" {% if entity.compact_gs1 %}checked{% endif %}>
+            <span class="mv-t-body mv-t-strong">Accept compact GS1 (locked field order)</span></label>
+        <label class="mv-check"><input type="checkbox" name="positional_rules" value="1" {% if entity.positional_rules %}checked{% endif %}>
+            <span class="mv-t-body mv-t-strong">Use length-keyed positional rules</span></label>
+        <label class="mv-check"><input type="checkbox" name="trauma_legacy" value="1" {% if entity.trauma_legacy %}checked{% endif %}>
+            <span class="mv-t-body mv-t-strong">Accept Meril Trauma legacy layout</span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <div class="mv-field"><label class="mv-label" for="mvPseudoSerial">Synthetic serial digits</label>
+            <input class="mv-input mv-input--mono" type="number" id="mvPseudoSerial" name="pseudo_serial_digits" value="{{ entity.pseudo_serial_digits }}">
+            <span class="mv-hint">Width of the random suffix given to non-serialised items.</span></div>
+    </div>
+    <div class="mv-field" style="margin-top:var(--mv-4);">
+        <label class="mv-label" for="mvParseRules">Positional parse rules (CSV)</label>
+        <textarea class="mv-textarea mv-textarea--mono" id="mvParseRules" name="parse_rules_csv" rows="3">{{ entity.parse_rules_csv }}</textarea>
+        <span class="mv-hint">One rule per line: Len, MatStart, MatLen, BatStart, BatLen, MfgStart, MfgLen, ExpStart, ExpLen</span>
+    </div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "clock" %} Expiry Classification</h2>
+    <p class="mv-t-caption" style="margin:calc(-1 * var(--mv-2)) 0 var(--mv-4);">The two legacy engines disagreed on which threshold is tighter, so both are explicit per entity rather than unified silently.</p>
+    <div class="mv-field-row">
+        <div class="mv-field"><label class="mv-label" for="mvNearExpiry">Near expiry (months)</label><input class="mv-input mv-input--mono" type="number" id="mvNearExpiry" name="near_expiry_months" value="{{ entity.near_expiry_months }}"></div>
+        <div class="mv-field"><label class="mv-label" for="mvShortExpiry">Short expiry (months)</label><input class="mv-input mv-input--mono" type="number" id="mvShortExpiry" name="short_expiry_months" value="{{ entity.short_expiry_months }}"></div>
+        <div class="mv-field"><label class="mv-label" for="mvMonthDivisor">Days per month</label><input class="mv-input mv-input--mono" type="number" step="0.01" id="mvMonthDivisor" name="month_divisor" value="{{ entity.month_divisor }}">
+            <span class="mv-hint">30 for the legacy MHPL engine, 30.44 elsewhere.</span></div>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <div class="mv-field"><label class="mv-label" for="mvGoodLoc">Good stock storage location</label><input class="mv-input mv-input--mono" id="mvGoodLoc" name="good_storage_location" value="{{ entity.good_storage_location }}"></div>
+        <div class="mv-field"><label class="mv-label" for="mvDmgLoc">Damaged stock storage location</label><input class="mv-input mv-input--mono" id="mvDmgLoc" name="damage_storage_location" value="{{ entity.damage_storage_location }}"></div>
+    </div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "clipboard" %} Validation Engine</h2>
+    <div class="mv-field-row">
+        <label class="mv-check"><input type="checkbox" name="match_concat" value="1" {% if entity.match_concat %}checked{% endif %}><span class="mv-t-body mv-t-strong">Enable concat-serial pass</span></label>
+        <label class="mv-check"><input type="checkbox" name="match_batch" value="1" {% if entity.match_batch %}checked{% endif %}><span class="mv-t-body mv-t-strong">Enable batch-match pass</span></label>
+        <label class="mv-check"><input type="checkbox" name="match_material" value="1" {% if entity.match_material %}checked{% endif %}><span class="mv-t-body mv-t-strong">Enable material-only pass</span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="triple_sort" value="1" {% if entity.triple_sort %}checked{% endif %}><span class="mv-t-body mv-t-strong">Plant → expiry → qty sorting</span></label>
+        <label class="mv-check"><input type="checkbox" name="multi_row_consume" value="1" {% if entity.multi_row_consume %}checked{% endif %}><span class="mv-t-body mv-t-strong">Split a scan across SAP rows</span></label>
+        <label class="mv-check"><input type="checkbox" name="smart_zero" value="1" {% if entity.smart_zero %}checked{% endif %}><span class="mv-t-body mv-t-strong">Match ignoring leading zeros</span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="use_scan_qty" value="1" {% if entity.use_scan_qty %}checked{% endif %}><span class="mv-t-body mv-t-strong">Honour quantity from scan file</span></label>
+        <label class="mv-check"><input type="checkbox" name="strict_batch" value="1" {% if entity.strict_batch %}checked{% endif %}><span class="mv-t-body mv-t-strong">Compare batches strictly</span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <div class="mv-field"><label class="mv-label" for="mvConcatDelim">Concat delimiter</label><input class="mv-input mv-input--mono" id="mvConcatDelim" name="concat_delimiter" value="{{ entity.concat_delimiter }}" maxlength="4"></div>
+        <div class="mv-field" style="flex:2;"><label class="mv-label" for="mvPlantPriority">Plant priority</label><input class="mv-input mv-input--mono" id="mvPlantPriority" name="plant_priority" value="{{ entity.plant_priority }}" placeholder="WGJ1, WGJ7, WGJ4">
+            <span class="mv-hint">Comma-separated, highest priority first.</span></div>
+    </div>
+</div>
+
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "truck" %} Outbound &amp; Access</h2>
+    <div class="mv-field-row">
+        <label class="mv-check"><input type="checkbox" name="allow_customer_focus" value="1" {% if entity.allow_customer_focus %}checked{% endif %}><span class="mv-t-body mv-t-strong">Allow focusing a whole customer</span></label>
+        <label class="mv-check"><input type="checkbox" name="aggregate_delivery_lines" value="1" {% if entity.aggregate_delivery_lines %}checked{% endif %}>
+            <span><span class="mv-t-body mv-t-strong">Aggregate delivery lines</span><br><span class="mv-t-caption">Sum quantities across repeated delivery/item/material/batch rows. Never merges different item numbers.</span></span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <label class="mv-check"><input type="checkbox" name="enforce_box_capacity" value="1" {% if entity.enforce_box_capacity %}checked{% endif %}><span class="mv-t-body mv-t-strong">Enforce box capacity</span></label>
+        <label class="mv-check"><input type="checkbox" name="allow_partial_export" value="1" {% if entity.allow_partial_export %}checked{% endif %}><span class="mv-t-body mv-t-strong">Allow exporting incomplete deliveries</span></label>
+        <label class="mv-check"><input type="checkbox" name="is_active" value="1" {% if entity.is_active %}checked{% endif %}><span class="mv-t-body mv-t-strong">Active</span></label>
+    </div>
+    <div class="mv-field-row" style="margin-top:var(--mv-4);">
+        <div class="mv-field"><label class="mv-label" for="mvSortOrder">Sort order</label><input class="mv-input mv-input--mono" type="number" id="mvSortOrder" name="sort_order" value="{{ entity.sort_order }}"></div>
+        <div class="mv-field" style="flex:2;"><label class="mv-label" for="mvBtLocationPriority">Branch transfer location priority</label>
+            <input class="mv-input mv-input--mono" id="mvBtLocationPriority" name="bt_location_priority" value="{{ entity.bt_location_priority }}" placeholder="FG02, FG01, FG03">
+            <span class="mv-hint">Comma-separated, highest priority first — which storage location auto-assign batches draws from first.</span></div>
+    </div>
+</div>
+
+<div class="mv-card__footer" style="border-top:none;">
+    <a href="{% url 'merilv:masters_entities' %}" class="mv-btn">Cancel</a>
+    <button type="submit" class="mv-btn mv-btn--primary">{% icon "check" %} Save changes</button>
+</div>
+</form>
+{% endblock %}

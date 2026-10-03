@@ -1,0 +1,127 @@
+.md-page { padding: 32px; }
+.md-back { display:inline-flex;align-items:center;gap:6px;color:#0076c8;text-decoration:none;font-size:.9rem;margin-bottom:16px; }
+.md-back:hover { text-decoration:underline; }
+.md-header { margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+.md-header-left h1 { color:#06152b;font-size:1.9rem;font-weight:800;margin:0 0 6px; }
+.md-header-left p { color:#5f6c7d;font-size:.95rem;margin:0; }
+
+.toolbar { display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap; }
+/* Matches the shared data-table component's own search box
+   (static/components/data_table/data_table.css: .search-wrap/.search-wrap
+   input) rather than a one-off look for this page -- same small radius,
+   subtle border and muted icon used everywhere else in the app, instead of
+   the oversized rounded "pill" tried earlier. */
+.search-wrap { position:relative;flex:1;min-width:220px; }
+.search-wrap i {
+    position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:#6b7280;font-size:.9rem;line-height:1;pointer-events:none;
+    display:inline-block;
+}
+.search-input {
+    width:100%;
+    /* Left padding clears the absolutely positioned icon at left:12px. At the
+       symmetric 14px the text started underneath it — the crowding
+       test_the_icon_and_text_have_a_generous_gap describes. Matches the shared
+       data-table component's search box, which this was aligned to. */
+    padding:8px 14px 8px 32px;
+    box-sizing:border-box;
+    border:1px solid #d1d5db;
+    border-radius:6px;
+    background:#fff;
+    color:#374151;
+    font-size:.85rem;
+    outline:none;
+    transition:border-color 200ms ease,box-shadow 200ms ease;
+    -webkit-appearance:none;
+    appearance:none;
+}
+
+.search-input:focus {
+    border-color:#0076c8;
+    box-shadow:0 0 0 3px rgba(0,118,200,.10);
+}
+
+/* Chrome/Safari draw their own magnifier and spinner on type=search; ours is
+   already there, so theirs would be a second icon in the same field. */
+.search-input::-webkit-search-decoration,
+.search-input::-webkit-search-results-button { -webkit-appearance:none; }
+.filter-btn { padding:7px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.82rem;font-weight:600;background:#fff;color:#374151;cursor:pointer;display:inline-flex;align-items:center;gap:5px; }
+.filter-btn.active { background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8; }
+.filter-btn:hover { background:#f9fafb; }
+.btn-new-user { padding:8px 16px;background:#0076c8;color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap; }
+.btn-new-user:hover { background:#005fa3; }
+
+.stats-bar { display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap; }
+.stat-chip { background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:.82rem; }
+.stat-chip .stat-num { font-size:1.1rem;font-weight:800;color:#06152b; }
+.stat-chip .stat-label { color:#6b7280; }
+
+.user-table-wrap { background:#fff;border:1px solid #dce3ec;border-radius:10px;overflow:hidden; }
+.user-table { width:100%;border-collapse:collapse;min-width:760px; }
+.user-table thead th { background:#f8fafc;padding:10px 14px;text-align:left;font-size:.75rem;font-weight:700;color:#6b7280;border-bottom:1px solid #e5e7eb;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase; }
+.user-table tbody tr { border-bottom:1px solid #f3f4f6;transition:background .1s; }
+.user-table tbody tr:hover { background:#f9fafb; }
+.user-table tbody tr.inactive-row { opacity:.55; }
+.user-table tbody td { padding:12px 14px;font-size:.87rem;color:#374151;vertical-align:middle; }
+.user-table tbody tr:last-child { border-bottom:none; }
+
+.avatar { width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;color:#fff;flex-shrink:0; }
+
+.role-chip { display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:10px;font-size:.72rem;font-weight:700;margin:1px; }
+
+.badge-active { background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700; }
+.badge-inactive { background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700; }
+.badge-super { background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700; }
+
+.btn-edit-roles { padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:5px;font-size:.73rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px; }
+.btn-edit-roles:hover { background:#dbeafe; }
+.btn-toggle-active { padding:4px 10px;background:#fff;border:1px solid #d1d5db;border-radius:5px;font-size:.73rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:#374151; }
+.btn-toggle-active:hover { background:#f9fafb; }
+.btn-delete-user { padding:4px 10px;background:#fff5f5;color:#dc2626;border:1px solid #fecaca;border-radius:5px;font-size:.73rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px; }
+.btn-delete-user:hover { background:#fee2e2; }
+
+.md-empty { padding:48px;text-align:center;color:#9ca3af; }
+
+.slide-overlay { position:fixed;inset:0;background:rgba(6,21,43,.45);z-index:99999;display:none;justify-content:flex-end; }
+.slide-overlay.open { display:flex; }
+.slide-panel { background:#fff;width:100%;max-width:460px;height:100%;overflow-y:auto;box-shadow:-12px 0 40px rgba(0,0,0,.15);display:flex;flex-direction:column;animation:slideIn .22s ease; }
+@keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+.panel-head { padding:18px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:2; }
+.panel-title { font-size:1rem;font-weight:700;color:#06152b;display:flex;align-items:center;gap:8px; }
+.panel-close { background:none;border:none;font-size:1.3rem;color:#9ca3af;cursor:pointer;padding:3px 7px;border-radius:5px; }
+.panel-close:hover { background:#f3f4f6;color:#374151; }
+.panel-body { padding:20px 24px;flex:1; }
+.panel-foot { padding:16px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;position:sticky;bottom:0; }
+
+.role-toggle-grid { display:flex;flex-direction:column;gap:10px;margin-top:14px; }
+.role-toggle-row { display:flex;align-items:center;gap:12px;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s; }
+.role-toggle-row:hover { border-color:#bfdbfe;background:#f0f9ff; }
+.role-toggle-row.selected { border-color:#0076c8;background:#eff6ff; }
+.role-toggle-row input[type=checkbox] { display:none; }
+.role-toggle-icon { width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem;flex-shrink:0; }
+.role-toggle-info { flex:1; }
+.role-toggle-name { font-size:.88rem;font-weight:700;color:#06152b; }
+.role-toggle-desc { font-size:.75rem;color:#6b7280;margin-top:2px; }
+.role-check { width:20px;height:20px;border:2px solid #d1d5db;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s; }
+.role-toggle-row.selected .role-check { background:#0076c8;border-color:#0076c8; }
+
+.field-group { margin-bottom:14px; }
+.field-group label { display:block;font-size:.8rem;font-weight:600;color:#374151;margin-bottom:5px; }
+.field-group input[type=text],.field-group input[type=email],.field-group input[type=password] {
+    width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.88rem;outline:none;box-sizing:border-box;
+}
+.field-group input:focus { border-color:#0076c8;box-shadow:0 0 0 3px rgba(0,118,200,.1); }
+.field-row { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.req { color:#ef4444; }
+
+.confirm-overlay { position:fixed;inset:0;background:rgba(6,21,43,.55);z-index:999999;display:none;align-items:center;justify-content:center;padding:16px; }
+.confirm-overlay.open { display:flex; }
+.confirm-box { background:#fff;border-radius:12px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden; }
+.confirm-head { padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px; }
+.confirm-head h3 { margin:0;font-size:.95rem;font-weight:700;color:#06152b;flex:1; }
+.confirm-body { padding:18px 20px; }
+.confirm-body p { margin:0 0 8px;font-size:.87rem;color:#374151; }
+.confirm-foot { padding:12px 20px;background:#f8fafc;border-top:1px solid #e5e7eb;display:flex;gap:8px;justify-content:flex-end; }
+.btn-cancel-c { padding:7px 16px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer; }
+.btn-confirm-c { padding:7px 18px;background:#0076c8;color:#fff;border:none;border-radius:6px;font-size:.85rem;font-weight:700;cursor:pointer; }
+.btn-confirm-c.danger { background:#dc2626; }

@@ -1,0 +1,143 @@
+{% load merilv_ui %}{% comment %}
+The scan log, inside the scan frame — every attempt this session, accepted or
+rejected, filterable and searchable, directly under the box it was scanned into.
+
+It used to be a modal behind a "Check Logs" button, with a separate cut-down
+"runtime" log on the console. So the two questions a picker asks after every
+scan — did that land, and what has been refused so far — were answered in two
+different places, one of them a click away, and the always-visible copy was the
+one that could not show a rejection's detail. One log, always open, is the
+answer to both.
+
+Nothing about the filtering changed: the same data-status/data-code/
+data-delivery contract and the same wireScanFilter() in
+static/merilv/js/datatable.js, which is document-scoped rather than
+root-scoped. scanner.js prepends live rows here (scanLogTargets()).
+
+The badge counts describe the WHOLE session, not the rendered slice: only
+`feed_limit` rows are written into the DOM, and data-mv-scanfilter-over-* carries
+what the cap left out so the filter's own tally can add it back. Without that
+a 769-scan session reported "All 200 / Scanned 200 / Rejected 0".
+{% endcomment %}
+<div class="mv-card mv-scanpanel">
+    <div class="mv-rail__head">
+        <span class="mv-rail__title">{% icon "clock" 14 %} Recent scans</span>
+        {% comment %}
+        The size control, in the panel's head rather than crammed into the
+        filter bar below it — in a narrow column that bar has three chips, a
+        search box and a scope chip to fit already. It sizes the row this panel
+        shares with the deliveries, so both grow together (see
+        .mv-console.is-log-expanded).
+        {% endcomment %}
+        <button type="button" class="mv-btn mv-btn--ghost mv-btn--sm mv-scanfilter__size"
+                data-mv="log-toggle" aria-expanded="false" aria-controls="mvOutboundLog">
+            {% icon "chevron-down" 14 %}<span data-mv="log-toggle-label">Expand</span>
+        </button>
+    </div>
+    <div class="mv-scanfilter" data-mv-scanfilter-bar="mvOutboundLog"
+         data-mv-scanfilter-over-all="{{ overflow.all|default:0 }}"
+         data-mv-scanfilter-over-accepted="{{ overflow.accepted|default:0 }}"
+         data-mv-scanfilter-over-rejected="{{ overflow.rejected|default:0 }}">
+        <div class="mv-viewswitch" role="group" aria-label="Filter scans by status">
+            <button type="button" data-mv-scanfilter="all" aria-pressed="true">
+                {% icon "layers" %}<span>All <span class="mv-scanfilter__n" data-mv-count="all">{{ counts.all }}</span></span>
+            </button>
+            {% comment %}
+            "Scanned", not "Packed" — the request names these filters
+            All / Scanned / Pending, and two words for one state is how
+            an operator ends up believing the filter is broken.
+            {% endcomment %}
+            <button type="button" data-mv-scanfilter="accepted" aria-pressed="false">
+                {% icon "check-circle" %}<span>Scanned <span class="mv-scanfilter__n" data-mv-count="accepted">{{ counts.accepted }}</span></span>
+            </button>
+            {% comment %}
+            The errors, one click from every scan rather than behind a modal —
+            and visible as red rows in the unfiltered list without any click at
+            all. The count is what makes a growing pile of rejections noticeable
+            while it is still worth stopping for.
+            {% endcomment %}
+            <button type="button" data-mv-scanfilter="rejected" aria-pressed="false">
+                {% icon "x-circle" %}<span>Rejected <span class="mv-scanfilter__n" data-mv-count="rejected">{{ counts.rejected }}</span></span>
+            </button>
+        </div>
+        <input type="search" class="mv-input mv-scanfilter__search" data-mv-scanfilter-search
+               placeholder="Find a serial, code, material or reason…" aria-label="Search scans"
+               autocomplete="off" data-mv-no-nav>
+        <span class="mv-t-caption mv-scanfilter__more" data-mv-scanfilter-more
+              {% if not overflow.all %}hidden{% endif %}>{{ overflow.all }} older scans not listed</span>
+        {% comment %}
+        Shown only while the log is narrowed to the focused delivery.
+        "Show all deliveries" widens THIS LOG and nothing else — it
+        must not clear the focus, because that would silently stop the
+        operator being able to scan (see _focus_gate in views.py). The
+        scope is re-applied the moment the focused delivery changes.
+        {% endcomment %}
+        <span class="mv-scanfilter__scope" data-mv-scanfilter-scope-chip hidden>
+            <span class="mv-t-caption" data-mv-scanfilter-scope-label></span>
+            <button type="button" class="mv-link-btn mv-t-caption" data-mv-scanfilter-scope-toggle>Show all deliveries</button>
+        </span>
+    </div>
+
+    {% comment %}
+    data-delivery is the delivery each attempt belongs to. While a delivery is
+    focused the log shows that delivery's rows only, and this is what it is
+    matched on — see the scope block in wireScanFilter
+    (static/merilv/js/datatable.js). Blank on rows logged before ScanLog
+    carried a delivery; those stay visible rather than being hidden on a guess.
+    {% endcomment %}
+    <div class="mv-scanlog mv-scanlog--concise" id="mvOutboundLog" data-mv="scan-log"
+         role="log" aria-live="polite" aria-label="Recent scans">
+        {% for s in feed %}
+        <div class="mv-scanrow mv-scanrow--{{ s.family }}"
+             data-status="{% if s.accepted %}accepted{% else %}rejected{% endif %}"
+             data-delivery="{{ s.delivery_no }}"
+             {% comment %}
+             data-serial is the REPOINT key, not the display value: correcting
+             a serial rewrites it wherever it appears (repointSerialRows in
+             scanner.js). Only an assigned scan has one. A duplicate rejection
+             names the serial it collided with and must keep naming it — that
+             row is a record of what happened, and renaming the live scan does
+             not change what was refused at the time.
+             {% endcomment %}
+             {% if s.accepted %}data-serial="{{ s.serial }}"{% endif %}
+             data-code="{{ s.raw_scan }}">
+            {% comment %}
+            Date as well as time. A session runs across a shift change
+            and these rows outlive the day they were scanned on, so
+            "14:22:06" alone cannot answer "when was this packed?".
+            Rendered in the server's local timezone, the same one
+            scanner.js prints for a live row (it uses the timestamp the
+            scan response carries rather than the browser clock).
+            {% endcomment %}
+            <div class="mv-scanrow__time mv-mono">{{ s.created_at|date:"d M Y H:i:s" }}</div>
+            <div class="mv-scanrow__badge">{% reason_badge s.reason_code %}</div>
+            <div class="mv-scanrow__body">
+                <div class="mv-scanrow__code mv-mono">{{ s.label|truncatechars:40 }}</div>
+                <div class="mv-scanrow__msg">{{ s.message }}{% if s.target %} → {{ s.target }}{% endif %}</div>
+                {% comment %}
+                The serial, on rejections as well as accepts — the same line a
+                live row draws (prependLogRow in scanner.js), so a row does not
+                change shape when the page is reloaded. A refusal has assigned
+                nothing and still has to say which carton it was about; the
+                picker is holding the unit, not the barcode string.
+
+                Absent, not blank, when there is no serial to name: an item
+                whose label carries none and that assigned none.
+                {% endcomment %}
+                {% if s.serial %}
+                <div class="mv-scanrow__serial mv-mono">Serial {{ s.serial }}{% if s.delivery_no %}&nbsp;&nbsp;·&nbsp;&nbsp;Delivery {{ s.delivery_no }}{% endif %}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="mv-empty" data-mv-empty="seed">
+            {% icon "scan" 32 %}
+            <div class="mv-empty__title">Waiting for scans</div>
+            <p class="mv-empty__text">Every scan, accepted or rejected, appears here as it happens.</p>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="mv-empty" data-mv-scanfilter-nomatch hidden>
+        {% icon "search-x" 40 %}<div class="mv-empty__title">No scans match this filter</div>
+    </div>
+</div>

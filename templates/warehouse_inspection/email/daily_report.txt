@@ -1,0 +1,32 @@
+{% autoescape off %}Warehouse Inspection - Daily Activity Report
+Inspection activity for {{ report_date|date:"l, d M Y" }}
+Open-issue status as at {{ generated_on|date:"d M Y" }}
+
+WAREHOUSE STATUS
+{% for status in building_status %}- {{ status.building.building_name }}: {% if status.is_open %}OPEN ({{ status.open_ticket_count }} unresolved item{{ status.open_ticket_count|pluralize }}){% else %}CLEAR{% endif %}
+{% endfor %}
+
+OPEN ISSUES (still answered No; reminded daily until answered Yes)
+{% if open_tickets %}{% for row in open_tickets %}- {{ row.building_name }} | Floor: {{ row.floor_name }} | Condition: {{ row.condition_name }} | Checkpoint: {{ row.checkpoint_name }} | Open from {{ row.opened_on|date:"d M Y" }} to {{ row.as_of|date:"d M Y" }} ({{ row.days_open }} day{{ row.days_open|pluralize }}){% if row.last_comment %} | Last comment: {{ row.last_comment }}{% endif %}
+{% endfor %}{% else %}No open issues - every checkpoint across all buildings is currently answered Yes.
+{% endif %}
+
+MODULE LOGINS
+{% if logins %}{% for login in logins %}- {% if login.user_name %}{{ login.user_name }} <{{ login.user_email }}>{% else %}{{ login.user_email }}{% endif %} | first: {{ login.first_login_at|date:"H:i" }} | last: {{ login.last_login_at|date:"H:i" }} | logins: {{ login.login_count }}
+{% endfor %}{% else %}No one opened the module on {{ report_date|date:"d M Y" }}.
+{% endif %}
+
+INSPECTIONS CONDUCTED
+{% if inspections %}{% for item in inspections %}- {{ item.submission.building.building_name }} | Floor: {{ item.submission.floor.floor_name }} | Condition: {{ item.submission.condition_category.condition_category_name }} | Inspected on {{ item.submission.inspection_date|date:"d M Y" }} at {{ item.event.created_at|date:"H:i" }} | By: {% if item.event.submitted_by_name %}{{ item.event.submitted_by_name }} <{{ item.event.submitted_by_email }}>{% else %}{{ item.event.submitted_by_email }}{% endif %}{% if item.event.notes %} | Remarks: {{ item.event.notes }}{% endif %}
+{% for response in item.responses %}    {{ response.checkpoint.checkpoint_name }}: {% if response.response == "yes" %}Yes{% else %}No{% endif %}{% if response.comments %} - {{ response.comments }}{% endif %}
+{% endfor %}
+{% endfor %}{% else %}No inspections were submitted on {{ report_date|date:"d M Y" }}.
+{% endif %}
+
+PROBLEMS REPORTED (No answers on {{ report_date|date:"d M Y" }})
+{% if problems %}{% for row in problems %}- {{ row.inspection_date|date:"d M Y" }} {{ row.submitted_at|date:"H:i" }} | {{ row.building_name }} | Floor: {{ row.floor_name }} | Condition: {{ row.condition_name }} | {{ row.response.checkpoint.checkpoint_name }}{% if row.response.comments %} | {{ row.response.comments }}{% endif %}{% if row.response.photo %} | Photo: {{ row.response.photo_absolute_url }}{% endif %}
+{% endfor %}{% else %}No problems were reported on {{ report_date|date:"d M Y" }}.
+{% endif %}
+
+For any query, please contact us at {{ contact_email }}.
+{% endautoescape %}

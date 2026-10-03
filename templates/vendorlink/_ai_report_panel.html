@@ -1,0 +1,46 @@
+{% if ai_report.requested %}
+<div class="vlx-ba-panel vlx-ai-report">
+    <div class="vlx-ba-panel-head">
+        <div>
+            <h2>Key Points</h2>
+            <p>Generated from this report's data</p>
+        </div>
+    </div>
+    {% if ai_report.available %}
+    <div class="vlx-ai-report__body">
+        {% if ai_report.summary %}
+        <p class="vlx-ai-report__summary">{{ ai_report.summary }}</p>
+        {% endif %}
+        <div class="vlx-ai-report__grid">
+            <div>
+                <h3>Main key points</h3>
+                <ul>
+                    {% for item in ai_report.key_points %}<li>{{ item }}</li>{% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Risks and caveats</h3>
+                {% if ai_report.risks %}
+                <ul>{% for item in ai_report.risks %}<li>{{ item }}</li>{% endfor %}</ul>
+                {% else %}
+                <p class="vlx-ai-report__muted">No extra risk called out in these key points.</p>
+                {% endif %}
+            </div>
+            <div>
+                <h3>Opportunities</h3>
+                {% if ai_report.opportunities %}
+                <ul>{% for item in ai_report.opportunities %}<li>{{ item }}</li>{% endfor %}</ul>
+                {% else %}
+                <p class="vlx-ai-report__muted">No follow-up opportunity called out.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="vlx-alert vlx-alert--warning" style="margin:16px;">
+        <i class="fas fa-triangle-exclamation"></i>
+        <div>{{ ai_report.error|default:"Key Points are unavailable right now." }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

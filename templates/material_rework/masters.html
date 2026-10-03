@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Masters — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/masters.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-cog"></i> Masters</h1>
+        <p>Manage Verticals, Departments and the approval flows batches follow.</p>
+        <a href="{% url 'material_rework:routing_rules' %}"
+           style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:9px 18px;background:#0f1f3a;color:#fff;border-radius:7px;font-size:.84rem;font-weight:700;text-decoration:none;">
+            <i class="fas fa-diagram-project"></i> Routing Rules
+        </a>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    {% if msg.tags == 'error' %}
+    <div class="alert-err"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+    {% elif msg.tags == 'warning' %}
+    <div class="alert-warn"><i class="fas fa-exclamation-triangle"></i> {{ msg }}</div>
+    {% else %}
+    <div class="alert-msg"><i class="fas fa-check-circle"></i> {{ msg }}</div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    <div class="md-tabs">
+        <div class="md-tab active" data-tab="verticals"><i class="fas fa-layer-group"></i> Vertical</div>
+        <div class="md-tab" data-tab="departments"><i class="fas fa-sitemap"></i> Departments</div>
+        <div class="md-tab" data-tab="requesters"><i class="fas fa-tag"></i> Requested By</div>
+        <div class="md-tab" data-tab="countries"><i class="fas fa-globe"></i> Countries</div>
+        <div class="md-tab" data-tab="reworktypes"><i class="fas fa-screwdriver-wrench"></i> Type of Rework</div>
+        <div class="md-tab" data-tab="locations"><i class="fas fa-location-dot"></i> Location</div>
+    </div>
+
+    <!-- ══ VERTICAL TAB ══════════════════════════════════════════════ -->
+    <div class="md-panel active" id="panel-verticals">
+
+        <div class="panel-bar">
+            <span class="panel-title">Verticals <small style="color:#9ca3af;font-weight:400;">({{ verticals|length }} total)</small></span>
+            <div class="panel-actions">
+                <input type="text" class="search-input" placeholder="Search verticals…" oninput="filterRows('vTbody',this.value)">
+                {% if can_manage %}
+                <button type="button" class="btn-import" onclick="mdOpenModal('importVerticals')"><i class="fas fa-file-excel"></i> Import Excel</button>
+                <button type="button" class="btn-primary" onclick="mdOpenModal('addVertical')"><i class="fas fa-plus"></i> Add Vertical</button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if can_manage %}
+        <div class="bulk-bar" id="vBulkBar">
+            <span class="bulk-info">Selected <span id="vSelCount">0</span></span>
+            <button type="button" class="btn-bulk-del" onclick="bulkDelete('v')"><i class="fas fa-trash"></i> Delete Selected</button>
+            <button type="button" class="btn-bulk-cancel" onclick="clearSel('v')">Cancel</button>
+        </div>
+        <form id="vBulkForm" method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="bulk_delete_verticals">
+            <div id="vBulkIds"></div>
+        </form>
+        {% endif %}
+
+        <div class="md-table-wrap">
+            <table class="md-table">
+                <thead>
+                    <tr>
+                        {% if can_manage %}<th class="cb-col"><input type="checkbox" class="row-cb" id="vSelectAll" title="Select all"></th>{% endif %}
+                        <th>Vertical Name</th>
+                        <th>Departments</th>
+                        <th>Status</th>
+                        {% if can_manage %}<th>Actions</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody id="vTbody">
+                {% for v in verticals %}
+                <tr class="v-main-row" data-search="{{ v.name|lower }}" onclick="toggleDepts({{ v.id }})" style="cursor:pointer;">
+                    {% if can_manage %}<td class="cb-col" onclick="event.stopPropagation()"><input type="checkbox" class="row-cb v-cb" data-id="{{ v.id }}" data-group="v"></td>{% endif %}
+                    <td>
+                        <span style="display:inline-flex;align-items:center;gap:7px;">
+                            <i class="fas fa-chevron-right v-chevron" id="chev-{{ v.id }}" style="font-size:.65rem;color:#9ca3af;transition:transform .2s;"></i>
+                            <strong>{{ v.name }}</strong>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="dept-chip">{{ v.departments.count }}</span>
+                    </td>
+                    <td>{% if v.is_active %}<span class="badge-active">Active</span>{% else %}<span class="badge-inactive">Inactive</span>{% endif %}</td>
+                    {% if can_manage %}
+                    <td onclick="event.stopPropagation()">
+                        <button type="button" class="btn-sm btn-edit"
+                            onclick="openEditVertical({{ v.id }},'{{ v.name|escapejs }}',{{ v.is_active|yesno:'true,false' }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button type="button" class="btn-sm btn-del"
+                            onclick="confirmDel('deleteVertical','del_v_id','del_v_name','{{ v.name|escapejs }}',{{ v.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                    {% endif %}
+                </tr>
+                <tr class="v-dept-row" id="depts-{{ v.id }}" style="display:none;">
+                    <td colspan="{% if can_manage %}5{% else %}4{% endif %}" style="padding:0;background:#f8fafc;">
+                        {% if v.departments.all %}
+                        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+                            <thead>
+                                <tr style="background:#f1f5f9;">
+                                    <th style="padding:7px 14px 7px 36px;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Department</th>
+                                    <th style="padding:7px 14px;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">HOD Email(s)</th>
+                                    <th style="padding:7px 14px;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Warehouse Email(s)</th>
+                                    <th style="padding:7px 14px;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for dept in v.departments.all %}
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:7px 14px 7px 36px;color:#1f2937;font-weight:500;">
+                                    <i class="fas fa-sitemap" style="color:#0076c8;margin-right:6px;font-size:.72rem;"></i>{{ dept.name }}
+                                </td>
+                                <td style="padding:7px 14px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ dept.hod_email }}">{{ dept.hod_email|truncatechars:40 }}</td>
+                                <td style="padding:7px 14px;color:#6b7280;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ dept.warehouse_email }}">{{ dept.warehouse_email|default:"—"|truncatechars:40 }}</td>
+                                <td style="padding:7px 14px;">{% if dept.is_active %}<span class="badge-active">Active</span>{% else %}<span class="badge-inactive">Inactive</span>{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div style="padding:12px 36px;color:#9ca3af;font-size:.82rem;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>No departments in this vertical.</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if can_manage %}5{% else %}4{% endif %}" class="md-empty"><i class="fas fa-inbox" style="display:block;font-size:1.6rem;margin-bottom:8px;"></i>No verticals yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ══ DEPARTMENTS TAB ═══════════════════════════════════════════ -->
+    <div class="md-panel" id="panel-departments">
+
+        <div class="panel-bar">
+            <span class="panel-title">Departments <small style="color:#9ca3af;font-weight:400;">({{ dept_count }} total)</small></span>
+            <div class="panel-actions">
+                <input type="text" class="search-input" placeholder="Search departments…" oninput="filterRows('dTbody',this.value)">
+                {% if can_manage %}
+                <button type="button" class="btn-import" onclick="mdOpenModal('importDepts')"><i class="fas fa-file-excel"></i> Import Excel</button>
+                <button type="button" class="btn-primary" onclick="mdOpenModal('addDept')"><i class="fas fa-plus"></i> Add Department</button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if can_manage %}
+        <div class="bulk-bar" id="dBulkBar">
+            <span class="bulk-info">Selected <span id="dSelCount">0</span></span>
+            <button type="button" class="btn-bulk-del" onclick="bulkDelete('d')"><i class="fas fa-trash"></i> Delete Selected</button>
+            <button type="button" class="btn-bulk-cancel" onclick="clearSel('d')">Cancel</button>
+        </div>
+        <form id="dBulkForm" method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="bulk_delete_departments">
+            <div id="dBulkIds"></div>
+        </form>
+        {% endif %}
+
+        <div class="md-table-wrap">
+            <table class="md-table">
+                <thead>
+                    <tr>
+                        {% if can_manage %}<th class="cb-col"><input type="checkbox" class="row-cb" id="dSelectAll" title="Select all"></th>{% endif %}
+                        <th>Department Name</th>
+                        <th>Vertical</th>
+                        <th>HOD Email(s)</th>
+                        <th>Warehouse Email(s)</th>
+                        <th>Prod. Review Email(s)</th>
+                        <th>Status</th>
+                        {% if can_manage %}<th>Actions</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody id="dTbody">
+                {% for v in verticals %}{% for dept in v.departments.all %}
+                <tr data-search="{{ dept.name|lower }} {{ v.name|lower }}">
+                    {% if can_manage %}<td class="cb-col"><input type="checkbox" class="row-cb d-cb" data-id="{{ dept.id }}" data-group="d"></td>{% endif %}
+                    <td><strong>{{ dept.name }}</strong></td>
+                    <td><span style="background:#f0f7ff;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:.78rem;font-weight:600;">{{ v.name }}</span></td>
+                    <td title="{{ dept.hod_email }}" style="font-size:.82rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ dept.hod_email|truncatechars:35 }}</td>
+                    <td title="{{ dept.warehouse_email }}" style="font-size:.82rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ dept.warehouse_email|default:"—"|truncatechars:35 }}</td>
+                    <td title="{{ dept.production_review_email }}" style="font-size:.82rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ dept.production_review_email|default:"—"|truncatechars:35 }}</td>
+                    <td>{% if dept.is_active %}<span class="badge-active">Active</span>{% else %}<span class="badge-inactive">Inactive</span>{% endif %}</td>
+                    {% if can_manage %}
+                    <td>
+                        <button type="button" class="btn-sm btn-edit"
+                            onclick="openEditDept({id:{{ dept.id }},name:'{{ dept.name|escapejs }}',hod:'{{ dept.hod_email|escapejs }}',wh:'{{ dept.warehouse_email|escapejs }}',pr:'{{ dept.production_review_email|escapejs }}',om:'{{ dept.om_email|escapejs }}',ppic:'{{ dept.ppic_email|escapejs }}',active:{{ dept.is_active|yesno:'true,false' }}})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button type="button" class="btn-sm btn-del"
+                            onclick="confirmDel('deleteDept','del_d_id','del_d_name','{{ dept.name|escapejs }}',{{ dept.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}{% empty %}
+                <tr><td colspan="{% if can_manage %}8{% else %}6{% endif %}" class="md-empty"><i class="fas fa-inbox" style="display:block;font-size:1.6rem;margin-bottom:8px;"></i>No departments yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ══ REQUESTED BY TAB ═══════════════════════════════════════ -->
+    <div class="md-panel" id="panel-requesters">
+
+        <div class="panel-bar">
+            <span class="panel-title">Requested By Options <small style="color:#9ca3af;font-weight:400;">({{ requested_by_opts|length }} total)</small></span>
+            <div class="panel-actions">
+                <input type="text" class="search-input" placeholder="Search options…" oninput="filterRows('rqTbody',this.value)">
+                {% if can_manage %}
+                <button type="button" class="btn-primary" onclick="mdOpenModal('addRequester')"><i class="fas fa-plus"></i> Add Option</button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if can_manage %}
+        <div class="bulk-bar" id="rqBulkBar">
+            <span class="bulk-info">Selected <span id="rqSelCount">0</span></span>
+            <button type="button" class="btn-bulk-del" onclick="bulkDelete('rq')"><i class="fas fa-trash"></i> Delete Selected</button>
+            <button type="button" class="btn-bulk-cancel" onclick="clearSel('rq')">Cancel</button>
+        </div>
+        <form id="rqBulkForm" method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="bulk_delete_requested_by">
+            <div id="rqBulkIds"></div>
+        </form>
+        {% endif %}
+
+        <div class="md-table-wrap">
+            <table class="md-table">
+                <thead>
+                    <tr>
+                        {% if can_manage %}<th class="cb-col"><input type="checkbox" class="row-cb" id="rqSelectAll" title="Select all"></th>{% endif %}
+                        <th>Option Name</th>
+                        <th>Status</th>
+                        {% if can_manage %}<th>Actions</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody id="rqTbody">
+                {% for opt in requested_by_opts %}
+                <tr data-search="{{ opt.name|lower }}">
+                    {% if can_manage %}<td class="cb-col"><input type="checkbox" class="row-cb rq-cb" data-id="{{ opt.id }}" data-group="rq"></td>{% endif %}
+                    <td><strong>{{ opt.name }}</strong></td>
+                    <td>{% if opt.is_active %}<span class="badge-active">Active</span>{% else %}<span class="badge-inactive">Inactive</span>{% endif %}</td>
+                    {% if can_manage %}
+                    <td>
+                        <button type="button" class="btn-sm btn-edit"
+                            onclick="openEditRequester({{ opt.id }},'{{ opt.name|escapejs }}',{{ opt.is_active|yesno:'true,false' }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button type="button" class="btn-sm btn-del"
+                            onclick="confirmDel('deleteRequester','del_rq_id','del_rq_name','{{ opt.name|escapejs }}',{{ opt.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if can_manage %}4{% else %}2{% endif %}" class="md-empty"><i class="fas fa-tag" style="display:block;font-size:1.6rem;margin-bottom:8px;"></i>No options yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% comment %}
+    Country / Type of Rework / Location all share one partial — see
+    _simple_master_panel.html for why.
+    {% endcomment %}
+    {% include "material_rework/_simple_master_panel.html" with panel_id="countries" title="Countries" rows=countries prefix="ctry" action="country" field="country_name" icon="fa-globe" hint="Uploaded Excel rows are checked against this list. Spelling and case are corrected automatically where they match; anything unknown is reported with its row number. Leave this list empty to skip country validation entirely." %}
+
+    {% include "material_rework/_simple_master_panel.html" with panel_id="reworktypes" title="Types of Rework" rows=rework_types prefix="rwt" action="rework_type" field="rework_type_name" icon="fa-screwdriver-wrench" hint="Shown as the 'Type of Rework' dropdown on the upload form." %}
+
+    {% include "material_rework/_simple_master_panel.html" with panel_id="locations" title="Locations" rows=locations prefix="loc" action="location" field="location_name" icon="fa-location-dot" hint="Shown as the 'Location' dropdown on the upload form." %}
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+
+{% if can_manage %}
+
+{% include "material_rework/_simple_master_modals.html" with title_singular="Country" action="country" field="country_name" placeholder="e.g. India" %}
+{% include "material_rework/_simple_master_modals.html" with title_singular="Type of Rework" action="rework_type" field="rework_type_name" placeholder="e.g. Re-labelling" %}
+{% include "material_rework/_simple_master_modals.html" with title_singular="Location" action="location" field="location_name" placeholder="e.g. Vapi Plant" %}
+
+<!-- Add Vertical -->
+<div class="md-overlay" id="addVertical">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('addVertical')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-plus" style="color:#0076c8"></i> Add Vertical</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="add_vertical">
+            <div class="md-fg"><label>Vertical Name <span class="req">*</span></label><input type="text" name="name" required placeholder="e.g. Cardiology"></div>
+            <button type="submit" class="btn-full">Add Vertical</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Vertical -->
+<div class="md-overlay" id="editVertical">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('editVertical')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-edit" style="color:#0076c8"></i> Edit Vertical</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="edit_vertical">
+            <input type="hidden" name="id" id="ev_id">
+            <div class="md-fg"><label>Name <span class="req">*</span></label><input type="text" name="name" id="ev_name" required></div>
+            <div class="md-check"><input type="checkbox" name="is_active" id="ev_active"><label for="ev_active">Active</label></div>
+            <button type="submit" class="btn-full">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Vertical -->
+<div class="md-overlay" id="deleteVertical">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('deleteVertical')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-trash" style="color:#ef4444"></i> Delete Vertical</p>
+        <p style="color:#6b7280;margin-bottom:18px;">Delete <strong id="del_v_name" style="color:#374151"></strong>? All its departments will also be removed.</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="delete_vertical">
+            <input type="hidden" name="id" id="del_v_id">
+            <button type="submit" class="btn-full-red"><i class="fas fa-trash"></i> Yes, Delete</button>
+        </form>
+    </div>
+</div>
+
+<!-- Import Verticals -->
+<div class="md-overlay" id="importVerticals">
+    <div class="md-modal">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('importVerticals')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-file-excel" style="color:#16a34a"></i> Import Verticals</p>
+        <div class="import-hint">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <strong>Expected column format (row 1):</strong>
+                <a href="{% url 'material_rework:template_verticals' %}" class="btn-dl-tpl"><i class="fas fa-download"></i> Download Template</a>
+            </div>
+            <table><tr><th>Name <span style="color:#ef4444">*</span></th></tr><tr><td>Cardiology</td></tr><tr><td>Orthopaedics</td></tr></table>
+            <p style="color:#ef4444;font-size:.77rem;margin-top:4px;">* Required field</p>
+        </div>
+        <form method="post" action="{% url 'material_rework:masters' %}" enctype="multipart/form-data">
+            {% csrf_token %}<input type="hidden" name="action" value="import_verticals">
+            <div class="md-fg"><label>Excel File (.xlsx / .xls) <span class="req">*</span></label><input type="file" name="import_file" accept=".xlsx,.xls" required></div>
+            <button type="submit" class="btn-full"><i class="fas fa-upload"></i> Import Now</button>
+        </form>
+    </div>
+</div>
+
+<!-- Add Department -->
+<div class="md-overlay" id="addDept">
+    <div class="md-modal">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('addDept')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-plus" style="color:#0076c8"></i> Add Department</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="add_dept">
+            <div class="md-fg">
+                <label>Vertical <span class="req">*</span></label>
+                <select name="vertical_id" required>
+                    <option value="">— Select Vertical —</option>
+                    {% for v in all_verticals %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="md-fg"><label>Department Name <span class="req">*</span></label><input type="text" name="name" required></div>
+            <div class="md-fg">
+                <label>HOD Email(s) <span class="req">*</span></label>
+                <input type="text" name="hod_email" required placeholder="hod@merillife.com, hod2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Separate multiple emails with commas</small>
+            </div>
+            <div class="md-fg">
+                <label>Warehouse Email(s)</label>
+                <input type="text" name="warehouse_email" placeholder="wh@merillife.com, wh2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Separate multiple emails with commas</small>
+            </div>
+            <div class="md-fg">
+                <label>Production Review Email(s)</label>
+                <input type="text" name="production_review_email" placeholder="prod@merillife.com, mgr@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when production review completes. Separate multiple with commas.</small>
+            </div>
+            <div class="md-fg">
+                <label>Order Management Email(s)</label>
+                <input type="text" name="om_email" placeholder="om@merillife.com, om2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when a flow routes through the OM gate. Separate multiple with commas.</small>
+            </div>
+            <div class="md-fg">
+                <label>PPIC Email(s)</label>
+                <input type="text" name="ppic_email" placeholder="ppic@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when a flow routes through the PPIC gate. Separate multiple with commas.</small>
+            </div>
+            <button type="submit" class="btn-full">Add Department</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Department -->
+<div class="md-overlay" id="editDept">
+    <div class="md-modal">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('editDept')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-edit" style="color:#0076c8"></i> Edit Department</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="edit_dept">
+            <input type="hidden" name="id" id="ed_id">
+            <div class="md-fg"><label>Name <span class="req">*</span></label><input type="text" name="name" id="ed_name" required></div>
+            <div class="md-fg">
+                <label>HOD Email(s) <span class="req">*</span></label>
+                <input type="text" name="hod_email" id="ed_hod" required placeholder="hod@merillife.com, hod2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Separate multiple emails with commas</small>
+            </div>
+            <div class="md-fg">
+                <label>Warehouse Email(s)</label>
+                <input type="text" name="warehouse_email" id="ed_wh" placeholder="wh@merillife.com, wh2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Separate multiple emails with commas</small>
+            </div>
+            <div class="md-fg">
+                <label>Production Review Email(s)</label>
+                <input type="text" name="production_review_email" id="ed_pr" placeholder="prod@merillife.com, mgr@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when production review completes. Separate multiple with commas.</small>
+            </div>
+            <div class="md-fg">
+                <label>Order Management Email(s)</label>
+                <input type="text" name="om_email" id="ed_om" placeholder="om@merillife.com, om2@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when a flow routes through the OM gate. Separate multiple with commas.</small>
+            </div>
+            <div class="md-fg">
+                <label>PPIC Email(s)</label>
+                <input type="text" name="ppic_email" id="ed_ppic" placeholder="ppic@merillife.com">
+                <small style="color:#9ca3af;font-size:.75rem;">Notified when a flow routes through the PPIC gate. Separate multiple with commas.</small>
+            </div>
+            <div class="md-check"><input type="checkbox" name="is_active" id="ed_active"><label for="ed_active">Active</label></div>
+            <button type="submit" class="btn-full">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Department -->
+<div class="md-overlay" id="deleteDept">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('deleteDept')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-trash" style="color:#ef4444"></i> Delete Department</p>
+        <p style="color:#6b7280;margin-bottom:18px;">Delete <strong id="del_d_name" style="color:#374151"></strong>?</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="delete_dept">
+            <input type="hidden" name="id" id="del_d_id">
+            <button type="submit" class="btn-full-red"><i class="fas fa-trash"></i> Yes, Delete</button>
+        </form>
+    </div>
+</div>
+
+<!-- Import Departments -->
+<div class="md-overlay" id="importDepts">
+    <div class="md-modal">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('importDepts')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-file-excel" style="color:#16a34a"></i> Import Departments</p>
+        <div class="import-hint">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <strong>Expected column format (row 1):</strong>
+                <a href="{% url 'material_rework:template_departments' %}" class="btn-dl-tpl"><i class="fas fa-download"></i> Download Template</a>
+            </div>
+            <table>
+                <tr><th>Vertical <span style="color:#ef4444">*</span></th><th>Department Name <span style="color:#ef4444">*</span></th><th>HOD Email <span style="color:#ef4444">*</span></th><th>Warehouse Email</th></tr>
+                <tr><td>Cardiology</td><td>Cath Lab</td><td>hod@merillife.com</td><td>wh@merillife.com</td></tr>
+            </table>
+            <p style="margin-top:6px;">Vertical is created automatically if it doesn't exist. Warehouse Email is optional.</p>
+            <p style="color:#ef4444;font-size:.77rem;margin-top:4px;">* Required field &nbsp;|&nbsp; HOD &amp; Warehouse Email must be valid email addresses.</p>
+        </div>
+        <form method="post" action="{% url 'material_rework:masters' %}" enctype="multipart/form-data">
+            {% csrf_token %}<input type="hidden" name="action" value="import_departments">
+            <div class="md-fg"><label>Excel File (.xlsx / .xls) <span class="req">*</span></label><input type="file" name="import_file" accept=".xlsx,.xls" required></div>
+            <button type="submit" class="btn-full"><i class="fas fa-upload"></i> Import Now</button>
+        </form>
+    </div>
+</div>
+
+<!-- Add Requested By Option -->
+<div class="md-overlay" id="addRequester">
+    <div class="md-modal" style="max-width:380px;">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('addRequester')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-plus" style="color:#0076c8"></i> Add Requested By Option</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="add_requested_by">
+            <div class="md-fg"><label>Option Name <span class="req">*</span></label><input type="text" name="rq_name" placeholder="e.g. R&amp;D Lab" required></div>
+            <button type="submit" class="btn-full"><i class="fas fa-plus"></i> Add Option</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Requested By Option -->
+<div class="md-overlay" id="editRequester">
+    <div class="md-modal" style="max-width:380px;">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('editRequester')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-edit" style="color:#0076c8"></i> Edit Requested By Option</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="edit_requested_by">
+            <input type="hidden" name="id" id="erq_id">
+            <div class="md-fg"><label>Option Name <span class="req">*</span></label><input type="text" name="rq_name" id="erq_name" required></div>
+            <div class="md-check"><input type="checkbox" name="is_active" id="erq_active"><label for="erq_active">Active</label></div>
+            <button type="submit" class="btn-full">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Requester Contact -->
+<div class="md-overlay" id="deleteRequester">
+    <div class="md-modal" style="max-width:400px">
+        <button type="button" class="md-modal-close" onclick="mdCloseModal('deleteRequester')">&times;</button>
+        <p class="md-modal-title"><i class="fas fa-trash" style="color:#ef4444"></i> Delete Requester Contact</p>
+        <p style="color:#6b7280;margin-bottom:18px;">Delete <strong id="del_rq_name" style="color:#374151"></strong>?</p>
+        <form method="post" action="{% url 'material_rework:masters' %}">
+            {% csrf_token %}<input type="hidden" name="action" value="delete_requester">
+            <input type="hidden" name="id" id="del_rq_id">
+            <button type="submit" class="btn-full-red"><i class="fas fa-trash"></i> Yes, Delete</button>
+        </form>
+    </div>
+</div>
+
+{% endif %}{# end can_manage #}
+
+<!-- Page Loader -->
+<div id="pageLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#10b981;border-radius:50%;animation:spin .85s linear infinite;"></div>
+  <div style="text-align:center;">
+    <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Saving…</p>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+  </div>
+</div>
+
+<script src="{% static 'js/material-rework/masters.js' %}"></script>
+<script>
+document.querySelectorAll('form[method="post"]').forEach(function(f) {
+  f.addEventListener('submit', function() {
+    document.getElementById('pageLoader').style.display = 'flex';
+  });
+});
+</script>
+
+{% endblock %}

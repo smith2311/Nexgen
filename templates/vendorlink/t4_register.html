@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 4.2 — Vendor self-registration wizard (public).
+
+Wireframe
+    step indicator (1 Company · 2 Contact · 3 Location · 4 Capabilities)
+    ┌ one section visible at a time, Back / Next, Submit on the last ┐
+    success → handled by the existing register_success view
+
+**It is one form, not four.** Every field is rendered up front and the stepping
+is done in the browser by hiding fieldsets; the POST goes to the existing
+vendorlink:vendor_register endpoint with the whole payload at once. That keeps
+server-side validation, the email OTP and the captcha exactly as they are —
+reimplementing a public write path that creates real vendor records, to gain a
+progress bar, would be a bad trade.
+
+Two consequences worth stating:
+* With JavaScript off, every fieldset is visible and the form still submits.
+  The stepper is progressive enhancement, not a requirement.
+* Next does not validate server-side. Fields carry their native constraints so
+  the browser catches the obvious, and the server remains the authority — a
+  step that "passed" client-side can still come back with errors, which is
+  why errors render inline against their own field rather than as a summary
+  on a step the user has already left behind.
+{% endcomment %}
+
+{% block title %}Register as a vendor — Meril VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}
+<style>
+.vl-steps { display:flex; gap:var(--vl-2); flex-wrap:wrap; margin-bottom:var(--vl-6); }
+.vl-step { display:flex; align-items:center; gap:var(--vl-2); font-size:var(--vl-t-sm); color:var(--vl-ink-3); }
+.vl-step__n { width:22px; height:22px; border-radius:999px; flex:none;
+              display:inline-flex; align-items:center; justify-content:center;
+              background:var(--vl-100); color:var(--vl-ink-2);
+              font-family:var(--vl-mono); font-size:var(--vl-t-meta); font-weight:700; }
+.vl-step.is-current { color:var(--vl-ink); font-weight:600; }
+.vl-step.is-current .vl-step__n { background:var(--vl-accent); color:var(--vl-ink-inverse); }
+.vl-step.is-done .vl-step__n { background:var(--vl-green-tint); color:var(--vl-green-ink); }
+.vl-step__sep { color:var(--vl-300); }
+.vl-form-grid { display:grid; gap:var(--vl-3); grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.vl-field label { display:block; font-size:var(--vl-t-sm); font-weight:500; margin-bottom:4px; }
+.vl-field input:not([type=checkbox]), .vl-field select, .vl-field textarea {
+    width:100%; min-height:var(--vl-control-h); padding:var(--vl-1) var(--vl-2);
+    border:1px solid var(--vl-border); border-radius:var(--vl-r-input);
+    background:var(--vl-surface); color:var(--vl-ink); font-size:var(--vl-t-sm);
+}
+.vl-field .helptext { font-size:var(--vl-t-meta); color:var(--vl-ink-3); }
+.vl-field .errorlist { margin:4px 0 0; padding:0; list-style:none;
+                       font-size:var(--vl-t-meta); color:var(--vl-red); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap" style="max-width:860px;">
+
+    <div class="vl-pagehead">
+        <div>
+            <h1 class="vl-title">Register as a 3PL vendor</h1>
+            <p class="vl-subtitle">
+                Four short steps. We verify your email at the end, then our supply-chain team
+                reviews the submission.
+            </p>
+        </div>
+    </div>
+
+    <ol class="vl-steps" id="vlSteps" aria-label="Progress">
+        {% for s in steps %}
+        <li class="vl-step {% if forloop.first %}is-current{% endif %}" data-vl-step-label="{{ forloop.counter0 }}">
+            <span class="vl-step__n">{{ forloop.counter }}</span>
+            <span>{{ s.title }}</span>
+        </li>
+        {% if not forloop.last %}<li class="vl-step__sep" aria-hidden="true">→</li>{% endif %}
+        {% endfor %}
+    </ol>
+
+    <form method="post" action="{% url 'vendorlink:vendor_register' %}" enctype="multipart/form-data"
+          id="vlRegForm" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="vl-banner vl-banner--error" style="margin-bottom:var(--vl-3);">
+            <div class="vl-banner__body">{{ form.non_field_errors }}</div>
+        </div>
+        {% endif %}
+
+        {% comment %}
+        Every field is rendered; the stepper only decides which fieldset is
+        visible. Splitting the form server-side would need session state for a
+        half-finished public submission, which is a lot of machinery — and a
+        lot of ways to lose someone's answers — for a visual improvement.
+        {% endcomment %}
+        {% for s in steps %}
+        <fieldset class="vl-card" data-vl-step="{{ forloop.counter0 }}"
+                  style="border:1px solid var(--vl-border);padding:var(--vl-4);margin:0 0 var(--vl-3);"
+                  {% if not forloop.first %}hidden{% endif %}>
+            <legend style="padding:0 var(--vl-2);font-size:var(--vl-t-sm);font-weight:600;">
+                {{ s.title }}
+            </legend>
+            <p class="vl-meta" style="margin:0 0 var(--vl-3);">{{ s.hint }}</p>
+            <div class="vl-form-grid" data-vl-step-fields="{{ s.key }}"></div>
+        </fieldset>
+        {% endfor %}
+
+        {% comment %}Fields live here until the stepper distributes them; with
+        JS off this stays visible and the form works as one long page.{% endcomment %}
+        <div class="vl-card" id="vlAllFields" style="padding:var(--vl-4);margin-bottom:var(--vl-3);">
+            <div class="vl-form-grid">
+                {% for field in form %}
+                <div class="vl-field" data-vl-field="{{ field.name }}">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+                    {{ field.errors }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="display:flex;gap:var(--vl-2);align-items:center;">
+            <button type="button" class="vl-btn" id="vlBack" hidden>Back</button>
+            <button type="button" class="vl-btn vl-btn--primary" id="vlNext" hidden>Next</button>
+            <button type="submit" class="vl-btn vl-btn--primary" id="vlSubmit">Submit registration</button>
+            <span class="vl-meta" style="margin-left:auto;">Your email is verified before we review.</span>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+<script>
+(function () {
+    var form = document.getElementById('vlRegForm');
+    var pool = document.getElementById('vlAllFields');
+    if (!form || !pool) { return; }
+
+    // Which rendered field goes on which step. Anything not listed falls to the
+    // last step, so a field added to the form later still appears somewhere
+    // rather than silently vanishing from a wizard that hides its own pool.
+    var PLAN = {
+        company: ['vendor_name', 'company_name', 'website', 'registration_number', 'gst_number'],
+        contact: ['contact_person', 'email', 'mobile', 'phone', 'designation'],
+        // continent leads country: the two are a cascade, so a step that
+        // showed one without the other would leave the country list
+        // unnarrowable on the step it actually appears on.
+        location: ['continent', 'country', 'city', 'address', 'warehouse_location', 'postal_code', 'state'],
+    };
+
+    var steps = Array.prototype.slice.call(form.querySelectorAll('[data-vl-step]'));
+    var labels = Array.prototype.slice.call(document.querySelectorAll('[data-vl-step-label]'));
+    if (!steps.length) { return; }
+
+    var placed = {};
+    Object.keys(PLAN).forEach(function (key) {
+        var target = form.querySelector('[data-vl-step-fields="' + key + '"]');
+        if (!target) { return; }
+        PLAN[key].forEach(function (name) {
+            var field = pool.querySelector('[data-vl-field="' + name + '"]');
+            if (field) { target.appendChild(field); placed[name] = true; }
+        });
+    });
+    // Everything left over — capabilities, captcha, OTP, anything new.
+    var last = form.querySelector('[data-vl-step-fields="capabilities"]');
+    if (last) {
+        Array.prototype.slice.call(pool.querySelectorAll('[data-vl-field]')).forEach(function (f) {
+            last.appendChild(f);
+        });
+    }
+    pool.remove();
+
+    var current = 0;
+    var back = document.getElementById('vlBack');
+    var next = document.getElementById('vlNext');
+    var submit = document.getElementById('vlSubmit');
+    back.hidden = false; next.hidden = false;
+
+    function show(index) {
+        current = Math.max(0, Math.min(steps.length - 1, index));
+        steps.forEach(function (s, i) { s.hidden = i !== current; });
+        labels.forEach(function (l, i) {
+            l.classList.toggle('is-current', i === current);
+            l.classList.toggle('is-done', i < current);
+        });
+        back.hidden = current === 0;
+        next.hidden = current === steps.length - 1;
+        submit.hidden = current !== steps.length - 1;
+        // A hidden fieldset's invalid field cannot be focused by the browser,
+        // so validation is only enforced on the step being left.
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function stepIsValid() {
+        var fields = steps[current].querySelectorAll('input, select, textarea');
+        for (var i = 0; i < fields.length; i += 1) {
+            if (fields[i].willValidate && !fields[i].checkValidity()) {
+                fields[i].reportValidity();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    next.addEventListener('click', function () { if (stepIsValid()) { show(current + 1); } });
+    back.addEventListener('click', function () { show(current - 1); });
+    show(0);
+
+    // If the server bounced the form back with errors, jump to the first step
+    // that has one — otherwise the message sits on a hidden step and the user
+    // sees a form that refuses to submit for no visible reason.
+    var firstError = form.querySelector('.errorlist li, ul.errorlist');
+    if (firstError) {
+        var owner = firstError.closest('[data-vl-step]');
+        if (owner) { show(steps.indexOf(owner)); }
+    }
+}());
+</script>
+{% endblock %}

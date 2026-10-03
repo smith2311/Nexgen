@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Export Billing Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/billing_dashboard/billing.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="bd-wrap">
+
+  <header class="bd-hero">
+    <div class="bd-hero-text">
+      <div class="bd-hero-eyebrow">Order Management · Export Billing</div>
+      <h1 class="bd-hero-title"><i class="fas fa-file-invoice-dollar"></i> Export Billing Dashboard</h1>
+      <p class="bd-hero-sub">Upload a SAP Billing Dump and turn it into subsidiary, country, region, LOB &amp; monthly billing views.</p>
+    </div>
+    <div class="bd-hero-actions">
+      <a href="{% url 'billing:dashboard' %}" class="bd-btn bd-btn-primary"><i class="fas fa-chart-line"></i> Open Dashboard</a>
+      <a href="{% url 'billing:data_grid' %}" class="bd-btn"><i class="fas fa-table"></i> Browse Data</a>
+      <a href="{% url 'billing:export' %}" class="bd-btn"><i class="fas fa-file-excel"></i> Download Export</a>
+    </div>
+  </header>
+
+  {% if messages %}
+  <div class="bd-messages">
+    {% for m in messages %}
+      <div class="bd-alert bd-alert-{{ m.tags }}">{{ m }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="bd-stat-row">
+    <div class="bd-stat">
+      <div class="bd-stat-icon"><i class="fas fa-list-ul"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ total_rows }}">{{ total_rows }}</div>
+        <div class="bd-stat-lbl">Billing line items{% if latest_upload %} (latest snapshot){% endif %}</div>
+      </div>
+    </div>
+    <div class="bd-stat bd-stat--cyan">
+      <div class="bd-stat-icon"><i class="fas fa-layer-group"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ uploads|length }}">{{ uploads|length }}</div>
+        <div class="bd-stat-lbl">Recent uploads</div>
+      </div>
+    </div>
+    <div class="bd-stat {% if unmapped %}bd-stat-warn{% else %}bd-stat--green{% endif %}">
+      <div class="bd-stat-icon"><i class="fas {% if unmapped %}fa-triangle-exclamation{% else %}fa-circle-check{% endif %}"></i></div>
+      <div class="bd-stat-body">
+        <div class="bd-stat-val" data-countup="{{ unmapped }}">{{ unmapped }}</div>
+        <div class="bd-stat-lbl">Rows needing master upkeep
+          {% if unmapped %}<a href="{% url 'billing:data_grid' %}?view=exceptions">Review &rsaquo;</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_upload %}
+  <div class="bd-card bd-upload-card bd-card--rail">
+    <h2 class="bd-card-title"><i class="fas fa-cloud-upload-alt"></i> Upload SAP Billing Dump</h2>
+    <form method="post" action="{% url 'billing:upload' %}" enctype="multipart/form-data" class="bd-upload-form" id="bdUploadForm">
+      {% csrf_token %}
+      <label class="bd-drop" id="bdDrop">
+        <input type="file" name="dump" accept=".xlsx,.xlsm" id="bdFile" required hidden>
+        <span class="bd-drop-icon"><i class="fas fa-file-excel"></i></span>
+        <span class="bd-drop-text">
+          <span class="bd-drop-main" id="bdDropMain">Drop your Excel file here, or tap to browse</span>
+          <span class="bd-drop-hint" id="bdDropHint">Supported formats: .xlsx and .xlsm</span>
+        </span>
+      </label>
+      <div class="bd-upload-actions">
+        <button type="submit" class="bd-btn bd-btn-primary" id="bdSubmit"><i class="fas fa-upload"></i> Upload &amp; Process</button>
+      </div>
+    </form>
+    <div class="bd-upload-bar" id="bdUploadBar" aria-hidden="true"></div>
+    <p class="bd-note">
+      <i class="fas fa-circle-info"></i>
+      <span>
+        Mandatory columns: <b>Billing Doc</b>, <b>Item</b>, <b>Material</b> (spelling/spacing is flexible).
+        Rows are matched on <b>Billing Doc + Item + Material</b> — existing rows are updated, new ones inserted.
+        <b>Billing Type F5</b> is excluded from dashboards.
+      </span>
+    </p>
+  </div>
+  {% else %}
+  <div class="bd-card">
+    <p class="bd-note bd-flush-top">
+      <i class="fas fa-circle-info"></i>
+      <span>You have view access. Uploading requires the <b>Billing-Admin</b> role.</span>
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="bd-card">
+    <h2 class="bd-card-title">
+      <i class="fas fa-history"></i> Upload History
+    </h2>
+    <div class="bd-table-scroll bd-table-scroll--cards">
+      <table class="bd-table bd-table-cards" data-bd-filter data-bd-sort="9:desc">
+        <thead>
+          <tr>
+            <th>File</th><th>Status</th><th>Rows</th><th>New</th><th>Recurring</th>
+            <th>Skipped</th><th>Unmapped</th><th>Cols</th><th>Uploaded By</th><th>When</th>
+            <th>Dashboard</th>
+            {% if can_upload %}<th data-no-filter>Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in uploads %}
+          <tr>
+            <td class="bd-file bd-card-head" data-label="File" title="View details or download">
+              <a href="{% url 'billing:upload_detail' u.pk %}" class="bd-file-link"
+                 data-name="{{ u.original_name }}"
+                 data-detail="{% url 'billing:upload_detail' u.pk %}"
+                 data-download="{% url 'billing:download_upload' u.pk %}">{{ u.original_name }}</a>
+            </td>
+            <td data-label="Status" data-status-cell data-upload-id="{{ u.pk }}" data-status="{{ u.status }}">
+              <span class="bd-badge bd-badge-{{ u.status|lower }}">{{ u.get_status_display }}</span>
+              {% if u.status == 'PROCESSING' %}
+                <span class="bd-progress">{{ u.progress_pct }}%</span>
+                <span class="bd-progress-bar"><span style="width:{{ u.progress_pct }}%"></span></span>
+              {% endif %}
+            </td>
+            <td data-label="Rows" class="num">{{ u.total_rows }}</td>
+            <td data-label="New" class="num">{{ u.inserted }}</td>
+            <td data-label="Recurring" class="num">{{ u.updated }}</td>
+            <td data-label="Skipped" class="num">{{ u.skipped }}</td>
+            <td data-label="Unmapped" class="num">{% if u.unmapped %}<span class="bd-warn-text">{{ u.unmapped }}</span>{% else %}<span class="bd-muted-num">0</span>{% endif %}</td>
+            <td data-label="Cols" class="num">{{ u.detected_columns }}</td>
+            <td data-label="Uploaded by">{{ u.created_by|default:"—" }}</td>
+            <td data-label="When" data-sort="{{ u.created_at|date:'c' }}">{{ u.created_at|date:"d M Y H:i" }}</td>
+            <td data-label="Dashboard">
+              {% if u.status == 'COMPLETED' and u.row_count %}
+                <a href="{% url 'billing:dashboard' %}?upload={{ u.pk }}" class="bd-btn bd-btn-sm" title="Open this snapshot's dashboard">
+                  <i class="fas fa-chart-line"></i> View
+                </a>
+              {% elif u.status == 'COMPLETED' %}
+                <span class="bd-hint" title="This snapshot's rows were replaced by a later upload">empty</span>
+              {% else %}—{% endif %}
+            </td>
+            {% if can_upload %}
+            <td class="bd-card-actions">
+              <form method="post" action="{% url 'billing:delete_upload' u.pk %}" class="bd-delete-form">
+                {% csrf_token %}
+                <button type="submit" class="bd-icon-btn bd-delete-btn"
+                        data-name="{{ u.original_name }}" data-rows="{{ u.total_rows }}"
+                        title="Permanently delete this upload and its rows" aria-label="Permanently delete upload"><i class="fas fa-trash"></i></button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr data-no-filter><td colspan="{% if can_upload %}12{% else %}11{% endif %}" class="bd-empty">No uploads yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{# ── Custom popups (replace the browser's native confirm dialogs) ─────────── #}
+<dialog id="bdFileModal" class="bd-modal">
+  <div class="bd-modal-card">
+    <button type="button" class="bd-modal-close" data-close aria-label="Close">&times;</button>
+    <div class="bd-modal-head">
+      <span class="bd-modal-icon"><i class="fas fa-file-excel"></i></span>
+      <div class="bd-modal-headtext">
+        <h3 class="bd-modal-title" id="bdFileName">File</h3>
+        <p class="bd-modal-sub">What would you like to do with this upload?</p>
+      </div>
+    </div>
+    <div class="bd-modal-actions">
+      <a id="bdFileView" class="bd-btn" href="#"><i class="fas fa-circle-info"></i> View details</a>
+      <a id="bdFileDownload" class="bd-btn bd-btn-primary" href="#"><i class="fas fa-download"></i> Download</a>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="bdConfirmModal" class="bd-modal">
+  <div class="bd-modal-card">
+    <button type="button" class="bd-modal-close" data-close aria-label="Close">&times;</button>
+    <div class="bd-modal-head">
+      <span class="bd-modal-icon bd-modal-icon-danger"><i class="fas fa-triangle-exclamation"></i></span>
+      <div class="bd-modal-headtext">
+        <h3 class="bd-modal-title">Delete this upload?</h3>
+        <p class="bd-modal-sub" id="bdConfirmMsg">This action cannot be undone.</p>
+      </div>
+    </div>
+    <div class="bd-modal-actions">
+      <button type="button" class="bd-btn" data-close>Cancel</button>
+      <button type="button" class="bd-btn bd-btn-danger" id="bdConfirmOk"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/billing_dashboard/billing.js' %}"></script>
+<script>
+// Custom popups: file actions (View details / Download) + delete confirmation.
+(function () {
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  // Close on the ✕ / Cancel buttons and on a backdrop click.
+  function wire(dlg) {
+    if (!dlg) return;
+    dlg.addEventListener('click', function (e) {
+      if (e.target === dlg || (e.target.closest && e.target.closest('[data-close]'))) dlg.close();
+    });
+  }
+  var fileModal = document.getElementById('bdFileModal');
+  var confirmModal = document.getElementById('bdConfirmModal');
+  var canDialog = fileModal && typeof fileModal.showModal === 'function';
+  wire(fileModal); wire(confirmModal);
+
+  // ── File name → View details / Download ──
+  var fName = document.getElementById('bdFileName');
+  var fView = document.getElementById('bdFileView');
+  var fDl   = document.getElementById('bdFileDownload');
+  document.querySelectorAll('.bd-file-link').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      if (!canDialog) return;                 // old browser → follow href (details page)
+      e.preventDefault();
+      fName.textContent = link.getAttribute('data-name') || 'File';
+      fView.href = link.getAttribute('data-detail');
+      fDl.href   = link.getAttribute('data-download');
+      fileModal.showModal();
+    });
+  });
+  if (fView) fView.addEventListener('click', function () { if (fileModal.open) fileModal.close(); });
+  if (fDl)   fDl.addEventListener('click',   function () { if (fileModal.open) fileModal.close(); });
+
+  // ── Delete → custom danger confirmation ──
+  var pendingForm = null;
+  var cMsg = document.getElementById('bdConfirmMsg');
+  var cOk  = document.getElementById('bdConfirmOk');
+  document.querySelectorAll('.bd-delete-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      if (!canDialog) return;                 // old browser → native submit
+      e.preventDefault();
+      pendingForm = btn.closest('form');
+      var name = btn.getAttribute('data-name') || 'this upload';
+      var rows = btn.getAttribute('data-rows') || '0';
+      cMsg.innerHTML = 'This permanently removes <b>' + esc(name) + '</b> and all ' +
+        rows + ' billing row(s) from the database. It cannot be undone.';
+      confirmModal.showModal();
+    });
+  });
+  if (cOk) cOk.addEventListener('click', function () {
+    confirmModal.close();
+    if (pendingForm) pendingForm.submit();
+  });
+})();
+</script>
+<script>
+// Poll any PENDING/PROCESSING upload; reload the page once it finishes.
+(function () {
+  var pending = [].slice.call(document.querySelectorAll('[data-status-cell]'))
+    .filter(function (c) { var s = c.getAttribute('data-status'); return s === 'PENDING' || s === 'PROCESSING'; });
+  if (!pending.length) return;
+
+  var poll = setInterval(function () {
+    Promise.all(pending.map(function (cell) {
+      return fetch('/billing/uploads/' + cell.getAttribute('data-upload-id') + '/status/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.status === 'PROCESSING') {
+            var pct = d.progress_pct || 0;
+            var label = cell.querySelector('.bd-progress');
+            var fill = cell.querySelector('.bd-progress-bar > span');
+            if (label) { label.textContent = pct + '%'; }
+            if (fill) { fill.style.width = pct + '%'; }
+          }
+          return d.status;
+        }).catch(function () { return 'PROCESSING'; });
+    })).then(function (statuses) {
+      if (statuses.every(function (s) { return s === 'COMPLETED' || s === 'FAILED'; })) {
+        clearInterval(poll);
+        window.location.reload();
+      }
+    });
+  }, 3000);
+})();
+</script>
+{% endblock %}

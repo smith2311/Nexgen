@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-core.css' %}">
+{% block mt_extra_css %}{% endblock %}
+{# Motion + responsive layers load last so they can polish (and correct) page CSS #}
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-motion.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-responsive.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="mt-page">
+    <div class="mtd-header {% block hero_class %}{% endblock %}">
+        <div class="mtd-header-inner">
+            <div class="mtd-header-title">
+                {% block hero_heading %}{% endblock %}
+            </div>
+            <div class="mtd-header-actions">
+                {% block hero_back %}<a href="{% url 'meritrack:dashboard' %}" class="mt-back-btn btn-mt"><i class="fas fa-arrow-left"></i> <span class="back-label">Back</span></a>{% endblock %}
+                {% block hero_actions %}{% endblock %}
+            </div>
+        </div>
+        {% include 'meritrack/_nav.html' %}
+    </div>
+    {% block page_content %}{% endblock %}
+</div>
+
+{% block extra_js_base %}{% endblock %}
+<script src="{% static 'meritrack/js/meritrack-ui.js' %}" defer></script>
+{% endblock %}

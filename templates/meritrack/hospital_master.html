@@ -1,0 +1,271 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Hospital Master — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'css/datatables-2.0.8.min.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/hospital_master.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-hospital"></i> Hospital Master</h1>
+<p>Manage hospital locations and SAP mappings</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <button class="hero-btn hero-btn-solid" onclick="openHospitalModal()"><i class="fas fa-plus"></i> Add Hospital</button>
+    <button class="hero-btn" onclick="openImportModal()"><i class="fas fa-upload"></i> Bulk Import</button>
+    <a href="/meritrack/api/hospitals/export-template/" class="hero-btn"><i class="fas fa-download"></i> Template</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <div class="stats-row">
+        <div class="stat-card"><div class="num" id="statTotal">—</div><div class="lbl">Total</div></div>
+        <div class="stat-card"><div class="num" id="statActive" style="color:var(--mt-success)">—</div><div class="lbl">Active</div></div>
+        <div class="stat-card"><div class="num" id="statInactive" style="color:var(--mt-danger)">—</div><div class="lbl">Inactive</div></div>
+    </div>
+
+    <div class="card">
+        <div class="toolbar">
+            <div class="filter-tabs">
+                <button class="filter-tab active" onclick="setFilter('active',this)">Active</button>
+                <button class="filter-tab" onclick="setFilter('all',this)">All</button>
+                <button class="filter-tab" onclick="setFilter('inactive',this)">Inactive</button>
+            </div>
+        </div>
+        {# data-stack: meritrack-ui.js stamps each <td> with its <thead> label so #}
+        {# rows render as cards on phones instead of scrolling sideways. #}
+        <table id="hospitalsTable" data-stack style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Hospital</th>
+                        <th>SAP Code</th>
+                        <th>Country / Province</th>
+                        <th>City</th>
+                        <th>Contact</th>
+                        <th>Salesperson Email</th>
+                        <th>Status</th>
+                        <th style="text-align:center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="hospitalsBody"></tbody>
+            </table>
+    </div>
+
+<!-- Add / Edit Modal -->
+<div id="hospitalModal" class="modal-overlay" onclick="if(event.target===this)closeHospitalModal()">
+    <div class="modal-box md">
+        <div class="modal-header">
+            <h2 id="modalTitle"><i class="fas fa-hospital" style="color:var(--mt-primary)"></i> Add Hospital</h2>
+            <button class="modal-close" onclick="closeHospitalModal()">&#x2715;</button>
+        </div>
+        <div id="modalError" style="display:none;padding:10px 14px;background:var(--mt-danger-light);border:1px solid var(--mt-danger-border);border-radius:8px;color:var(--mt-danger-dark);font-size:0.85em;margin-bottom:14px;"></div>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label for="fName">Hospital Name <span style="color:red;">*</span></label>
+                <input type="text" id="fName" placeholder="e.g. City General Hospital" maxlength="255">
+            </div>
+            <div class="form-group">
+                <label for="fSapCode">SAP / Customer Code</label>
+                <input type="text" id="fSapCode" placeholder="e.g. 100123" maxlength="50">
+                <span class="field-hint">Must be unique if provided</span>
+            </div>
+            <div class="form-group">
+                <label for="fPlant">SAP Plant Code</label>
+                <input type="text" id="fPlant" placeholder="e.g. GE01" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label for="fCountry">Country</label>
+                <input type="text" id="fCountry" placeholder="Belgium" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="fProvince">Province / Region</label>
+                <input type="text" id="fProvince" placeholder="e.g. Flanders" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="fCity">City</label>
+                <input type="text" id="fCity" placeholder="e.g. Brussels" maxlength="100">
+            </div>
+            <div class="form-group full">
+                <label for="fAddress">Address</label>
+                <textarea id="fAddress" placeholder="Street address, postal code…"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="fContact">Contact Person</label>
+                <input type="text" id="fContact" placeholder="Full name" maxlength="255">
+            </div>
+            <div class="form-group">
+                <label for="fPhone">Phone</label>
+                <input type="tel" id="fPhone" placeholder="+32…" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label for="fEmail">Hospital Email</label>
+                <input type="email" id="fEmail" placeholder="info@hospital.be">
+            </div>
+            <div class="form-group full">
+                <label>Salespersons</label>
+                <div id="spChips" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;margin-bottom:8px;"></div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="fSpSelect" style="flex:1;padding:8px 10px;border:1px solid var(--mt-gray-300);border-radius:6px;font-size:0.9em;background:#fff;">
+                        <option value="">— Select to add salesperson —</option>
+                    </select>
+                    <button type="button" onclick="addSpFromSelect()" class="btn-mt btn-primary btn-sm" style="white-space:nowrap;"><i class="fas fa-plus"></i> Add</button>
+                </div>
+                <span class="field-hint">First added becomes the primary rep</span>
+            </div>
+            <div class="form-group full" id="fActiveGroup" style="display:none;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="fActive" checked style="width:auto;margin:0;">
+                    <span>Active</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;">
+            <button class="btn-mt btn-gray" onclick="closeHospitalModal()">Cancel</button>
+            <button class="btn-mt btn-primary" id="modalSaveBtn" onclick="saveHospital()"><i class="fas fa-check"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Department Management Modal -->
+<div id="deptModal" class="modal-overlay" onclick="if(event.target===this)closeDeptModal()">
+    <div class="modal-box lg">
+        <div class="modal-header">
+            <h2 id="deptModalTitle"><i class="fas fa-layer-group" style="color:var(--mt-primary)"></i> Departments</h2>
+            <button class="modal-close" onclick="closeDeptModal()">&#x2715;</button>
+        </div>
+
+        <!-- List view -->
+        <div id="deptListSection">
+            <div class="dept-list-hd">
+                <p id="deptHospName" style="font-size:0.9em;color:var(--mt-gray-600);margin:0;"></p>
+                <button class="btn-mt btn-primary btn-sm" onclick="openDeptForm()"><i class="fas fa-plus"></i> Add Department</button>
+            </div>
+            <div class="mt-tscroll">
+                <table style="width:100%;border-collapse:collapse;font-size:0.88em;" data-stack>
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--mt-gray-200);">
+                            <th style="padding:8px 10px;text-align:left;">Name</th>
+                            <th style="padding:8px 10px;text-align:left;">Code</th>
+                            <th style="padding:8px 10px;text-align:left;">Floor</th>
+                            <th style="padding:8px 10px;text-align:left;">Contact</th>
+                            <th style="padding:8px 10px;text-align:left;">Products on Shelf</th>
+                            <th style="padding:8px 10px;text-align:center;">Status</th>
+                            <th style="padding:8px 10px;text-align:center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deptTableBody">
+                        <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--mt-gray-400);">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add / Edit form -->
+        <div id="deptFormSection" style="display:none;">
+            <h3 id="deptFormTitle" style="font-size:1em;font-weight:600;color:var(--mt-gray-800);margin-bottom:14px;"><i class="fas fa-plus-circle" style="color:var(--mt-primary)"></i> Add Department</h3>
+            <div id="deptFormError" style="display:none;padding:10px 14px;background:var(--mt-danger-light);border:1px solid var(--mt-danger-border);border-radius:8px;color:var(--mt-danger-dark);font-size:0.85em;margin-bottom:14px;"></div>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Department Name <span style="color:red;">*</span></label>
+                    <input type="text" id="dfName" placeholder="e.g. Interventional Cardiology" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label for="dfCode">Code</label>
+                    <input type="text" id="dfCode" placeholder="e.g. TR01" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="dfFloor">Floor / Wing</label>
+                    <input type="text" id="dfFloor" placeholder="e.g. 2nd Floor" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="dfContact">Contact Person</label>
+                    <input type="text" id="dfContact" placeholder="Full name" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label for="dfPhone">Phone</label>
+                    <input type="tel" id="dfPhone" placeholder="+49…" maxlength="20">
+                </div>
+                <div class="form-group" id="dfActiveGroup" style="display:none;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:24px;">
+                        <input type="checkbox" id="dfActive" checked style="width:auto;margin:0;">
+                        <span>Active</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+                <button class="btn-mt btn-gray" onclick="showDeptList()">Cancel</button>
+                <button class="btn-mt btn-primary" id="deptSaveBtn" onclick="saveDept()"><i class="fas fa-check"></i> Save Department</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" class="modal-overlay" onclick="if(event.target===this)closeConfirmModal()">
+    <div class="modal-box sm">
+        <div class="modal-header">
+            <h2 id="confirmTitle">Confirm Action</h2>
+            <button class="modal-close" onclick="closeConfirmModal()">&#x2715;</button>
+        </div>
+        <p id="confirmMsg" style="font-size:0.9em;color:var(--mt-gray-700);margin-bottom:20px;line-height:1.5;"></p>
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-mt btn-gray" onclick="closeConfirmModal()">Cancel</button>
+            <button class="btn-mt" id="confirmBtn" onclick="runConfirmAction()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div id="importModal" class="modal-overlay" onclick="if(event.target===this)closeImportModal()">
+    <div class="modal-box md">
+        <div class="modal-header">
+            <h2><i class="fas fa-upload" style="color:var(--mt-success)"></i> Bulk Import Hospitals</h2>
+            <button class="modal-close" onclick="closeImportModal()">&#x2715;</button>
+        </div>
+        <div style="margin-bottom:14px;padding:12px 14px;background:var(--mt-primary-lighter);border-radius:8px;font-size:0.84em;color:var(--mt-primary-dark);line-height:1.5;">
+            <strong><i class="fas fa-info-circle"></i> Supported formats: <code>.xlsx</code> / <code>.xls</code> / <code>.csv</code></strong><br>
+            Required columns: <code>hospital_name</code> (or <code>name</code>), <code>customer_code</code> (or <code>sap_code</code>).<br>
+            Optional: <code>country</code>, <code>province</code>, <code>city</code>, <code>address</code>, <code>contact_person</code>, <code>phone</code>, <code>hospital_email</code>, <code>salesperson_email</code>, <code>plant</code>.<br>
+            Matching is by <strong>SAP code</strong> when present, otherwise by <strong>hospital_name</strong> — existing records are updated.
+        </div>
+        <div id="importDropZone" class="import-panel"
+             onclick="document.getElementById('importFile').click()"
+             ondrop="handleDrop(event)"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p><strong>Click to choose a file</strong> or drag &amp; drop here</p>
+            <p style="font-size:0.82em;color:var(--mt-gray-600);">Excel (.xlsx / .xls) or CSV (.csv)</p>
+            <p id="importFileName" style="color:var(--mt-primary);font-weight:600;margin-top:6px;"></p>
+        </div>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="onFileSelected(this)">
+        <div id="importResult" style="display:none;margin-top:14px;">
+            <div id="importSummary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+            <div id="importErrors"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;">
+            <a href="/meritrack/api/hospitals/export-template/" class="btn-mt btn-warning"><i class="fas fa-download"></i> Download Template</a>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-mt btn-gray" onclick="closeImportModal()">Close</button>
+                <button class="btn-mt btn-success" id="importBtn" onclick="runImport()" disabled><i class="fas fa-upload"></i> Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/datatables-2.0.8.min.js' %}"></script>
+<script>
+const CSRF = '{{ csrf_token }}';
+</script>
+
+<script src="{% static 'meritrack/js/hospital_master.js' %}"></script>
+{% endblock %}

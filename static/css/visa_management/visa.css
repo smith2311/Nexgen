@@ -1,0 +1,263 @@
+/* visa_management/visa.css
+   Visa-specific styles only — shared structure comes from data_table + master_page + modal components.
+   Variables are available from data_table.css's :root {} block. */
+
+/* ── Status pills ──────────────────────────────────────────────────────────── */
+.vm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.vm-pill.draft        { background: #f1f5f9; color: #64748b; }
+.vm-pill.pending_hod  { background: var(--amber-lt); color: #92400e; }
+.vm-pill.hod_approved { background: var(--blue-lt);  color: #1d4ed8; }
+.vm-pill.hod_rejected { background: var(--red-lt);   color: #991b1b; }
+.vm-pill.processing   { background: var(--purple-lt); color: #5b21b6; }
+.vm-pill.issued       { background: var(--green-lt); color: #065f46; }
+.vm-pill.rejected     { background: var(--red-lt);   color: #991b1b; }
+
+/* ── Monospace for ref numbers, passport numbers ───────────────────────────── */
+.vm-mono {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 11.5px;
+  color: var(--navy);
+  font-weight: 600;
+}
+
+/* ── Detail layout (application_detail, admin_detail) ──────────────────────── */
+.vm-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 20px;
+}
+.vm-detail-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.vm-detail-row:last-child { border-bottom: none; }
+.vm-detail-label { color: var(--text-muted); font-weight: 600; font-size: 12px; }
+.vm-detail-val   { color: var(--navy); font-weight: 500; }
+
+/* ── Filter bar ─────────────────────────────────────────────────────────────
+   The filter bar is a <form>, and static/css/components.css sets a global
+   `form { display: flex; flex-direction: column; }`. A class beats an element
+   selector, but only for properties it actually declares — so flex-direction
+   must be stated explicitly here or the global `column` wins and the selects
+   stack. Combined with align-items:center that also centred them, which is
+   what produced the broken layout. The same global rule is why .form-select's
+   `width: 100%` (data_table.css) has to be overridden below. */
+.filter-bar {
+  display: flex;
+  flex-direction: row;    /* required — overrides global form { column } */
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+.filter-bar .form-select {
+  width: auto;
+  min-width: 150px;
+  margin: 0;              /* never let an auto margin centre a flex item */
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.filter-bar .filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+/* Push "Clear" to the far right of the bar. */
+.filter-bar .btn { margin-left: auto; }
+
+@media (max-width: 640px) {
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar .form-select { width: 100%; min-width: 0; }
+  .filter-bar .btn { margin-left: 0; justify-content: center; }
+}
+
+/* ── Letter editor ──────────────────────────────────────────────────────────── */
+.vm-letter-editor {
+  width: 100%;
+  min-height: 500px;
+
+  font-family: 'Courier New', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  padding: 24px;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-md);
+  background: #FFFEF9;
+  color: #1a1a1a;
+  resize: vertical;
+}
+.vm-letter-editor:focus { border-color: var(--blue); outline: none; }
+
+/* ── Log timeline ──────────────────────────────────────────────────────────── */
+.vm-log { list-style: none; padding: 0; margin: 0; position: relative; }
+.vm-log::before {
+  content: '';
+  position: absolute;
+  left: 14px; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.vm-log-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  position: relative;
+  padding-left: 38px;
+}
+.vm-log-dot {
+  position: absolute;
+  left: 8px; top: 14px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  z-index: 1;
+}
+.vm-log-dot.submitted   { background: var(--blue); }
+.vm-log-dot.hod_approved { background: var(--green); }
+.vm-log-dot.hod_rejected { background: var(--red); }
+.vm-log-dot.letter_edited { background: var(--amber); }
+.vm-log-dot.issued      { background: var(--green); }
+.vm-log-dot.rejected    { background: var(--red); }
+.vm-log-action { font-size: 12.5px; font-weight: 700; color: var(--navy); }
+.vm-log-by     { font-size: 11.5px; color: var(--text-muted); }
+.vm-log-notes  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.vm-log-time   { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Entry-type / gender radio buttons ─────────────────────────────────────── */
+.vm-radio-group { display: flex; gap: 10px; flex-wrap: wrap; }
+.vm-radio-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 7px 14px;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s, background 0.15s;
+}
+.vm-radio-opt:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue-lt);
+  color: var(--blue);
+  font-weight: 600;
+}
+.vm-radio-opt input { accent-color: var(--blue); }
+
+/* ── Sticky form submit bar ─────────────────────────────────────────────────── */
+.vm-form-actions {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+/* ── Review / action panel ───────────────────────────────────────────────────
+   The approve-reject block used to be an ordinary card that scrolled out of
+   view behind the details column, so reviewers had to hunt for it. It is now
+   sticky, ring-highlighted and amber-accented so it reads as the one thing on
+   the page that asks for a decision. */
+.vm-review-panel {
+  position: sticky;
+  top: 16px;
+  border: 2px solid var(--amber);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(180, 83, 9, 0.16);
+  overflow: hidden;
+  background: var(--surface);
+  animation: vm-review-attn 1.6s ease-out 1;
+}
+@keyframes vm-review-attn {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  100% { box-shadow: 0 10px 28px rgba(180, 83, 9, 0.16); }
+}
+.vm-review-panel .form-block-hdr {
+  background: var(--amber-lt);
+  color: #92400e;
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+}
+.vm-review-panel .form-block-body { background: #fffdf7; }
+.vm-review-hint {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+.vm-review-panel .form-label { font-size: 12px; }
+/* The panel is the page's decision point — never let it collapse into a
+   scrollable stub on short viewports. */
+@media (max-height: 720px) {
+  .vm-review-panel { position: static; }
+}
+
+/* ── Stage remarks ───────────────────────────────────────────────────────────
+   One card per stage (applicant → HOD → Visa Department), each colour-keyed to
+   the party that wrote it so a reviewer can tell at a glance whose remark it
+   is without reading the label. */
+.vm-remark {
+  border-left: 3px solid var(--border-md);
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.vm-remark:last-child { margin-bottom: 0; }
+.vm-remark-who {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.vm-remark-text {
+  font-size: 13px;
+  color: var(--navy);
+  line-height: 1.55;
+  white-space: pre-line;
+}
+.vm-remark.applicant { border-left-color: var(--blue); }
+.vm-remark.hod       { border-left-color: var(--green); }
+.vm-remark.dept      { border-left-color: var(--purple); }
+.vm-remark-empty { font-size: 12.5px; color: var(--text-muted); }
+
+/* ── Print ──────────────────────────────────────────────────────────────────── */
+@media print {
+  .vm-no-print { display: none !important; }
+  .vm-print-only { display: block !important; }
+  body { background: #fff; }
+  @page { size: A4; margin: 2cm; }
+}
+.vm-print-only { display: none; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .vm-detail-grid { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,130 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank you for your participation — {{ req.subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#0076c8 0%,#00b5e2 100%);border-radius:12px 12px 0 0;padding:32px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:50%;width:60px;height:60px;line-height:60px;text-align:center;margin-bottom:12px;">
+              {% comment %}
+              Handshake, not folded hands. The previous emoji (U+1F64F) is
+              read as a high five rather than as thanks in several of the
+              countries these vendors sit in, which is the opposite of what
+              a "thank you for participating" note should convey.
+
+              Written as numeric entities like every other emoji in these
+              templates. This one is a ZWJ sequence (two hands joined by a
+              zero-width joiner), so a client too old to know the sequence
+              shows the two hands side by side rather than one handshake --
+              still legible, which a missing-glyph box would not be.
+              {% endcomment %}
+              <span style="font-size:26px;color:#ffffff;">&#129777;&#127995;&#8205;&#129778;&#127996;</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:21px;font-weight:800;letter-spacing:-0.3px;">Thank You for Participating</h1>
+            {% if req.reference_id %}
+            <div style="margin-top:12px;">
+              <span style="display:inline-block;background:rgba(255,255,255,0.18);color:#ffffff;font-family:'Courier New',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;padding:4px 12px;border-radius:9999px;">Ref: {{ req.reference_id }}</span>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:28px 36px 6px;">
+            {% comment %}
+            Deliberately says nothing about another vendor being chosen, or about
+            how many bids there were, or where this one placed. The recipient is
+            owed a clear, courteous answer about their own bid and nothing more --
+            anything about the wider field is commercially ours, not theirs, and
+            reads as a comparison they never asked for.
+            {% endcomment %}
+            <p style="margin:0 0 14px;color:#1f2937;font-size:15px;">Dear <strong>{{ vendor_name }}</strong>,</p>
+            <p style="margin:0 0 16px;color:#374151;font-size:14px;line-height:1.7;">
+              Thank you for taking the time to submit your proposal for
+              <strong>&ldquo;{{ req.subject }}&rdquo;</strong>. We genuinely appreciate your interest in
+              partnering with Meril Life Sciences and the effort you put into your bid.
+            </p>
+            <p style="margin:0 0 16px;color:#374151;font-size:14px;line-height:1.7;">
+              We regret to inform you that we are unable to proceed with your proposal on this
+              occasion. This is in no way a reflection of the quality of your offering.
+            </p>
+            <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">
+              We value your participation and would be glad to have you bid on future opportunities.
+              We look forward to the possibility of working together soon.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Signature -->
+        <tr>
+          <td style="background:#ffffff;padding:6px 36px 28px;">
+            <p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+              With appreciation,<br>
+              <strong style="color:#1f2937;">{{ raised_by_name }}</strong><br>
+              {% if raised_by_email %}<a href="mailto:{{ raised_by_email }}" style="color:#0076c8;text-decoration:none;">{{ raised_by_email }}</a><br>{% endif %}
+              Meril Life Sciences — Global SCM
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 12px 12px;padding:26px 36px 24px;text-align:center;">
+            {% comment %}
+            The logo is a cid: reference to an image attached to the message,
+            not a URL: Gmail, Outlook and Apple Mail block remote images by
+            default, so a hosted logo shows as a broken placeholder on first
+            open. vendorlink/mailer.py attaches it and sets brand_logo_cid;
+            without it this falls back to a wordmark rather than rendering a
+            dead image.
+            {% endcomment %}
+            {% if brand_logo_cid %}
+            {% comment %}
+            The logo sits in a white chip on purpose. The only Meril artwork in
+            the repo is JPEG, which has no alpha, so the image carries its own
+            white background — dropped straight onto the navy footer it reads
+            as a rendering fault. A rounded panel makes the same pixels read as
+            a deliberate badge. Replace with a transparent PNG and this wrapper
+            can go.
+            Centred with an auto-margin table, not flexbox: Outlook renders
+            through Word and supports neither flex nor margin:auto on a div.
+            {% endcomment %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from Meril VendorLink.
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

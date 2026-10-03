@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bid Analytics — VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-confirm.css' %}">
+{% comment %}
+Styling for the report cards the MerilGPT chat renders — tables, charts, KPIs.
+Its own file rather than vendorlink-components.css: this is a .vlx page whose
+tokens are --vlx-*, and that library is written against --vl-* on .vl and also
+defines .vl-table, which would collide with this page's own tables.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-gptreport.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+{% if messages %}
+<div class="vlx-alerts">
+{% for m in messages %}
+<div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+{% endfor %}
+</div>
+{% endif %}
+
+<div class="vlx-breadcrumb">
+    <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+    <span class="sep">/</span>
+    <span class="current">Bid Analytics</span>
+</div>
+
+<div class="vlx-ba-head">
+    <div>
+        <h1>Bid comparison</h1>
+        <p>See who is cheapest, who is expensive, and what the AI says.</p>
+    </div>
+    <div class="vlx-ba-actions">
+        {% comment %}
+        The rate-card list used to be the Commercial Database landing screen and
+        is now reached from here instead -- see the launcher card in
+        views.index. Nothing on that screen was removed, so it needs a door.
+        {% endcomment %}
+        <a class="vlx-btn vlx-btn--outline" href="{% url 'vendorlink:commercial_list' %}">
+            <i class="fas fa-file-contract"></i> Rate Cards
+        </a>
+        <a class="vlx-btn vlx-btn--outline"
+           href="{% url 'vendorlink:report_monthly_export' 'xlsx' %}?year={% if year %}{{ year }}{% else %}{% now 'Y' %}{% endif %}{% if country %}&amp;country={{ country|urlencode }}{% endif %}">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
+        {% comment %}
+        Create Report opens the real report (vendorlink/reports.py), carrying
+        this screen's country and year filters so the two always describe the
+        same set of RFIs. It used to open the MerilGPT drawer with a canned
+        prompt, which meant the "report" was prose an LLM had re-derived from
+        these same numbers -- non-deterministic, unavailable without
+        OPENAI_API_KEY, and impossible to reconcile against the screen it came
+        from. The GPT drawer is still one click away on New Analysis.
+        {% endcomment %}
+        <a class="vlx-btn vlx-btn--accent"
+           href="{% url 'vendorlink:report_monthly' %}?ai=1&amp;year={% if year %}{{ year }}{% else %}{% now 'Y' %}{% endif %}{% if country %}&amp;country={{ country|urlencode }}{% endif %}" data-ai-loader="Generating key points…">
+            <i class="fas fa-chart-simple"></i> Create Report
+        </a>
+        <button type="button" class="vlx-btn vlx-btn--primary vlx-ba-new" onclick="mgptOpen()">
+            <i class="fas fa-plus"></i> Ask One Meril GPT
+        </button>
+    </div>
+</div>
+
+{% include 'vendorlink/_bid_analytics_body.html' %}
+
+{% include 'vendorlink/_bid_analytics_gpt_widget.html' %}
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_continent_map.html" %}
+{% comment %}
+Chart.js and the component library, for the chat's report cards.
+
+Only the JS of vendorlink-components.js is taken, not its stylesheet — it
+exposes window.VL and its one load-time side effect (initSegments) is a no-op
+on a page with no segment controls. VL.renderReport is what draws the tables
+and charts, and VL.drawChart already falls back to literal colours when .vl is
+absent, which it is here.
+
+Chart.js must come first: renderReport checks window.Chart and reports "chart
+unavailable" rather than drawing, so load order is the difference between a
+chart and an apology.
+{% endcomment %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendorlink/js/vendorlink-components.js' %}"></script>
+{% comment %}
+Artifact controls on each report card — copy as cells, sortable columns, chart
+type, expand, print. Loaded after the renderer because it decorates the cards
+that renderer produces, and it watches for later ones via MutationObserver
+rather than wiring once at load: every answer after the first would otherwise
+arrive without a toolbar.
+{% endcomment %}
+<script src="{% static 'vendorlink/js/vl-artifacts.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-confirm.js' %}"></script>
+{% include "vendorlink/_ai_loader_assets.html" %}
+<script src="{% static 'vendorlink/js/vl-refcopy.js' %}"></script>
+{% include 'vendorlink/_bid_analytics_js.html' %}
+{% endblock %}

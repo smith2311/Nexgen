@@ -1,0 +1,81 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data landing. The console chrome (hero + flow pills + tab strip) is the
+navigation now, so the old grid of tile links is gone — it was the same twelve
+destinations a second time. Recent activity and Materials per entity are
+unchanged; they are summaries of the module, not ways into it.
+{% endcomment %}
+
+{% block mv_title %}Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Master Data</span>
+{% endblock %}
+{% block mv_heading %}Master Data{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Materials, customers, couriers, cartons and entity rules — every scan resolves through these tables.</p>{% endblock %}
+
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+<div class="mv-kpis">
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "table" %}</span><span class="mv-kpi__label">Records under management</span>
+        <span class="mv-kpi__value">{{ totals.records }}</span>
+        <span class="mv-kpi__sub">across {{ totals.tables }} spreadsheet-backed tables</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "building" %}</span><span class="mv-kpi__label">Business units</span>
+        <span class="mv-kpi__value">{{ entities|length }}</span>
+        <span class="mv-kpi__sub">each with its own barcode rules</span>
+    </div>
+    <div class="mv-kpi">
+        <span class="mv-kpi__icon">{% icon "users" %}</span><span class="mv-kpi__label">People with access</span>
+        <span class="mv-kpi__value">{{ totals.users }}</span>
+        <span class="mv-kpi__sub">viewers, pickers and admins</span>
+    </div>
+</div>
+
+<div class="mv-grid-2col">
+    <div class="mv-card mv-card--flush">
+        <div class="mv-card__head" style="padding:var(--mv-5) var(--mv-6) 0;">
+            <h2 class="mv-card__title">{% icon "activity" %} Recent activity</h2>
+            <a href="{% url 'merilv:masters_activity' %}" class="mv-link-btn mv-t-caption">View all {% icon "arrow-right" 12 %}</a>
+        </div>
+        {% if recent %}
+        <div class="mv-table-wrap">
+        <table class="mv-table mv-table--dense">
+            <tbody>
+                {% for log in recent %}
+                <tr>
+                    <td class="mv-t-caption" style="width:120px;">{{ log.created_at|date:"d M, H:i" }}</td>
+                    <td>{{ log.actor|display_name:"System" }}</td>
+                    <td class="mv-mono mv-fg-3">{{ log.action }}</td>
+                    <td class="mv-fg-3">{{ log.target_type }} {{ log.target_id }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div class="mv-empty">{% icon "scroll" 48 %}<div class="mv-empty__title">No activity yet</div></div>
+        {% endif %}
+    </div>
+
+    <div class="mv-card">
+        <h2 class="mv-card__title">{% icon "package" %} Materials per entity</h2>
+        {% if per_entity %}
+        <div class="mv-stack mv-stack--tight">
+            {% for row in per_entity %}
+            <div class="mv-row" style="justify-content:space-between;">
+                <span class="mv-badge mv-badge--neutral">{{ row.entity__code|default:"Unassigned" }}</span>
+                <span class="mv-mono mv-t-strong">{{ row.n }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="mv-t-caption">No materials imported yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% load merilv_ui %}<!DOCTYPE html>
+{% comment %}
+Printable packing list, one page-set per delivery. Rendered through xhtml2pdf,
+which supports only a narrow CSS subset — no flexbox, no grid, no CSS variables
+— so this is deliberately plain tables and inline widths. Do not "modernise" the
+layout here; it will silently stop rendering.
+
+The legacy version drew this with ~350 lines of jsPDF coordinate maths. Same
+document, but the wording and column set are now editable by whoever edits
+templates.
+{% endcomment %}
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 portrait; margin: 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 8pt; color: #000; }
+  .title { text-align: center; font-size: 13pt; font-weight: bold; border: 1px solid #000;
+           padding: 6pt; margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; }
+  .meta td { border: 1px solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 8pt; }
+  .meta .lbl { color: #444; font-size: 7pt; text-transform: uppercase; }
+  .items { margin-top: 8pt; }
+  .items th { border: 1px solid #000; background: #eee; padding: 4pt 3pt; font-size: 7pt;
+              text-align: left; }
+  .items td { border: 1px solid #000; padding: 3pt; font-size: 7pt; }
+  .num { text-align: right; }
+  .totals td { border: 1px solid #000; padding: 4pt 6pt; font-size: 8pt; }
+  .foot { margin-top: 10pt; font-size: 7pt; color: #444; }
+  .pagebreak { page-break-after: always; }
+</style>
+</head>
+<body>
+{% for pack in packs %}
+<div class="title">PACKING LIST</div>
+
+<table class="meta">
+    <tr>
+        <td width="50%">
+            <div class="lbl">Delivery No</div>
+            <div><strong>{{ pack.delivery.delivery_no }}</strong></div>
+            <div class="lbl" style="margin-top:4pt;">Date</div>
+            <div>{{ pack.delivery.created_at|date:"d M Y, H:i" }}</div>
+            <div class="lbl" style="margin-top:4pt;">Plant</div>
+            <div>{{ pack.delivery.plant|default:"—" }}</div>
+        </td>
+        <td width="50%">
+            <div class="lbl">Ship To</div>
+            <div><strong>{{ pack.delivery.customer_name|default:"—" }}</strong></div>
+            <div>{{ pack.delivery.customer_code|default:"" }}</div>
+            <div class="lbl" style="margin-top:4pt;">Entity</div>
+            <div>{{ pack.delivery.entity.code }}</div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="lbl">Courier</div>
+            <div>{{ pack.delivery.courier_partner|default:"—" }}
+                {% if pack.delivery.courier_number %}({{ pack.delivery.courier_number }}){% endif %}</div>
+            <div class="lbl" style="margin-top:4pt;">Docket</div>
+            <div>{{ pack.delivery.docket_no|default:"—" }}</div>
+        </td>
+        <td>
+            <div class="lbl">Vehicle</div>
+            <div>{{ pack.delivery.vehicle_number|default:"—" }}
+                {% if pack.delivery.vehicle_type %}/ {{ pack.delivery.vehicle_type }}{% endif %}</div>
+            <div class="lbl" style="margin-top:4pt;">Mode of transit</div>
+            <div>{{ pack.delivery.mode_of_transit|transit_label|default:"—" }}</div>
+        </td>
+    </tr>
+</table>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th width="5%">Sr</th>
+            <th width="20%">Item Code</th>
+            <th width="27%">Box / Ref</th>
+            <th width="16%">Batch</th>
+            <th width="18%">Serial</th>
+            <th width="8%">Expiry</th>
+            <th width="6%" class="num">Qty</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for scan in pack.scans %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ scan.material|default:"—" }}</td>
+            <td>{{ scan.box|default:"—" }}</td>
+            <td>{{ scan.batch|default:"—" }}</td>
+            <td>{{ scan.serial_only|default:"—" }}</td>
+            <td>{{ scan.expiry_code|default:"—" }}</td>
+            <td class="num">1</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">No scan detail recorded for this delivery.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table class="totals" style="margin-top:8pt;">
+    <tr>
+        <td width="50%">
+            <strong>Boxes used</strong><br>
+            {% for letter, count in pack.boxes.items %}{% if count and letter != "others" %}{{ letter }}: {{ count }}&nbsp;&nbsp;{% endif %}{% endfor %}
+            {% if not pack.delivery.box_count %}—{% endif %}
+        </td>
+        <td width="50%">
+            <strong>Totals</strong><br>
+            Total boxes: {{ pack.delivery.box_count }}<br>
+            Gross weight: {{ pack.delivery.weight_kg|default:"—" }} kg<br>
+            Lines: {{ pack.delivery.line_count }} &nbsp; Scanned: {{ pack.delivery.scanned_count }}
+        </td>
+    </tr>
+</table>
+
+<div class="foot">
+    {% comment %}if/else rather than a chained `default:` — the filter argument
+    is evaluated eagerly, so it raises on a delivery with no picker.{% endcomment %}
+    Picked by {% if pack.delivery.picker %}{{ pack.delivery.picker.get_full_name|default:pack.delivery.picker.username }}{% else %}—{% endif %}
+    · Status: {{ pack.delivery.get_status_display }}
+    · Generated {{ generated_at|date:"d M Y H:i" }} by {{ generated_by }}
+</div>
+
+{% if not forloop.last %}<div class="pagebreak"></div>{% endif %}
+{% endfor %}
+</body>
+</html>

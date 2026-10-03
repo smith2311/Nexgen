@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Vendor Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+        <span class="sep">/</span>
+        <span class="current">Vendor Master</span>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="vlx-pagehead__left">
+        <h1 class="vlx-title">Vendor Master</h1>
+        <p class="vlx-subtitle">The central, single-source-of-truth repository of approved 3PL vendors — identities, contacts, warehouse footprint and nine capability dimensions, all in one organised place.</p>
+    </div>
+    <div class="vlx-actions">
+        <a href="{% url 'vendorlink:vendor_list' %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-table-list"></i> Browse Directory</a>
+        {% if is_vm_admin %}
+        <a href="{% url 'vendorlink:vendor_create' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-plus"></i> Add Vendor</a>
+        {% endif %}
+        <a href="{% url 'vendorlink:export_excel' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-file-excel"></i> Export Excel</a>
+    </div>
+
+    <!-- KPI stats -->
+    <div class="vlx-kpis">
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__top"><span class="vlx-kpi__label">Active Vendors</span><span class="vlx-kpi__icon"><i class="fas fa-truck-field"></i></span></div>
+            <div class="vlx-kpi__value" data-count="{{ total_vendors }}">0</div>
+        </div>
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__top"><span class="vlx-kpi__label">Countries Covered</span><span class="vlx-kpi__icon" style="background:var(--vlx-violet-tint);color:var(--vlx-violet);"><i class="fas fa-earth-asia"></i></span></div>
+            <div class="vlx-kpi__value" data-count="{{ total_countries }}">0</div>
+        </div>
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__top"><span class="vlx-kpi__label">Fully Capable ({{ capability_total }}/{{ capability_total }})</span><span class="vlx-kpi__icon" style="background:var(--vlx-success-tint);color:var(--vlx-success);"><i class="fas fa-shield-halved"></i></span></div>
+            <div class="vlx-kpi__value" data-count="{{ fully_capable }}">0</div>
+        </div>
+        <div class="vlx-kpi">
+            <div class="vlx-kpi__top"><span class="vlx-kpi__label">Trending Regions</span><span class="vlx-kpi__icon" style="background:#CFFAFE;color:#0891B2;"><i class="fas fa-magnifying-glass-chart"></i></span></div>
+            <div class="vlx-kpi__value" data-count="{{ top_countries|length }}">0</div>
+        </div>
+    </div>
+
+    <!-- Top-3 most-searched countries -->
+    <div class="vlx-stack-md">
+        <div>
+            <h2 class="vlx-section-title"><i class="fas fa-ranking-star"></i> Top Searched Countries</h2>
+            <p class="vlx-subtitle" style="margin-top:2px;">Ranked live from user search preferences across the platform.</p>
+        </div>
+        {% if top_countries %}
+        <div class="vlx-modgrid">
+            {% for c in top_countries %}
+            <a href="{% url 'vendorlink:vendor_list' %}?country={{ c.country|urlencode }}" class="vlx-modcard" style="flex-direction:row;align-items:center;">
+                <span class="vlx-avatar--lg" style="width:44px;height:44px;border-radius:50%;font-size:16px;{% if forloop.counter == 1 %}background:#FEF3C7;color:#B45309;{% elif forloop.counter == 2 %}background:var(--vlx-surface-container-high);color:var(--vlx-on-surface-variant);{% else %}background:#FFE4CC;color:#9A3412;{% endif %}">{{ forloop.counter }}</span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">{{ c.country }}</h3>
+                    <p class="vlx-modcard__desc"><strong>{{ c.vendors }}</strong> vendor{{ c.vendors|pluralize }} · {{ c.searches }} search{{ c.searches|pluralize:"es" }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="vlx-card">
+            <div class="vlx-empty">
+                <div class="vlx-empty__icon"><i class="fas fa-compass"></i></div>
+                <h3>No searches yet</h3>
+                <p>As your team searches vendors by country, the top three trending regions will appear here.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sub-module launcher -->
+    <div class="vlx-stack-md">
+        <h2 class="vlx-section-title"><i class="fas fa-grip"></i> Modules</h2>
+        <div class="vlx-modgrid">
+            <a href="{% url 'vendorlink:vendor_list' %}" class="vlx-modcard">
+                <span class="vlx-modcard__icon"><i class="fas fa-table-list"></i></span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">Vendor Directory</h3>
+                    <p class="vlx-modcard__desc">Search, filter and browse the full table of approved 3PL vendors with all 18 data fields.</p>
+                </div>
+                <span class="vlx-modcard__go"><i class="fas fa-chevron-right"></i></span>
+            </a>
+
+            {% if is_vm_admin %}
+            <a href="{% url 'vendorlink:vendor_create' %}" class="vlx-modcard">
+                <span class="vlx-modcard__badge info">Admin</span>
+                <span class="vlx-modcard__icon"><i class="fas fa-plus"></i></span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">Add New Vendor</h3>
+                    <p class="vlx-modcard__desc">Register a new vendor — identity, contacts, warehouse location and capability flags.</p>
+                </div>
+                <span class="vlx-modcard__go"><i class="fas fa-chevron-right"></i></span>
+            </a>
+            {% endif %}
+
+            <a href="{% url 'vendorlink:capability_matrix' %}" class="vlx-modcard">
+                <span class="vlx-modcard__icon tint-violet"><i class="fas fa-table-cells-large"></i></span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">Capability Matrix</h3>
+                    <p class="vlx-modcard__desc">A bird's-eye grid of every vendor against the nine capability dimensions, with adoption analytics.</p>
+                </div>
+                <span class="vlx-modcard__go"><i class="fas fa-chevron-right"></i></span>
+            </a>
+
+            <a href="{% url 'vendorlink:export_excel' %}" class="vlx-modcard">
+                <span class="vlx-modcard__icon tint-green"><i class="fas fa-file-export"></i></span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">Export to Excel</h3>
+                    <p class="vlx-modcard__desc">Download the entire vendor master as a formatted, Excel-aligned workbook in one click.</p>
+                </div>
+                <span class="vlx-modcard__go"><i class="fas fa-chevron-right"></i></span>
+            </a>
+
+            {% if is_vm_admin %}
+            <a href="{% url 'vendorlink:vendor_list' %}#import" class="vlx-modcard">
+                <span class="vlx-modcard__badge info">Admin</span>
+                <span class="vlx-modcard__icon tint-orange"><i class="fas fa-file-import"></i></span>
+                <div class="vlx-modcard__body">
+                    <h3 class="vlx-modcard__title">Bulk Import</h3>
+                    <p class="vlx-modcard__desc">Upload an Excel file to add or update many vendors at once — with a downloadable template.</p>
+                </div>
+                <span class="vlx-modcard__go"><i class="fas fa-chevron-right"></i></span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recently added -->
+    {% if recent_vendors %}
+    <div class="vlx-stack-md">
+        <div class="vlx-pagehead">
+            <h2 class="vlx-section-title"><i class="fas fa-clock-rotate-left"></i> Recently Added</h2>
+            <a href="{% url 'vendorlink:vendor_list' %}" class="vlx-link" style="font-size:13px;font-weight:600;">View all <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="vlx-stack-md" style="gap:10px;">
+            {% for v in recent_vendors %}
+            <a href="{% url 'vendorlink:vendor_detail' v.pk %}" class="vlx-card" style="display:flex;align-items:center;gap:14px;padding:14px 16px;text-decoration:none;color:inherit;transition:box-shadow .15s;">
+                <span class="vlx-avatar">{{ v.vendor_name|first|upper }}</span>
+                <div class="vlx-stack0" style="flex:1;">
+                    <span class="vlx-cell__title">{{ v.vendor_name }}</span>
+                    <span class="vlx-cell__sub"><i class="fas fa-location-dot"></i> {{ v.country }}</span>
+                </div>
+                <i class="fas fa-chevron-right" style="color:var(--vlx-ink-300);"></i>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Animated count-up for KPI stats
+(function () {
+    const els = document.querySelectorAll('.vlx-kpi__value[data-count]');
+    const animate = (el) => {
+        const target = parseInt(el.dataset.count, 10) || 0;
+        const dur = 1100, start = performance.now();
+        const step = (now) => {
+            const p = Math.min((now - start) / dur, 1);
+            const eased = 1 - Math.pow(1 - p, 3);
+            el.textContent = Math.round(target * eased).toLocaleString();
+            if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    };
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) { animate(e.target); io.unobserve(e.target); } });
+    }, { threshold: 0.4 });
+    els.forEach(el => io.observe(el));
+})();
+</script>
+{% endblock %}

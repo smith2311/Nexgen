@@ -1,0 +1,525 @@
+/* ================================================================
+   DataTables — Premium theme for Stock Audit (product_scanning)
+   Requires stock-audit-tokens.css
+   ================================================================ */
+
+/* ── Wrapper layout ── */
+.dataTables_wrapper {
+    font-family: var(--sa-font);
+    font-size: 13px;
+    color: var(--sa-text);
+    background: var(--sa-surface);
+    border-radius: var(--sa-radius-xl);
+    padding: 22px;
+    box-shadow: var(--sa-shadow-sm);
+    border: 1px solid var(--sa-border-light);
+    overflow: hidden;
+}
+
+/* ── Top controls bar ── */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+    padding: 0 0 16px 0;
+}
+
+.dataTables_wrapper .dataTables_length {
+    float: left;
+}
+.dataTables_wrapper .dataTables_filter {
+    float: right;
+}
+
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sa-text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    padding: 9px 14px;
+    border: 1.5px solid var(--sa-border);
+    border-radius: var(--sa-radius-md);
+    font-size: 13px;
+    color: var(--sa-text);
+    background: var(--sa-bg-warm);
+    outline: none;
+    font-family: var(--sa-font);
+    transition: all var(--sa-duration) var(--sa-ease);
+}
+.dataTables_wrapper .dataTables_length select:focus,
+.dataTables_wrapper .dataTables_filter input:focus {
+    border-color: var(--sa-primary);
+    box-shadow: 0 0 0 3px var(--sa-primary-muted);
+    background: var(--sa-surface);
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    min-width: 240px;
+}
+
+@media (max-width: 640px) {
+    .dataTables_wrapper { padding: 14px 12px; border-radius: var(--sa-radius-lg); }
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        float: none;
+        text-align: left;
+        padding: 0 0 10px 0;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        min-width: 0;
+        width: 100%;
+        margin-top: 4px;
+    }
+}
+
+/* ── Table base ── */
+table.dataTable {
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--sa-border);
+    border-radius: var(--sa-radius-lg);
+    overflow: hidden;
+}
+
+table.dataTable thead th {
+    background: var(--sa-bg-warm);
+    color: var(--sa-text-secondary);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 13px 10px;
+    border-bottom: 2px solid var(--sa-border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: background var(--sa-duration) var(--sa-ease);
+}
+table.dataTable thead th.sorting:hover {
+    background: var(--sa-primary-light);
+}
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc {
+    background: var(--sa-primary-light);
+    color: var(--sa-primary);
+}
+
+table.dataTable tbody td {
+    padding: 10px;
+    border-bottom: 1px solid var(--sa-border-light);
+    vertical-align: middle;
+    font-size: 13px;
+    color: var(--sa-text);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+
+table.dataTable tbody tr {
+    transition: background var(--sa-duration) var(--sa-ease);
+}
+table.dataTable tbody tr:hover {
+    background: var(--sa-primary-muted) !important;
+}
+
+table.dataTable tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Striped rows */
+table.dataTable tbody tr:nth-child(odd) {
+    background: var(--sa-bg-warm);
+}
+table.dataTable tbody tr:nth-child(even) {
+    background: var(--sa-surface);
+}
+
+/* ── Expired row highlight ── */
+table.dataTable tbody tr[style*="background:#fef2f2"],
+table.dataTable tbody tr.expired-unack {
+    background: var(--sa-danger-light) !important;
+    border-left: 3px solid var(--sa-danger);
+}
+table.dataTable tbody tr[style*="background:#fef2f2"]:hover,
+table.dataTable tbody tr.expired-unack:hover {
+    background: #fee2e2 !important;
+}
+
+/* ── Ack Button ── */
+.btn-ack {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 14px;
+    background: var(--sa-gradient-danger);
+    color: #fff;
+    border: none;
+    border-radius: var(--sa-radius-sm);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--sa-duration) var(--sa-ease);
+    white-space: nowrap;
+    min-height: 32px;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+    letter-spacing: 0.02em;
+    font-family: var(--sa-font);
+}
+.btn-ack:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+.btn-ack:active {
+    transform: scale(0.96);
+}
+.ack-done {
+    color: var(--sa-success);
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+/* ── Info bar ── */
+.dataTables_wrapper .dataTables_info {
+    font-size: 12px;
+    color: var(--sa-text-muted);
+    float: left;
+    padding: 14px 0 0;
+}
+
+/* ── Pagination ── */
+.dataTables_wrapper .dataTables_paginate {
+    float: right;
+    padding: 14px 0 0;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    margin: 0 2px;
+    border-radius: var(--sa-radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--sa-border);
+    background: var(--sa-surface);
+    color: var(--sa-text);
+    transition: all var(--sa-duration) var(--sa-ease);
+    font-family: var(--sa-font);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--sa-primary-light);
+    border-color: var(--sa-primary);
+    color: var(--sa-primary);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--sa-gradient-primary);
+    color: #fff;
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(0, 98, 204, 0.3);
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: .35;
+    cursor: default;
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        float: none;
+        text-align: center;
+        padding: 10px 0 0;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        min-width: 36px;
+        height: 36px;
+        padding: 0 8px;
+    }
+}
+
+/* ── Empty state ── */
+table.dataTable .dataTables_empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--sa-text-muted);
+    font-size: 14px;
+}
+
+/* ── Responsive: table scroll container ── */
+.table-responsive-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -22px;
+    padding: 0 22px;
+}
+@media (max-width: 640px) {
+    .table-responsive-wrap {
+        margin: 0 -12px;
+        padding: 0 12px;
+    }
+}
+
+/* ── Mobile: compact table cells ── */
+@media (max-width: 768px) {
+    table.dataTable thead th {
+        padding: 10px 8px;
+        font-size: 10px;
+        letter-spacing: 0.04em;
+    }
+    table.dataTable tbody td {
+        padding: 8px 6px;
+        font-size: 12px;
+        max-width: 120px;
+    }
+    .btn-ack {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+}
+
+/* ── Monospace cells ── */
+.cell-mono {
+    font-family: var(--sa-font-mono);
+    font-size: 0.85em;
+    background: var(--sa-bg-warm);
+    padding: 2px 6px;
+    border-radius: var(--sa-radius-xs);
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid var(--sa-border-light);
+}
+
+/* ── Severity chips ── */
+.chip-expired {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: var(--sa-radius-xs);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--sa-danger-light);
+    color: var(--sa-danger);
+    white-space: nowrap;
+}
+.chip-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: var(--sa-radius-xs);
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--sa-warning-light);
+    color: var(--sa-orange);
+    white-space: nowrap;
+}
+.chip-ok {
+    color: var(--sa-success);
+    font-weight: 600;
+}
+
+/* ── Mobile: hide columns marked dt-hide-mobile ── */
+@media (max-width: 768px) {
+    table.dataTable th.dt-hide-mobile,
+    table.dataTable td.dt-hide-mobile {
+        display: none;
+    }
+}
+
+/* ── Center alignment ── */
+table.dataTable th.dt-center,
+table.dataTable td.dt-center {
+    text-align: center;
+}
+
+/* ── DataTable scrollX fix ── */
+.dataTables_wrapper .dataTables_scroll {
+    overflow: visible;
+}
+.dataTables_wrapper .dataTables_scrollBody {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Table header sort icons ── */
+table.dataTable thead .sorting::after,
+table.dataTable thead .sorting_asc::after,
+table.dataTable thead .sorting_desc::after {
+    opacity: 0.5;
+    font-size: 10px;
+}
+table.dataTable thead .sorting_asc::after { opacity: 1; }
+table.dataTable thead .sorting_desc::after { opacity: 1; }
+
+/* ── SP Dashboard — My Scans DataTable overrides ──────────────────────────── */
+#myScansTable_wrapper.dataTables_wrapper {
+    padding: 0;
+    box-shadow: none;
+    border: none;
+}
+#myScansTable_wrapper .dt-toolbar {
+    padding: 14px 18px 0;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+#myScansTable_wrapper .dt-footer {
+    padding: 10px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+    border-top: 1px solid #f1f5f9;
+}
+#myScansTable.dataTable tbody tr td {
+    vertical-align: middle;
+    font-size: .83rem;
+}
+#myScansTable.dataTable tbody tr:hover td {
+    filter: brightness(.97);
+}
+
+/* ── My Scans: stacked card layout on mobile (no hidden cols, no h-scroll) ── */
+@media (max-width: 640px) {
+  /* Undo wrapper constraints DataTables applies */
+  #myScansTable_wrapper.dataTables_wrapper {
+    overflow: visible !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  /* Kill every scroll container DataTables injects */
+  #myScansTable_wrapper .dataTables_scroll,
+  #myScansTable_wrapper .dataTables_scrollHead,
+  #myScansTable_wrapper .dataTables_scrollBody,
+  #myScansTable_wrapper .dataTables_scrollFoot {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  /* Table itself — block, full width, no fixed column widths */
+  #myScansTable.dataTable {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+    box-sizing: border-box;
+  }
+  #myScansTable.dataTable colgroup,
+  #myScansTable.dataTable col {
+    display: none !important;
+  }
+  #myScansTable.dataTable thead {
+    display: none !important;
+  }
+  #myScansTable.dataTable tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Each row → card */
+  #myScansTable.dataTable tbody tr {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: .75rem;
+    padding: .25rem 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    overflow: hidden;
+    background: #fff;  /* ensure colour tint is visible */
+  }
+
+  /* Each cell → full-width label+value row */
+  #myScansTable.dataTable tbody td {
+    display: flex !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: 7px 14px !important;
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: .82rem;
+    white-space: normal !important;  /* allow wrapping */
+    text-align: right;
+  }
+  #myScansTable.dataTable tbody td:last-child {
+    border-bottom: none !important;
+  }
+
+  /* Label injected via ::before from data-label */
+  #myScansTable.dataTable tbody td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #64748b;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    text-align: left;
+    flex: 0 0 auto;
+    padding-right: .25rem;
+    line-height: 1.6;
+  }
+
+  /* Value side — can wrap freely */
+  #myScansTable.dataTable tbody td > * {
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: right;
+  }
+
+  /* DataTable top/bottom controls */
+  #myScansTable_wrapper .dt-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .5rem;
+  }
+  #myScansTable_wrapper .dataTables_length,
+  #myScansTable_wrapper .dataTables_filter {
+    float: none !important;
+    width: 100%;
+    text-align: left;
+  }
+  #myScansTable_wrapper .dataTables_filter input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #myScansTable_wrapper .dt-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .4rem;
+  }
+}

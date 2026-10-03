@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('NexGen Admin') }}{% endblock %}
+
+{% comment %}
+  Self-hosted faces only — this platform runs on the internal network, so no
+  requests leave the box. Helvetica Neue (UI) + JetBrains Mono (identifiers) both
+  ship in static/css/fonts/.
+{% endcomment %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/helvetica-neue-fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'css/jetbrains-mono-fonts.css' %}">
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+  <link rel="icon" type="image/jpeg" href="{% static 'img/Meril-logo-bluebg.jpg' %}">
+  <script src="{% static 'js/nexgen_admin/nexgen-admin.js' %}" defer></script>
+{% endblock %}
+
+{% comment %}
+  The theme stylesheet rides in the `responsive` block on purpose: Django loads
+  responsive.css *after* `extrahead`, and page templates append their own CSS
+  (login.css, dashboard.css, changelists.css) via `extrastyle`. Loading here
+  makes nexgen-admin.css the last stylesheet on every page, so the theme wins
+  without a single !important.
+{% endcomment %}
+{% block responsive %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/nexgen_admin/nexgen-admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div class="nx-mark" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M4.5 6.5 10 12l-5.5 5.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M13 17.5h6.5" stroke="rgba(255,255,255,.72)" stroke-width="2.4" stroke-linecap="round"/>
+  </svg>
+</div>
+<div id="site-name">
+  <a href="{% url 'admin:index' %}">{{ site_header|default:_('NexGen Administration') }}</a>
+  <span class="nx-brand-sub">{% translate 'Meril · Internal platform' %}</span>
+</div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% comment %}
+  Rebuilt so each control is a real pill instead of a run of links glued
+  together with " / ". Same destinations, same permissions checks.
+{% endcomment %}
+{% block usertools %}
+{% if has_permission %}
+<div id="user-tools">
+  {% block welcome-msg %}
+    <span class="nx-user-chip" title="{% firstof user.get_full_name user.get_username %}">
+      <span class="nx-user-initials" aria-hidden="true">{% firstof user.get_short_name user.get_username as who %}{{ who|slice:":2"|upper }}</span>
+      <span class="nx-user-name">{% firstof user.get_short_name user.get_username %}</span>
+    </span>
+  {% endblock %}
+  {% block userlinks %}
+    {% if site_url %}
+      <a href="{{ site_url }}">{% translate 'View site' %}</a>
+    {% endif %}
+    {% if user.is_active and user.is_staff %}
+      {% url 'django-admindocs-docroot' as docsroot %}
+      {% if docsroot %}
+        <a href="{{ docsroot }}">{% translate 'Documentation' %}</a>
+      {% endif %}
+    {% endif %}
+    {% if user.has_usable_password %}
+      <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a>
+    {% endif %}
+    <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+      {% csrf_token %}
+      <button type="submit">{% translate 'Log out' %}</button>
+    </form>
+    {% include "admin/color_theme_toggle.html" %}
+  {% endblock %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block footer %}
+<div class="nx-footer">
+  <span>{% translate 'NexGen Automation' %}</span>
+  <span class="nx-footer-dot" aria-hidden="true">·</span>
+  <span>{% translate 'Meril Life Sciences' %}</span>
+</div>
+{% endblock %}

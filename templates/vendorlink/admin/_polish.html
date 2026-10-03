@@ -1,0 +1,89 @@
+<style>
+/* ============================================================
+   VendorLink Admin — smooth motion & polish layer
+   Loaded after masters.css so it refines the base md-* styles.
+   ============================================================ */
+
+/* ── Page entrance ─────────────────────────────────────────── */
+.md-page { animation: vlFadeUp .42s cubic-bezier(.22,.61,.36,1) both; }
+.md-page > .md-header { animation: vlFadeUp .5s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes vlFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+@keyframes vlPop    { from { opacity:0; transform:scale(.96) translateY(8px); } to { opacity:1; transform:none; } }
+
+/* Stagger the dashboard cards / table for a gentle cascade */
+.md-grid > * { animation: vlPop .45s cubic-bezier(.22,.61,.36,1) both; }
+.md-grid > *:nth-child(1){animation-delay:.03s} .md-grid > *:nth-child(2){animation-delay:.07s}
+.md-grid > *:nth-child(3){animation-delay:.11s} .md-grid > *:nth-child(4){animation-delay:.15s}
+.md-grid > *:nth-child(5){animation-delay:.19s} .md-grid > *:nth-child(6){animation-delay:.23s}
+.md-grid > *:nth-child(7){animation-delay:.27s} .md-grid > *:nth-child(8){animation-delay:.31s}
+.vl-kpis > * { animation: vlPop .4s cubic-bezier(.22,.61,.36,1) both; }
+.vl-kpis > *:nth-child(1){animation-delay:.02s} .vl-kpis > *:nth-child(2){animation-delay:.06s}
+.vl-kpis > *:nth-child(3){animation-delay:.10s} .vl-kpis > *:nth-child(4){animation-delay:.14s}
+.vl-kpis > *:nth-child(5){animation-delay:.18s}
+
+/* ── Cards: smooth, springy lift ───────────────────────────── */
+.md-card { transition: transform .28s cubic-bezier(.22,.61,.36,1), box-shadow .28s ease, border-color .2s ease; will-change: transform; }
+.md-card:hover { transform: translateY(-5px); }
+.md-card-icon { transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
+.md-card:hover .md-card-icon { transform: scale(1.09) rotate(-4deg); }
+.md-card-content h2 { transition: color .18s ease; }
+.md-card:hover .md-card-content h2 { color:#0076c8; }
+
+.vl-kpi { transition: transform .26s cubic-bezier(.22,.61,.36,1), box-shadow .26s ease; }
+.vl-kpi:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(0,118,200,.15); }
+.vl-card { transition: box-shadow .26s ease; }
+
+/* ── Buttons: hover lift + active press ────────────────────── */
+.btn-primary,.btn-import,.btn-sm,.btn-full,.btn-full-red,.btn-edit,.btn-del,.vl-chip {
+    transition: background .18s ease, color .18s ease, border-color .18s ease,
+                transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+}
+.btn-primary:hover,.btn-full:hover,.btn-full-red:hover { transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.16); }
+.btn-import:hover,.btn-edit:hover,.btn-del:hover { transform: translateY(-1px); }
+.btn-primary:active,.btn-import:active,.btn-sm:active,.btn-full:active,.btn-full-red:active { transform: scale(.97); }
+.vl-chip:hover { transform: translateY(-2px); box-shadow:0 4px 12px rgba(15,35,58,.08); }
+
+/* ── Table rows ────────────────────────────────────────────── */
+.md-table tbody tr { transition: background .16s ease; }
+.md-table tbody tr:hover { background:#f5f9ff; }
+.md-table tbody td, .vl-irow { transition: background .16s ease; }
+
+/* ── Inputs ────────────────────────────────────────────────── */
+.search-input,.md-fg input,.md-fg select {
+    transition: border-color .18s ease, box-shadow .2s ease, background .18s ease;
+}
+.search-input:focus,.md-fg input:focus,.md-fg select:focus { box-shadow:0 0 0 3px rgba(0,118,200,.14); }
+
+/* ── Modals: fade backdrop + scale/slide the dialog ────────── */
+.md-overlay {
+    display:flex !important;            /* keep in flow; visibility controls show/hide */
+    opacity:0; visibility:hidden; pointer-events:none;
+    background:rgba(8,16,38,.45); backdrop-filter:blur(3px);
+    transition: opacity .24s ease, visibility .24s ease;
+}
+.md-overlay.open { opacity:1; visibility:visible; pointer-events:auto; }
+.md-overlay .md-modal {
+    transform: translateY(18px) scale(.955); opacity:0;
+    transition: transform .3s cubic-bezier(.22,.61,.36,1), opacity .24s ease;
+    box-shadow:0 30px 70px rgba(8,16,38,.32);
+}
+.md-overlay.open .md-modal { transform:none; opacity:1; }
+
+/* ── Misc niceties ─────────────────────────────────────────── */
+.md-back { transition: color .15s ease, transform .2s cubic-bezier(.34,1.56,.64,1); }
+.md-back:hover { transform: translateX(-4px); }
+.vl-role,.badge-active,.badge-inactive,.vl-grp,.md-badge { transition: transform .15s ease; }
+.vl-avatar,.vl-avatar-lg { transition: transform .25s cubic-bezier(.34,1.56,.64,1); }
+.vl-userline:hover .vl-avatar { transform: scale(1.08); }
+a { transition: color .15s ease; }
+
+/* Smooth-scroll within the page */
+html { scroll-behavior: smooth; }
+
+/* ── Respect reduced-motion preferences ────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .md-page,.md-page *,.md-grid > *,.vl-kpis > *,.md-overlay,.md-overlay .md-modal {
+        animation:none !important; transition:none !important;
+    }
+}
+</style>

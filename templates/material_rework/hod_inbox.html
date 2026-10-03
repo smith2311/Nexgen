@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}HOD Inbox — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/hod_inbox.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-inbox"></i> HOD Inbox
+            {% if not can_approve %}
+            <span style="margin-left:10px;background:#dbeafe;color:#1e40af;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:10px;vertical-align:middle;letter-spacing:.04em;">
+                <i class="fas fa-eye"></i> VIEW ONLY
+            </span>
+            {% endif %}
+        </h1>
+        <p>{% if can_approve %}Pending disposition requests awaiting your approval or rejection.{% else %}You have read-only access. Only HODs can approve or reject batches.{% endif %}</p>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;padding:12px 16px;margin-bottom:18px;color:#065f46;font-size:.88rem;">
+        <i class="fas fa-check-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="md-table-wrap">
+        {% if batches %}
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Reference #</th>
+                    <th>Vertical</th>
+                    <th>Department</th>
+                    <th>Requested By</th>
+                    <th>Uploaded By</th>
+                    <th>Upload Date</th>
+                    <th>Subject</th>
+                    <th>Items</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="hodBatchTable">
+            {% for b in batches %}
+            <tr data-batch-id="{{ b.id }}">
+                <td><span style="font-family:monospace;font-size:.82rem;font-weight:700;color:#d97706;background:#fffbeb;padding:2px 7px;border-radius:4px;">{{ b.reference_number|default:b.id }}</span></td>
+                <td>{{ b.vertical.name }}</td>
+                <td>{{ b.department.name }}</td>
+                <td>{{ b.requested_by.name|default:"—" }}</td>
+                <td>{{ b.uploaded_by_name }}</td>
+                <td>{{ b.uploaded_at|date:"d M Y" }}</td>
+                <td style="font-size:.78rem;max-width:160px;">{{ b.subject|default:"—"|truncatechars:50 }}</td>
+                <td><strong>{{ b.item_count }}</strong></td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="btn-preview" onclick="openPreview({{ b.id }})">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        {% if can_approve %}
+                        <button class="btn-approve" onclick="openDecision({{ b.id }},'{{ b.reference_number|default:b.id|escapejs }}','approve')">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn-reject" onclick="openDecision({{ b.id }},'{{ b.reference_number|default:b.id|escapejs }}','reject')">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="md-empty">
+            <i class="fas fa-check-double" style="font-size:2.5rem;margin-bottom:12px;display:block;color:#10b981;"></i>
+            No pending requests. Your inbox is clear.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<!-- Batch preview slide panel -->
+<div class="slide-overlay" id="slideOverlay" onclick="if(event.target===this)closePreview()">
+    <div class="slide-panel">
+        <div class="panel-head">
+            <span class="panel-title"><i class="fas fa-clipboard-list" style="color:#f59e0b;"></i> <span id="panelRefTitle">Batch Preview</span></span>
+            <button class="panel-close" onclick="closePreview()">&times;</button>
+        </div>
+        <div class="panel-body" id="panelBody">
+            <div style="text-align:center;padding:48px;color:#9ca3af;"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>Loading…</div>
+        </div>
+        {% if can_approve %}
+        <!-- Inline decision form — visible only for users who can act -->
+        <form method="post" id="panelDecisionForm" class="panel-decision-foot">
+            {% csrf_token %}
+            <input type="hidden" name="batch_id" id="pd_batch_id">
+            <input type="hidden" name="action"   id="pd_action">
+            <span class="pf-label"><i class="fas fa-comment-alt" style="margin-right:4px;"></i> Comments (optional)</span>
+            <textarea name="comments" id="pd_comments" rows="2" required placeholder="Required — state the reason for your decision…"></textarea>
+            <div class="pf-btns">
+                <button type="button" class="pf-btn-approve" onclick="submitPanelDecision('approve')">
+                    <i class="fas fa-check-circle"></i> Approve
+                </button>
+                <button type="button" class="pf-btn-reject" onclick="submitPanelDecision('reject')">
+                    <i class="fas fa-times-circle"></i> Reject
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="panel-decision-foot" style="background:#f0f9ff;border-top:2px solid #bae6fd;">
+            <p style="margin:0;font-size:.82rem;color:#0369a1;text-align:center;">
+                <i class="fas fa-lock" style="margin-right:6px;"></i>View-only — only HODs can approve or reject batches.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Decision modal (approve / reject) -->
+<div class="decision-overlay" id="decisionOverlay" onclick="if(event.target===this)closeDecision()">
+    <div class="decision-box">
+        <div class="decision-head" id="decisionHead">
+            <i id="decisionIcon" style="font-size:.9rem;"></i>
+            <h3 id="decisionTitle">Confirm Decision</h3>
+        </div>
+        <form method="post" id="decisionForm">
+            {% csrf_token %}
+            <input type="hidden" name="batch_id" id="d_batch_id">
+            <input type="hidden" name="action"   id="d_action">
+            <div class="decision-body">
+                <p id="decisionMsg" style="font-size:.88rem;color:#374151;margin-bottom:12px;"></p>
+                <label style="font-size:.78rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Comments (optional)</label>
+                <textarea name="comments" id="d_comments" rows="3" required placeholder="Required — state the reason for your decision…"></textarea>
+            </div>
+            <div class="decision-foot">
+                <button type="button" class="btn-cancel-d" onclick="closeDecision()">Cancel</button>
+                <button type="submit" class="btn-confirm-approve" id="decisionSubmitBtn"><i class="fas fa-check"></i> Confirm</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BATCHES = {
+{% for b in batches %}
+    {{ b.id }}: {
+        id: {{ b.id }},
+        reference_number: "{{ b.reference_number|default:b.id|escapejs }}",
+        vertical: "{{ b.vertical.name|escapejs }}",
+        department: "{{ b.department.name|escapejs }}",
+        requested_by: "{{ b.requested_by.name|default:''|escapejs }}",
+        uploaded_by: "{{ b.uploaded_by_name|escapejs }}",
+        uploaded_by_email: "{{ b.uploaded_by_email|escapejs }}",
+        uploaded_at: "{{ b.uploaded_at|date:'d M Y H:i' }}",
+        subject: "{{ b.subject|default:''|escapejs }}",
+        items: [
+            {% for item in b.items.all %}
+            { material:"{{ item.material|escapejs }}", batch_no:"{{ item.batch_no|default:''|escapejs }}", qty:"{{ item.qty|floatformat:0 }}", box_no:"{{ item.box_no|default:''|escapejs }}", remark:"{{ item.remark|default:''|escapejs }}", serial_number:"{{ item.serial_number|default:''|escapejs }}", country:"{{ item.country|default:''|escapejs }}", mfg_date:"{{ item.mfg_date|default:''|escapejs }}", exp_date:"{{ item.exp_date|default:''|escapejs }}", from_storage_location:"{{ item.from_storage_location|default:''|escapejs }}", to_storage_location:"{{ item.to_storage_location|default:''|escapejs }}", item_date:"{{ item.item_date|default:''|escapejs }}" },
+            {% endfor %}
+        ]
+    },
+{% endfor %}
+};
+</script>
+<script src="{% static 'js/material-rework/hod_inbox.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ spec.title }} — Grocery Stock{% endblock %}
+{% block page_title %}{{ spec.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/grocery_stock/grocery.css' %}">
+{% endblock %}
+
+{% block content %}
+
+{# ── Everything the shared script needs, handed over as one JSON blob ─────── #}
+{{ columns|json_script:"gs-columns" }}
+{{ fields|json_script:"gs-fields" }}
+<script>
+  const GS_CONFIG = {
+    slug:     "{{ slug|escapejs }}",
+    title:    "{{ spec.title|escapejs }}",
+    apiBase:  "/grocery/api/v1/{{ spec.endpoint }}/",
+    lookupBase: "/grocery/api/v1/",
+    canWrite: {{ can_write|yesno:"true,false" }},
+    columns:  JSON.parse(document.getElementById('gs-columns').textContent),
+    fields:   JSON.parse(document.getElementById('gs-fields').textContent),
+  };
+</script>
+
+<div class="lm-page gs-master{% if spec.wide %} gs-master-wide{% endif %}">
+
+  <!-- ═══ PAGE HEADER ═══ -->
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'grocery_stock:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Grocery Stock Management
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="{{ spec.icon }}"></i> {{ spec.title }}</h1>
+          <p>{{ spec.subtitle }}</p>
+        </div>
+
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statTotal">—</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statActive">—</div>
+            <div class="lm-hstat-lbl">Active</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val" id="statInactive">—</div>
+            <div class="lm-hstat-lbl">Inactive</div>
+          </div>
+        </div>
+      </div>
+
+      {% if can_write %}
+      <!-- Tabs — same shell as the logistics master pages -->
+      <div class="lm-tabs">
+        <button class="lm-tab-btn active" data-tab="tab-list" onclick="switchLmTab('tab-list')">
+          <i class="fas fa-list"></i> All {{ spec.title|cut:" Master" }}s
+        </button>
+        <button class="lm-tab-btn" data-tab="tab-upload" onclick="switchLmTab('tab-upload')">
+          <i class="fas fa-upload"></i> Bulk Upload
+        </button>
+        <button class="lm-tab-btn" data-tab="tab-preview" onclick="switchLmTab('tab-preview')">
+          <i class="fas fa-eye"></i> Import Preview
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ BODY ═══ -->
+  <div class="lm-inner">
+
+    <!-- ─────────────────────────────────────
+         TAB 1 — RECORD LIST
+    ───────────────────────────────────────── -->
+    <div class="lm-tab-content active" id="tab-list">
+
+    {% if not can_write %}
+    <div class="alert-banner">
+      <i class="fas fa-circle-info"></i>
+      <span>You have read-only access here. Editing {{ spec.title|lower }} requires the
+            <strong>{{ spec.write_roles_label }}</strong> role.</span>
+    </div>
+    {% endif %}
+
+    <!-- Filter bar -->
+    <div class="gs-filter-bar">
+      <div class="gs-search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="gsSearch" autocomplete="off"
+               placeholder="Search {{ spec.title|lower }}…">
+        <button type="button" class="gs-search-clear" id="gsSearchClear"
+                title="Clear search" hidden>&times;</button>
+      </div>
+
+      <div class="gs-pills" id="gsStatusPills">
+        <button type="button" class="gs-pill active" data-status="">All</button>
+        <button type="button" class="gs-pill" data-status="true">Active</button>
+        <button type="button" class="gs-pill" data-status="false">Inactive</button>
+      </div>
+    </div>
+
+    <!-- Actions bar -->
+    <div class="gs-actions-bar">
+      <div class="gs-actions-left">
+        {% if can_write %}
+        <button class="btn btn-navy btn-sm" id="gsAddBtn">
+          <i class="fas fa-plus"></i> Add {{ spec.title|cut:" Master" }}
+        </button>
+        <button class="btn btn-green btn-sm" onclick="switchLmTab('tab-upload')">
+          <i class="fas fa-upload"></i> Bulk Upload
+        </button>
+        {% endif %}
+        <button class="btn btn-ghost btn-sm" id="gsRefreshBtn">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+      <div class="gs-actions-right">
+        <select id="gsPerPage" class="gs-select-sm" title="Rows per page">
+          <option value="25">25 / page</option>
+          <option value="50" selected>50 / page</option>
+          <option value="100">100 / page</option>
+        </select>
+        <div class="gs-record-count" id="gsRecordCount">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="gs-tbl-wrap">
+      <table class="gs-tbl">
+        <thead id="gsTblHead"></thead>
+        <tbody id="gsTblBody">
+          <tr><td class="gs-loading" id="gsInitialCell">
+            <span class="gs-spinner"></span> Loading…
+          </td></tr>
+        </tbody>
+      </table>
+
+      <div class="gs-pagi">
+        <div class="gs-pagi-info" id="gsPagiInfo">—</div>
+        <div class="gs-pagi-btns" id="gsPagiBtns"></div>
+      </div>
+    </div>
+
+    </div><!-- /tab-list -->
+
+    {% if can_write %}
+    <!-- ─────────────────────────────────────
+         TAB 2 — BULK UPLOAD
+    ───────────────────────────────────────── -->
+    <div class="lm-tab-content" id="tab-upload">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Bulk Upload</h2>
+      </div>
+
+      <div class="upload-layout">
+
+        <!-- Left: drop zone + schema -->
+        <div>
+
+          <!-- File selected state -->
+          <div id="fileSelectedRow" class="file-selected" style="display:none">
+            <i class="fas fa-file-csv"></i>
+            <div>
+              <div class="file-selected-name" id="fileSelectedName">file.csv</div>
+              <div class="file-selected-size" id="fileSelectedSize">—</div>
+            </div>
+            <button class="file-selected-clear" onclick="clearFile()" title="Remove file">×</button>
+          </div>
+          <div id="uploadFileRef" style="display:none"></div>
+
+          <!-- Drop zone -->
+          <div class="upload-zone fi fi-1" id="dropZone">
+            <div class="upload-icon">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="upload-title">Drop your file here</div>
+            <div class="upload-sub">or click to browse from your computer</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">.csv</span>
+              <span class="fmt-chip">.xlsx</span>
+              <span class="fmt-chip">.xls</span>
+            </div>
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls"
+                   style="display:none" onchange="onFileInput(this)">
+          </div>
+
+          <!-- Schema reference — rows are built by grocery_master.js from
+               GS_CONFIG.fields, so the format always matches the add form -->
+          <div class="schema-table fi fi-2" id="gsSchemaTable">
+            <div class="schema-hdr">Required Column Format</div>
+          </div>
+
+        </div><!-- /left -->
+
+        <!-- Right: actions + sample -->
+        <div class="upload-side">
+
+          <div class="form-submit-block fi fi-2">
+            <button class="btn btn-navy btn-lg" onclick="submitUpload(this)">
+              <i class="fas fa-upload"></i> Upload File
+            </button>
+            <button class="btn btn-green" onclick="downloadSample()">
+              <i class="fas fa-download"></i> Download Sample CSV
+            </button>
+            <button class="btn btn-ghost" onclick="switchLmTab('tab-list')">
+              <i class="fas fa-arrow-left"></i> Cancel
+            </button>
+          </div>
+
+          <div class="form-block fi fi-3">
+            <div class="form-block-hdr"><i class="fas fa-code"></i> Sample CSV Preview</div>
+            <div class="csv-preview" id="gsSamplePreview"></div>
+          </div>
+
+          <div class="form-help fi fi-4">
+            <h4>📋 Upload Notes</h4>
+            <ul>
+              <li>Max file size: 10 MB</li>
+              <li>First row must be the column header</li>
+              <li>Columns naming another master carry its <strong>code</strong></li>
+              <li>Duplicates flagged in preview</li>
+              <li>Review before confirming import</li>
+              <li>Error rows are skipped on import</li>
+            </ul>
+          </div>
+
+        </div><!-- /right -->
+
+      </div><!-- /upload-layout -->
+
+    </div><!-- /tab-upload -->
+
+
+    <!-- ─────────────────────────────────────
+         TAB 3 — IMPORT PREVIEW
+    ───────────────────────────────────────── -->
+    <div class="lm-tab-content" id="tab-preview">
+
+      <div class="section-hdr fi fi-1">
+        <h2>Review Before Import</h2>
+        <button class="btn btn-ghost btn-sm" onclick="switchLmTab('tab-upload')">
+          <i class="fas fa-arrow-left"></i> Back to Upload
+        </button>
+      </div>
+
+      <!-- Summary stats -->
+      <div class="preview-summary fi fi-1">
+        <div class="prev-stat total">
+          <div class="prev-icon"><i class="fas fa-list"></i></div>
+          <div>
+            <div class="prev-val" id="prevTotal">—</div>
+            <div class="prev-lbl">Total rows</div>
+          </div>
+        </div>
+        <div class="prev-stat ok">
+          <div class="prev-icon"><i class="fas fa-check-circle"></i></div>
+          <div>
+            <div class="prev-val" id="prevOk">—</div>
+            <div class="prev-lbl">Ready to import</div>
+          </div>
+        </div>
+        <div class="prev-stat warn">
+          <div class="prev-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div>
+            <div class="prev-val" id="prevWarn">—</div>
+            <div class="prev-lbl">Issues / duplicates</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview table (rendered by LogiTable.createDataTable) -->
+      <div id="previewBody" class="fi fi-2">
+        <div class="empty-state">
+          <i class="fas fa-file-upload"></i>
+          <p>Upload a file first to see the preview.</p>
+        </div>
+      </div>
+
+      <!-- Confirm bar -->
+      <div class="confirm-bar fi fi-3">
+        <div class="confirm-info" id="confirmInfo">
+          Upload a file to see import summary.
+        </div>
+        <div class="confirm-btns">
+          <button class="btn btn-navy btn-lg" onclick="confirmImport(this)">
+            <i class="fas fa-check"></i> Confirm Import
+          </button>
+          <button class="btn btn-ghost" onclick="cancelImport()">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /tab-preview -->
+    {% endif %}
+
+  </div><!-- /lm-inner -->
+</div><!-- /lm-page -->
+
+
+<!-- ═══ ADD / EDIT MODAL ═══
+     Same shell and form language as the logistics master pages: the shared
+     .lmodal-* component, .form-grid / .form-field inputs, and a blue-tinted
+     header (the component styles .lmodal-hdr red by default, which suits the
+     delete dialog below but not an edit form).                              -->
+<div class="lmodal-overlay" id="gsEditOverlay">
+  <form class="lmodal gs-modal-edit{% if spec.wide %} gs-modal-wide{% endif %}"
+        id="gsEditForm" onsubmit="event.preventDefault()">
+    {% csrf_token %}
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-pencil-alt"></i></div>
+      <div>
+        <h3 id="gsModalTitle">Add {{ spec.title|cut:" Master" }}</h3>
+        <p id="gsModalSubtitle">{{ spec.subtitle }}</p>
+      </div>
+      <button type="button" class="lmodal-x" id="gsModalClose"
+              aria-label="Close">&times;</button>
+    </div>
+
+    <div class="lmodal-body">
+      <div class="alert-banner error" id="gsFormError" hidden>
+        <i class="fas fa-circle-exclamation"></i>
+        <span id="gsFormErrorText"></span>
+      </div>
+      <!-- Fields are built from GS_CONFIG.fields -->
+      <div class="form-grid" id="gsFormGrid"></div>
+    </div>
+
+    <div class="lmodal-footer">
+      <button type="button" class="btn btn-ghost" id="gsCancelBtn">
+        <i class="fas fa-times"></i> Cancel
+      </button>
+      <button type="button" class="btn btn-navy" id="gsSaveBtn">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    </div>
+  </form>
+</div>
+
+
+<!-- ═══ DELETE MODAL ═══ -->
+<div class="lmodal-overlay" id="gsDeleteOverlay">
+  <div class="lmodal">
+    <div class="lmodal-hdr">
+      <div class="lmodal-icon"><i class="fas fa-trash"></i></div>
+      <div>
+        <h3>Confirm Removal</h3>
+        <p>The record is archived, not erased</p>
+      </div>
+    </div>
+    <div class="lmodal-body">
+      <div class="alert-banner warn">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span>This is a <strong>soft delete</strong>. The row is hidden from lists and
+              pickers but kept, so historical documents that reference it stay intact.</span>
+      </div>
+      <div class="lmodal-record" id="gsDeleteRecord"></div>
+    </div>
+    <div class="lmodal-footer">
+      <button class="btn btn-ghost" id="gsDeleteCancel">
+        <i class="fas fa-arrow-left"></i> Cancel
+      </button>
+      <button class="btn btn-red" id="gsDeleteConfirm">
+        <i class="fas fa-trash"></i> Remove
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ TOAST ═══ -->
+<div class="lm-toast" id="gsToast">
+  <i class="fas fa-check-circle"></i>
+  <span class="toast-msg">Done</span>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="{% static 'js/grocery_stock/grocery_master.js' %}"></script>
+{% endblock %}

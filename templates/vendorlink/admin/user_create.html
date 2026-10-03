@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}New VendorLink Admin{% endblock %}
+{% block page_title %}New VendorLink Admin{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_users' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Users
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-user-plus"></i> New VendorLink Admin</h1>
+          <p>Create an internal account with VendorLink access and email its credentials.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if existing_user %}
+    {% comment %}
+    An account with this email already exists — platform-wide, because the
+    email IS the login username. That is not a dead end: the role can be
+    granted to the account they already have. Shown as a confirmation
+    rather than done silently, so a typo cannot hand access to the wrong
+    person.
+    {% endcomment %}
+    <div class="alert-banner warning" style="align-items:flex-start">
+      <i class="fas fa-user-check"></i>
+      <div>
+        <strong>{{ existing_user.get_full_name|default:existing_user.username }}</strong>
+        already has a NexGen account &mdash; {{ existing_user.email }},
+        created {{ existing_user.date_joined|date:"j M Y" }}.
+        <div style="margin-top:.4rem">
+          VendorLink role now:
+          <strong>{% if existing_role %}{{ existing_role }}{% else %}none{% endif %}</strong>.
+          {% if existing_groups %}
+          Currently in: {% for g in existing_groups %}<span class="vl-grp">{{ g }}</span>{% endfor %}
+          {% endif %}
+        </div>
+        <div style="margin-top:.5rem">
+          Choose a role below and confirm to grant it to <em>this existing account</em>.
+          No second account is created, and their access to other modules is untouched.
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'vendorlink:admin_user_create' %}">
+      {% csrf_token %}
+
+      <div class="form-layout">
+        <div>
+          <div class="form-block">
+            <div class="form-block-hdr"><i class="fas fa-id-card"></i> Identity</div>
+            <div class="form-block-body">
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="form-label" for="ac-first">First name <span class="req">*</span></label>
+                  <input type="text" id="ac-first" name="first_name" value="{{ form.first_name|default:'' }}"
+                         class="form-input {% if errors.first_name %}vl-error{% endif %}"
+                         placeholder="e.g. Priya" autocomplete="off">
+                  {% if errors.first_name %}<div class="form-error">{{ errors.first_name }}</div>{% endif %}
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="ac-last">Last name</label>
+                  <input type="text" id="ac-last" name="last_name" value="{{ form.last_name|default:'' }}"
+                         class="form-input" placeholder="e.g. Sharma" autocomplete="off">
+                </div>
+                <div class="form-field span-2">
+                  <label class="form-label" for="ac-email">Email address <span class="req">*</span></label>
+                  <input type="email" id="ac-email" name="email" value="{{ form.email|default:'' }}"
+                         class="form-input {% if errors.email %}vl-error{% endif %}"
+                         placeholder="name@merillife.com" autocomplete="off">
+                  {% if errors.email %}<div class="form-error">{{ errors.email }}</div>{% endif %}
+                  <span class="form-hint">
+                    This becomes their login username. A temporary password is emailed automatically.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-block">
+            <div class="form-block-hdr"><i class="fas fa-user-shield"></i> Module role</div>
+            <div class="form-block-body">
+              <div class="vl-rolegrid">
+                {% for r in roles %}
+                <label class="vl-rolecard">
+                  <input type="radio" name="role" value="{{ r.key }}"
+                         {% if form.role == r.key %}checked{% elif not form.role and r.key == 'admin' %}checked{% endif %}>
+                  <div class="vl-rolecard-body">
+                    <div class="vl-rolecard-ic"><i class="fas {{ r.icon }}"></i></div>
+                    <h4>{{ r.label }}</h4>
+                    <p>{{ r.desc }}</p>
+                    <div>{% for g in r.groups %}<span class="vl-grp">{{ g }}</span>{% endfor %}</div>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+              {% if errors.role %}<div class="form-error">{{ errors.role }}</div>{% endif %}
+              {% if not request.user.is_superuser %}
+              <span class="form-hint">
+                Administrator is not listed: granting or removing it is reserved to a superuser.
+              </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="form-side">
+          <div class="form-submit-block">
+            {% if existing_user %}
+            <input type="hidden" name="assign_existing" value="1">
+            <button type="submit" class="btn btn-navy">
+              <i class="fas fa-user-check"></i> Grant role to existing account
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-navy">
+              <i class="fas fa-user-plus"></i> Create &amp; email credentials
+            </button>
+            {% endif %}
+            <a href="{% url 'vendorlink:admin_users' %}" class="btn btn-ghost" data-vl-back>
+              <i class="fas fa-xmark"></i> Cancel
+            </a>
+          </div>
+
+          <div class="form-help">
+            <h4>Scope of this account</h4>
+            <ul>
+              <li>Can access <strong>VendorLink only</strong>.</li>
+              <li>Not a platform superuser.</li>
+              <li>Cannot reach other modules or the system administration area.</li>
+              <li>Must set a new password on first login.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+{% endblock %}

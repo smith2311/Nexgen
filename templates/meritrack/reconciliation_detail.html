@@ -1,0 +1,75 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Reconciliation #{{ recon_id }} — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<style>
+.info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+.info-item { display:flex; flex-direction:column; }
+.info-item .label { font-size:.74rem; color:var(--mt-gray-400); text-transform:uppercase; letter-spacing:.03em; }
+.info-item .value { font-size:.9rem; color:var(--mt-gray-800); font-weight:600; margin-top:2px; }
+.recon-detail-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:12px; margin:16px 0; }
+.stat-label { font-size:.8rem; color:var(--mt-gray-600); margin-top:2px; }
+.accuracy-box { text-align:center; padding:14px; min-width:160px; }
+.accuracy-value { font-size:2.6rem; font-weight:800; line-height:1; }
+.filter-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.filter-tab { padding:6px 14px; border:1px solid var(--mt-gray-300); background:#fff; border-radius:18px; font-size:.82rem; cursor:pointer; }
+.filter-tab.active { background:var(--mt-primary); color:#fff; border-color:var(--mt-primary); }
+.items-table { width:100%; border-collapse:collapse; }
+.items-table th, .items-table td { padding:9px 12px; text-align:left; border-bottom:1px solid var(--mt-gray-100); font-size:.84rem; }
+.items-table th { color:var(--mt-gray-700); font-weight:600; background:var(--mt-gray-50); }
+.detail-flex { display:grid; grid-template-columns:1fr auto; gap:20px; align-items:center; }
+@media (max-width:640px){ .detail-flex { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-clipboard-check"></i> Reconciliation #{{ recon_id }}</h1>
+<p>Scanned vs expected consignment inventory</p>
+{% endblock %}
+
+{% block hero_back %}<a href="{% url 'meritrack:reconciliation_dashboard' %}" class="mt-back-btn btn-mt"><i class="fas fa-arrow-left"></i> <span class="back-label">Back</span></a>{% endblock %}
+
+{% block page_content %}
+  <div class="card">
+    <div class="info-grid" id="reconMeta">
+      <div class="info-item"><div class="mt-sk mt-sk-line" style="width:46%;"></div><div class="mt-sk mt-sk-line" style="width:74%;margin:0;"></div></div>
+      <div class="info-item"><div class="mt-sk mt-sk-line" style="width:54%;"></div><div class="mt-sk mt-sk-line" style="width:62%;margin:0;"></div></div>
+      <div class="info-item"><div class="mt-sk mt-sk-line" style="width:40%;"></div><div class="mt-sk mt-sk-line" style="width:80%;margin:0;"></div></div>
+      <div class="info-item"><div class="mt-sk mt-sk-line" style="width:50%;"></div><div class="mt-sk mt-sk-line" style="width:58%;margin:0;"></div></div>
+    </div>
+  </div>
+
+  <div class="card detail-flex" style="margin-top:16px">
+    <div class="recon-detail-stats" id="reconDetailStats" style="margin:0;"></div>
+    <div class="accuracy-box" id="accuracyDisplay"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filterItems('all')">All</button>
+      <button class="filter-tab" onclick="filterItems('matched')">Matched</button>
+      <button class="filter-tab" onclick="filterItems('missing')">Missing</button>
+      <button class="filter-tab" onclick="filterItems('extra')">Extra</button>
+      <button class="filter-tab" onclick="filterItems('expired_found')">Expired</button>
+    </div>
+    <div class="table-responsive-wrap wide">
+      <table class="items-table" data-stack>
+        <thead><tr>
+          <th>Product</th><th>Batch</th><th>Serial</th><th>Barcode</th>
+          <th>Status</th><th>Expected</th><th>Found</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="itemsBody">{% include 'meritrack/_sk_rows.html' with cols=8 rows="12345" %}</tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const csrfToken = "{{ csrf_token }}";
+const reconId = {{ recon_id }};
+</script>
+<script src="{% static 'meritrack/js/reconciliation_detail.js' %}"></script>
+{% endblock %}

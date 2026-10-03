@@ -1,0 +1,749 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor Registration — Meril VendorLink</title>
+<link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/google-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vl-geoselect.css' %}">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #F6F8FB;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh; color: #0B1C30;
+}
+.vr-topbar {
+    background: #000618;
+    padding: 0 32px; height: 62px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+}
+.vr-topbar-logo {
+    height: 38px; width: auto; border-radius: 8px;
+    object-fit: contain; flex-shrink: 0;
+    display: block;
+}
+.vr-topbar-title { font-size: 1.05rem; font-weight: 600; color: #fff; }
+.vr-topbar-sub { font-size: 0.78rem; color: rgba(255,255,255,.65); }
+
+.vr-wrap { max-width: 840px; margin: 32px auto 60px; padding: 0 16px; }
+
+.vr-card {
+    background: #fff; border-radius: 16px;
+    border: 1px solid #E5E9F0;
+    box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);
+    margin-bottom: 18px; overflow: hidden; position: relative;
+}
+.vr-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: #0061A6;
+}
+.vr-card-head { padding: 22px 28px 16px; border-bottom: 1px solid #E5E9F0; }
+.vr-card-head h2 { font-size: 1.05rem; font-weight: 600; color: #000618; }
+.vr-card-head p { font-size: 0.84rem; color: #44474D; margin-top: 5px; line-height: 1.5; }
+.vr-card-body { padding: 20px 28px 24px; }
+
+.vr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.vr-col-full { grid-column: 1/-1; }
+.vr-field { display: flex; flex-direction: column; gap: 5px; }
+.vr-label { font-size: 0.78rem; font-weight: 600; color: #44474D; text-transform: uppercase; letter-spacing: .03em; display: flex; align-items: center; gap: 4px; }
+.vr-req { color: #DC2626; }
+.vr-input, .vr-select {
+    padding: 10px 13px; border-radius: 10px;
+    border: 1px solid #94A3B8; background: #fff;
+    font-size: 0.9rem; color: #0B1C30; width: 100%;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+}
+.vr-input:focus, .vr-select:focus {
+    outline: none; border-color: #0061A6;
+    box-shadow: 0 0 0 2px rgba(0,97,166,.25); background: #fff;
+}
+.vr-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2344474d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+}
+.vr-err { font-size: 0.77rem; color: #DC2626; font-weight: 600; margin-top: 3px; }
+.vr-hint { font-size: 0.77rem; color: #94A3B8; margin-top: 3px; }
+.is-ok { border-color: #16A34A !important; box-shadow: 0 0 0 2px rgba(22,163,74,.15) !important; }
+.is-err { border-color: #DC2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.15) !important; }
+
+.vr-locked { opacity: 0.4; pointer-events: none; user-select: none; transition: opacity .3s; }
+
+/* email verify */
+.vr-email-row { display: flex; gap: 10px; align-items: flex-start; }
+.vr-email-row .vr-input { flex: 1; }
+.vr-send-btn {
+    padding: 10px 16px; border-radius: 10px; border: none; cursor: pointer;
+    background: #0061A6; color: #fff;
+    font-size: 0.84rem; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+    display: flex; align-items: center; gap: 7px; transition: all .15s;
+}
+.vr-send-btn:hover { background: #004F88; }
+.vr-send-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.vr-otp-section { margin-top: 12px; display: none; }
+.vr-otp-section.visible { display: block; }
+.vr-otp-row { display: flex; gap: 10px; align-items: center; }
+.vr-otp-input {
+    letter-spacing: .3em; font-size: 1.1rem; font-weight: 700;
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    text-align: center; width: 170px; flex-shrink: 0;
+    padding: 10px 14px; border-radius: 10px;
+    border: 1px solid #94A3B8; background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+}
+.vr-otp-input:focus { outline: none; border-color: #0061A6; box-shadow: 0 0 0 2px rgba(0,97,166,.25); background: #fff; }
+.vr-verify-btn {
+    padding: 10px 16px; border-radius: 10px; border: none; cursor: pointer;
+    background: #16A34A; color: #fff; font-size: 0.84rem; font-weight: 600;
+    flex-shrink: 0; display: flex; align-items: center; gap: 7px; transition: all .15s;
+}
+.vr-verify-btn:hover { background: #15803D; }
+.vr-verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.vr-resend-row { margin-top: 8px; font-size: 0.78rem; color: #44474D; }
+.vr-resend-link { color: #0061A6; cursor: pointer; font-weight: 600; }
+.vr-resend-link:hover { text-decoration: underline; }
+
+.vr-otp-msg { margin-top: 8px; font-size: 0.82rem; padding: 8px 12px; border-radius: 8px; }
+.vr-otp-msg.success { background: #DCFCE7; color: #14532D; }
+.vr-otp-msg.error   { background: #FEE2E2; color: #7F1D1D; }
+.vr-otp-msg.info    { background: #E0F2FE; color: #0C4A6E; }
+
+.vr-verified-badge {
+    display: none; align-items: center; gap: 8px;
+    margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+    background: #DCFCE7; border: 1px solid rgba(22,163,74,.3); color: #14532D;
+    font-size: 0.86rem; font-weight: 600;
+}
+.vr-verified-badge.visible { display: flex; }
+
+/* capabilities */
+.vr-caps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 9px; }
+.vr-cap-toggle {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 13px; border-radius: 10px;
+    border: 1px solid #E5E9F0; background: #F6F8FB;
+    cursor: pointer; font-size: 0.83rem; font-weight: 500; color: #44474D;
+    transition: all .15s;
+}
+.vr-cap-toggle:hover { border-color: #0061A6; background: #E0F2FE; color: #0061A6; }
+.vr-cap-toggle input { display: none; }
+.vr-cap-check {
+    width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+    border: 2px solid #94A3B8; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; color: transparent; transition: all .14s;
+}
+.vr-cap-toggle.checked { border-color: #0061A6; background: #E0F2FE; color: #0061A6; }
+.vr-cap-toggle.checked .vr-cap-check { background: #0061A6; border-color: #0061A6; color: #fff; }
+
+/* math captcha */
+.vr-captcha-box {
+    background: #F6F8FB; border: 1px solid #E5E9F0; border-radius: 16px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+}
+.vr-captcha-img-row { display: flex; align-items: center; gap: 12px; }
+.vr-captcha-img {
+    border-radius: 10px; border: 1px solid #C5C6CE;
+    background: #E5EEFF; display: block;
+    width: 280px; height: 90px; object-fit: contain;
+}
+.vr-captcha-refresh {
+    padding: 8px 12px; border-radius: 10px; border: 1px solid #94A3B8;
+    background: #fff; cursor: pointer; color: #0061A6; font-size: 0.82rem;
+    font-weight: 600; display: flex; align-items: center; gap: 6px;
+    transition: all .15s; white-space: nowrap;
+}
+.vr-captcha-refresh:hover { background: #E0F2FE; border-color: #0061A6; }
+.vr-captcha-answer-row { display: flex; gap: 10px; align-items: center; }
+.vr-captcha-input {
+    width: 130px; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid #94A3B8; background: #fff;
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 1rem; font-weight: 700; text-align: center;
+    transition: border-color .15s, box-shadow .15s;
+}
+.vr-captcha-input:focus { outline: none; border-color: #0061A6; box-shadow: 0 0 0 2px rgba(0,97,166,.25); background: #fff; }
+.vr-captcha-input.is-ok { border-color: #16A34A !important; box-shadow: 0 0 0 2px rgba(22,163,74,.15) !important; }
+.vr-captcha-input.is-err { border-color: #DC2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,.15) !important; animation: vr-shake .3s; }
+@keyframes vr-shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)}
+}
+.vr-captcha-status { font-size: 0.82rem; font-weight: 700; }
+.vr-captcha-status.ok  { color: #16A34A; }
+.vr-captcha-status.err { color: #DC2626; }
+.vr-captcha-hint { font-size: 0.79rem; color: #44474D; }
+
+/* server-side captcha error */
+.vr-captcha-server-err {
+    padding: 10px 14px; border-radius: 10px; margin-top: 2px;
+    background: #FEE2E2; border: 1px solid rgba(220,38,38,.3);
+    color: #7F1D1D; font-size: 0.83rem; font-weight: 600;
+}
+
+/* submit */
+.vr-submit-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 6px;
+}
+.vr-submit-btn {
+    padding: 12px 30px; border-radius: 10px; border: none; cursor: pointer;
+    background: #000618; color: #fff;
+    font-size: 0.95rem; font-weight: 600;
+    display: flex; align-items: center; gap: 9px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05); transition: all .15s;
+}
+.vr-submit-btn:hover:not(:disabled) { background: #1F2A44; }
+.vr-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.vr-submit-note { font-size: 0.79rem; color: #44474D; flex: 1; }
+
+.vr-form-errors {
+    margin: 0 0 16px; padding: 12px 16px;
+    background: #FEE2E2; border: 1px solid rgba(220,38,38,.3);
+    border-radius: 10px; font-size: 0.84rem; color: #7F1D1D;
+}
+.vr-form-errors ul { margin: 6px 0 0; padding-left: 18px; }
+
+@media (max-width: 600px) {
+    .vr-grid { grid-template-columns: 1fr; }
+    .vr-card-body, .vr-card-head { padding-left: 18px; padding-right: 18px; }
+    .vr-email-row { flex-direction: column; }
+    .vr-send-btn { width: 100%; justify-content: center; }
+    .vr-captcha-img-row { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="vr-topbar">
+    <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril" class="vr-topbar-logo">
+    <div style="width:1px;height:32px;background:rgba(255,255,255,.25);flex-shrink:0;"></div>
+    <div>
+        <div class="vr-topbar-title">VendorLink</div>
+        <div class="vr-topbar-sub">3PL Vendor Self-Registration</div>
+    </div>
+</div>
+
+<div class="vr-wrap">
+
+    <!-- Brand header -->
+    <div style="text-align:center;margin-bottom:28px;">
+        <img src="{% static 'img/Meril-logo-bluebg.jpg' %}" alt="Meril Life Sciences"
+             style="height:56px;width:auto;border-radius:10px;box-shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.05);">
+        <div style="margin-top:12px;font-size:1.15rem;font-weight:600;color:#000618;">3PL Vendor Registration</div>
+        <div style="margin-top:4px;font-size:0.84rem;color:#44474D;">
+            Register your logistics company as an approved Meril VendorLink partner.
+        </div>
+    </div>
+
+    <!-- Step 1 — Email verification -->
+    <div class="vr-card">
+        <div class="vr-card-head">
+            <h2><i class="fas fa-envelope-circle-check" style="color:#0061A6;margin-right:8px;"></i>Step 1 — Verify Your Email</h2>
+            <p>Enter your business email. We'll send a 6-digit code to confirm ownership before you can fill the form.</p>
+        </div>
+        <div class="vr-card-body">
+            <div class="vr-field">
+                <label class="vr-label">Business Email Address <span class="vr-req">*</span></label>
+                <div class="vr-email-row">
+                    <input id="vr-email-input" type="email" class="vr-input"
+                           placeholder="you@company.com"
+                           value="{{ otp_verified_email }}"
+                           {% if otp_verified_email %}readonly{% endif %}>
+                    <button type="button" class="vr-send-btn" id="vr-send-btn"
+                            onclick="vrSendOtp()"
+                            {% if otp_verified_email %}disabled{% endif %}>
+                        <i class="fas fa-paper-plane"></i> Send Code
+                    </button>
+                </div>
+                <div id="vr-email-err" class="vr-err" style="display:none;"></div>
+                <div class="vr-hint">A one-time verification code will be sent to this address.</div>
+            </div>
+
+            <div class="vr-otp-section" id="vr-otp-section">
+                <div class="vr-otp-row">
+                    <input type="text" id="vr-otp-code" class="vr-otp-input"
+                           maxlength="6" inputmode="numeric" placeholder="——————"
+                           oninput="this.value=this.value.replace(/\D/g,'')">
+                    <button type="button" class="vr-verify-btn" id="vr-verify-btn" onclick="vrVerifyOtp()">
+                        <i class="fas fa-check"></i> Verify
+                    </button>
+                </div>
+                <div class="vr-resend-row">
+                    <span id="vr-resend-timer" style="display:none;">Resend in <strong id="vr-countdown">60</strong>s</span>
+                    <span id="vr-resend-link" style="display:none;" class="vr-resend-link" onclick="vrSendOtp()">
+                        <i class="fas fa-rotate-right"></i> Resend code
+                    </span>
+                </div>
+                <div id="vr-otp-msg" class="vr-otp-msg" style="display:none;"></div>
+            </div>
+
+            <div class="vr-verified-badge {% if otp_verified_email %}visible{% endif %}" id="vr-verified-badge">
+                <i class="fas fa-circle-check" style="color:#16A34A;font-size:1.1rem;"></i>
+                Email verified — <strong id="vr-verified-email">{{ otp_verified_email }}</strong>
+            </div>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="vr-form-errors">
+        <strong><i class="fas fa-triangle-exclamation"></i> Please correct the following:</strong>
+        <ul>{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <form method="post" novalidate id="vr-form">
+        {% csrf_token %}
+        <input type="hidden" name="email" id="vr-email-hidden" value="{{ otp_verified_email }}">
+
+        <div id="vr-form-body" class="{% if not otp_verified_email %}vr-locked{% endif %}">
+
+            <!-- Capabilities — shown first, ahead of the registration fields
+                 themselves: a vendor picks what it does before it spends time
+                 on company/contact details, and reviewers scanning submissions
+                 see the capability match without scrolling past everything
+                 else first. -->
+            <div class="vr-card">
+                <div class="vr-card-head">
+                    <h2><i class="fas fa-star-of-life" style="color:#D97706;margin-right:8px;"></i>Capabilities &amp; Certifications</h2>
+                    <p>Select all that apply to your organisation.</p>
+                </div>
+                <div class="vr-card-body">
+                    {% comment %}
+                    Driven by the Capability master, not a hand-written list.
+
+                    These nine were spelled out here as nine checkboxes with
+                    their own icons and labels — a third copy of the same list
+                    (the model had one, constants.py had another), so adding a
+                    capability meant editing all three and adding a migration.
+                    Capabilities are master rows now: whatever an admin adds on
+                    the Capability Master shows up here on the next page load.
+
+                    The onclick/checked styling is kept because it is what makes
+                    these read as pressable cards rather than raw checkboxes;
+                    only the source of the rows has changed.
+                    {% endcomment %}
+                    <div class="vr-caps-grid">
+                        {% for row in form.capability_choices %}
+                        <label class="vr-cap-toggle{% if row.checked %} checked{% endif %}" onclick="vrToggleCap(this)">
+                            <input type="checkbox" name="capabilities" value="{{ row.capability.pk }}"
+                                   {% if row.checked %}checked{% endif %}>
+                            <span class="vr-cap-check"><i class="fas fa-check"></i></span>
+                            <span><i class="fas {{ row.capability.icon|default:'fa-circle-check' }}" style="color:#0061A6;margin-right:5px;"></i>{{ row.capability.label }}</span>
+                        </label>
+                        {% empty %}
+                        <p class="vr-hint" style="margin:0;">
+                            No capabilities are being collected at the moment — carry on and
+                            submit; our SCM team will confirm your services during review.
+                        </p>
+                        {% endfor %}
+                    </div>
+                    {% for e in form.capabilities.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company details -->
+            <div class="vr-card">
+                <div class="vr-card-head">
+                    <h2><i class="fas fa-building" style="color:#7C3AED;margin-right:8px;"></i>Step 2 — Company Details</h2>
+                </div>
+                <div class="vr-card-body">
+                    <div class="vr-grid">
+                        <div class="vr-field vr-col-full">
+                            <label class="vr-label">Company / Vendor Name <span class="vr-req">*</span></label>
+                            <input name="vendor_name" type="text"
+                                   class="vr-input {% if form.vendor_name.errors %}is-err{% endif %}"
+                                   maxlength="200" placeholder="e.g. ABC Logistics Pvt. Ltd."
+                                   value="{{ form.vendor_name.value|default:'' }}">
+                            {% for e in form.vendor_name.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label" for="id_reg_continent">Continent</label>
+                            <select name="continent" id="id_reg_continent" class="vr-select"
+                                    data-vl-continent="country">
+                                {% for val, label in form.continent.field.choices %}
+                                <option value="{{ val }}" {% if form.continent.value == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="vr-hint">Pick your continent to shorten the country list.</div>
+                            {% for e in form.continent.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label" for="id_reg_country">Country <span class="vr-req">*</span></label>
+                            <select name="country" id="id_reg_country" data-vl-country="1" class="vr-select {% if form.country.errors %}is-err{% endif %}">
+                                {% for val, label in form.country.field.choices %}
+                                <option value="{{ val }}" {% if form.country.value == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% for e in form.country.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label" for="id_reg_state">State / Region</label>
+                            <input name="state" id="id_reg_state" type="text"
+                                   class="vr-input {% if form.state.errors %}is-err{% endif %}"
+                                   maxlength="120" placeholder="e.g. Maharashtra"
+                                   value="{{ form.state.value|default:'' }}">
+                            {% for e in form.state.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label" for="id_reg_city">City</label>
+                            <input name="city" id="id_reg_city" type="text"
+                                   class="vr-input {% if form.city.errors %}is-err{% endif %}"
+                                   maxlength="120" placeholder="Select or type a city"
+                                   value="{{ form.city.value|default:'' }}">
+                            {% for e in form.city.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field vr-col-full">
+                            <label class="vr-label">Warehouse / Facility Address</label>
+                            <input name="warehouse_location" type="text"
+                                   class="vr-input {% if form.warehouse_location.errors %}is-err{% endif %}"
+                                   maxlength="300" placeholder="Full address of your primary facility"
+                                   value="{{ form.warehouse_location.value|default:'' }}">
+                            {% for e in form.warehouse_location.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact info -->
+            <div class="vr-card">
+                <div class="vr-card-head">
+                    <h2><i class="fas fa-user-tie" style="color:#0061A6;margin-right:8px;"></i>Contact Information</h2>
+                </div>
+                <div class="vr-card-body">
+                    <div class="vr-grid">
+                        <div class="vr-field">
+                            <label class="vr-label">Contact Person <span class="vr-req">*</span></label>
+                            <input name="contact_person" type="text"
+                                   class="vr-input {% if form.contact_person.errors %}is-err{% endif %}"
+                                   maxlength="150" placeholder="Your full name"
+                                   value="{{ form.contact_person.value|default:'' }}">
+                            {% for e in form.contact_person.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field" id="vr-verified-email-field" style="{% if not otp_verified_email %}display:none;{% endif %}">
+                            <label class="vr-label">Verified Email</label>
+                            <div id="vr-verified-email-display" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:#DCFCE7;border:1px solid rgba(22,163,74,.3);">
+                                <i class="fas fa-circle-check" style="color:#16A34A;font-size:1rem;flex-shrink:0;"></i>
+                                <span id="vr-contact-email-label" style="font-weight:600;color:#14532D;font-size:0.9rem;">{{ otp_verified_email }}</span>
+                            </div>
+                            {% for e in form.email.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label" for="id_reg_mobile">Phone / Mobile</label>
+                            <input name="mobile" type="text" id="id_reg_mobile"
+                                   class="vr-input {% if form.mobile.errors %}is-err{% endif %}"
+                                   maxlength="40" placeholder="+971 50 123 4567"
+                                   value="{{ form.mobile.value|default:'' }}">
+                            {% for e in form.mobile.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+
+                        <div class="vr-field">
+                            <label class="vr-label">Website</label>
+                            <input name="website" type="url"
+                                   class="vr-input {% if form.website.errors %}is-err{% endif %}"
+                                   placeholder="https://yourcompany.com"
+                                   value="{{ form.website.value|default:'' }}">
+                            {% for e in form.website.errors %}<div class="vr-err">{{ e }}</div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /vr-form-body -->
+
+        <!-- Step 3 — Math CAPTCHA -->
+        <div class="vr-card">
+            <div class="vr-card-head">
+                <h2><i class="fas fa-shield-halved" style="color:#D97706;margin-right:8px;"></i>Step 3 — Security Check</h2>
+                <p>Solve the arithmetic problem shown in the image to prove you are human. The Submit button will unlock once you enter the correct answer.</p>
+            </div>
+            <div class="vr-card-body">
+                <div class="vr-captcha-box">
+                    <div class="vr-captcha-img-row">
+                        <img id="vr-cap-img" class="vr-captcha-img"
+                             src="{% url 'vendorlink:captcha_image' %}"
+                             alt="Math CAPTCHA">
+                        <button type="button" class="vr-captcha-refresh" onclick="vrRefreshCaptcha()">
+                            <i class="fas fa-rotate-right"></i> New problem
+                        </button>
+                    </div>
+                    <div class="vr-captcha-answer-row">
+                        <input type="text" id="vr-cap-input" name="captcha_answer"
+                               class="vr-captcha-input"
+                               placeholder="Answer" inputmode="numeric" pattern="[0-9]*"
+                               oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <span id="vr-cap-status" class="vr-captcha-status"></span>
+                    </div>
+                    <div class="vr-captcha-hint">
+                        <i class="fas fa-info-circle"></i>
+                        Type the numeric answer (e.g. if the image shows <strong>4 + 7 = ?</strong> type <strong>11</strong>).
+                    </div>
+                    {% if captcha_error %}
+                    <div class="vr-captcha-server-err">
+                        <i class="fas fa-triangle-exclamation"></i> {{ captcha_error }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="vr-submit-bar">
+            <div class="vr-submit-note">
+                <i class="fas fa-lock" style="color:#0061A6;"></i>
+                Your information is reviewed by Meril Life Sciences SCM team and kept confidential.
+            </div>
+            <button type="submit" class="vr-submit-btn" id="vr-submit-btn"
+                    disabled onclick="return vrCheckSubmit()">
+                <i class="fas fa-paper-plane"></i> Submit Registration
+            </button>
+        </div>
+    </form>
+
+</div>
+
+<script>
+var emailVerified = {% if otp_verified_email %}true{% else %}false{% endif %};
+var countdownTimer = null;
+
+function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+/* ── Pending / status modal ────────────────────────────────────────── */
+function showStatusModal(msg, code) {
+    var icon = code === 'pending'
+        ? '<i class="fas fa-clock-rotate-left" style="color:#D97706;font-size:2.2rem;"></i>'
+        : '<i class="fas fa-circle-check" style="color:#16A34A;font-size:2.2rem;"></i>';
+    var title = code === 'pending' ? 'Already Under Review' : 'Already Registered';
+    var overlay = document.createElement('div');
+    overlay.id = 'vr-status-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(11,28,48,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(15,31,58,.14), 0 2px 8px rgba(15,31,58,.08);padding:36px 32px;max-width:440px;width:100%;text-align:center;">' +
+        icon +
+        '<h3 style="margin:16px 0 10px;font-size:1.2rem;font-weight:700;color:#000618;">' + title + '</h3>' +
+        '<p style="font-size:0.88rem;color:#44474D;line-height:1.65;margin:0 0 22px;">' + msg + '</p>' +
+        '<button onclick="document.getElementById(\'vr-status-modal\').remove()" ' +
+        'style="padding:10px 28px;border-radius:10px;border:none;cursor:pointer;background:#000618;color:#fff;font-size:0.9rem;font-weight:600;">' +
+        'OK, Got It</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+/* ── Email OTP ─────────────────────────────────────────────────────── */
+function vrSendOtp() {
+    var emailInput = document.getElementById('vr-email-input');
+    var email = emailInput.value.trim();
+    var btn = document.getElementById('vr-send-btn');
+    document.getElementById('vr-email-err').style.display = 'none';
+    if (!email) { showEmailErr('Please enter your email address.'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+    fetch("{% url 'vendorlink:send_otp' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf(), 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'email=' + encodeURIComponent(email)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Code';
+        if (d.ok) {
+            document.getElementById('vr-otp-section').classList.add('visible');
+            document.getElementById('vr-otp-code').value = '';
+            document.getElementById('vr-otp-code').focus();
+            showOtpMsg('Code sent to ' + email + '. Check your inbox (and spam folder).', 'info');
+            startCountdown();
+            emailInput.readOnly = true;
+        } else if (d.code === 'pending' || d.code === 'approved') {
+            btn.disabled = false;
+            showStatusModal(d.error, d.code);
+        } else {
+            btn.disabled = false;
+            var msg = d.error || 'Failed to send code.';
+            if (d.suggestion) {
+                msg += ' <a href="#" onclick="useSuggestion(\'' + d.suggestion + '\');return false;" style="color:#0061A6;font-weight:700;">Use ' + d.suggestion + '</a>';
+            }
+            showEmailErr(msg);
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Code';
+        showEmailErr('Network error. Please try again.');
+    });
+}
+
+function useSuggestion(email) {
+    var input = document.getElementById('vr-email-input');
+    input.value = email; input.readOnly = false;
+    document.getElementById('vr-email-err').style.display = 'none';
+    document.getElementById('vr-send-btn').disabled = false;
+}
+
+function vrVerifyOtp() {
+    var code = document.getElementById('vr-otp-code').value.trim();
+    var btn = document.getElementById('vr-verify-btn');
+    if (!code || code.length !== 6) { showOtpMsg('Please enter the 6-digit code.', 'error'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    fetch("{% url 'vendorlink:verify_otp' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf(), 'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'code=' + encodeURIComponent(code)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        btn.innerHTML = '<i class="fas fa-check"></i> Verify';
+        if (d.ok) {
+            var email = document.getElementById('vr-email-input').value.trim();
+            emailVerified = true;
+            document.getElementById('vr-email-hidden').value = email;
+            document.getElementById('vr-verified-email').textContent = email;
+            document.getElementById('vr-verified-badge').classList.add('visible');
+            document.getElementById('vr-otp-section').classList.remove('visible');
+            document.getElementById('vr-send-btn').disabled = true;
+            clearInterval(countdownTimer);
+            document.getElementById('vr-form-body').classList.remove('vr-locked');
+            document.getElementById('vr-submit-btn').disabled = false;
+            document.getElementById('vr-contact-email-label').textContent = email;
+            document.getElementById('vr-verified-email-field').style.display = '';
+            showOtpMsg('', 'info');
+        } else {
+            btn.disabled = false;
+            showOtpMsg(d.error || 'Incorrect code.', 'error');
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        showOtpMsg('Network error. Please try again.', 'error');
+    });
+}
+
+function startCountdown() {
+    clearInterval(countdownTimer);
+    var secs = 60;
+    document.getElementById('vr-resend-timer').style.display = 'inline';
+    document.getElementById('vr-resend-link').style.display = 'none';
+    document.getElementById('vr-countdown').textContent = secs;
+    countdownTimer = setInterval(function() {
+        secs--;
+        document.getElementById('vr-countdown').textContent = secs;
+        if (secs <= 0) {
+            clearInterval(countdownTimer);
+            document.getElementById('vr-resend-timer').style.display = 'none';
+            document.getElementById('vr-resend-link').style.display = 'inline';
+        }
+    }, 1000);
+}
+
+function showEmailErr(msg) {
+    var el = document.getElementById('vr-email-err');
+    el.innerHTML = msg; el.style.display = 'block';
+}
+function showOtpMsg(msg, type) {
+    var el = document.getElementById('vr-otp-msg');
+    if (!msg) { el.style.display = 'none'; return; }
+    el.className = 'vr-otp-msg ' + type;
+    el.textContent = msg; el.style.display = 'block';
+}
+
+/* ── Math CAPTCHA — refresh only ───────────────────────────────────── */
+function vrRefreshCaptcha() {
+    document.getElementById('vr-cap-input').value = '';
+    document.getElementById('vr-cap-input').className = 'vr-captcha-input';
+    document.getElementById('vr-cap-status').textContent = '';
+    document.getElementById('vr-cap-status').className = 'vr-captcha-status';
+    document.getElementById('vr-cap-img').src = "{% url 'vendorlink:captcha_image' %}?t=" + Date.now();
+}
+
+/* ── Capability toggles ────────────────────────────────────────────── */
+function vrToggleCap(label) {
+    var cb = label.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    label.classList.toggle('checked', cb.checked);
+}
+
+/* ── Lightweight toast (replaces native alert) ─────────────────────── */
+function vrToast(msg) {
+    var prev = document.getElementById('vr-toast');
+    if (prev) prev.remove();
+    var t = document.createElement('div');
+    t.id = 'vr-toast';
+    t.style.cssText = 'position:fixed;top:22px;left:50%;transform:translateX(-50%) translateY(-12px);' +
+        'z-index:100001;background:#000618;color:#fff;padding:13px 20px;border-radius:10px;' +
+        'font-size:.88rem;font-weight:600;box-shadow:0 10px 30px rgba(15,31,58,.14);display:flex;' +
+        'align-items:center;gap:9px;max-width:90vw;opacity:0;transition:opacity .25s ease,transform .25s ease;';
+    t.innerHTML = '<i class="fas fa-circle-exclamation" style="color:#FBBF24;"></i><span></span>';
+    t.querySelector('span').textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; });
+    setTimeout(function () {
+        t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(-12px)';
+        setTimeout(function () { t.remove(); }, 300);
+    }, 3200);
+}
+
+/* ── Final submit guard ────────────────────────────────────────────── */
+function vrCheckSubmit() {
+    if (!emailVerified) {
+        vrToast('Please verify your email address first (Step 1).');
+        document.getElementById('vr-email-input').focus();
+        return false;
+    }
+    var capVal = (document.getElementById('vr-cap-input').value || '').trim();
+    if (!capVal) {
+        vrToast('Please enter your answer to the security question (Step 3).');
+        document.getElementById('vr-cap-input').focus();
+        return false;
+    }
+    return true;
+}
+
+if (emailVerified) {
+    document.getElementById('vr-form-body').classList.remove('vr-locked');
+    document.getElementById('vr-submit-btn').disabled = false;
+}
+</script>
+<script type="application/json" id="vl-continent-map">{{ continent_country_map|safe }}</script>
+<script src="{% static 'vendorlink/js/vl-continent-country.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-geoselect.js' %}"></script>
+<script>
+(function () {
+    var isoMap     = {{ country_iso_map|safe }};
+    var dialMap    = {{ country_dial_map|safe }};
+    var cityApi    = '{% url "vendorlink:api_cities" %}';
+    var citySelect = new VlCitySelect(
+        document.getElementById('id_reg_city'), cityApi);
+    var phoneAutofill = new VlPhoneAutofill(document.getElementById('id_reg_mobile'));
+    new VlCountrySelect(
+        document.getElementById('id_reg_country'), isoMap,
+        function (name, iso) {
+            citySelect.loadCities(iso, false);
+            phoneAutofill.apply(dialMap[name]);
+        });
+    (function () {
+        var sel = document.getElementById('id_reg_country');
+        if (sel && sel.value) {
+            var iso = isoMap[sel.value];
+            if (iso) citySelect.loadCities(iso, true);
+        }
+    }());
+}());
+</script>
+</body>
+</html>

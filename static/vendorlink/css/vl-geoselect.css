@@ -1,0 +1,115 @@
+/* ── vl-geoselect.css ──────────────────────────────────────────────────────
+   Searchable country + city select widgets (VlCountrySelect, VlCitySelect).
+   Compatible with both .vm-input and .vr-select sizing conventions.
+   -------------------------------------------------------------------------- */
+.vlcs-wrap {
+    position: relative;
+}
+.vlcs-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 9px;
+    background: #fff;
+    cursor: pointer;
+    font-size: .9rem;
+    color: #374151;
+    min-height: 42px;
+    line-height: 1.4;
+    transition: border-color .18s, box-shadow .18s;
+    user-select: none;
+}
+.vlcs-trigger:hover { border-color: #9ca3af; }
+.vlcs-wrap:focus-within .vlcs-trigger,
+.vlcs-trigger-open {
+    border-color: #0076c8;
+    box-shadow: 0 0 0 3px rgba(0, 118, 200, .12);
+    outline: none;
+}
+.vlcs-val { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vlcs-val.vlcs-placeholder { color: #9ca3af; }
+.vlcs-arrow {
+    font-size: .68rem;
+    color: #9ca3af;
+    transition: transform .2s;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+.vlcs-trigger-open .vlcs-arrow { transform: rotate(180deg); }
+
+/* Panel is appended to <body> with position:fixed so it escapes overflow:hidden parents. */
+.vlcs-panel {
+    position: fixed;
+    z-index: 9999;
+    background: #fff;
+    border: 1.5px solid #0076c8;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .14);
+    overflow: hidden;
+}
+
+.vlcs-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.vlcs-search-icon { color: #9ca3af; font-size: .76rem; }
+.vlcs-search {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: .88rem;
+    color: #374151;
+    background: transparent;
+}
+.vlcs-search::placeholder { color: #b0b9c5; }
+
+.vlcs-list {
+    max-height: 218px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+}
+.vlcs-list::-webkit-scrollbar { width: 5px; }
+.vlcs-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+.vlcs-opt {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: .88rem;
+    color: #374151;
+    transition: background .1s;
+}
+.vlcs-opt:hover,
+.vlcs-opt.vlcs-focused { background: #eff6ff; color: #0076c8; }
+.vlcs-opt[data-val=""].vlcs-opt-blank { color: #9ca3af; font-style: italic; }
+
+.vlcs-no-match {
+    padding: 10px 16px;
+    font-size: .84rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Disabled state (city select before a country is chosen) */
+.vlcs-trigger.vlcs-disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* "Use '<typed text>'" create option */
+.vlcs-create-opt {
+    font-style: italic;
+    color: #0076c8;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 4px;
+}

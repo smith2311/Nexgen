@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sub Logistics — Dashboard{% endblock %}
+{% block page_title %}Subsidiary Logistics Cost — Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/subsidiary_logistic/sub.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'sub:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Subsidiary Logistics
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-gauge-high"></i> Dashboard</h1>
+          <p>Country-wise logistics cost overview — filter by period date.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">₹{{ totals.t_sales|default:"—" }}</div>
+            <div class="lm-hstat-lbl">Total Sales (Cr)</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">₹{{ totals.t_ob|default:"—" }}</div>
+            <div class="lm-hstat-lbl">OB Cost (Cr)</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">₹{{ totals.t_ops|default:"—" }}</div>
+            <div class="lm-hstat-lbl">Ops Cost (Cr)</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ totals.t_count|default:"0" }}</div>
+            <div class="lm-hstat-lbl">Countries</div>
+          </div>
+        </div>
+        {% if sub_role == 'manager' %}
+        <a href="{% url 'sub:upload' %}" class="sub-btn sub-btn-teal" style="flex-shrink:0;">
+          <i class="fas fa-file-arrow-up"></i> Upload Data
+        </a>
+        {% endif %}
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="sub-alert {% if m.tags == 'success' %}success{% elif m.tags == 'error' %}error{% else %}warning{% endif %}">
+        <i class="fas fa-{% if m.tags == 'success' %}circle-check{% elif m.tags == 'error' %}circle-xmark{% else %}triangle-exclamation{% endif %}"></i>
+        {{ m }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Filter bar -->
+    <form method="get">
+      <div class="sub-filter-bar">
+        <label>Period Date</label>
+        <input type="date" name="date" value="{{ date_filter }}"
+               title="Filter by exact period date">
+
+        {% if dates %}
+        <label style="margin-left:8px;">Quick Select</label>
+        <select name="date" onchange="this.form.submit()">
+          <option value="">— All Dates —</option>
+          {% for d in dates %}
+          <option value="{{ d|date:'Y-m-d' }}" {% if active_date == d %}selected{% endif %}>
+            {{ d|date:"d M Y" }}
+          </option>
+          {% endfor %}
+        </select>
+        {% endif %}
+
+        <button type="submit" class="sub-btn sub-btn-navy sub-btn-sm">
+          <i class="fas fa-search"></i> Filter
+        </button>
+        {% if date_filter %}
+        <a href="{% url 'sub:dashboard' %}" class="sub-btn sub-btn-ghost sub-btn-sm">
+          <i class="fas fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+
+        <div style="margin-left:auto;">
+          <a href="{% url 'sub:template_download' %}" class="sub-btn sub-btn-amber sub-btn-sm">
+            <i class="fas fa-file-arrow-down"></i> Template
+          </a>
+        </div>
+      </div>
+    </form>
+
+    <!-- Table -->
+    <div class="sub-tbl-wrap">
+      {% if entries %}
+      <div style="overflow-x:auto;">
+        <table class="sub-tbl" id="subTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Country</th>
+              <th class="num">Total Sales (In Cr.)</th>
+              <th class="num">OB Logistics Cost (In Cr.)</th>
+              <th class="num">Operational Cost (In Cr.)</th>
+              <th>Period Date</th>
+              {% if sub_role == 'manager' %}<th>Added By</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in entries %}
+            <tr>
+              <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">{{ forloop.counter }}</td>
+              <td style="font-weight:500;">{{ e.country }}</td>
+              <td class="num" style="font-family:var(--font-mono);">{{ e.total_sales }}</td>
+              <td class="num" style="font-family:var(--font-mono);">{% if e.ob_logistics_cost %}{{ e.ob_logistics_cost }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+              <td class="num" style="font-family:var(--font-mono);">{% if e.operational_cost %}{{ e.operational_cost }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+              <td style="font-size:12.5px;">{{ e.period_date|date:"d M Y" }}</td>
+              {% if sub_role == 'manager' %}<td style="font-size:12px;color:var(--text-muted);">{{ e.created_by|default:"—" }}</td>{% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% if totals.t_sales %}
+          <tfoot>
+            <tr class="sub-total-row">
+              <td></td>
+              <td>Total</td>
+              <td class="num" style="font-family:var(--font-mono);">{{ totals.t_sales }}</td>
+              <td class="num" style="font-family:var(--font-mono);">{{ totals.t_ob|default:"—" }}</td>
+              <td class="num" style="font-family:var(--font-mono);">{{ totals.t_ops|default:"—" }}</td>
+              <td></td>
+              {% if sub_role == 'manager' %}<td></td>{% endif %}
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+      {% else %}
+      <div class="sub-empty">
+        <i class="fas fa-globe"></i>
+        <p>No data found{% if date_filter %} for the selected date{% endif %}. {% if sub_role == 'manager' %}<a href="{% url 'sub:upload' %}" style="color:var(--blue);">Upload data</a> to get started.{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/subsidiary_logistic/sub.js' %}"></script>
+{% endblock %}

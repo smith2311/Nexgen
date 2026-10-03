@@ -1,0 +1,432 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inspection Report - {{ inspection.warehouse.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .report-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .report-header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .header-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .header-item {
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+        padding-right: 1.5rem;
+    }
+
+    .header-item:last-child {
+        border-right: none;
+    }
+
+    .header-label {
+        opacity: 0.9;
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .header-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .stats-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.8rem;
+        text-align: center;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #667eea;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-card.total {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .stat-card.total .stat-value {
+        color: white;
+    }
+
+    .stat-card.passed {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .stat-card.passed .stat-value {
+        color: white;
+    }
+
+    .stat-card.failed {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        color: white;
+    }
+
+    .stat-card.failed .stat-value {
+        color: white;
+    }
+
+    .stat-card.partial {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+
+    .stat-card.partial .stat-value {
+        color: white;
+    }
+
+    .report-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 1rem;
+    }
+
+    .item-result {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1.2rem;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background 0.2s ease;
+    }
+
+    .item-result:last-child {
+        border-bottom: none;
+    }
+
+    .item-result:hover {
+        background: #f9fafb;
+    }
+
+    .item-details {
+        flex-grow: 1;
+    }
+
+    .item-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.3rem;
+    }
+
+    .item-comments {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    .result-badge {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .result-badge.pass {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .result-badge.fail {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    .result-badge.partial {
+        background: #fef3c7;
+        color: #78350f;
+    }
+
+    .result-badge.na {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .recommendations {
+        background: #eff6ff;
+        border-left: 4px solid #667eea;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .recommendations h4 {
+        color: #1f2937;
+        margin-bottom: 0.8rem;
+        font-weight: 700;
+    }
+
+    .recommendations p {
+        color: #374151;
+        line-height: 1.6;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        padding: 0.9rem 2.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+        background: #f0f4ff;
+    }
+
+    .print-btn {
+        background: white;
+        color: #6b7280;
+        border: 2px solid #e5e7eb;
+    }
+
+    .print-btn:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+    }
+
+    @media print {
+        .action-buttons {
+            display: none;
+        }
+
+        .report-container {
+            box-shadow: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .report-container {
+            padding: 1rem;
+        }
+
+        .report-header {
+            padding: 1.5rem;
+        }
+
+        .header-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .header-item {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Report Header -->
+    <div class="report-header">
+        <h1>
+            <i class="fas fa-file-alt"></i> Inspection Report
+        </h1>
+        <div class="header-grid">
+            <div class="header-item">
+                <div class="header-label">Warehouse</div>
+                <div class="header-value">{{ inspection.warehouse.name }}</div>
+            </div>
+            <div class="header-item">
+                <div class="header-label">Date</div>
+                <div class="header-value">{{ inspection.inspection_date|date:"M d, Y" }}</div>
+            </div>
+            <div class="header-item">
+                <div class="header-label">Inspector</div>
+                <div class="header-value">{{ inspection.inspector.get_full_name|default:inspection.inspector.username }}</div>
+            </div>
+            <div class="header-item">
+                <div class="header-label">Overall Score</div>
+                <div class="header-value">
+                    {% if inspection.score %}
+                        {{ inspection.score }}%
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-section">
+        <div class="stat-card total">
+            <span class="stat-value">{{ stats.total }}</span>
+            <span class="stat-label">Total Items</span>
+        </div>
+        <div class="stat-card passed">
+            <span class="stat-value">{{ stats.passed }}</span>
+            <span class="stat-label">Passed</span>
+        </div>
+        <div class="stat-card failed">
+            <span class="stat-value">{{ stats.failed }}</span>
+            <span class="stat-label">Failed</span>
+        </div>
+        <div class="stat-card partial">
+            <span class="stat-value">{{ stats.partial }}</span>
+            <span class="stat-label">Partial</span>
+        </div>
+    </div>
+
+    <!-- Report Summary -->
+    {% if report %}
+    <div class="report-section">
+        <h3 class="section-title">
+            <i class="fas fa-summary"></i> Summary
+        </h3>
+        <p>{{ report.summary }}</p>
+        
+        {% if report.recommendations %}
+        <div class="recommendations">
+            <h4>
+                <i class="fas fa-lightbulb"></i> Recommendations
+            </h4>
+            <p>{{ report.recommendations }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Detailed Results -->
+    <div class="report-section">
+        <h3 class="section-title">
+            <i class="fas fa-list-check"></i> Detailed Results
+        </h3>
+
+        {% for item in items %}
+        <div class="item-result">
+            <div class="item-details">
+                <div class="item-name">
+                    <i class="fas fa-check-square"></i> {{ item.checklist_item.item_name }}
+                </div>
+                {% if item.comments %}
+                <div class="item-comments">
+                    <strong>Comment:</strong> {{ item.comments }}
+                </div>
+                {% endif %}
+            </div>
+            <span class="result-badge {% if item.response %}{{ item.response }}{% else %}na{% endif %}">
+                {% if item.response %}
+                    {% if item.response == 'pass' %}✓ Pass
+                    {% elif item.response == 'fail' %}✗ Fail
+                    {% elif item.response == 'partial' %}◐ Partial
+                    {% elif item.response == 'na' %}— N/A
+                    {% else %}{{ item.response }}{% endif %}
+                {% else %}
+                    Not Answered
+                {% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <a href="{% url 'warehouse_inspection:checklist' %}" class="btn btn-secondary">
+            <i class="fas fa-home"></i> Back to Checklist
+        </a>
+        <button onclick="window.print()" class="btn print-btn">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+        <a href="{% url 'warehouse_inspection:admin_dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-chart-bar"></i> Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

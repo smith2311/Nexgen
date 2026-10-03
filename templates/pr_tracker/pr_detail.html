@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}PR {{ pr.pr_number }}{% endblock %}
+{% block page_title %}PR Tracker — {{ pr.pr_number }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pr_tracker/pr.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+
+      <a href="{% url 'pr_tracker:pr_dashboard' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Dashboard
+      </a>
+
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1>
+            <i class="fas fa-file-invoice"></i>
+            <span class="prt-mono" style="font-family:var(--font-mono);">{{ pr.pr_number }}</span>
+            <span class="prt-pill pill-{{ pr.status }}" style="font-size:12px;margin-left:6px;vertical-align:middle;">{{ pr.status_label }}</span>
+          </h1>
+          <p>Assigned {{ pr.assigned_at|date:"d M Y" }} · {% if pr.ageing_days is not None %}{{ pr.ageing_days }} day{{ pr.ageing_days|pluralize }} old{% else %}received date not set{% endif %} · {{ pr.fill_percent }}% detail filled</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ pr.fill_percent }}%</div>
+            <div class="lm-hstat-lbl">Filled</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{% if pr.ageing_days is not None %}{{ pr.ageing_days }}d{% else %}—{% endif %}</div>
+            <div class="lm-hstat-lbl">Ageing</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /.lm-header -->
+
+  {% if notification_failures %}
+  {# Sending runs on a worker thread, so a failure can no longer be a message
+     on the assign screen. It is recorded against the PR and said here. #}
+  <div class="prt-notify-fail">
+    <div class="prt-notify-fail-hdr">
+      <i class="fas fa-triangle-exclamation"></i>
+      Notification problem{{ notification_failures|length|pluralize }}
+    </div>
+    <ul>
+      {% for log in notification_failures %}
+      <li>{{ log.notes }} <em>({{ log.timestamp|date:"d M Y, H:i" }})</em></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="lm-inner">
+
+    <div class="prt-detail-grid">
+
+      <!-- Assignment info -->
+      <div class="prt-detail-block">
+        <div class="prt-detail-hdr"><i class="fas fa-users"></i> Assignment</div>
+        <div class="prt-detail-body">
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">PR Number</span>
+            <span class="prt-detail-val prt-mono">{{ pr.pr_number }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Responsible</span>
+            <span class="prt-detail-val">{% if pr.responsible_person %}{{ pr.responsible_person.get_full_name|default:pr.responsible_person.username }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Assigned To</span>
+            <span class="prt-detail-val">{% if pr.assigned_person %}{{ pr.assigned_person.get_full_name|default:pr.assigned_person.username }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Assigned By</span>
+            <span class="prt-detail-val">{% if pr.assigned_by %}{{ pr.assigned_by.get_full_name|default:pr.assigned_by.username }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Assigned At</span>
+            <span class="prt-detail-val">{{ pr.assigned_at|date:"d M Y, H:i" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Email Sent</span>
+            <span class="prt-detail-val">
+              {% if pr.email_sent %}<span style="color:var(--green)"><i class="fas fa-check"></i> Yes</span>
+              {% else %}<span style="color:var(--text-muted)">No</span>{% endif %}
+            </span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Last Updated By</span>
+            <span class="prt-detail-val">{% if pr.last_filled_by %}{{ pr.last_filled_by.get_full_name|default:pr.last_filled_by.username }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Last Updated</span>
+            <span class="prt-detail-val">{{ pr.last_filled_at|date:"d M Y, H:i"|default:"—" }}</span>
+          </div>
+        </div>
+      </div>
+
+      {% if pr.documents.all %}
+      <div class="prt-detail-block">
+        <div class="prt-detail-hdr">
+          <i class="fas fa-paperclip"></i> Documents ({{ pr.documents.all|length }})
+        </div>
+        <div class="prt-detail-body">
+          {% include 'pr_tracker/_document_list.html' with documents=pr.documents.all %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Dates & Tracking -->
+      <div class="prt-detail-block">
+        <div class="prt-detail-hdr"><i class="fas fa-calendar-days"></i> Dates &amp; Tracking</div>
+        <div class="prt-detail-body">
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Vertical</span>
+            <span class="prt-detail-val">{{ pr.vertical|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">PR Received</span>
+            <span class="prt-detail-val">{{ pr.pr_received_date|date:"d M Y"|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">PR Released</span>
+            <span class="prt-detail-val">{{ pr.pr_release_date|date:"d M Y"|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Tracking No.</span>
+            <span class="prt-detail-val prt-mono">{% if pr.tracking_number %}{{ pr.tracking_number }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">No. of Line Items</span>
+            <span class="prt-detail-val">{{ pr.no_of_line_items|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Requester Name</span>
+            <span class="prt-detail-val">{{ pr.requester_name|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Request For Use</span>
+            <span class="prt-detail-val">{{ pr.request_for_use|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Vendors Creation</span>
+            <span class="prt-detail-val">{{ pr.get_vendors_creation_display|default:"—" }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PO & Financial -->
+      <div class="prt-detail-block">
+        <div class="prt-detail-hdr"><i class="fas fa-receipt"></i> PO &amp; Financial</div>
+        <div class="prt-detail-body">
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">PO Number</span>
+            <span class="prt-detail-val prt-mono">{{ pr.po_number|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">PO Ageing Days</span>
+            <span class="prt-detail-val">
+              {% if pr.po_number_ageing_days is not None %}
+                {{ pr.po_number_ageing_days }} day{{ pr.po_number_ageing_days|pluralize }}
+                {% if pr.closed_at %}<span style="color:var(--text-muted)">(closed {{ pr.closed_at|date:"d M Y" }})</span>{% endif %}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Amount</span>
+            <span class="prt-detail-val">
+              {% if pr.amount %}<strong>₹ {{ pr.amount }}</strong>{% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Reg./Negotiation</span>
+            <span class="prt-detail-val">{{ pr.get_regularized_negotiation_display|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">GRN Created</span>
+            <span class="prt-detail-val">{{ pr.get_grn_created_display|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Advance Number</span>
+            <span class="prt-detail-val prt-mono">{{ pr.advance_number|default:"—" }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes & Closure -->
+      <div class="prt-detail-block">
+        <div class="prt-detail-hdr"><i class="fas fa-note-sticky"></i> Notes &amp; Closure</div>
+        <div class="prt-detail-body">
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Description</span>
+            <span class="prt-detail-val">{{ pr.description|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Closure</span>
+            <span class="prt-detail-val">{{ pr.closure|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Remark</span>
+            <span class="prt-detail-val">{{ pr.remark|default:"—" }}</span>
+          </div>
+          <div class="prt-detail-row">
+            <span class="prt-detail-key">Fill Progress</span>
+            <span class="prt-detail-val">
+              <span class="prt-progress" style="width:120px;">
+                <span class="prt-progress-fill" style="width:{{ pr.fill_percent }}%"></span>
+              </span>
+              <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">{{ pr.fill_percent }}% filled</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="prt-detail-block full">
+        <div class="prt-detail-hdr"><i class="fas fa-clock-rotate-left"></i> Activity Log</div>
+        {% if logs %}
+        <ul class="prt-log">
+          {% for log in logs %}
+          <li class="prt-log-item">
+            <span class="prt-log-dot"></span>
+            <div>
+              <div class="prt-log-body">
+                <strong>{{ log.action|title }}</strong>
+                {% if log.notes %} — {{ log.notes }}{% endif %}
+              </div>
+              <div class="prt-log-meta">
+                {% if log.performed_by %}{{ log.performed_by.get_full_name|default:log.performed_by.username }}{% else %}System{% endif %} &middot;
+                {{ log.timestamp|date:"d M Y, H:i" }}
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="prt-empty"><p>No activity logged yet.</p></div>
+        {% endif %}
+      </div>
+
+    </div><!-- /.prt-detail-grid -->
+
+  </div><!-- /.lm-inner -->
+</div><!-- /.lm-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pr_tracker/pr.js' %}"></script>
+{% include 'pr_tracker/_document_viewer.html' %}
+{% endblock %}

@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Management — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/md_users.css' %}?v=4">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+
+    <div class="md-header">
+        <div class="md-header-left">
+            <h1><i class="fas fa-users-cog"></i> User Management</h1>
+            <p>Assign and manage Material Rework roles. A user can hold multiple roles simultaneously.</p>
+        </div>
+        {% if can_manage %}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="{% url 'material_rework:md_users_template' %}" class="btn-new-user" style="background:#16a34a;text-decoration:none;display:inline-flex;align-items:center;gap:7px;">
+                <i class="fas fa-download"></i> Download Template
+            </a>
+            <button class="btn-new-user" style="background:#0e7490;" onclick="document.getElementById('importUsersModal').style.display='flex'">
+                <i class="fas fa-file-excel"></i> Import Users
+            </button>
+            <button class="btn-new-user" onclick="openCreatePanel()">
+                <i class="fas fa-user-plus"></i> New User
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;padding:10px 16px;margin-bottom:16px;color:#065f46;font-size:.88rem;">
+        <i class="fas fa-check-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-chip">
+            <span class="stat-num">{{ total_users }}</span>
+            <span class="stat-label">Total Users</span>
+        </div>
+        {% for gname, label, color, icon in role_groups %}
+        <div class="stat-chip">
+            <span class="stat-num" id="stat_{{ gname|slugify }}">0</span>
+            <span class="stat-label" style="color:{{ color }};">{{ label }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        {% comment %}
+        id is mdUserSearch, NOT searchInput: base.html already puts a
+        "Search apps…" box with id="searchInput" in the header, and it comes
+        first in the document. getElementById returned that one, which is always
+        empty, so typing here filtered nothing at all.
+
+        aria-hidden on the icon because the input's own label carries the
+        meaning — a screen reader announcing "search" twice is noise.
+        {% endcomment %}
+        <div class="search-wrap">
+    <input class="search-input" type="search" id="mdUserSearch"
+           placeholder="Search by name or email…"
+           aria-label="Search users by name or email"
+           autocomplete="off" oninput="filterUsers()">
+</div>
+        <button class="filter-btn active" id="filterAll" onclick="setFilter('all', this)"><i class="fas fa-users"></i> All</button>
+        {% for gname, label, color, icon in role_groups %}
+        <button class="filter-btn" id="filter_{{ gname|slugify }}" onclick="setFilter('{{ gname|escapejs }}', this)" style="--fc:{{ color }};">
+            <i class="fas fa-{{ icon }}"></i> {{ label }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- User table -->
+    <div class="user-table-wrap" style="overflow-x:auto;">
+        {% if user_data %}
+        <table class="user-table" id="userTable">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for ud in user_data %}
+            <tr class="user-row {% if not ud.user.is_active %}inactive-row{% endif %}"
+                data-user-id="{{ ud.user.id }}"
+                data-is-superuser="{{ ud.user.is_superuser|yesno:'1,0' }}"
+                data-display-name="{{ ud.user.get_full_name|default:ud.user.username|escapejs }}"
+                data-name="{{ ud.user.get_full_name|lower }} {{ ud.user.username|lower }}"
+                data-email="{{ ud.user.email|lower }}"
+                data-groups="{{ ud.user_groups|join:',' }}">
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span class="avatar" style="background:{{ ud.roles.0.color|default:'#6b7280' }};">{{ ud.initials }}</span>
+                        <div>
+                            <div style="font-weight:700;font-size:.87rem;color:#06152b;">
+                                {{ ud.user.get_full_name|default:ud.user.username }}
+                            </div>
+                            <div style="font-size:.75rem;color:#9ca3af;">@{{ ud.user.username }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="font-size:.83rem;color:#6b7280;">{{ ud.user.email|default:"—" }}</td>
+                <td class="role-chips-cell">
+                    {% if ud.user.is_superuser %}
+                    <span class="badge-super"><i class="fas fa-crown"></i> Superuser</span>
+                    {% endif %}
+                    {% for role in ud.roles %}
+                    <span class="role-chip" style="background:{{ role.color }}1a;color:{{ role.color }};border:1px solid {{ role.color }}33;">
+                        <i class="fas fa-{{ role.icon }}"></i> {{ role.label }}
+                    </span>
+                    {% endfor %}
+                    {% if not ud.user.is_superuser and not ud.roles %}
+                    <span style="font-size:.75rem;color:#9ca3af;font-style:italic;">No MD roles</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ud.user.is_active %}
+                    <span class="badge-active"><i class="fas fa-check-circle"></i> Active</span>
+                    {% else %}
+                    <span class="badge-inactive"><i class="fas fa-ban"></i> Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:.8rem;color:#6b7280;">
+                    {{ ud.user.last_login|date:"d M Y H:i"|default:"Never" }}
+                </td>
+                <td>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        {% if can_assign_roles %}
+                        <button class="btn-edit-roles" onclick='openEditPanel({{ ud.user.id }}, "{{ ud.user.get_full_name|default:ud.user.username|escapejs }}", "{{ ud.user.email|escapejs }}", {{ ud.user_groups_json }}, {{ ud.user.is_superuser|yesno:"true,false" }})'>
+                            <i class="fas fa-user-tag"></i> Roles
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="md-empty">
+            <i class="fas fa-users" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+            No users found. Users who upload batches or are assigned MD roles will appear here.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+
+{% if can_manage %}
+<!-- ── Import Users Modal ── -->
+<div id="importUsersModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0e7490,#0076c8);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="color:#fff;font-weight:700;font-size:1rem;"><i class="fas fa-file-excel" style="margin-right:8px;"></i>Import Users from Excel</span>
+            <button onclick="document.getElementById('importUsersModal').style.display='none'" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div style="padding:24px;">
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.83rem;color:#0369a1;line-height:1.6;">
+                <strong>Excel column format:</strong><br>
+                <code style="font-size:.8rem;">Email &nbsp;|&nbsp; Admin &nbsp;|&nbsp; HoD &nbsp;|&nbsp; Production &nbsp;|&nbsp; Warehouse &nbsp;|&nbsp; User</code><br>
+                <span style="font-size:.78rem;color:#6b7280;">Use <strong>Y / N</strong> (or Yes/No, TRUE/FALSE, 1/0) in role columns. A user can have multiple roles.</span>
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <a href="{% url 'material_rework:md_users_template' %}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;background:#16a34a;color:#fff;border-radius:7px;font-size:.84rem;font-weight:600;text-decoration:none;">
+                    <i class="fas fa-download"></i> Download Template
+                </a>
+                <span style="font-size:.78rem;color:#9ca3af;margin-left:10px;">Fill this template and upload below</span>
+            </div>
+
+            <form method="post" action="{% url 'material_rework:md_users' %}" enctype="multipart/form-data" id="importUsersForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="import_users">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:6px;">Excel File (.xlsx / .xls) <span style="color:#ef4444">*</span></label>
+                    <input type="file" name="import_file" accept=".xlsx,.xls" required
+                        style="width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:7px;font-size:.84rem;font-family:inherit;">
+                </div>
+                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:10px 14px;margin-bottom:18px;font-size:.78rem;color:#92400e;">
+                    <i class="fas fa-info-circle" style="margin-right:5px;"></i>
+                    New email addresses will create accounts with no password — they must log in via Zoho SSO or set a password separately. Existing users will have their roles updated.
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button type="submit" style="flex:1;padding:11px;background:#0e7490;color:#fff;border:none;border-radius:7px;font-size:.9rem;font-weight:700;cursor:pointer;">
+                        <i class="fas fa-upload"></i> Import Now
+                    </button>
+                    <button type="button" onclick="document.getElementById('importUsersModal').style.display='none'"
+                        style="padding:11px 16px;background:#f1f5f9;color:#374151;border:none;border-radius:7px;font-size:.9rem;font-weight:600;cursor:pointer;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Edit Roles Panel ── -->
+<div class="slide-overlay" id="editPanelOverlay" onclick="if(event.target===this)closeEditPanel()">
+    <div class="slide-panel">
+        <div class="panel-head">
+            <span class="panel-title"><i class="fas fa-user-tag" style="color:#0076c8;"></i> <span id="epUserName">Edit Roles</span></span>
+            <button class="panel-close" onclick="closeEditPanel()">&times;</button>
+        </div>
+        <div class="panel-body">
+            <p style="font-size:.83rem;color:#6b7280;margin:0 0 4px;">
+                <i class="fas fa-envelope" style="margin-right:4px;"></i><span id="epUserEmail" style="font-family:monospace;"></span>
+            </p>
+            <p style="font-size:.8rem;color:#9ca3af;margin:0 0 16px;">
+                Select one or more roles. Changes take effect on the user's next page load.
+            </p>
+
+            <!-- shown only for Django superuser targets -->
+            <div id="epSuperuserWarning" style="display:none;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:.82rem;color:#78350f;">
+                <i class="fas fa-crown" style="color:#d97706;margin-right:6px;"></i>
+                <strong>Superuser account.</strong> Role assignments control module visibility for all users including superusers. Changes take effect on the user's next page load. User Management and Masters are always accessible regardless of roles.
+            </div>
+
+            <form method="post" id="editRolesForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_roles">
+                <input type="hidden" name="user_id" id="ep_user_id">
+
+                <div class="role-toggle-grid">
+                    {% for gname, label, color, icon in role_groups %}
+                    <label class="role-toggle-row" id="row_{{ forloop.counter }}" onclick="toggleRoleRow(this)">
+                        <input type="checkbox" name="groups" value="{{ gname }}" id="chk_{{ forloop.counter }}">
+                        <span class="role-toggle-icon" style="background:{{ color }};"><i class="fas fa-{{ icon }}"></i></span>
+                        <span class="role-toggle-info">
+                            <div class="role-toggle-name">{{ label }}</div>
+                            <div class="role-toggle-desc">
+                                {% if gname == 'Material Rework Admin' %}Full access across all Material Rework sections{% endif %}
+                                {% if gname == 'MD Production' %}Can view and submit production reviews{% endif %}
+                                {% if gname == 'MD Warehouse' %}Can view and mark warehouse receipts{% endif %}
+
+                            </div>
+                        </span>
+                        <span class="role-check" id="chkvis_{{ forloop.counter }}">
+                            <i class="fas fa-check" style="font-size:.6rem;color:#fff;display:none;" id="chkicon_{{ forloop.counter }}"></i>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:9px 12px;margin-top:16px;font-size:.78rem;color:#065f46;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>HOD access</strong> can be granted with the HoD role. Department HOD Email mappings still work for department-specific approvals.
+                </div>
+            </form>
+        </div>
+        <div class="panel-foot">
+            <div id="ep_err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:.82rem;color:#b91c1c;"></div>
+            <div style="display:flex;gap:8px;">
+                <button type="button" id="epSaveBtn" onclick="submitEditRoles()"
+                    style="flex:1;padding:10px;background:#0076c8;color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;">
+                    <i class="fas fa-save"></i> Save Roles
+                </button>
+                <button type="button" onclick="closeEditPanel()"
+                    style="padding:10px 14px;background:#f1f5f9;color:#374151;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Create User Panel ── -->
+<div class="slide-overlay" id="createPanelOverlay" onclick="if(event.target===this)closeCreatePanel()">
+    <div class="slide-panel" style="max-width:500px;">
+        <div class="panel-head">
+            <span class="panel-title"><i class="fas fa-user-plus" style="color:#10b981;"></i> Create New User</span>
+            <button class="panel-close" onclick="closeCreatePanel()">&times;</button>
+        </div>
+        <div class="panel-body">
+            <form method="post" id="createUserForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_user">
+
+                <div class="field-group">
+                    <label>Email <span class="req">*</span></label>
+                    <input type="email" name="email" placeholder="user@merillife.com" required autocomplete="off">
+                </div>
+
+                <div style="font-size:.78rem;font-weight:700;color:#374151;margin-bottom:10px;margin-top:4px;">
+                    <i class="fas fa-user-tag" style="margin-right:4px;color:#0076c8;"></i> Assign Roles (optional, can be changed later)
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                    {% for gname, label, color, icon in role_groups %}
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:7px;cursor:pointer;" class="cu-role-row">
+                        <input type="checkbox" name="groups" value="{{ gname }}" style="accent-color:{{ color }};width:16px;height:16px;">
+                        <span style="width:26px;height:26px;background:{{ color }};border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.75rem;flex-shrink:0;">
+                            <i class="fas fa-{{ icon }}"></i>
+                        </span>
+                        <span style="font-size:.85rem;font-weight:600;color:#374151;">{{ label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </form>
+        </div>
+        <div class="panel-foot">
+            <div id="cu_err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:.82rem;color:#b91c1c;"></div>
+            <div style="display:flex;gap:8px;">
+                <button type="button" id="cuSaveBtn" onclick="submitCreateUser()"
+                    style="flex:1;padding:10px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:.88rem;font-weight:700;cursor:pointer;">
+                    <i class="fas fa-user-plus"></i> Create User
+                </button>
+                <button type="button" onclick="closeCreatePanel()"
+                    style="padding:10px 14px;background:#f1f5f9;color:#374151;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ROLE_GROUPS = [
+    {% for gname, label, color, icon in role_groups %}
+    { name: "{{ gname|escapejs }}", label: "{{ label|escapejs }}", color: "{{ color }}", icon: "{{ icon }}" },
+    {% endfor %}
+];
+</script>
+<script src="{% static 'js/material-rework/md_users.js' %}"></script>
+{% endblock %}

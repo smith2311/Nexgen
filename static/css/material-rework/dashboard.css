@@ -1,0 +1,16 @@
+.md-page { padding: 32px; }
+.md-header { margin-bottom: 28px; }
+.md-header h1 { color: #06152b; font-size: 2.2rem; font-weight: 800; margin: 0 0 8px; }
+.md-header p { color: #5f6c7d; font-size: 1rem; margin: 0; }
+.md-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; max-width: 1080px; }
+.md-card { align-items: center; background: #fff; border: 1px solid #dce3ec; border-radius: 8px; box-shadow: 0 10px 28px rgba(15,35,58,0.07); color: #06152b; display: flex; gap: 18px; min-height: 130px; padding: 22px; text-decoration: none; transition: border-color .2s, box-shadow .2s, transform .2s; position: relative; }
+.md-card:hover { border-color: #0076c8; box-shadow: 0 16px 34px rgba(0,118,200,0.15); transform: translateY(-2px); text-decoration: none; }
+.md-card-icon { align-items: center; background: #0076c8; border-radius: 8px; color: #fff; display: inline-flex; flex: 0 0 54px; font-size: 1.4rem; height: 54px; justify-content: center; width: 54px; }
+.md-card-icon.green { background: #10b981; }
+.md-card-icon.orange { background: #f59e0b; }
+.md-card-icon.red { background: #ef4444; }
+.md-card-icon.purple { background: #8b5cf6; }
+.md-card-content h2 { color: #06152b; font-size: 1.15rem; font-weight: 800; margin: 0 0 5px; }
+.md-card-content p { color: #5f6c7d; font-size: 0.9rem; line-height: 1.45; margin: 0; }
+.md-badge { position: absolute; top: 12px; right: 14px; background: #ef4444; color: #fff; font-size: .72rem; font-weight: 700; border-radius: 10px; padding: 2px 7px; }
+@media (max-width: 768px) { .md-page { padding: 20px; } .md-grid { grid-template-columns: 1fr; } }

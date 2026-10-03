@@ -1,0 +1,85 @@
+{% load merilv_ui %}
+{% comment %}
+Shared chrome for every Master Data screen: the title row with the whole-module
+actions, and the master picker that switches between the twelve tables.
+
+Both are rows of ONE panel, not separate cards, and the screen's own content card
+is joined onto the bottom of it by CSS (see `.mv-mx + .mv-card` in screens.css) —
+so the console reads as a single surface rather than three stacked slabs. The
+merge is done with an adjacent-sibling rule rather than by wrapping, because a
+template cannot open a div here and let the including page close it.
+
+The picker is a single wrapping row of chips. It has had three shapes and the
+history is worth keeping, because each was a reaction to the last:
+
+* a twelve-tab strip on one line — overflowed a laptop viewport and hid half the
+  tables behind a scrollbar nobody noticed;
+* a grouped <select> — fits, but names only the table you are already on;
+* a grouped chip nav — showed all thirteen, but as FIVE stacked rows, one per
+  group with its own heading, which ate most of the console's height;
+* this: all thirteen in ONE wrapping row. Two lines at a typical width instead
+  of five, nothing hidden, no scrollbar.
+
+Group headings are deliberately gone. They were the reason the last version was
+tall and they were never load-bearing — a thin divider between groups keeps the
+grouping legible at a glance for no vertical cost. Hierarchy keeps a distinct
+chip because it is the whole-tree view, not one more table.
+
+Round 2's brief said "the dropdown must be removed"; the dropdown came back at
+Smith's request, and then this replaced it, also at his request. If it changes a
+fourth time that is a conversation, not a defect — do not "fix" it by citing the
+brief.
+
+{% endcomment %}
+
+<div class="mv-mx">
+    <div class="mv-mx-hero">
+        <div class="mv-mx-hero__id">
+            <span class="mv-mx-hero__icon">{% icon "sitemap" 22 %}</span>
+            <div>
+                <h2 class="mv-mx-hero__title">Master Data Console</h2>
+                <p class="mv-mx-hero__path">Reference tables every scan is validated against.</p>
+            </div>
+        </div>
+        <div class="mv-mx-hero__actions">
+            <a href="{{ request.get_full_path }}" class="mv-btn mv-btn--sm">{% icon "refresh" %} Refresh All</a>
+            <a href="{% url 'merilv:masters_export_all' %}" class="mv-btn mv-btn--sm mv-btn--tint-warn">{% icon "download" %} Export All Data</a>
+        </div>
+    </div>
+
+    {% comment %}
+    The template download belongs here, next to the picker, because it is scoped to
+    whatever the picker has selected — one master's columns, not a workbook of all
+    ten. The old whole-module "Download Template" button lived in the hero above
+    and produced every sheet at once, which is not what anyone filling in a single
+    master wants (and nothing consumes a multi-sheet workbook any more).
+    {% endcomment %}
+    <nav class="mv-mx-nav" aria-label="Master tables">
+        {% for group in mv_groups %}
+        {% comment %}A divider, not a heading row — grouping stays visible without costing a line each.{% endcomment %}
+        {% if not forloop.first %}<span class="mv-mx-nav__sep" aria-hidden="true"></span>{% endif %}
+        {% for tab in group.tabs %}
+        <a href="{{ tab.href }}"
+           class="mv-mx-nav__tab{% if tab.is_active %} is-active{% endif %}{% if tab.key == 'org_tree' %} mv-mx-nav__tab--head{% endif %}"
+           title="{{ group.label }}"
+           {% if tab.is_active %}aria-current="page"{% endif %}>
+            {% icon tab.icon 14 %}<span>{{ tab.label }}</span>
+        </a>
+        {% endfor %}
+        {% endfor %}
+    </nav>
+
+    <div class="mv-mx-picker">
+        <div class="mv-mx-picker__actions">
+            {% if mv_active_sheet %}
+            <a href="{% url 'merilv:masters_template' mv_active_sheet %}" class="mv-btn mv-btn--sm mv-btn--tint-ok">
+                {% icon "sheet" %} Download {{ mv_active_label }} Template
+            </a>
+            {% else %}
+            <span class="mv-btn mv-btn--sm" aria-disabled="true" title="Select a master table first">
+                {% icon "sheet" %} Download Template
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>

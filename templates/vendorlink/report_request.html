@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Commercial report for one RFI.
+
+Built by vendorlink/reports.py:build_request_report — every number on this page
+is server-side arithmetic over the same bid rows Bid Analytics renders. No LLM
+is involved, so the report is reproducible and available whether or not
+OPENAI_API_KEY is set.
+
+Reading order is deliberate: the verdict first (did we take the cheapest, and
+what did the gap cost), then the prose summary someone will paste into a mail,
+then the numbers, then the charts, then the full table. A reader who stops after
+the first two inches should still have the finding.
+
+States: no bids (everything after the summary is suppressed); a single bidder
+(no spread, no premium); mixed currencies (a banner, and the non-comparable
+quotes listed separately and excluded from every total); not yet awarded (the
+verdict names the cheapest instead of a winner).
+{% endcomment %}
+
+{% block title %}Report — {{ vr.subject }} | VendorLink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% include "vendorlink/_report_head.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+<div class="vlx-breadcrumb">
+    <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+    <span class="sep">/</span>
+    <a href="{% url 'vendorlink:bid_analytics' %}">Bid Analytics</a>
+    <span class="sep">/</span>
+    <span class="current">Report</span>
+</div>
+
+<div class="vlx-ba-head">
+    <div>
+        <h1>{{ vr.subject }}</h1>
+        <p>
+            Commercial report
+            {% if vr.country %}&middot; {{ vr.country }}{% endif %}
+            {% if vr.reference_id %}&middot; Ref {{ vr.reference_id }}{% endif %}
+            &middot; raised {{ vr.created_at|date:"d M Y" }}
+        </p>
+    </div>
+    <div class="vlx-ba-actions vlx-rep-noprint">
+        <a href="{% url 'vendorlink:bid_heatmap' vr.pk %}" class="vlx-btn vlx-btn--outline">
+            <i class="fas fa-table-cells"></i> Compare
+        </a>
+        <a href="{% url 'vendorlink:report_monthly' %}?year={{ vr.created_at|date:'Y' }}{% if vr.country %}&amp;country={{ vr.country|urlencode }}{% endif %}"
+           class="vlx-btn vlx-btn--outline">
+            <i class="fas fa-calendar-days"></i> Monthly view
+        </a>
+        {% if not ai_report.requested %}
+        <a href="{{ ai_url }}" class="vlx-btn vlx-btn--outline" data-ai-loader="Generating key points…">
+            <i class="fas fa-wand-magic-sparkles"></i> Summary
+        </a>
+        {% endif %}
+        <a href="{% url 'vendorlink:report_request_export' vr.pk 'csv' %}" class="vlx-btn vlx-btn--outline">
+            <i class="fas fa-file-csv"></i> Export CSV
+        </a>
+        <a href="{% url 'vendorlink:report_request_export' vr.pk 'xlsx' %}" class="vlx-btn vlx-btn--outline">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
+    </div>
+</div>
+
+<div class="vlx-rep-meta">
+    <span class="vlx-rep-meta__item"><i class="fas fa-clock"></i> Generated {{ generated_at|date:"d M Y, H:i" }}</span>
+    {% if currency %}<span class="vlx-rep-meta__item"><i class="fas fa-coins"></i> Totals in {{ currency }}</span>{% endif %}
+    <span class="vlx-rep-meta__item"><i class="fas fa-calculator"></i> Core numbers computed from bid data, not AI-generated</span>
+</div>
+
+{% if mixed_currency %}
+<div class="vlx-alert vlx-alert--warning">
+    <i class="fas fa-triangle-exclamation"></i>
+    <div>
+        This RFI has quotes in {{ currencies|join:", " }}. Nothing here converts between
+        currencies, so every total and comparison below covers <strong>{{ currency }}</strong>
+        only &mdash; the {{ excluded|length }} quote{{ excluded|length|pluralize }} in other
+        currencies {{ excluded|length|pluralize:"is,are" }} listed at the bottom and excluded
+        from the figures.
+    </div>
+</div>
+{% endif %}
+
+{# ── The finding ───────────────────────────────────────────────────────── #}
+<div class="vlx-rep-verdict vlx-rep-verdict--{{ verdict.tone }}">
+    <div class="vlx-rep-verdict__icon">
+        {% if verdict.tone == "good" %}<i class="fas fa-circle-check"></i>
+        {% elif verdict.tone == "warning" %}<i class="fas fa-circle-exclamation"></i>
+        {% elif verdict.tone == "info" %}<i class="fas fa-circle-info"></i>
+        {% else %}<i class="fas fa-circle-minus"></i>{% endif %}
+    </div>
+    <div>
+        <p class="vlx-rep-verdict__h">{{ verdict.headline }}</p>
+        {% if verdict.detail %}<p class="vlx-rep-verdict__d">{{ verdict.detail }}</p>{% endif %}
+    </div>
+</div>
+
+<div class="vlx-ba-panel" style="margin-bottom:18px;">
+        <div class="vlx-ba-panel-head"><div><h2>Easy read</h2></div></div>
+</div>
+
+{% include "vendorlink/_ai_report_panel.html" %}
+
+{% if rows %}
+{# ── Numbers ───────────────────────────────────────────────────────────── #}
+<div class="vlx-ba-kpis">
+    <div class="vlx-ba-kpi">
+        <span>Vendors</span>
+        <strong>{{ vendor_count }}</strong>
+        <small><i class="fas fa-building"></i> {{ bid_count }} bids total</small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Lowest quote</span>
+        <strong>{% if cheapest %}{{ currency }} {{ cheapest.total|floatformat:2 }}{% else %}&mdash;{% endif %}</strong>
+        <small class="good"><i class="fas fa-tag"></i>
+            {% if cheapest %}{{ cheapest.name|truncatechars:24 }}{% else %}No lowest quote{% endif %}
+        </small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Chosen vendor</span>
+        <strong>{% if award %}{{ award.vendor_name|truncatechars:18 }}{% else %}No winner{% endif %}</strong>
+        <small>
+            {% if award %}
+                <i class="fas fa-award"></i> Awarded {{ award.awarded_at|date:"d M Y" }}
+            {% else %}
+                <i class="fas fa-hourglass-half"></i> Decision open
+            {% endif %}
+        </small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Extra cost</span>
+        <strong>
+            {% if awarded_row and awarded_row.premium_abs %}{{ currency }} {{ awarded_row.premium_abs|floatformat:2 }}
+            {% elif awarded_row %}{{ currency }} 0.00
+            {% else %}&mdash;{% endif %}
+        </strong>
+        <small class="{% if awarded_row and awarded_row.premium_pct %}warn{% else %}good{% endif %}">
+            {% if awarded_row and awarded_row.premium_pct %}
+                <i class="fas fa-arrow-up"></i> {{ awarded_row.premium_pct|floatformat:1 }}% above lowest
+            {% elif awarded_row %}
+                <i class="fas fa-equals"></i> Lowest chosen
+            {% else %}
+                <i class="fas fa-minus"></i> No award yet
+            {% endif %}
+        </small>
+    </div>
+    <div class="vlx-ba-kpi">
+        <span>Price difference</span>
+        <strong>{% if spread_pct %}{{ spread_pct|floatformat:1 }}%{% else %}&mdash;{% endif %}</strong>
+        <small><i class="fas fa-arrows-left-right"></i>
+            {% if dearest and cheapest and spread_pct %}Top to low{% else %}One bidder{% endif %}
+</div>
+
+{# ── Charts ────────────────────────────────────────────────────────────── #}
+<div class="vlx-rep-charts vlx-rep-charts--2">
+    <div class="vlx-ba-panel vlx-rep-chart">
+        <div class="vlx-ba-panel-head" style="padding:14px 16px 0;">
+            <div><h2>What each vendor quoted</h2><p>Green is cheapest. Blue is the chosen vendor.</p></div>
+        </div>
+        <div class="vlx-rep-chart__well"><canvas id="repTotals"></canvas></div>
+        <p class="vlx-rep-chart__note">This shows the total price from each vendor.</p>
+    </div>
+    <div class="vlx-ba-panel vlx-rep-chart">
+        <div class="vlx-ba-panel-head" style="padding:14px 16px 0;">
+            <div><h2>Cost by vendor</h2><p>What makes up each total.</p></div>
+        </div>
+        <div class="vlx-rep-chart__well"><canvas id="repComposition"></canvas></div>
+        <p class="vlx-rep-chart__note">This tells where the cost is coming from.</p>
+    </div>
+</div>
+
+{# ── The table ─────────────────────────────────────────────────────────── #}
+<div class="vlx-ba-panel" style="margin-bottom:18px;">
+    <div class="vlx-ba-panel-head">
+        <div><h2>Vendor ranking</h2><p>Cheapest first. Totals in {{ currency|default:"—" }}.</p></div>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="vlx-table">
+        <thead>
+            <tr>
+                <th style="width:34px;">#</th>
+                <th>Vendor</th>
+                <th class="vlx-rep-num">Bids</th>
+                <th class="vlx-rep-num">Best total</th>
+                <th class="vlx-rep-num">vs cheapest</th>
+                <th>Standing</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in comparable %}
+            <tr class="{% if row.is_cheapest %}vlx-rep-row--cheapest{% endif %} {% if row.is_awarded %}vlx-rep-row--awarded{% endif %}">
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    <strong>{{ row.name }}</strong>
+                    {% if row.email %}<div style="font-size:11.5px;color:var(--vlx-ink-300);">{{ row.email }}</div>{% endif %}
+                </td>
+                <td class="vlx-rep-num">{{ row.bid_count }}</td>
+                <td class="vlx-rep-num">{{ row.currency }} {{ row.total|floatformat:2 }}</td>
+                <td class="vlx-rep-num">
+                    {% if row.is_cheapest %}
+                        <span class="vlx-rep-delta--flat">cheapest</span>
+                    {% elif row.premium_pct %}
+                        <span class="vlx-rep-delta--up">+{{ row.premium_pct|floatformat:1 }}%</span>
+                    {% else %}
+                        <span class="vlx-rep-delta--none">&mdash;</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.is_awarded %}<span class="vlx-pill vlx-pill--yes"><i class="fas fa-award"></i> Awarded</span>{% endif %}
+                    {% if row.is_cheapest %}<span class="vlx-pill vlx-pill--info"><i class="fas fa-tag"></i> Cheapest</span>{% endif %}
+                    {% if row.is_selected %}<span class="vlx-pill"><i class="fas fa-star"></i> Chosen revision</span>{% endif %}
+                    {% if row.blacklisted %}<span class="vlx-pill vlx-pill--blacklist"><i class="fas fa-ban"></i> Blacklisted</span>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    {% if excluded %}
+    <p class="vlx-rep-chart__note" style="padding:14px 0 0;">
+        <strong>Excluded from the figures above</strong> &mdash; quoted in another currency,
+        and this project holds no exchange rates:
+        {% for row in excluded %}{{ row.name }} ({{ row.currency }} {{ row.total|floatformat:2 }}){% if not forloop.last %}; {% endif %}{% endfor %}.
+    </p>
+    {% endif %}
+</div>
+
+{# ── Award trail ────────────────────────────────────────────────────────── #}
+{% if award %}
+<div class="vlx-ba-panel">
+    <div class="vlx-ba-panel-head"><div><h2>Award trail</h2><p>What was decided, and who was told.</p></div></div>
+    <div style="overflow-x:auto;">
+    <table class="vlx-table">
+        <tbody>
+            <tr><td style="width:34%;">Awarded to</td><td><strong>{{ award.vendor_name }}</strong> &middot; {{ award.vendor_email }}</td></tr>
+            <tr><td>Bid</td><td>Bid #{{ award.bid.bid_number }} &middot; {{ award.awarded_currency }} {{ award.awarded_amount|floatformat:2 }}</td></tr>
+            <tr><td>Awarded on</td><td>{{ award.awarded_at|date:"d M Y, H:i" }}{% if award.awarded_by %} by {{ award.awarded_by.get_full_name|default:award.awarded_by.username }}{% endif %}</td></tr>
+            <tr>
+                <td>Vendor notice</td>
+                <td>
+                    {% if award.notified_at %}
+                        <span class="vlx-pill vlx-pill--yes"><i class="fas fa-check"></i> Sent</span>
+                        {{ award.notified_at|date:"d M Y, H:i" }}
+                    {% else %}
+                        <span class="vlx-pill vlx-pill--danger"><i class="fas fa-triangle-exclamation"></i> Not sent</span>
+                        {% if award.notify_error %}
+                        <div style="font-size:12px;color:var(--vlx-danger);margin-top:4px;">
+                            {{ award.notify_error }}
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Other bidders notified</td>
+                <td>
+                    {% if regrets_sent %}{{ regrets_sent }} vendor{{ regrets_sent|pluralize }} sent a regret letter
+                    {% else %}None &mdash; nobody else bid on this request{% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="vlx-alert vlx-alert--info">
+    <i class="fas fa-circle-info"></i>
+    <div>No bids have been submitted on this RFI yet, so there is nothing to chart.</div>
+</div>
+{% endif %}
+
+</div>
+</div>
+
+{% if rows %}
+{{ charts.totals|json_script:"repTotalsData" }}
+{{ charts.composition|json_script:"repCompositionData" }}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% include "vendorlink/_ai_loader_assets.html" %}
+{% if rows %}
+{% comment %}Chart.js 4.4.3 — the same version and CDN every other chart in
+VendorLink loads (analytics_dashboard, kpi/dashboard, t3_scorecard).{% endcomment %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendorlink/js/report-charts.js' %}"></script>
+<script>
+(function () {
+    'use strict';
+    if (!window.vlxReportCharts) { return; }
+    window.vlxReportCharts.requestReport({
+        totals: JSON.parse(document.getElementById('repTotalsData').textContent),
+        composition: JSON.parse(document.getElementById('repCompositionData').textContent)
+    });
+}());
+</script>
+{% endif %}
+{% endblock %}

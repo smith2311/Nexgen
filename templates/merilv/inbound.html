@@ -1,0 +1,117 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Inbound Scanner landing — open a receiving session against a plan that has already
+been dispatched, or resume an existing one. No file upload here: the expected
+quantities come from the picking side of the same plan, not from a new dump.
+{% endcomment %}
+
+{% block mv_title %}Inbound Scanner{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Inbound Scanner</span>
+{% endblock %}
+{% block mv_heading %}Inbound Scanner{% endblock %}
+{% block mv_sub %}<p class="mv-page-header__sub">Book in stock arriving from another plant. Expected quantity is what the sending plant actually dispatched — whatever is still short at the end was lost in transit.</p>{% endblock %}
+
+{% block mv_body %}
+{% with mv_scan_mode="inbound" %}{% include "merilv/_shell/scan_mode_tabs.html" %}{% endwith %}
+
+{% if can_operate %}
+<div class="mv-card">
+    <h2 class="mv-card__title">{% icon "inbox" %} Start receiving a dispatched transfer</h2>
+    {% if plans %}
+    <form method="post" data-mv-loading
+          data-mv-loading-title="Opening receiving session"
+          data-mv-loading-message="Preparing the transfer plan for receiving.">
+        {% csrf_token %}
+        <div class="mv-field-row">
+            <div class="mv-field">
+                <label class="mv-label" for="mvPlan">Dispatched plan <span class="mv-req">*</span></label>
+                <select class="mv-select" id="mvPlan" name="plan" required>
+                    {% for p in plans %}
+                    <option value="{{ p.pk }}">{{ p }} — {{ p.entity.code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvTrip">Trip / reference</label>
+                <input class="mv-input" id="mvTrip" name="name" placeholder="Optional label for this load">
+            </div>
+        </div>
+        <div class="mv-field-row" style="margin-top:var(--mv-5);">
+            <div class="mv-field">
+                <label class="mv-label" for="mvVehicle">Vehicle no.</label>
+                <input class="mv-input" id="mvVehicle" name="vehicle_no" placeholder="Optional">
+            </div>
+            <div class="mv-field">
+                <label class="mv-label" for="mvDocket">Docket no.</label>
+                <input class="mv-input" id="mvDocket" name="docket_no" placeholder="Optional">
+            </div>
+        </div>
+        <div class="mv-card__footer">
+            <button type="submit" class="mv-btn mv-btn--primary">{% icon "scan" %} Open receiving session</button>
+        </div>
+    </form>
+    {% else %}
+    {% comment %}
+    Only plans with picked_qty > 0 are offered — see inbound.index. A plan
+    nobody has picked yet would give a console that refuses every scan.
+    {% endcomment %}
+    <div class="mv-empty">
+        {% icon "transfer" 48 %}
+        <div class="mv-empty__title">Nothing has been dispatched yet</div>
+        <p class="mv-empty__text">A transfer has to be picked on the sending side before it can be received here.</p>
+        <a href="{% url 'merilv:branch_transfer' %}" class="mv-btn mv-empty__action">{% icon "transfer" %} Go to Branch Transfer</a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="mv-card mv-card--flush">
+    <div class="mv-card__head">
+        <h2 class="mv-card__title">{% icon "history" %} Recent receiving sessions</h2>
+    </div>
+    {% if receipts %}
+    <div class="mv-table-wrap">
+    <table class="mv-table mv-table--dense">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Plan</th>
+                <th>Entity</th>
+                <th>Received by</th>
+                <th>Opened</th>
+                <th>Status</th>
+                <th class="mv-col-actions"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in receipts %}
+            <tr data-mv-href="{% url 'merilv:inbound_detail' r.pk %}" class="mv-row-link">
+                <td class="mv-t-strong">{{ r }}</td>
+                <td>{{ r.plan }}</td>
+                <td><span class="mv-badge mv-badge--neutral">{{ r.entity.code }}</span></td>
+                {% comment %}received_by is null=True with SET_NULL, so it really
+                can be None — and a chained `default:` filter raises rather than
+                falling through, because the argument is evaluated eagerly.{% endcomment %}
+                <td>{% if r.received_by %}{{ r.received_by.get_full_name|default:r.received_by.username }}{% else %}—{% endif %}</td>
+                <td class="mv-t-caption">{{ r.created_at|date:"d M, H:i" }}</td>
+                <td>
+                    {% if r.is_finished %}<span class="mv-badge mv-badge--ok">Closed</span>
+                    {% else %}<span class="mv-badge mv-badge--primary">Open</span>{% endif %}
+                </td>
+                <td class="mv-col-actions">{% icon "chevron" 14 %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="mv-empty">
+        {% icon "inbox" 48 %}
+        <div class="mv-empty__title">No receiving sessions yet</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

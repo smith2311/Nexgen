@@ -1,0 +1,110 @@
+{% load vl_extras %}{% vl_logo_cid as brand_logo_cid %}
+<!DOCTYPE html>
+<html lang="en">
+{% comment %}
+The withdrawal notice: "this nomination has been withdrawn — no action needed".
+
+Sent by vendorlink/awards.py:send_withdrawal_notice, from award_withdraw only.
+A re-award to a different vendor does NOT send this -- the displaced vendor is
+covered by the regret letter (bid_not_selected.html) instead, fired from the
+same request that makes the new award. This template only fires when the
+requester withdraws a vendor with nobody yet nominated in their place, which is
+the one case nothing else already tells them about.
+
+Neutral tone on purpose: this is not a rejection (nobody else has been chosen
+yet) and not bad news to soften, just a status update. Same table-and-inline
+layout as the other award mails -- Outlook has no flexbox and ignores a
+<style> block.
+{% endcomment %}
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update on your nomination — {{ req.subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#475569 0%,#64748b 100%);border-radius:12px 12px 0 0;padding:32px 36px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.18);border-radius:50%;width:60px;height:60px;line-height:60px;text-align:center;margin-bottom:12px;">
+              <span style="font-size:26px;color:#ffffff;">&#8505;&#65039;</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:21px;font-weight:800;letter-spacing:-0.3px;">Update on Your Nomination</h1>
+            {% if req.reference_id %}
+            <div style="margin-top:12px;">
+              <span style="display:inline-block;background:rgba(255,255,255,0.18);color:#ffffff;font-family:'Courier New',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;padding:4px 12px;border-radius:9999px;">Ref: {{ req.reference_id }}</span>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:28px 36px 6px;">
+            <p style="margin:0 0 14px;color:#1f2937;font-size:15px;">Dear <strong>{{ vendor_name }}</strong>,</p>
+            <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">
+              This is to let you know that your nomination for
+              <strong>&ldquo;{{ req.subject }}&rdquo;</strong> has been withdrawn.
+              No action is needed on your part.
+            </p>
+            <p style="margin:0 0 18px;color:#374151;font-size:14px;line-height:1.7;">
+              We may be in touch again should this requirement be re-opened, and we
+              would welcome your participation in future opportunities.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Signature -->
+        <tr>
+          <td style="background:#ffffff;padding:6px 36px 28px;">
+            <p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+              Regards,<br>
+              Meril Life Sciences &mdash; Global SCM
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#0f1f3a;border-radius:0 0 12px 12px;padding:26px 36px 24px;text-align:center;">
+            {% comment %}
+            The logo is a cid: reference to an image attached to the message,
+            not a URL: Gmail, Outlook and Apple Mail block remote images by
+            default, so a hosted logo shows as a broken placeholder on first
+            open. vendorlink/mailer.py attaches it and sets brand_logo_cid;
+            without it this falls back to a wordmark rather than rendering a
+            dead image.
+            {% endcomment %}
+            {% if brand_logo_cid %}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 14px;">
+              <tr>
+                <td style="background:#ffffff;border-radius:8px;padding:9px 15px;">
+                  <img src="cid:{{ brand_logo_cid }}" width="112" alt="Meril"
+                       style="display:block;width:112px;height:auto;border:0;outline:none;text-decoration:none;">
+                </td>
+              </tr>
+            </table>
+            {% else %}
+            <div style="margin:0 auto 14px;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1px;">MERIL</div>
+            {% endif %}
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">
+              This is an automated notification from Meril VendorLink.
+            </p>
+            <p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">
+              Meril Life Sciences Pvt. Ltd. &mdash; Global Supply Chain Management
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}User Master — Visa Management{% endblock %}
+{% block page_title %}Visa Management — User Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/visa_management/visa.css' %}">
+<style>
+.um-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.um-pill i { font-size: 9px; }
+.um-pill.dept { background: var(--blue-lt);   color: var(--blue); }
+.um-pill.hod  { background: var(--amber-lt);  color: var(--amber); }
+.um-pill.none { background: #f1f5f9; color: var(--text-muted); font-weight: 600; }
+.um-pill.warn { background: #fee2e2; color: #b91c1c; }
+
+.um-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+  background: #f1f5f9; color: var(--text-muted);
+}
+.um-avatar.dept { background: var(--blue-lt);  color: var(--blue); }
+.um-avatar.hod  { background: var(--amber-lt); color: var(--amber); }
+
+.um-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.um-actions form { display: inline; margin: 0; }
+.um-act {
+  font-size: 11.5px; font-weight: 600;
+  padding: 4px 10px; border-radius: 6px;
+  border: none; cursor: pointer;
+}
+.um-act.dept   { background: var(--blue-lt);  color: var(--blue); }
+.um-act.hod    { background: var(--amber-lt); color: var(--amber); }
+.um-act.both   { background: var(--accent-lt); color: var(--accent); }
+.um-act.remove { background: #fee2e2; color: #b91c1c; }
+
+.um-searchbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+/* flex-direction is explicit because components.css sets a global
+   form { display: flex; flex-direction: column } that would otherwise stack these. */
+.um-searchbar form {
+  margin-left: auto;
+  display: flex; flex-direction: row; align-items: center; gap: 8px;
+}
+.um-searchbar form .form-input { width: auto; min-width: 260px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'visa:home' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Visa Management
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-users-cog"></i> User Master</h1>
+          <p>Assign users to the Visa Department or as a reporting head (HOD)</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ users_data|length }}</div>
+            <div class="lm-hstat-lbl">Users</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ dept_count }}</div>
+            <div class="lm-hstat-lbl">Department</div>
+          </div>
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ hod_count }}</div>
+            <div class="lm-hstat-lbl">HOD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert-banner {% if msg.tags == 'error' %}error{% else %}success{% endif %}">
+      <i class="fas fa-info-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if needs_hod_count %}
+    <div class="alert-banner error">
+      <i class="fas fa-triangle-exclamation"></i>
+      {{ needs_hod_count }} user{{ needs_hod_count|pluralize }} {{ needs_hod_count|pluralize:"is,are" }} named as
+      reporting head on an application but {{ needs_hod_count|pluralize:"does,do" }} not have the HOD role — the
+      applications waiting on them are blocked. They are flagged below.
+    </div>
+    {% endif %}
+
+    <!-- Add / update a user -->
+    <form method="post" action="">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_user">
+
+      <div class="form-block">
+        <div class="form-block-hdr"><i class="fas fa-user-plus"></i> Add or Update a User</div>
+        <div class="form-block-body">
+          <div class="form-grid">
+
+            <div class="form-field">
+              <label class="form-label">Email <span class="req">*</span></label>
+              <input class="form-input" type="email" name="email" required
+                placeholder="jane.doe@merillife.com">
+              <span class="form-hint">
+                If this email already has an account its role is updated; otherwise an account is
+                created and claimed on their first Zoho sign-in.
+              </span>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Visa Role</label>
+              <select class="form-select" name="role">
+                <option value="">No role (applicant)</option>
+                <option value="department">Visa Department</option>
+                <option value="hod">Visa HOD</option>
+                <option value="both">Both (Department &amp; HOD)</option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">First Name</label>
+              <input class="form-input" type="text" name="first_name" placeholder="Jane">
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Last Name</label>
+              <input class="form-input" type="text" name="last_name" placeholder="Doe">
+            </div>
+
+          </div>
+        </div>
+        <div class="vm-form-actions">
+          <button type="submit" class="btn btn-navy">
+            <i class="fas fa-plus"></i> Save User
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Bulk upload -->
+    <div class="form-block">
+      <div class="form-block-hdr"><i class="fas fa-file-excel"></i> Bulk Upload</div>
+      <div class="form-block-body">
+        <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 14px">
+          Upload a sheet with <strong>Email</strong> plus optional <strong>First Name</strong>,
+          <strong>Last Name</strong>, <strong>Department</strong> and <strong>HOD</strong> columns
+          (Y/N). Existing accounts are updated; unknown emails get an account created.
+        </p>
+
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <a href="{% url 'visa:user_template_download' %}" class="btn btn-ghost btn-sm">
+            <i class="fas fa-download"></i> Download Template
+          </a>
+
+          <form method="post" action="" enctype="multipart/form-data"
+                style="display:flex;flex-direction:row;gap:10px;align-items:center;flex-wrap:wrap;margin:0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import_users">
+            <input class="form-input" type="file" name="excel_file"
+                   accept=".xlsx,.xlsm" required style="min-width:260px">
+            <button type="submit" class="btn btn-navy btn-sm">
+              <i class="fas fa-upload"></i> Import Users
+            </button>
+          </form>
+        </div>
+
+        {% if upload_results %}
+        <div class="tbl-wrap" style="--cols: 70px 1.6fr 110px 1fr; margin-top:16px">
+          <div class="tbl-head" style="grid-template-columns: var(--cols)">
+            <div>Row</div>
+            <div>Email</div>
+            <div>Status</div>
+            <div>Result</div>
+          </div>
+          {% for r in upload_results %}
+          <div class="tbl-row" style="grid-template-columns: var(--cols)">
+            <div class="vm-mono" style="color:var(--text-muted)">{{ r.row }}</div>
+            <div style="font-size:12.5px">{{ r.email }}</div>
+            <div>
+              {% if r.status == 'Created' %}
+                <span class="badge badge-green">Created</span>
+              {% elif r.status == 'Updated' %}
+                <span class="um-pill dept">Updated</span>
+              {% else %}
+                <span class="um-pill warn">Error</span>
+              {% endif %}
+            </div>
+            <div style="font-size:12.5px;color:var(--text-muted)">{{ r.msg|default:"—" }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Legend + search -->
+    <div class="um-searchbar">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span class="um-pill dept"><i class="fas fa-circle"></i> Visa Department</span>
+        <span class="um-pill hod"><i class="fas fa-circle"></i> Visa HOD</span>
+        <span class="um-pill none"><i class="fas fa-circle"></i> Applicant (default)</span>
+      </div>
+
+      <form method="get" action="">
+        <input class="form-input" type="text" name="q" value="{{ search }}"
+               placeholder="Search name / email / username…" style="min-width:260px">
+        <button type="submit" class="btn btn-navy btn-sm"><i class="fas fa-search"></i></button>
+        {% if search %}
+        <a href="{% url 'visa:user_master' %}" class="btn btn-ghost btn-sm">
+          <i class="fas fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="actions-bar">
+      <div class="actions-left"></div>
+      <div class="record-count">{{ users_data|length }} user{{ users_data|length|pluralize }}</div>
+    </div>
+
+    <div class="tbl-wrap" style="--cols: 1.4fr 1fr 1.6fr 1.2fr auto">
+      <div class="tbl-head" style="grid-template-columns: var(--cols)">
+        <div>Name</div>
+        <div>Username</div>
+        <div>Email</div>
+        <div>Visa Role</div>
+        <div></div>
+      </div>
+
+      {% for ud in users_data %}
+      <div class="tbl-row" style="grid-template-columns: var(--cols)">
+
+        <div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="um-avatar {% if ud.role == 'department' or ud.role == 'both' %}dept{% elif ud.role == 'hod' %}hod{% endif %}">
+              {{ ud.user.first_name|first|upper|default:ud.user.username|first|upper }}
+            </div>
+            <div class="tbl-name">{{ ud.user.get_full_name|default:ud.user.username }}</div>
+          </div>
+        </div>
+
+        <div><span class="vm-mono" style="font-size:12.5px">{{ ud.user.username }}</span></div>
+
+        <div style="font-size:12.5px;color:var(--text-muted)">{{ ud.user.email|default:"—" }}</div>
+
+        <div>
+          {% if ud.role == 'both' %}
+            <span class="um-pill dept"><i class="fas fa-briefcase"></i> Department</span>
+            <span class="um-pill hod"><i class="fas fa-user-check"></i> HOD</span>
+          {% elif ud.role == 'department' %}
+            <span class="um-pill dept"><i class="fas fa-briefcase"></i> Department</span>
+          {% elif ud.role == 'hod' %}
+            <span class="um-pill hod"><i class="fas fa-user-check"></i> HOD</span>
+          {% else %}
+            <span class="um-pill none"><i class="fas fa-user"></i> Applicant</span>
+          {% endif %}
+          {% if ud.needs_hod %}
+            <div style="margin-top:5px">
+              <span class="um-pill warn" title="Named as reporting head on an application but has no HOD role">
+                <i class="fas fa-triangle-exclamation"></i> Needs HOD
+              </span>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="um-actions">
+          {% if ud.role != 'department' and ud.role != 'both' %}
+          <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+            <input type="hidden" name="action" value="make_department">
+            <button type="submit" class="um-act dept" title="Add Visa Department access">
+              <i class="fas fa-briefcase"></i> Department
+            </button>
+          </form>
+          {% endif %}
+
+          {% if ud.role != 'hod' and ud.role != 'both' %}
+          <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+            <input type="hidden" name="action" value="make_hod">
+            <button type="submit" class="um-act hod" title="Add Visa HOD access">
+              <i class="fas fa-user-check"></i> HOD
+            </button>
+          </form>
+          {% endif %}
+
+          {% if ud.role != 'both' %}
+          <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+            <input type="hidden" name="action" value="make_both">
+            <button type="submit" class="um-act both" title="Give both Department and HOD access">
+              <i class="fas fa-layer-group"></i> Both
+            </button>
+          </form>
+          {% endif %}
+
+          {% if ud.role != 'none' %}
+          <form method="post" action="">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ ud.user.pk }}">
+            <input type="hidden" name="action" value="remove">
+            <button type="submit" class="um-act remove" title="Remove all visa roles">
+              <i class="fas fa-xmark"></i> Remove
+            </button>
+          </form>
+          {% endif %}
+        </div>
+
+      </div>
+      {% empty %}
+      <div class="empty-state">
+        <i class="fas fa-users-cog"></i>
+        <p>
+          {% if search %}
+            No users match “{{ search }}”.
+            <a href="{% url 'visa:user_master' %}" style="color:var(--blue)">Clear search →</a>
+          {% else %}
+            No active users found.
+          {% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/visa_management/visa.js' %}"></script>
+{% endblock %}

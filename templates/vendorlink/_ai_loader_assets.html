@@ -1,0 +1,14 @@
+{% load static %}
+{% comment %}
+Everything the AI loader needs on a page, in one include.
+
+The scene is emitted inside a <template> so vl-ailoader.js can clone it rather
+than carrying a copy of the markup as a JavaScript string — a second copy is
+how a loader ends up rendering unstyled after the real one is restyled.
+
+Include this on any page with a ?ai=1 link or a fetch that calls OpenAI:
+
+    {% include "vendorlink/_ai_loader_assets.html" %}
+{% endcomment %}
+<template id="vlxAiLoaderTemplate">{% include "vendorlink/_ai_loader.html" %}</template>
+<script src="{% static 'vendorlink/js/vl-ailoader.js' %}"></script>

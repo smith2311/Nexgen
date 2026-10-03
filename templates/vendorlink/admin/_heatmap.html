@@ -1,0 +1,85 @@
+{% comment %}
+Weekday x hour activity heatmap. Shared by insights.html and insights_user.html.
+
+Expects `heat` from useractivity.heatmap(): `rows` (7 weekdays, each with 24
+cells carrying a 0-5 `level`), `hours`, `levels`, `peak`, `total` and `busiest`.
+
+Why this is CSS and not Highcharts: the vendored Highcharts 12.1.2 bundle
+registers only area/areaspline/bar/column/line/pie/scatter/spline — no heatmap
+module and no colour axis — so a heatmap series would draw an empty frame. A
+7x24 CSS grid is a real heatmap, adds no dependency, and themes from
+vl-insights.css.
+
+Why weekday x hour rather than a calendar: this is the cell that earns a
+heatmap. A daily trend collapses the hour axis and an hourly histogram collapses
+the weekday axis, so neither can show "Monday mornings heavy, Friday afternoons
+dead" — the pattern only exists in two dimensions.
+
+Caller sets `heat_title` and `heat_note`.
+{% endcomment %}
+<div class="vla-card">
+  <div class="vla-card-hdr">
+    <h3><i class="fas fa-table-cells"></i> {{ heat_title|default:"Activity heatmap" }}</h3>
+    <span class="vla-card-note">
+      {% if heat.busiest.n %}
+        Busiest: {{ heat.busiest.weekday }} {{ heat.busiest.hour|stringformat:"02d" }}:00
+        ({{ heat.busiest.n }} action{{ heat.busiest.n|pluralize }})
+      {% else %}No activity to plot{% endif %}
+    </span>
+  </div>
+
+  {% if heat.total %}
+  <div class="vla-heatwrap">
+    <div class="vla-heat" role="img"
+         aria-label="Activity by weekday and hour of day. Busiest {{ heat.busiest.weekday }} at {{ heat.busiest.hour }}:00.">
+      {# Header row: an empty gutter cell, then the hour ruler. #}
+      <span></span>
+      {% for hour in heat.hours %}
+      <span class="vla-heat-hr">{% if hour|divisibleby:3 %}{{ hour|stringformat:"02d" }}{% endif %}</span>
+      {% endfor %}
+
+      {% for row in heat.rows %}
+      <span class="vla-heat-day">{{ row.weekday }}</span>
+      {% for cell in row.cells %}
+      {% comment %}title, not a JS tooltip: this is a static grid and the
+      browser's own tooltip needs no script and works on keyboard focus too.{% endcomment %}
+      <span class="vla-heat-cell" data-level="{{ cell.level }}"
+            title="{{ row.weekday }} {{ cell.hour|stringformat:'02d' }}:00 — {{ cell.n }} action{{ cell.n|pluralize }}"></span>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="vla-heat-legend">
+    {% comment %}
+    Each swatch is labelled with the action count it represents, from
+    `heat.scale` (useractivity.heatmap). "Less ... More" gave the direction but
+    not the magnitude, so a reader could not tell whether the dark corner meant
+    four actions or four hundred.
+    {% endcomment %}
+    <span>Quieter</span>
+    <span class="vla-heat-key-wrap">
+      <span class="vla-heat-key" data-level="0"></span>
+      <span class="vla-heat-key-n">0</span>
+    </span>
+    {% for step in heat.scale %}
+    <span class="vla-heat-key-wrap">
+      <span class="vla-heat-key" data-level="{{ step.level }}"></span>
+      <span class="vla-heat-key-n">{{ step.label }}</span>
+    </span>
+    {% endfor %}
+    <span>Busier</span>
+    <span style="margin-left:auto;">
+      {{ heat.total }} action{{ heat.total|pluralize }} · peak {{ heat.peak }}/hour · hours in IST
+    </span>
+  </div>
+  {% if heat_note %}<p class="vla-card-note" style="margin:8px 0 0;">{{ heat_note }}</p>{% endif %}
+
+  {% else %}
+  <div class="vla-empty">
+    <i class="fas fa-table-cells"></i>
+    <h4>Nothing to plot</h4>
+    <p>No activity in this window.</p>
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,43 @@
+{% comment %}
+One row per supporting document: type icon, name, size, preview, download.
+
+Shared by the manager's PR detail screen and the member's fill form. The
+member is the person the files were uploaded for, so the same actions belong
+on both — it is the same list of the same files either way.
+
+Include alongside _document_viewer.html, which supplies the overlay the
+preview buttons open and the script that drives it.
+{% endcomment %}
+<ul class="prt-doc-files">
+  {% for doc in documents %}
+  <li>
+    <span class="prt-doc-icon"><i class="fas {{ doc.icon_class }}"></i></span>
+    <span class="prt-doc-name" title="{{ doc.original_name }}">{{ doc.original_name }}</span>
+    <small>{{ doc.size_label }}</small>
+    <span class="prt-doc-actions">
+      {% if doc.is_previewable %}
+      <button type="button" class="prt-doc-act js-doc-preview"
+              data-url="{% url 'pr_tracker:pr_document_preview' doc.pk %}"
+              data-download="{% url 'pr_tracker:pr_document_download' doc.pk %}"
+              data-name="{{ doc.original_name }}"
+              data-image="{{ doc.is_image|yesno:'1,0' }}"
+              title="Preview {{ doc.original_name }}"
+              aria-label="Preview {{ doc.original_name }}">
+        <i class="fas fa-eye"></i>
+      </button>
+      {% else %}
+         <span class="prt-doc-act is-off"
+            title="{{ doc.extension }} files cannot be previewed in the browser — download to open">
+        <i class="fas fa-eye-slash"></i>
+      </span>
+      {% endif %}
+      <a class="prt-doc-act"
+         href="{% url 'pr_tracker:pr_document_download' doc.pk %}"
+         title="Download {{ doc.original_name }}"
+         aria-label="Download {{ doc.original_name }}">
+        <i class="fas fa-file-arrow-down"></i>
+      </a>
+    </span>
+  </li>
+  {% endfor %}
+</ul>

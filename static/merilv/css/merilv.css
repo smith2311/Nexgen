@@ -1,0 +1,346 @@
+/* Meril-V — module-specific components.
+ *
+ * Extends the platform design system (vendorlink-ds.css). Tokens there are
+ * scoped to `.vlx`, so everything here is too.
+ *
+ * The scanner console is the one screen in this module that is not a normal
+ * CRUD page: an operator is holding a scanner gun, often standing, sometimes
+ * wearing gloves, and needs the verdict of the last scan readable from arm's
+ * length. Hence the oversized status banner and high-contrast colour coding.
+ */
+
+.vlx .mv-console {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .vlx .mv-console {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ── Scan input ─────────────────────────────────────────────────────── */
+.vlx .mv-scanbar {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 14px;
+}
+
+.vlx .mv-scanbar__input {
+    flex: 1;
+    font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 14px 16px;
+    border: 2px solid var(--vlx-border, #dbe2ea);
+    border-radius: 10px;
+    background: var(--vlx-surface, #fff);
+    color: var(--vlx-primary, #000618);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vlx .mv-scanbar__input:focus {
+    outline: none;
+    border-color: var(--vlx-secondary, #0061a6);
+    box-shadow: 0 0 0 4px rgba(0, 97, 166, 0.14);
+}
+
+.vlx .mv-scanbar__input::placeholder {
+    font-weight: 500;
+    color: #9aa7b6;
+}
+
+/* A dimmed input is the clearest signal that scanning is paused. */
+.vlx .mv-scanbar__input:disabled {
+    background: #f1f4f8;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* ── Verdict banner ─────────────────────────────────────────────────── */
+.vlx .mv-verdict {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    margin-bottom: 14px;
+    min-height: 76px;
+}
+
+.vlx .mv-verdict__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.vlx .mv-verdict__body { min-width: 0; }
+
+.vlx .mv-verdict__title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0 0 3px;
+}
+
+.vlx .mv-verdict__detail {
+    font-size: 0.86rem;
+    line-height: 1.45;
+    margin: 0;
+    opacity: 0.92;
+    word-break: break-word;
+}
+
+.vlx .mv-verdict__code {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    opacity: 0.7;
+    margin-top: 4px;
+    display: block;
+}
+
+.vlx .mv-verdict--idle    { background: #f4f7fa; border-color: #e2e8f0; color: #64748b; }
+.vlx .mv-verdict--success { background: #e8f7ee; border-color: #b4e3c6; color: #14663a; }
+.vlx .mv-verdict--warning { background: #fff6e5; border-color: #f5d9a3; color: #7a4d05; }
+.vlx .mv-verdict--error   { background: #fdeaea; border-color: #f3bfbf; color: #8a1c1c; }
+.vlx .mv-verdict--duplicate { background: #eef0fd; border-color: #c6cbf4; color: #33379c; }
+
+/* A brief flash draws the eye back to the banner when the operator is
+ * looking at the item rather than the screen. */
+@keyframes mv-flash {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.012); }
+    100% { transform: scale(1); }
+}
+
+.vlx .mv-verdict--flash { animation: mv-flash 0.28s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+    .vlx .mv-verdict--flash { animation: none; }
+}
+
+/* ── Progress ───────────────────────────────────────────────────────── */
+.vlx .mv-progress {
+    height: 8px;
+    border-radius: 99px;
+    background: #e6ebf1;
+    overflow: hidden;
+}
+
+.vlx .mv-progress__fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--vlx-secondary, #0061a6);
+    transition: width 0.25s ease;
+}
+
+.vlx .mv-progress__fill--done { background: #1a9e5c; }
+
+.vlx .mv-deliveries {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 560px;
+    overflow-y: auto;
+}
+
+.vlx .mv-delivery {
+    border: 1px solid var(--vlx-border, #dbe2ea);
+    border-radius: 10px;
+    padding: 11px 13px;
+    background: var(--vlx-surface, #fff);
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.vlx .mv-delivery:hover {
+    border-color: var(--vlx-secondary, #0061a6);
+    box-shadow: 0 2px 10px rgba(8, 22, 48, 0.07);
+}
+
+/* The focused delivery must be unmistakable — scanning the right item onto
+ * the wrong delivery is the costliest mistake this tool can allow. */
+.vlx .mv-delivery--focused {
+    border-color: var(--vlx-secondary, #0061a6);
+    border-width: 2px;
+    background: #f2f8fd;
+}
+
+.vlx .mv-delivery--complete { background: #f4fbf7; border-color: #b4e3c6; }
+
+.vlx .mv-delivery__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.vlx .mv-delivery__no {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--vlx-primary, #000618);
+}
+
+.vlx .mv-delivery__qty {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.vlx .mv-delivery__cust {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-bottom: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Scan feed ──────────────────────────────────────────────────────── */
+.vlx .mv-feed {
+    max-height: 420px;
+    overflow-y: auto;
+    border-top: 1px solid var(--vlx-border, #dbe2ea);
+}
+
+.vlx .mv-feed__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 13px;
+    border-bottom: 1px solid #eef2f6;
+    font-size: 0.83rem;
+}
+
+.vlx .mv-feed__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 8px;
+}
+
+.vlx .mv-feed__dot--success   { background: #1a9e5c; }
+.vlx .mv-feed__dot--error     { background: #d64545; }
+.vlx .mv-feed__dot--warning   { background: #d99215; }
+.vlx .mv-feed__dot--duplicate { background: #5457c8; }
+
+.vlx .mv-feed__main { flex: 1; min-width: 0; }
+
+.vlx .mv-feed__code {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-weight: 700;
+    color: var(--vlx-primary, #000618);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.vlx .mv-feed__msg {
+    font-size: 0.76rem;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.vlx .mv-feed__time {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+/* ── Counters ───────────────────────────────────────────────────────── */
+.vlx .mv-counters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.vlx .mv-counter {
+    border: 1px solid var(--vlx-border, #dbe2ea);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--vlx-surface, #fff);
+    text-align: center;
+}
+
+.vlx .mv-counter__value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    color: var(--vlx-primary, #000618);
+}
+
+.vlx .mv-counter__label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.vlx .mv-counter--success .mv-counter__value { color: #14663a; }
+.vlx .mv-counter--warning .mv-counter__value { color: #7a4d05; }
+.vlx .mv-counter--error   .mv-counter__value { color: #8a1c1c; }
+
+/* ── Extractor tabs ─────────────────────────────────────────────────── */
+.vlx .mv-tabpanel { display: none; }
+.vlx .mv-tabpanel.is-active { display: block; }
+
+.vlx .mv-mono {
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 0.84rem;
+}
+
+.vlx textarea.mv-mono {
+    min-height: 180px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--vlx-border, #dbe2ea);
+    border-radius: 10px;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+/* Status pills used by the validator results table. */
+.vlx .vlx-pill--matched         { background: #e8f7ee; color: #14663a; }
+.vlx .vlx-pill--partial         { background: #fff6e5; color: #7a4d05; }
+.vlx .vlx-pill--warning         { background: #fdf0e3; color: #8a4b12; }
+.vlx .vlx-pill--variance        { background: #fdeaea; color: #8a1c1c; }
+.vlx .vlx-pill--dupe_scan       { background: #eef0fd; color: #33379c; }
+.vlx .vlx-pill--over_scan       { background: #fbe6f2; color: #8d1257; }
+.vlx .vlx-pill--expiry_mismatch { background: #fdeaea; color: #8a1c1c; }
+.vlx .vlx-pill--plant_mismatch  { background: #eef4fb; color: #1b4f8a; }
+.vlx .vlx-pill--incomplete      { background: #f1f4f8; color: #475569; }
+.vlx .vlx-pill--error           { background: #f1f4f8; color: #475569; }
+
+@media print {
+    .vlx .mv-console { grid-template-columns: 1fr; }
+    .vlx .mv-scanbar,
+    .vlx .vlx-actions,
+    .vlx .vlx-toolbar { display: none !important; }
+}

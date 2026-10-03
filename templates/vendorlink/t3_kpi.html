@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static vl_extras %}
+{% comment %}
+TIER 3.5 — KPI Dashboard.
+
+Wireframe
+    breadcrumb / title / vendor filter
+    ┌ 8 metric tiles: value · Δ vs last month · inline sparkline ───┐
+    ┌ data table: every reading, newest first ──────────────────────┐
+
+The delta colour is the thing worth getting right: four of these metrics are
+"lower is better" (damage rate, response time, CAPA closure, complaints, cost
+per shipment). Colouring every rise green would tell someone a worsening
+damage rate is good news, so each tile carries its own direction and the
+arrow is computed against it.
+
+Sparklines are inline SVG rather than eight Chart.js instances — a 28px trace
+does not justify a chart engine per tile.
+
+States: no records at all, no records for the chosen vendor, a metric with no
+readings (tile shows "—" and no sparkline), a metric with one reading (value
+but no delta).
+{% endcomment %}
+
+{% block title %}KPI Dashboard — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">KPI Dashboard</span>
+            </nav>
+            <h1 class="vl-title">KPI Dashboard</h1>
+            <p class="vl-subtitle">Monthly operational performance, by vendor.</p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <form method="get" style="margin:0;display:flex;gap:var(--vl-2);">
+                <select class="vl-select" name="vendor" onchange="this.form.submit()">
+                    <option value="">All vendors</option>
+                    {% for v in vendors %}
+                    <option value="{{ v.pk }}" {% if selected and v.pk == selected.pk %}selected{% endif %}>{{ v.vendor_name }}</option>
+                    {% endfor %}
+                </select>
+                <noscript><button class="vl-btn">Show</button></noscript>
+            </form>
+            <a class="vl-btn" href="{% url 'vendorlink:kpi_export' %}">Export</a>
+            {% if can_edit %}
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:kpi_record_create' %}">Add reading</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if has_data %}
+    <div class="vl-kpis" style="margin-bottom:var(--vl-4);">
+        {% for t in tiles %}
+        <div class="vl-kpi">
+            <div class="vl-kpi__label">{{ t.label }}</div>
+            <div class="vl-kpi__value">
+                {% if t.current is None %}—{% else %}{{ t.current|floatformat:"-2" }}{% if t.unit == "%" %}%{% endif %}{% endif %}
+            </div>
+            {% if t.delta is not None %}
+            {% comment %}
+            Direction, not raw sign: a rise in damage rate is bad and must not
+            render green. t.lower_is_better carries that per metric.
+            {% endcomment %}
+            <div class="vl-kpi__delta {% if t.delta > 0 %}{% if t.lower_is_better %}down{% else %}up{% endif %}{% elif t.delta < 0 %}{% if t.lower_is_better %}up{% else %}down{% endif %}{% endif %}">
+                {% if t.delta > 0 %}▲{% elif t.delta < 0 %}▼{% else %}={% endif %}
+                {{ t.delta }}% vs last
+            </div>
+            {% else %}
+            <div class="vl-kpi__delta">{% if t.current is None %}no readings{% else %}first reading{% endif %}</div>
+            {% endif %}
+            {% if t.spark|length > 1 %}{{ t.spark|sparkline }}{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="vl-card" style="padding:0;">
+        <div class="vl-card__head">
+            <h2 class="vl-card__title">Readings</h2>
+            <span class="vl-meta">{{ records|length }} record{{ records|length|pluralize }}{% if selected %} · {{ selected.vendor_name }}{% endif %}</span>
+        </div>
+        <div class="vl-tablewrap" style="border:none;border-radius:0;">
+            <table class="vl-table">
+                <thead>
+                    <tr>
+                        <th>Period</th>{% if not selected %}<th>Vendor</th>{% endif %}
+                        {% for name, label, unit in metric_fields %}<th class="num">{{ label }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ r.period|date:"M Y" }}</td>
+                        {% if not selected %}<td>{{ r.vendor.vendor_name }}</td>{% endif %}
+                        <td class="num">{{ r.inventory_accuracy|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.on_time_delivery|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.order_fulfilment_accuracy|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.damage_rate|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.response_time_hours|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.capa_closure_days|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.internal_complaints|default_if_none:"—" }}</td>
+                        <td class="num">{{ r.cost_per_shipment|default_if_none:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% elif selected %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No readings for {{ selected.vendor_name }}</div>
+        <div class="vl-empty__hint">Other vendors may have data — clear the filter to see it.</div>
+        <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:t3_kpi' %}">All vendors</a></div>
+    </div></div>
+    {% else %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No KPI readings recorded</div>
+        <div class="vl-empty__hint">Add the first month's figures and the trend tiles start filling in.</div>
+        {% if can_edit %}
+        <div class="vl-empty__cta"><a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:kpi_record_create' %}">Add reading</a></div>
+        {% endif %}
+    </div></div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

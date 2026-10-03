@@ -1,0 +1,28 @@
+/* Session Detail — uses meritrack-core.css design system */
+
+.card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 16px; }
+.card h2 { font-size: 1em; font-weight: 700; color: var(--mt-gray-700); margin: 0 0 16px; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.info-item { padding: 12px; background: var(--mt-gray-50); border-radius: 8px; }
+.info-item label { display: block; font-size: 0.75em; font-weight: 600; color: var(--mt-gray-600); text-transform: uppercase; margin-bottom: 4px; }
+.info-item span { font-size: 0.95em; font-weight: 600; color: var(--mt-gray-800); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-blue { background: var(--mt-info-light); color: var(--mt-primary-dark); }
+.badge-yellow { background: var(--mt-warning-light); color: var(--mt-warning-text); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.badge-gray { background: var(--mt-gray-100); color: var(--mt-gray-600); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+th { text-align: left; padding: 10px 12px; background: var(--mt-gray-50); border-bottom: 2px solid var(--mt-gray-200); font-size: 0.8em; text-transform: uppercase; color: var(--mt-gray-600); font-weight: 700; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); }
+tbody tr:hover { background: var(--mt-gray-50); }
+
+.btn-mt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.85em; font-weight: 600; border: none; cursor: pointer; text-decoration: none; color: #fff; }
+.btn-back { background: var(--mt-gray-600); }
+.btn-primary { background: var(--mt-primary); }
+
+.attachment-area { border: 2px dashed var(--mt-gray-300); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.attachment-area:hover { border-color: var(--mt-primary); background: var(--mt-primary-lighter); }
+.attachment-area.has-file { border-color: var(--mt-success); background: var(--mt-success-light); }
+.import-panel.dragover { border-color: var(--mt-primary); background: var(--mt-primary-lighter, var(--mt-primary-lighter)); }

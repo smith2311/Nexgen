@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Meril - Audit Session Details{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/session_detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-main">
+    <div class="header">
+        <h1>Audit Session Details</h1>
+        <div class="header-links">
+            <a href="/product_scanning/dashboard/" class="back-link">Back to Dashboard</a>
+            {% if can_use_scanner %}
+            <a href="/product_scanning/" class="back-link">New Audit Session</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Session Info -->
+    <div class="session-info-card" id="sessionInfo">
+        <div class="skeleton-info-grid">
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value wide"></div></div>
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value"></div></div>
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value"></div></div>
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value short"></div></div>
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value short"></div></div>
+            <div class="skeleton-info-item"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-value"></div></div>
+        </div>
+    </div>
+
+    <!-- Force-Complete Banner (shown for active sessions to warehouse users) -->
+    <div id="forceCompleteBanner" style="display:none;">
+        <div class="alert alert-warning" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div>
+                <strong>Audit In Progress</strong> — The sales rep has not submitted this session yet.
+                As an audit manager, you can force-complete it to move it to "Awaiting Confirmation" status.
+            </div>
+            <button class="btn-export" onclick="forceCompleteSession()" style="flex-shrink:0;">Force Complete</button>
+        </div>
+    </div>
+
+    <!-- On Hold / Overdue Banner -->
+    <div id="onHoldBanner" style="display:none;margin-bottom:16px;"></div>
+
+    <!-- Products Table -->
+    <div>
+        <div class="section-title">Scanned Products</div>
+        <div style="overflow-x:auto;">
+        <table class="products-table" id="productsTable">
+            <thead>
+                <tr>
+                    <th>Serial Number</th>
+                    <th>GTIN Code</th>
+                    <th>Lot / Batch</th>
+                    <th>Product</th>
+                    <th>Ref#</th>
+                    <th>Expiry</th>
+                    <th>Prod. Date</th>
+                    <th>Material</th>
+                    <th>Qty</th>
+                    <th>Scanned</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody id="productsBody">
+                <tr class="skeleton-row"><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td></tr>
+                <tr class="skeleton-row"><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td></tr>
+                <tr class="skeleton-row"><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td></tr>
+                <tr class="skeleton-row"><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td></tr>
+                <tr class="skeleton-row"><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td><td><div class="skeleton"></div></td></tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- Batch / Session Remarks -->
+    <div id="sessionRemarksSection" style="margin-top:28px;">
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>💬 Batch Remarks</span>
+        </div>
+        <div id="sessionRemarksList" style="margin-bottom:14px;"></div>
+        {% if not can_view_only %}
+        <div id="addSessionRemarkForm" style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:10px;padding:14px;">
+            <label style="font-size:0.85em;font-weight:600;color:#7c3aed;display:block;margin-bottom:6px;">Add a Batch Remark</label>
+            <textarea id="newSessionRemark" placeholder="Add a remark about this entire batch…"
+                style="width:100%;padding:10px 12px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:0.88em;resize:vertical;min-height:64px;font-family:inherit;outline:none;background:#fff;"
+                onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                <button onclick="addSessionRemark()"
+                    style="background:#7c3aed;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-weight:700;font-size:0.88em;cursor:pointer;">
+                    Save Remark
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Product Remarks Modal -->
+    <div id="productRemarkModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:1500;backdrop-filter:blur(3px);" onclick="if(event.target===this)closeRemarkModal()">
+        <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(600px,100%);max-height:85vh;overflow-y:auto;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,0.25);padding:0 0 env(safe-area-inset-bottom,0) 0;">
+            <div style="text-align:center;padding:12px 0 4px;"><div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;display:inline-block;"></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 18px 14px;border-bottom:1px solid #f1f5f9;">
+                <div>
+                    <div style="font-weight:800;font-size:1em;color:#0f172a;">Product Remarks</div>
+                    <div id="remarkModalSubtitle" style="font-size:0.75em;color:#94a3b8;margin-top:2px;"></div>
+                </div>
+                <button onclick="closeRemarkModal()" style="background:#f1f5f9;color:#64748b;border:none;width:34px;height:34px;border-radius:50%;font-size:1.1em;cursor:pointer;font-weight:700;">&#x2715;</button>
+            </div>
+            <div style="padding:16px 18px;">
+                <div id="productRemarksList" style="margin-bottom:16px;min-height:40px;"></div>
+                {% if not can_view_only %}
+                <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:12px;">
+                    <label style="font-size:0.82em;font-weight:600;color:#7c3aed;display:block;margin-bottom:6px;">Add a Remark</label>
+                    <textarea id="newProductRemark" placeholder="Your remark about this item…"
+                        style="width:100%;padding:10px 12px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:0.88em;resize:vertical;min-height:60px;font-family:inherit;outline:none;background:#fff;"
+                        onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#c4b5fd'"></textarea>
+                    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                        <button onclick="submitProductRemark()"
+                            style="background:#7c3aed;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-weight:700;font-size:0.88em;cursor:pointer;">
+                            Save
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Document Upload (shown for completed sessions) -->
+    <div id="uploadSection" style="display:none;">
+        <div class="upload-card">
+            <h3>Upload Confirmation Document</h3>
+            <p>Upload the signed confirmation/permission document from your organization to close this session.</p>
+            <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('attachmentFile').click();">
+                <div class="drop-icon">&#128196;</div>
+                <div class="drop-text">Click to select or drag & drop a file</div>
+                <div class="drop-hint">PDF, images, or documents up to 50 MB</div>
+                <input type="file" id="attachmentFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.bmp,.tiff" onchange="onAttachmentSelected(event)">
+            </div>
+            <div class="upload-filename" id="uploadFilename">
+                <span id="uploadFileLabel"></span>
+                <span style="cursor:pointer;color:#ef4444;" onclick="clearAttachment()">&times;</span>
+            </div>
+            <button class="upload-submit" id="uploadSubmitBtn" onclick="submitAttachment()">
+                📤 Upload & Close Session
+            </button>
+        </div>
+    </div>
+
+    <!-- Document Preview (shown for closed sessions with attachment) -->
+    <div id="docPreviewSection" style="display:none;">
+        <div class="doc-preview-card">
+            <h3>📑 Confirmation Document</h3>
+            <div id="docPreviewContent"></div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions" id="actions"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="page-config" type="application/json">{"sessionKey":"{{ session_key }}","canUseScanner":{{ can_use_scanner|yesno:"true,false" }},"canUseDashboard":{{ can_use_dashboard|yesno:"true,false" }},"canViewOnly":{{ can_view_only|yesno:"true,false" }},"apiBase":"{{ api_base }}","dashboardUrl":"{{ dashboard_url }}","scannerUrl":"{{ scanner_url }}"}</script>
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/session_detail.js' %}"></script>
+{% endblock %}

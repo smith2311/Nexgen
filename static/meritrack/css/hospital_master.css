@@ -1,0 +1,226 @@
+/* Hospital Master — uses meritrack-core.css design system */
+
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); text-align: center; }
+.stat-card .num { font-size: 1.8em; font-weight: 800; color: var(--mt-primary); line-height: 1; }
+.stat-card .lbl { font-size: 0.75em; color: var(--mt-gray-600); margin-top: 4px; font-weight: 600; text-transform: uppercase; }
+.card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); margin-bottom: 16px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.filter-tabs { display: flex; border: 1px solid var(--mt-gray-200); border-radius: 8px; overflow: hidden; }
+.filter-tab { padding: 7px 14px; font-size: 0.82em; font-weight: 600; cursor: pointer; border: none; background: var(--mt-gray-50); color: var(--mt-gray-600); }
+.filter-tab.active { background: var(--mt-primary); color: #fff; }
+.dataTables_wrapper { overflow: hidden; }
+.dataTables_wrapper .dataTables_scrollBody { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+/* DataTables 2.x layout fix — correct wrapper is div.dt-container in DT 2.x (not .dataTables_wrapper) */
+div.dt-container .dt-layout-row { display: flex !important; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+div.dt-container .dt-layout-cell { display: flex !important; align-items: center; gap: 6px; }
+div.dt-container .dt-search input,
+div.dt-container .dt-input[type=search] { border: 1px solid var(--mt-gray-300); border-radius: 8px; padding: 8px 12px; font-size: 0.88em; outline: none; min-width: 180px; background: #fff; }
+div.dt-container .dt-search input:focus,
+div.dt-container .dt-input[type=search]:focus { border-color: var(--mt-primary); }
+div.dt-container .dt-length select,
+div.dt-container select.dt-input { border: 1px solid var(--mt-gray-300); border-radius: 6px; padding: 6px 8px; font-size: 0.85em; background: #fff; }
+div.dt-container .dt-info { font-size: 0.82em; color: var(--mt-gray-600); }
+div.dt-container .dt-paging .dt-paging-button { border-radius: 6px !important; font-size: 0.85em; padding: 4px 10px !important; }
+div.dt-container .dt-paging .dt-paging-button.current { background: var(--mt-primary) !important; color: #fff !important; border-color: var(--mt-primary) !important; }
+.dataTables_wrapper .dataTables_info { font-size: 0.82em; color: var(--mt-gray-600); }
+.dataTables_wrapper .dataTables_paginate .paginate_button { border-radius: 6px !important; font-size: 0.85em; padding: 4px 10px !important; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: var(--mt-primary) !important; color: #fff !important; border-color: var(--mt-primary) !important; }
+table.dataTable { border-collapse: collapse !important; width: 100% !important; font-size: 0.86em; table-layout: fixed; }
+table.dataTable thead th { background: var(--mt-gray-50); border-bottom: 2px solid var(--mt-gray-200); font-size: 0.78em; text-transform: uppercase; color: var(--mt-gray-600); font-weight: 700; padding: 10px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.dataTable tbody td { padding: 10px 12px; border-bottom: 1px solid var(--mt-gray-100); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 0; }
+/* Column widths for 8-column hospital table */
+#hospitalsTable th:nth-child(1), #hospitalsTable td:nth-child(1) { width: 22%; }
+#hospitalsTable th:nth-child(2), #hospitalsTable td:nth-child(2) { width: 12%; }
+#hospitalsTable th:nth-child(3), #hospitalsTable td:nth-child(3) { width: 16%; }
+#hospitalsTable th:nth-child(4), #hospitalsTable td:nth-child(4) { width: 10%; }
+#hospitalsTable th:nth-child(5), #hospitalsTable td:nth-child(5) { width: 13%; }
+#hospitalsTable th:nth-child(6), #hospitalsTable td:nth-child(6) { width: 15%; }
+#hospitalsTable th:nth-child(7), #hospitalsTable td:nth-child(7) { width: 8%; }
+#hospitalsTable th:nth-child(8), #hospitalsTable td:nth-child(8) { width: 10%; overflow: visible; white-space: normal; }
+table.dataTable tbody tr:hover td { background: var(--mt-primary-lighter) !important; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75em; font-weight: 600; }
+.badge-green { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.badge-red { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.btn-mt { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; border-radius: 8px; font-size: 0.84em; font-weight: 600; border: none; cursor: pointer; text-decoration: none; color: #fff; white-space: nowrap; }
+.btn-primary { background: var(--mt-primary); }
+.btn-success { background: var(--mt-success); }
+.btn-warning { background: var(--mt-warning); }
+.btn-danger { background: var(--mt-danger); }
+.btn-back { background: var(--mt-gray-600); }
+.btn-gray { background: var(--mt-gray-200); color: var(--mt-gray-700) !important; }
+.btn-sm { padding: 5px 10px; font-size: 0.78em; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay.active { display: flex; }
+.modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+.modal-box.sm { max-width: 420px; }
+.modal-box.md { max-width: 640px; }
+/* `lg` is used by the Departments modal. Without a max-width it inherited
+   only `width:100%` and spanned the whole overlay on desktop. */
+.modal-box.lg { max-width: 880px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-header h2 { font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); margin: 0; }
+.modal-close { background: none; border: none; font-size: 1.4em; cursor: pointer; color: var(--mt-gray-400); line-height: 1; }
+.modal-close:hover { color: var(--mt-gray-700); }
+/* Inline styles on these rows own display/gap/justify-content; flex-wrap is
+   the one thing left to us, and it's what keeps buttons inside the sheet. */
+.modal-footer-row { flex-wrap: wrap; }
+/* Departments modal list header — was an inline flex row with no wrap, so the
+   hospital name and the Add button collided below ~380px. */
+.dept-list-hd { display: flex; justify-content: space-between; align-items: center;
+                gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.dept-list-hd > p { min-width: 0; overflow-wrap: anywhere; }
+/* The import panel lists required columns as inline <code>; long tokens have
+   no break opportunity and widened the sheet. */
+.modal-box code { overflow-wrap: anywhere; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 0.8em; font-weight: 600; color: var(--mt-gray-700); }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--mt-gray-300); border-radius: 8px; font-size: 0.9em; box-sizing: border-box; font-family: inherit; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--mt-primary); box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+.form-group textarea { resize: vertical; min-height: 70px; }
+.field-hint { font-size: 0.75em; color: var(--mt-gray-400); }
+.import-panel { border: 2px dashed var(--mt-gray-300); border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.import-panel:hover, .import-panel.dragover { border-color: var(--mt-primary); background: var(--mt-primary-lighter); }
+.import-panel i { font-size: 2em; color: var(--mt-gray-400); margin-bottom: 8px; display: block; }
+.result-item { padding: 6px 12px; border-radius: 6px; font-size: 0.84em; margin-bottom: 4px; }
+.result-ok { background: var(--mt-success-light); color: var(--mt-success-dark); }
+.result-err { background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.toast { position: fixed; bottom: 24px; right: 20px; padding: 12px 20px; border-radius: 10px; color: #fff; font-weight: 600; font-size: 0.88em; z-index: 99999; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: opacity 0.4s, transform 0.4s; }
+.toast.hidden { opacity: 0; pointer-events: none; }
+.toast-success { background: var(--mt-success); }
+.toast-error { background: var(--mt-danger); }
+.toast-warning { background: var(--mt-warning); }
+.hidden { display: none !important; }
+@media (max-width: 640px) {
+    .card { padding: 12px; border-radius: 12px; }
+    .stats-row { gap: 6px; }
+    .stat-card { padding: 10px 8px; }
+    .stat-card .num { font-size: 1.4em; }
+    .form-grid { grid-template-columns: 1fr; }
+    .modal-box { padding: 16px 14px; border-radius: 14px 14px 0 0; max-height: 95vh; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    /* DataTable controls. This page runs DataTables 2.x, which renames every
+       control (.dt-search / .dt-length / .dt-info / .dt-paging); the 1.x
+       selectors below matched nothing, which is why the search box and pager
+       still sat in a cramped row on phones. Both sets are kept so the rules
+       survive whichever version a page loads. */
+    div.dt-container .dt-layout-row { flex-direction: column; align-items: stretch; gap: 8px; }
+    div.dt-container .dt-layout-cell { width: 100%; text-align: left !important; justify-content: flex-start; }
+    div.dt-container .dt-search,
+    div.dt-container .dt-length,
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter { float: none !important; text-align: left !important; margin-bottom: 8px; }
+    div.dt-container .dt-search input,
+    div.dt-container .dt-input[type=search],
+    .dataTables_wrapper .dataTables_filter input { width: 100% !important; min-width: 0; box-sizing: border-box; }
+    div.dt-container .dt-info,
+    .dataTables_wrapper .dataTables_info { float: none !important; text-align: left !important; margin-bottom: 6px; font-size: .78em; }
+    div.dt-container .dt-paging,
+    .dataTables_wrapper .dataTables_paginate { float: none !important; text-align: left !important; }
+    /* Pager buttons need to stay tappable and wrap rather than overflow */
+    div.dt-container .dt-paging .dt-paging-button,
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 6px 10px !important;
+        min-height: 38px;
+        min-width: 38px;
+    }
+    div.dt-container .dt-paging { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* The wrapper stays scrollable unconditionally: it costs nothing once the
+       table fits, and it is the fallback if meritrack-ui.js never runs and the
+       table cannot card up. Deliberately not `:has()` — an unsupported
+       selector there would drop the fallback and let the table widen the page. */
+    .dataTables_wrapper, div.dt-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.dataTable:not(.mt-stacked) { min-width: 600px; }
+
+    /* Stacked: rows become cards, so nothing needs to scroll sideways.
+       meritrack-ui.js stamps each cell with its column label. */
+    table.dataTable.mt-stacked { min-width: 0; width: 100% !important; }
+
+    /* THE one that was breaking the cards. The eight column widths further up
+       are ID-scoped (`#hospitalsTable td:nth-child(n)`), specificity (1,1,2).
+       meritrack-responsive.css resets a stacked cell with
+       `table.mt-stacked > tbody > tr > td { width: auto }` — (0,1,4) — and an ID
+       beats any number of classes, so the percentages survived into card mode
+       and squeezed every row to 8–22% of the card. Labels and values then wrapped
+       one character per line. Reset at (1,1,3) so it outranks the percentages
+       without needing !important. */
+    #hospitalsTable.mt-stacked > tbody > tr > td,
+    #hospitalsTable.mt-stacked > thead > tr > th {
+        width: auto;
+        min-width: 0;
+    }
+
+    /* ...and the container half of the same bug. This sheet forces
+       `div.dt-container .dt-layout-cell { display: flex !important }` so the
+       search box and length select sit on one line — but that selector also hits
+       the cell DataTables wraps the TABLE in, which its own CSS deliberately sets
+       to `display: block`:
+           div.dt-container div.dt-layout-row.dt-layout-table div.dt-layout-cell
+       Turning that cell into a flex parent left the stacked table sizing as a
+       flex item rather than filling the cell, so the cards came out a fraction of
+       the page width and hugged the left edge. Re-exclude the table's own row and
+       cell; the control cells keep their flex. */
+    div.dt-container .dt-layout-row.dt-layout-table,
+    div.dt-container .dt-layout-row.dt-layout-table > .dt-layout-cell {
+        display: block !important;
+        width: 100%;
+        min-width: 0;
+        padding: 0;
+    }
+    /* Pin the rest of the chain so no ancestor can shrink-to-fit the cards. */
+    #hospitalsTable.mt-stacked,
+    #hospitalsBody,
+    #hospitalsBody > tr {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        display: flow;
+    }
+    table.dataTable.mt-stacked > thead { display: none; }
+    /* The desktop table clips every cell to one ellipsised line
+       (max-width:0 + nowrap); a card row has to wrap and size to content. */
+    table.dataTable.mt-stacked > tbody > tr > td {
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+    }
+    /* "Actions" has a column header, so it would otherwise be squeezed into the
+       value half of the row. Give the buttons the full card width. Scoped to
+       .mt-stacked rather than .dataTable.mt-stacked so it also reaches the
+       Departments modal's plain <table data-stack>. Kept at this specificity
+       deliberately: meritrack-responsive.css loads later and styles the same
+       selector, but only border-bottom on it. */
+    table.mt-stacked > tbody > tr > td:last-child {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-start;
+        padding-top: 9px;
+        text-align: left;
+    }
+    table.mt-stacked > tbody > tr > td:last-child::before { display: none; }
+
+    /* Anchored to both edges so a long message wraps instead of running off. */
+    .toast {
+        left: 12px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+/* Narrow phones — last block in the file on purpose, since a @media rule adds no
+   specificity and would lose to plain rules declared further down.
+   Note what is NOT here: column counts, card padding and .num/.lbl sizes all
+   belong to meritrack-responsive.css, which loads after this sheet and pins
+   .stats-row to 2 columns at this width with !important. Restating any of that
+   here is dead code (it already was), so the only fix is the one thing that
+   sheet does not touch: with three cards, 2 columns leaves a half-width orphan
+   on row 2. Let the third span the full width so it reads as intentional. */
+@media (max-width: 480px) {
+    .stats-row .stat-card:last-child { grid-column: 1 / -1; }
+}

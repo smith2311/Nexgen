@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Users — VendorLink Admin{% endblock %}
+{% block page_title %}Users{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'components/data_table/data_table.css' %}">
+<link rel="stylesheet" href="{% static 'components/master_page/master_page.css' %}">
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ui.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="lm-page">
+
+  <div class="lm-header">
+    <div class="lm-header-inner">
+      <a href="{% url 'vendorlink:admin_console' %}" class="lp-back">
+        <span class="lp-back-icon"><i class="fas fa-arrow-left"></i></span>
+        Admin Console
+      </a>
+      <div class="lm-header-top">
+        <div class="lm-header-title">
+          <h1><i class="fas fa-users-cog"></i> Users</h1>
+          <p>Every account with access to VendorLink — vendor portal logins and internal staff.</p>
+        </div>
+        <div class="lm-header-stats">
+          <div class="lm-hstat">
+            <div class="lm-hstat-val">{{ all_total }}</div>
+            <div class="lm-hstat-lbl">Total</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lm-inner">
+
+    {% if messages %}
+      {% for m in messages %}
+      <div class="alert-banner {{ m.tags }}">
+        <i class="fas fa-circle-info"></i>
+        <div>{{ m }}</div>
+        <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="get" class="filter-bar vl-row-form" style="margin-bottom:14px;">
+      <label for="au-q" class="vl-sr">Search users</label>
+      <div class="search-wrap" style="min-width:260px;">
+        <i class="fas fa-search"></i>
+        <input type="text" id="au-q" name="q" value="{{ q }}" class="form-input" style="width:100%;"
+               placeholder="Search name, email…" autocomplete="off">
+      </div>
+      {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
+      {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+      <button type="submit" class="btn btn-navy btn-sm"><i class="fas fa-search"></i> Search</button>
+      {% if q %}
+      <a href="{% url 'vendorlink:admin_users' %}" class="btn btn-ghost btn-sm"><i class="fas fa-xmark"></i> Clear</a>
+      {% endif %}
+    </form>
+
+    <div class="vl-chips">
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if status %}status={{ status }}{% endif %}"
+         class="vl-chip {% if not role %}on{% endif %}">All <span class="n">{{ all_total }}</span></a>
+      {% for r in roles %}
+      <a href="?role={{ r.label|urlencode }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if status %}&status={{ status }}{% endif %}"
+         class="vl-chip {% if role == r.label %}on{% endif %}">{{ r.label }} <span class="n">{{ r.count }}</span></a>
+      {% endfor %}
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if role %}role={{ role|urlencode }}&{% endif %}status=active"
+         class="vl-chip {% if status == 'active' %}on{% endif %}"><span class="vl-dot on"></span> Active</a>
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if role %}role={{ role|urlencode }}&{% endif %}status=inactive"
+         class="vl-chip {% if status == 'inactive' %}on{% endif %}"><span class="vl-dot off"></span> Inactive</a>
+    </div>
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a href="{% url 'vendorlink:admin_user_create' %}" class="btn btn-navy btn-sm">
+          <i class="fas fa-user-plus"></i> New VendorLink Admin
+        </a>
+      </div>
+      <div class="record-count">{{ total }} user{{ total|pluralize }}</div>
+    </div>
+
+    {% if rows %}
+    <div data-vl-table data-page-size="20" data-search-placeholder="Filter these users…">
+      <div class="tbl-wrap" style="--cols: 2fr 1.1fr 120px 130px 110px">
+        <div class="tbl-head" style="grid-template-columns: var(--cols)">
+          <div data-sort="text">User</div>
+          <div data-sort="text">Role</div>
+          <div data-sort="text">Status</div>
+          <div data-sort="text">Last login</div>
+          <div style="text-align:right;">Manage</div>
+        </div>
+        {% for row in rows %}{% with u=row.obj %}
+        <div class="tbl-row" style="grid-template-columns: var(--cols)"
+             data-search="{{ u.get_full_name }} {{ u.username }} {{ u.email }} {{ row.role }}">
+          <div class="vl-userline">
+            <span class="vl-avatar">{{ u.get_full_name|default:u.username|first|upper }}</span>
+            <div style="min-width:0;">
+              <div class="tbl-name">{{ u.get_full_name|default:u.username }}</div>
+              <div class="tbl-sub">{{ u.email|default:u.username }}</div>
+            </div>
+          </div>
+          <div><span class="badge badge-blue">{{ row.role }}</span></div>
+          <div>
+            {% if u.is_active %}
+            <span class="vl-status on"><span class="vl-dot on"></span> Active</span>
+            {% else %}
+            <span class="vl-status off"><span class="vl-dot off"></span> Inactive</span>
+            {% endif %}
+          </div>
+          <div class="tbl-desc">
+            {% if u.last_login %}{{ u.last_login|date:"d M Y" }}{% else %}<span class="vl-muted">Never</span>{% endif %}
+          </div>
+          <div class="tbl-actions" style="justify-content:flex-end;">
+            <a href="{% url 'vendorlink:admin_user_detail' u.pk %}" class="tbl-btn">
+              <i class="fas fa-cog"></i> Manage
+            </a>
+          </div>
+        </div>
+        {% endwith %}{% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="tbl-wrap">
+      <div class="empty-state">
+        <i class="fas fa-user-slash"></i>
+        <p>No users found. Try clearing the search or filter.</p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendorlink/js/vl-nav.js' %}"></script>
+<script src="{% static 'vendorlink/js/vl-table.js' %}"></script>
+{% endblock %}

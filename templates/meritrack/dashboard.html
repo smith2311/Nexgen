@@ -1,0 +1,340 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}MeriTrack Dashboard{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'meritrack/css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/datatables-2.0.8.min.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/dashboard-views.css' %}">
+<style>
+/* ── Stats card colour variants ─────────────────────────────── */
+.mtd-stat-card.stat-blue   { border-left-color:var(--mt-info); }
+.mtd-stat-card.stat-blue   .mtd-stat-val { color:var(--mt-primary); }
+.mtd-stat-card.stat-amber  { border-left-color:var(--mt-warning); }
+.mtd-stat-card.stat-amber  .mtd-stat-val { color:var(--mt-warning-dark); }
+.mtd-stat-card.stat-green  { border-left-color:var(--mt-success-dark); }
+.mtd-stat-card.stat-green  .mtd-stat-val { color:var(--mt-success-dark); }
+.mtd-stat-card.stat-violet { border-left-color:var(--mt-purple); }
+.mtd-stat-card.stat-violet .mtd-stat-val { color:var(--mt-purple-dark); }
+.mtd-stat-card.stat-red    { border-left-color:var(--mt-danger); }
+.mtd-stat-card.stat-red    .mtd-stat-val { color:var(--mt-danger-dark); }
+.mtd-stat-card.stat-orange { border-left-color:var(--mt-orange); }
+.mtd-stat-card.stat-orange .mtd-stat-val { color:var(--mt-orange-dark); }
+.mtd-stat-val { transition:all .3s ease; }
+
+/* ── Session card action button extras ──────────────────────── */
+.mtd-action-reject { background:var(--mt-warning-light)!important; color:var(--mt-warning-text)!important; border:1.5px solid var(--mt-warning)!important; }
+.mtd-action-reject:hover { background:var(--mt-warning-border)!important; }
+.mtd-action-hold   { background:var(--mt-purple-light)!important; color:var(--mt-purple-dark)!important; border:1.5px solid var(--mt-purple-border)!important; }
+.mtd-action-hold:hover   { background:var(--mt-purple-border)!important; }
+.mtd-action-resume { background:var(--mt-success-light)!important; color:var(--mt-success-dark)!important; border:1.5px solid var(--mt-success-border)!important; }
+.mtd-action-resume:hover { background:var(--mt-success-border)!important; }
+
+/* On-hold status badge */
+.status-onhold { background:var(--mt-purple-light); color:var(--mt-purple-dark); }
+
+/* Improved empty state */
+.mtd-empty-state { text-align:center; padding:48px 20px; color:var(--mt-gray-400); }
+.mtd-empty-state .mtd-empty-icon { font-size:2.4rem; margin-bottom:.5rem; }
+.mtd-empty-state p { margin:.25rem 0 0; font-size:.9rem; }
+
+/* ── DataTables 2.x control styling (expiry table) ──────────── */
+#tab-expiry .dt-container { font-size:.86rem; }
+/* Flex the control rows (length/search, info/paging) only — NOT the row that
+   holds the table itself (it also carries .dt-layout-table). Flexing the table
+   row makes its cell shrink to content width, collapsing the table to the left. */
+#tab-expiry .dt-container .dt-layout-row:not(.dt-layout-table) { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin:.5rem 0; }
+#tab-expiry .dt-container .dt-layout-table { display:block; }
+#tab-expiry .dt-container .dt-layout-table .dt-layout-cell { width:100%; }
+#tab-expiry .dt-container .dt-length,
+#tab-expiry .dt-container .dt-search { display:inline-flex; align-items:center; gap:.45rem; width:auto; }
+#tab-expiry .dt-container select.dt-input {
+    width:auto; min-width:70px; padding:.32rem .5rem;
+    border:1.5px solid var(--mt-gray-300); border-radius:8px; background:#fff;
+    font-size:.82rem; color:var(--mt-gray-800);
+}
+#tab-expiry .dt-container input.dt-input {
+    width:220px; padding:.32rem .6rem;
+    border:1.5px solid var(--mt-gray-300); border-radius:8px; background:#fff;
+    font-size:.82rem; color:var(--mt-gray-800);
+}
+#tab-expiry .dt-container input.dt-input:focus,
+#tab-expiry .dt-container select.dt-input:focus { outline:none; border-color:var(--mt-primary); }
+#tab-expiry .dt-container .dt-info { color:var(--mt-gray-600); font-size:.8rem; padding-top:.5rem; }
+#tab-expiry .dt-container .dt-paging .dt-paging-button {
+    padding:.3rem .65rem; margin:0 2px; border:1.5px solid var(--mt-gray-200); border-radius:8px;
+    background:#fff; color:var(--mt-gray-700); cursor:pointer; font-size:.8rem;
+}
+#tab-expiry .dt-container .dt-paging .dt-paging-button.current { background:var(--mt-primary); color:#fff; border-color:var(--mt-primary); }
+#tab-expiry .dt-container .dt-paging .dt-paging-button.disabled { opacity:.4; cursor:default; }
+#tab-expiry table.dataTable { margin:0 !important; }
+/* Larger, more legible data-cell text (overrides the small inline sizes set per cell) */
+#tab-expiry table.dataTable td { font-size:.95rem !important; }
+#tab-expiry table.dataTable td code { font-size:.88rem !important; }
+#tab-stock #stockTable td { font-size:.95rem !important; }
+#tab-stock #stockTable td code { font-size:.88rem !important; }
+</style>
+{% endblock %}
+
+{% block hero_back %}{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-chart-pie"></i> Dashboard</h1>
+<p>Consignment sessions, stock, and expiry alerts</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    {% if can_use_scanner %}
+    <a href="{% url 'meritrack:scanner' %}" class="hero-btn hero-btn-solid">🔬 Scanner</a>
+    {% endif %}
+    <a href="{% url 'meritrack:user_guide' %}" class="hero-btn">📖 Guide</a>
+    <a href="{% url 'meritrack:reconciliation_export' %}" class="hero-btn">📊 Export</a>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <!-- Alert container -->
+    <div id="alertContainer"></div>
+
+    <!-- Stats grid. On phones the seven tiles fold into the summary bar a few
+         seconds after the numbers land — see armStatsAutoCollapse(). The bar is
+         desktop-hidden and only exists as the toggle for that. -->
+    <div class="mtd-statwrap" id="statWrap">
+    <button type="button" class="mtd-ss" id="statSummary" onclick="toggleStats()"
+            aria-expanded="true" aria-controls="mtdStats">
+        <span class="mtd-ss-open">Overview</span>
+        <span class="mtd-ss-shut" id="statSummaryText"></span>
+        <span class="mtd-ss-chev" aria-hidden="true">⌄</span>
+    </button>
+    <div class="mtd-stats" id="mtdStats">
+        <div class="mtd-stat-card stat-amber">
+            <div class="mtd-stat-val" id="statActive">—</div>
+            <div class="mtd-stat-lbl">🔄 Active Sessions</div>
+        </div>
+        <div class="mtd-stat-card stat-blue">
+            <div class="mtd-stat-val" id="statAwaiting">—</div>
+            <div class="mtd-stat-lbl">⏳ Awaiting Confirmation</div>
+        </div>
+        <div class="mtd-stat-card stat-violet">
+            <div class="mtd-stat-val" id="statClosed">—</div>
+            <div class="mtd-stat-lbl">✅ Completed</div>
+        </div>
+        <div class="mtd-stat-card stat-green">
+            <div class="mtd-stat-val" id="statProducts">—</div>
+            <div class="mtd-stat-lbl">📦 Total On Shelf</div>
+        </div>
+        <div class="mtd-stat-card">
+            <div class="mtd-stat-val" id="statHospitals">—</div>
+            <div class="mtd-stat-lbl">🏥 Hospitals</div>
+        </div>
+        <div class="mtd-stat-card stat-red">
+            <div class="mtd-stat-val" id="statExpired">—</div>
+            <div class="mtd-stat-lbl">⚠️ Expired on Shelf</div>
+        </div>
+        <div class="mtd-stat-card stat-orange">
+            <div class="mtd-stat-val" id="statExpiring30">—</div>
+            <div class="mtd-stat-lbl">🔔 Expiring ≤30 Days</div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mtd-tabs-outer">
+        <div class="mtd-tabs" id="mtdTabsNav">
+            <button class="mtd-tab active" onclick="switchTab(event,'tab-active')"><span>🔄</span><span>Active</span></button>
+            <button class="mtd-tab" onclick="switchTab(event,'tab-awaiting')"><span>⏳</span><span>Awaiting</span><span class="mtd-tab-badge" id="awaitingBadge"></span></button>
+            <button class="mtd-tab" onclick="switchTab(event,'tab-closed')"><span>✅</span><span>Completed</span></button>
+            <button class="mtd-tab" onclick="switchTab(event,'tab-expiry')"><span>⚠️</span><span>Expiry Alert</span><span class="mtd-tab-badge mtd-badge-red" id="expiryBadge"></span></button>
+            <button class="mtd-tab" onclick="switchTab(event,'tab-stock')"><span>📋</span><span>All Scans</span></button>
+        </div>
+    </div>
+
+    <!-- Toolbar: view switcher + the single Filters control.
+         The switcher serves every tab — each remembers its own view, and
+         paintViewToggle() hides the buttons a tab doesn't offer. The Filters
+         control is session-only and hides itself on the product tabs.
+         Every filter (session type included) lives inside the panel so the bar
+         stays one row on a phone. -->
+    <div class="mtd-toolbar" id="sessionToolbar">
+        <div class="mtd-viewtoggle" id="viewToggle" role="group" aria-label="View">
+            <button type="button" class="mtd-vt-btn active" data-view="cards" onclick="setView('cards')" aria-pressed="true">
+                <span class="mtd-vt-ico" aria-hidden="true">▦</span><span class="mtd-vt-txt">Cards</span>
+            </button>
+            <button type="button" class="mtd-vt-btn" data-view="table" onclick="setView('table')" aria-pressed="false">
+                <span class="mtd-vt-ico" aria-hidden="true">▤</span><span class="mtd-vt-txt">Table</span>
+            </button>
+            <button type="button" class="mtd-vt-btn" data-view="kanban" onclick="setView('kanban')" aria-pressed="false">
+                <span class="mtd-vt-ico" aria-hidden="true">▥</span><span class="mtd-vt-txt">Kanban</span>
+            </button>
+        </div>
+
+        <div class="mtd-sf-wrap" id="sfDropdown">
+            <button type="button" class="mtd-sf-trigger" id="sfTrigger" onclick="toggleFilterPanel(event)"
+                    aria-expanded="false" aria-controls="sessionFilterPanel" aria-label="Filters">
+                <span class="mtd-sf-ico" aria-hidden="true">⚙</span><span class="mtd-sf-txt">Filters</span>
+                <span class="mtd-sf-badge" id="sfBadge" hidden>0</span>
+            </button>
+
+            <!-- Dismiss surface for the mobile sheet. Click is bound in JS
+                 alongside the Escape handler, which is the keyboard route. -->
+            <div class="mtd-fp-backdrop" id="sfBackdrop" aria-hidden="true" hidden></div>
+
+            <!-- Popover on desktop, bottom sheet on phones -->
+            <div class="mtd-filter-panel" id="sessionFilterPanel" role="dialog" aria-label="Filter sessions" hidden>
+                <div class="mtd-fp-head">
+                    <span class="mtd-fp-title">Filter Sessions</span>
+                    <button type="button" class="mtd-fp-clear" onclick="clearAllFilters()">Clear all</button>
+                </div>
+                <div class="mtd-fp-body">
+                    <div class="mtd-fp-field">
+                        <span class="mtd-fp-label">Session Type</span>
+                        <div class="mtd-fp-chips" id="typeChips">
+                            <button type="button" class="mtd-chip active" data-type="all"       onclick="setTypeFilter('all', this)">All</button>
+                            <button type="button" class="mtd-chip" data-type="audit"     onclick="setTypeFilter('audit', this)">🔍 Audit</button>
+                            <button type="button" class="mtd-chip" data-type="replenish" onclick="setTypeFilter('replenish', this)">📦 Replenish</button>
+                            <button type="button" class="mtd-chip" data-type="removal"   onclick="setTypeFilter('removal', this)">🗑️ Removal</button>
+                            <button type="button" class="mtd-chip" data-type="transfer"  onclick="setTypeFilter('transfer', this)">🔄 Transfer</button>
+                        </div>
+                    </div>
+                    <div class="mtd-fp-row">
+                        <div class="mtd-fp-field">
+                            <label class="mtd-fp-label" for="filterYear">Year</label>
+                            <select id="filterYear" onchange="applySessionFilter()"><option value="">Any year</option></select>
+                        </div>
+                        <div class="mtd-fp-field">
+                            <label class="mtd-fp-label" for="filterMonth">Month</label>
+                            <select id="filterMonth" onchange="applySessionFilter()">
+                                <option value="">Any month</option>
+                                <option value="1">January</option><option value="2">February</option>
+                                <option value="3">March</option><option value="4">April</option>
+                                <option value="5">May</option><option value="6">June</option>
+                                <option value="7">July</option><option value="8">August</option>
+                                <option value="9">September</option><option value="10">October</option>
+                                <option value="11">November</option><option value="12">December</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mtd-fp-field">
+                        <label class="mtd-fp-label" for="filterDate">Specific Date</label>
+                        <input type="date" id="filterDate" onchange="applySessionFilter()">
+                    </div>
+                    <div class="mtd-fp-field">
+                        <label class="mtd-fp-label" for="filterSalesperson">Salesperson</label>
+                        <select id="filterSalesperson" onchange="applySessionFilter()"><option value="">Any Rep</option></select>
+                    </div>
+                    <div class="mtd-fp-field">
+                        <label class="mtd-fp-label" for="filterHospital">Hospital</label>
+                        <select id="filterHospital" onchange="applySessionFilter()"><option value="">Any hospital</option></select>
+                    </div>
+                </div>
+                <div class="mtd-fp-foot">
+                    <button type="button" class="mtd-fp-done" onclick="closeFilterPanel()">Show results</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- What's currently filtering, so it stays visible with the panel shut -->
+    <div class="mtd-chipbar" id="activeChips" hidden></div>
+
+    <!-- Tab: Active Sessions -->
+    <div id="tab-active" class="mtd-tab-content active">
+        <div id="activeList" class="mtd-sessions-grid">
+            {% include 'meritrack/_sk_cards.html' with count="123456" %}
+        </div>
+    </div>
+
+    <!-- Kanban board — replaces the three status tabs while that view is on -->
+    <div id="tab-kanban" class="mtd-tab-content">
+        <div class="mtd-kanban" id="kanbanBoard"></div>
+    </div>
+
+    <!-- Tab: Awaiting Confirmation -->
+    <div id="tab-awaiting" class="mtd-tab-content">
+        <div id="awaitingList" class="mtd-sessions-grid">
+            {% include 'meritrack/_sk_cards.html' with count="1234" %}
+        </div>
+    </div>
+
+    <!-- Tab: Completed/Closed -->
+    <div id="tab-closed" class="mtd-tab-content">
+        <div id="closedList" class="mtd-sessions-grid">
+            {% include 'meritrack/_sk_cards.html' with count="1234" %}
+        </div>
+    </div>
+
+    <!-- Tab: Expiry Alerts -->
+    <div id="tab-expiry" class="mtd-tab-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+            <h3 style="margin:0;color:var(--mt-danger);font-size:1.05em;">⚠️ Expired &amp; Near-Expiry Products (on shelf)</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a href="{% url 'meritrack:expiry_alerts' %}" class="mtd-btn mtd-btn-export"><i class="fas fa-heartbeat"></i> Full Expiry Board</a>
+                <button class="mtd-btn mtd-btn-export" onclick="exportExpiryCSV()">⬇ Export CSV</button>
+            </div>
+        </div>
+        <!-- Tier filter pills -->
+        <div id="expiryFilterBar" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;">
+            <button class="ep-filter active" data-level="all" onclick="setExpiryFilter(this,'all')">All</button>
+            <button class="ep-filter" data-level="expired" onclick="setExpiryFilter(this,'expired')">Expired</button>
+            <button class="ep-filter" data-level="1w" onclick="setExpiryFilter(this,'1w')">≤ 1 Week</button>
+            <button class="ep-filter" data-level="1m" onclick="setExpiryFilter(this,'1m')">≤ 1 Month</button>
+            <button class="ep-filter" data-level="3m" onclick="setExpiryFilter(this,'3m')">≤ 3 Months</button>
+            <button class="ep-filter" data-level="6m" onclick="setExpiryFilter(this,'6m')">≤ 6 Months</button>
+        </div>
+        <!-- Three hosts, one visible at a time — renderExpiry() picks. -->
+        <div class="table-responsive-wrap mtd-viewhost" id="expiryTableWrap" data-hint="← scroll for more →">
+        <table class="mtd-product-tbl" id="expiryTable" style="min-width:950px;">
+            <thead><tr>
+                <th>Serial No.</th><th>Product</th><th>GTIN</th><th>Lot/Batch</th>
+                <th>Hospital</th><th>Department</th><th>Expiry</th><th>Days</th>
+                <th>Placed By</th><th style="width:70px;text-align:center;">Ack</th>
+            </tr></thead>
+            <tbody id="expiryTableBody">
+                {% include 'meritrack/_sk_rows.html' with cols=10 rows="12345678" %}
+            </tbody>
+        </table>
+        </div>
+        <div class="mtd-prod-grid mtd-viewhost" id="expiryCards" hidden></div>
+        <div class="mtd-kanban mtd-viewhost" id="expiryKanban" hidden></div>
+    </div>
+
+    <!-- Tab: All Scans -->
+    <div id="tab-stock" class="mtd-tab-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <input id="stockSearch" type="text" placeholder="🔍 Search serial, product, GTIN…" oninput="renderAllStock()"
+                    style="padding:8px 12px;border:1px solid var(--mt-gray-200);border-radius:8px;font-size:.85rem;min-width:220px;">
+            </div>
+            <button class="mtd-btn mtd-btn-export" onclick="exportStockCSV()">⬇ Export CSV</button>
+        </div>
+        <div id="stockLoadingMsg" style="padding:6px 0;color:var(--mt-gray-400);">
+            <div style="text-align:center;font-size:.85rem;margin-bottom:8px;">Loading all scans…</div>
+            <div class="mt-sk-row"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.72;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.48;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+            <div class="mt-sk-row" style="opacity:.26;border-bottom:none;"><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div><div class="mt-sk"></div></div>
+        </div>
+        <!-- Two hosts, one visible at a time — renderAllStock() picks. -->
+        <div class="table-responsive-wrap mtd-viewhost" id="stockTableWrap" hidden data-hint="← scroll for more →">
+        <table class="mtd-product-tbl" id="stockTable" style="min-width:1000px;" data-stack>
+            <thead><tr>
+                <th>Serial No.</th><th>Product</th><th>GTIN</th><th>Lot/Batch</th>
+                <th>Material</th><th>Session</th><th>Hospital</th>
+                <th>Scanned By</th><th>Expiry</th><th>Scanned At</th>
+            </tr></thead>
+            <tbody id="stockTableBody"></tbody>
+        </table>
+        </div>
+        <div class="mtd-prod-grid mtd-viewhost" id="stockCards" hidden></div>
+        <div id="stockEmpty" style="display:none;text-align:center;padding:40px;color:var(--mt-gray-400);">No scans found.</div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/datatables-2.0.8.min.js' %}"></script>
+<script id="mtd-config" type="application/json">{"canUseDashboard":{{ can_use_dashboard|yesno:"true,false" }},"canUseScanner":{{ can_use_scanner|yesno:"true,false" }}}</script>
+<script src="{% static 'meritrack/js/dashboard.js' %}"></script>
+{% endblock %}

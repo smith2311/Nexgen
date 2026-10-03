@@ -1,0 +1,359 @@
+{% extends "merilv/_base.html" %}
+{% load static merilv_ui %}
+{% comment %}
+Master Data → View Hierarchy. Company → Sales Org → Plant → Storage, nested.
+
+The six structural masters each render as a flat table on their own tab, which
+is why the hierarchy was invisible: a plant row showed its org code but nothing
+showed the shape of the whole thing. This is that shape.
+
+Each level carries its own colour (violet company / blue sales org / green plant
+/ amber storage) and its own indent guide, so depth is readable at a glance
+rather than counted. A plant mapped to more than one sales org appears under
+each of them — that is the point of PlantOrgMapping, and a storage location
+under such a plant legitimately appears more than once too.
+
+Billing Type and Sales Type are deliberately absent: they are global reference
+tables in this app and the legacy one alike, not children of the org chain.
+{% endcomment %}
+
+{% block mv_title %}Org Hierarchy — Master Data{% endblock %}
+{% block mv_crumb %}
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<a href="{% url 'merilv:masters' %}">Master Data</a>
+<span class="mv-breadcrumb__sep">{% icon "chevron" 12 %}</span>
+<span class="mv-breadcrumb__current">Org Hierarchy</span>
+{% endblock %}
+{% block mv_heading %}Org Hierarchy{% endblock %}
+{% block mv_sub %}
+<p class="mv-page-header__sub">Company → Sales Org → Plant → Storage Location, with the plant/org mappings that drive it.</p>
+{% endblock %}
+
+{% block mv_body %}
+{% include "merilv/_shell/masters_console.html" %}
+
+<div class="mv-kpis" style="margin-bottom:var(--mv-space-5);">
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "building" %}</span><span class="mv-kpi__label">Companies</span><span class="mv-kpi__value">{{ counts.companies }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "sitemap" %}</span><span class="mv-kpi__label">Sales Orgs</span><span class="mv-kpi__value">{{ counts.orgs }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "grid" %}</span><span class="mv-kpi__label">Plants</span><span class="mv-kpi__value">{{ counts.plants }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "folder" %}</span><span class="mv-kpi__label">Storage Locations</span><span class="mv-kpi__value">{{ counts.storage }}</span></div>
+    <div class="mv-kpi"><span class="mv-kpi__icon">{% icon "transfer" %}</span><span class="mv-kpi__label">Plant ↔ Org Maps</span><span class="mv-kpi__value">{{ counts.mappings }}</span></div>
+</div>
+
+<div class="mv-orgpath">
+    <span class="mv-orgpath__step mv-orgpath__step--company">Company</span>
+    {% icon "chevron" 12 %}
+    <span class="mv-orgpath__step mv-orgpath__step--org">Sales Org</span>
+    {% icon "chevron" 12 %}
+    <span class="mv-orgpath__step mv-orgpath__step--plant">Plant</span>
+    {% icon "chevron" 12 %}
+    <span class="mv-orgpath__step mv-orgpath__step--storage">Storage</span>
+</div>
+
+{% if messages %}
+<div class="mv-alerts">
+    {% for message in messages %}
+    <div class="mv-alert mv-alert--{{ message.tags|default:'info' }}">{% icon "alert" %}<div>{{ message }}</div></div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if orphan_orgs or orphan_plants %}
+{% comment %}
+Surfaced rather than hidden: the importer writes a row whose parent did not
+resolve with a null parent, so an orphan is a real data fault an admin has to
+see. Silently omitting them from the tree is how they stay broken.
+{% endcomment %}
+<div class="mv-alert mv-alert--warn" style="margin-bottom:var(--mv-space-4);">
+    {% icon "alert" %}
+    <div>
+        <strong>Not attached to the hierarchy.</strong>
+        {% if orphan_orgs %}
+        {{ orphan_orgs|length }} sales org{{ orphan_orgs|pluralize }} with no company
+        (<span class="mv-mono">{% for o in orphan_orgs %}{{ o.org_code }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>){% if orphan_plants %};{% endif %}
+        {% endif %}
+        {% if orphan_plants %}
+        {{ orphan_plants|length }} plant{{ orphan_plants|pluralize }} with no sales org
+        (<span class="mv-mono">{% for p in orphan_plants|slice:":12" %}{{ p.plant_code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if orphan_plants|length > 12 %} …{% endif %}</span>)
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if tree %}
+{% comment %}
+Expand/collapse is native <details>/<summary>, not a class-toggling scheme:
+keyboard operation, screen-reader announcement and the open/closed state all
+come free and cannot drift out of step with the visual arrow.
+
+Default state is chosen per level rather than uniformly — companies and sales
+orgs open so the shape is visible on arrival, plants closed because that is
+where the long tail is (1,462 storage locations across a few hundred plants,
+and a plant's storage list is the only genuinely long part of the tree).
+{% endcomment %}
+<div class="mv-treebar">
+    <button type="button" class="mv-btn mv-btn--sm" onclick="mvTreeSetAll(true)">{% icon "chevron" 12 %} Expand all</button>
+    <button type="button" class="mv-btn mv-btn--sm" onclick="mvTreeSetAll(false)">{% icon "chevron" 12 %} Collapse all</button>
+    <span class="mv-t-caption mv-fg-3">Click any level to open it. Counts link into that level's own table.</span>
+</div>
+
+<div class="mv-tree">
+    {% for node in tree %}
+    <details class="mv-card mv-tree__company" open>
+        <summary class="mv-tree__companyhead">
+            <span class="mv-tree__caret" aria-hidden="true">{% icon "chevron" 14 %}</span>
+            <span class="mv-tree__icon mv-tree__icon--company">{% icon "building" 18 %}</span>
+            <div class="mv-tree__id">
+                <span class="mv-t-strong">{{ node.company.company_name }}</span>
+                <span class="mv-mono mv-t-caption mv-fg-3">{{ node.company.company_code }}</span>
+            </div>
+            {% comment %}
+            The count is the drill-down. A tree you can only look at is a
+            picture; this is what makes it the same journey as the tables.
+            {% endcomment %}
+            <a class="mv-tree__count mv-tree__count--link"
+               href="{% url 'merilv:masters_org' %}?table=organization&parent={{ node.company.company_code|urlencode }}"
+               title="Open the sales orgs of {{ node.company.company_code }}">
+                {{ node.orgs|length }} sales org{{ node.orgs|pluralize }}
+            </a>
+        </summary>
+
+        {% for org_node in node.orgs %}
+        <details class="mv-tree__org" open>
+            <summary class="mv-tree__row">
+                <span class="mv-tree__caret" aria-hidden="true">{% icon "chevron" 12 %}</span>
+                <span class="mv-tree__dot mv-tree__dot--org">{% icon "layers" 14 %}</span>
+                <span class="mv-mono mv-t-strong">{{ org_node.org.org_code }}</span>
+                <span class="mv-fg-2">— {{ org_node.org.org_name }}</span>
+                <a class="mv-tree__count mv-tree__count--link"
+                   href="{% url 'merilv:masters_org' %}?table=plant&parent={{ org_node.org.org_code|urlencode }}"
+                   title="Open the plants of {{ org_node.org.org_code }}">
+                    {{ org_node.plants|length }} plant{{ org_node.plants|pluralize }}
+                </a>
+            </summary>
+
+            {% for plant_node in org_node.plants %}
+            {% comment %}Closed by default — see the note above on where the length is.{% endcomment %}
+            <details class="mv-tree__plant">
+                <summary class="mv-tree__row">
+                    <span class="mv-tree__caret" aria-hidden="true">{% icon "chevron" 12 %}</span>
+                    <span class="mv-tree__dot mv-tree__dot--plant">{% icon "building" 14 %}</span>
+                    <span class="mv-mono mv-t-strong">{{ plant_node.plant.plant_code }}</span>
+                    <span class="mv-fg-2">— {{ plant_node.plant.plant_name }}</span>
+                    {% if plant_node.is_primary %}
+                    <span class="mv-badge mv-badge--ok mv-badge--sm">primary</span>
+                    {% else %}
+                    <span class="mv-badge mv-badge--neutral mv-badge--sm">also mapped</span>
+                    {% endif %}
+                    <a class="mv-tree__count mv-tree__count--link"
+                       href="{% url 'merilv:masters_org' %}?table=storage&parent={{ plant_node.plant.plant_code|urlencode }}"
+                       title="Open the storage locations of {{ plant_node.plant.plant_code }}">
+                        {{ plant_node.storage|length }} storage
+                    </a>
+                </summary>
+
+                {% if is_mv_admin %}
+                {% comment %}
+                Moved out of the summary row: a button inside a <summary> is
+                activated by the same click that toggles the disclosure, so
+                "Map orgs" would open the dialog and collapse the branch under
+                it at once. Sits in the panel instead, which only exists when
+                the branch is open anyway.
+                {% endcomment %}
+                <div class="mv-tree__plantactions">
+                    <button type="button" class="mv-btn mv-btn--sm mv-btn--tint-violet"
+                            data-mv-plant="{{ plant_node.plant.plant_code }}"
+                            data-mv-plant-name="{{ plant_node.plant.plant_name }}"
+                            onclick="mvOpenPlantOrgs(this)">{% icon "layers" 12 %} Map orgs</button>
+                    <a href="{% url 'merilv:masters_org' %}?table=storage&parent={{ plant_node.plant.plant_code|urlencode }}"
+                       class="mv-btn mv-btn--sm">{% icon "box" 12 %} Manage storage</a>
+                </div>
+                {% endif %}
+
+                {% if plant_node.storage %}
+                <div class="mv-tree__storagewrap">
+                    {% for location in plant_node.storage|slice:":24" %}
+                    <span class="mv-tree__storage">
+                        <span class="mv-mono">{{ location.storage_code }}</span>
+                        {% if location.storage_name %}<span class="mv-fg-3">{{ location.storage_name|truncatechars:22 }}</span>{% endif %}
+                    </span>
+                    {% endfor %}
+                    {% if plant_node.storage|length > 24 %}
+                    {% comment %}
+                    Now a parent-scoped link rather than a text search on the
+                    plant code — `?parent=` filters on the FK, so it cannot
+                    also match a storage code that happens to contain the same
+                    characters.
+                    {% endcomment %}
+                    <a href="{% url 'merilv:masters_org' %}?table=storage&parent={{ plant_node.plant.plant_code|urlencode }}"
+                       class="mv-tree__storage mv-tree__storage--more">
+                        +{{ plant_node.storage|length|add:"-24" }} more
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="mv-tree__empty">No storage locations in this plant.</div>
+                {% endif %}
+            </details>
+            {% empty %}
+            <div class="mv-tree__empty">No plants mapped to this sales org.</div>
+            {% endfor %}
+        </details>
+        {% empty %}
+        <div class="mv-tree__empty">No sales orgs under this company.</div>
+        {% endfor %}
+    </details>
+    {% endfor %}
+</div>
+
+<script>
+// One line over the native disclosure elements, which is the whole reason for
+// using them: there is no parallel open/closed state of our own to keep in sync.
+// (No literal tag name in this comment - see the note in masters_console.html:
+// one here reads as an unclosed element to any HTML-balance check.)
+function mvTreeSetAll(open) {
+    var nodes = document.querySelectorAll('.mv-tree details');
+    for (var i = 0; i < nodes.length; i++) { nodes[i].open = open; }
+}
+</script>
+{% else %}
+<div class="mv-card">
+    <div class="mv-empty">
+        {% icon "layers" 48 %}
+        <div class="mv-empty__title">No companies yet</div>
+        <p class="mv-empty__text">Add a company first — the hierarchy is built downward from there.</p>
+        <a href="{% url 'merilv:masters_org' %}?table=company" class="mv-btn mv-empty__action">Open Company Master</a>
+    </div>
+</div>
+{% endif %}
+
+{% if is_mv_admin %}
+<div class="mv-modal-scrim" id="mvPlantOrgModal">
+    <div class="mv-modal" role="dialog" aria-modal="true" aria-labelledby="mvPlantOrgTitle">
+        <div class="mv-modal__head">
+            <h2 class="mv-t-h2" id="mvPlantOrgTitle">Sales org mappings</h2>
+            <button type="button" class="mv-btn mv-btn--ghost mv-btn--icon" data-mv-close-modal>{% icon "close" %}</button>
+        </div>
+        <div class="mv-modal__body">
+            <p class="mv-hint" style="margin-top:0;">
+                A plant can serve more than one sales org. One of them is the primary —
+                that is the org the plant reports under everywhere else in the module.
+            </p>
+            <div id="mvPlantOrgList" class="mv-stack mv-stack--tight"></div>
+
+            <form method="post" id="mvPlantOrgLinkForm" class="mv-field" style="margin-top:var(--mv-space-4);">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="link">
+                <label class="mv-label" for="mvPlantOrgSelect">Map another sales org</label>
+                <div class="mv-field-row" style="align-items:flex-end;">
+                    <select class="mv-select" id="mvPlantOrgSelect" name="organization" required>
+                        <option value="">Choose a sales org…</option>
+                        {% for node in tree %}{% for org_node in node.orgs %}
+                        <option value="{{ org_node.org.org_code }}">{{ org_node.org.org_code }} — {{ org_node.org.org_name }}</option>
+                        {% endfor %}{% endfor %}
+                    </select>
+                    <label class="mv-check" style="white-space:nowrap;">
+                        <input type="checkbox" name="is_primary" value="1"><span class="mv-t-body">Primary</span>
+                    </label>
+                    <button type="submit" class="mv-btn mv-btn--primary">{% icon "plus" %} Map</button>
+                </div>
+            </form>
+        </div>
+        <div class="mv-modal__foot">
+            <button type="button" class="mv-btn" data-mv-close-modal>Done</button>
+        </div>
+    </div>
+</div>
+
+{# Per-plant mapping data, read by the modal. Rendered as data attributes rather #}
+{# than fetched, so opening the modal costs no round trip. #}
+<div hidden id="mvPlantOrgData">
+    {% for node in tree %}{% for org_node in node.orgs %}{% for plant_node in org_node.plants %}
+    <span data-plant="{{ plant_node.plant.plant_code }}"
+          data-org="{{ org_node.org.org_code }}"
+          data-org-name="{{ org_node.org.org_name }}"
+          data-primary="{{ plant_node.is_primary|yesno:'1,0' }}"></span>
+    {% endfor %}{% endfor %}{% endfor %}
+</div>
+
+<script>
+// One POST target per plant, so the form action is rewritten as the modal opens.
+var MV_PLANT_ORG_URL = "{% url 'merilv:masters_plant_org_map' 'PLANT' %}";
+
+function mvOpenPlantOrgs(button) {
+    var plant = button.dataset.mvPlant;
+    var name = button.dataset.mvPlantName || '';
+    var action = MV_PLANT_ORG_URL.replace('PLANT', encodeURIComponent(plant));
+
+    document.getElementById('mvPlantOrgTitle').textContent =
+        'Sales org mappings — ' + plant + (name ? ' · ' + name : '');
+    document.getElementById('mvPlantOrgLinkForm').setAttribute('action', action);
+
+    // Rebuild the current-mappings list from the rendered data block.
+    var rows = document.querySelectorAll('#mvPlantOrgData [data-plant="' + plant.replace(/"/g, '\\"') + '"]');
+    var list = document.getElementById('mvPlantOrgList');
+    var csrf = document.querySelector('#mvPlantOrgLinkForm [name="csrfmiddlewaretoken"]').value;
+    list.innerHTML = '';
+
+    if (!rows.length) {
+        list.innerHTML = '<p class="mv-t-caption mv-fg-3">No sales orgs mapped yet.</p>';
+        return;
+    }
+
+    rows.forEach(function (row) {
+        var isPrimary = row.dataset.primary === '1';
+        var wrap = document.createElement('div');
+        wrap.className = 'mv-maprow' + (isPrimary ? ' mv-maprow--primary' : '');
+
+        var label = document.createElement('div');
+        label.className = 'mv-maprow__label';
+        var code = document.createElement('span');
+        code.className = 'mv-mono mv-t-strong';
+        code.textContent = row.dataset.org;
+        var orgName = document.createElement('span');
+        orgName.className = 'mv-fg-3';
+        orgName.textContent = row.dataset.orgName || '';
+        label.appendChild(code);
+        label.appendChild(orgName);
+        if (isPrimary) {
+            var badge = document.createElement('span');
+            badge.className = 'mv-badge mv-badge--ok mv-badge--sm';
+            badge.textContent = 'primary';
+            label.appendChild(badge);
+        }
+        wrap.appendChild(label);
+
+        var actions = document.createElement('div');
+        actions.className = 'mv-maprow__actions';
+        if (!isPrimary) {
+            actions.appendChild(mvMapForm(action, csrf, 'primary', row.dataset.org,
+                'Set primary', 'mv-btn--tint-ok'));
+        }
+        actions.appendChild(mvMapForm(action, csrf, 'unlink', row.dataset.org,
+            'Unmap', 'mv-btn--tint-warn'));
+        wrap.appendChild(actions);
+        list.appendChild(wrap);
+    });
+}
+
+// The mapping id is not rendered (it would leak a surrogate key into the page for
+// no benefit), so unlink/primary are keyed by org code and resolved server-side.
+function mvMapForm(action, csrf, whichAction, orgCode, label, tint) {
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.setAttribute('action', action);
+    form.style.display = 'inline';
+    form.innerHTML =
+        '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf + '">' +
+        '<input type="hidden" name="action" value="' + whichAction + '">' +
+        '<input type="hidden" name="organization" value="' + orgCode.replace(/"/g, '&quot;') + '">';
+    var button = document.createElement('button');
+    button.type = 'submit';
+    button.className = 'mv-btn mv-btn--sm ' + tint;
+    button.textContent = label;
+    form.appendChild(button);
+    return form;
+}
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Replace File — {{ batch.reference_number|default:batch.id }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/replace_batch.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:my_uploads' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back to My Uploads</a>
+    <div class="md-header">
+        <h1><i class="fas fa-file-upload"></i> Replace File</h1>
+        <p>Upload a new Excel file to replace the rejected batch. The batch will be re-submitted for HOD approval.</p>
+    </div>
+
+    <div class="rejected-banner">
+        <i class="fas fa-times-circle"></i>
+        <div>
+            <strong>This batch was rejected by HOD.</strong>
+            {% if batch.hod_comments %}
+            HOD comments: <em>"{{ batch.hod_comments }}"</em>
+            {% endif %}
+            Upload a corrected file below to re-submit.
+        </div>
+    </div>
+
+    <div class="batch-info-card">
+        <h3><i class="fas fa-info-circle" style="margin-right:6px;"></i> Batch Details</h3>
+        <div class="batch-info-grid">
+            <div class="batch-info-item">
+                <label>Reference #</label>
+                <p style="font-family:monospace;color:#d97706;">{{ batch.reference_number|default:batch.id }}</p>
+            </div>
+            <div class="batch-info-item">
+                <label>Vertical</label>
+                <p>{{ batch.vertical.name }}</p>
+            </div>
+            <div class="batch-info-item">
+                <label>Department</label>
+                <p>{{ batch.department.name }}</p>
+            </div>
+            <div class="batch-info-item">
+                <label>Requested By</label>
+                <p>{{ batch.requested_by.name|default:"—" }}</p>
+            </div>
+            <div class="batch-info-item">
+                <label>Originally Uploaded</label>
+                <p>{{ batch.uploaded_at|date:"d M Y H:i" }}</p>
+            </div>
+            <div class="batch-info-item">
+                <label>Items (Current)</label>
+                <p>{{ batch.items.count }} item{{ batch.items.count|pluralize }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if errors %}
+    <div class="alert-error">
+        <strong>Please fix the following:</strong>
+        <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <div class="md-card-form">
+        <form method="post" enctype="multipart/form-data" id="replaceForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>New Excel File <span class="req">*</span></label>
+                <input type="file" name="excel_file" id="excelFileInput" accept=".xlsx,.xls" required>
+                <p class="file-hint">Accepted format: .xlsx or .xls — same column structure as the original upload.</p>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <button type="submit" class="btn-primary" id="replaceBtn">
+                    <i class="fas fa-eye"></i> Preview &amp; Re-submit
+                </button>
+                <a href="{% url 'material_rework:my_uploads' %}" class="btn-cancel">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+<!-- Upload Loader -->
+<div id="uploadLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+    <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#f59e0b;border-radius:50%;animation:spin .85s linear infinite;"></div>
+    <div style="text-align:center;">
+        <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Re-submitting your file…</p>
+        <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+    </div>
+</div>
+<!-- Excel Preview Modal -->
+<div class="prev-overlay" id="previewOverlay">
+    <div class="prev-modal">
+        <div class="prev-head">
+            <span class="prev-title"><i class="fas fa-table" style="color:#f59e0b"></i> Excel Preview</span>
+            <button class="prev-close" onclick="closePreview()" title="Cancel">&times;</button>
+        </div>
+        <div class="prev-meta" id="previewMeta"></div>
+        <div class="prev-warn" id="previewWarn" style="display:none">
+            <i class="fas fa-exclamation-triangle"></i> Showing first <strong>100</strong> rows. The full file will be uploaded.
+        </div>
+        <div class="prev-body" id="previewBody">
+            <div class="prev-loading"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;"></i>Reading file…</div>
+        </div>
+        <div class="prev-foot">
+            <span class="prev-foot-note" id="previewFootNote"></span>
+            <div class="prev-actions">
+                <button class="btn-cancel-prev" onclick="closePreview()"><i class="fas fa-times"></i> Cancel</button>
+                <button class="btn-confirm" id="confirmBtn" onclick="confirmUpload()" disabled>
+                    <i class="fas fa-paper-plane"></i> Confirm &amp; Re-submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="{% static 'js/material-rework/replace_batch.js' %}"></script>
+{% endblock %}

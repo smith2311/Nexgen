@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Feedback Inbox{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════════════════════════
+   FEEDBACK INBOX  —  admin / superuser view
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  --fi-blue:   var(--mt-primary);
+  --fi-cyan:   var(--mt-secondary);
+  --fi-purple: var(--mt-purple);
+  --fi-green:  var(--mt-success);
+  --fi-amber:  var(--mt-warning-dark);
+  --fi-red:    var(--mt-danger);
+  --fi-radius: 14px;
+}
+
+.fi-page { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
+
+/* ── Top bar ── */
+.fi-topbar {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 24px; flex-wrap: wrap;
+}
+.fi-topbar h1 {
+  margin: 0; font-size: 1.5em; font-weight: 700; color: var(--mt-gray-800);
+  display: flex; align-items: center; gap: 10px;
+}
+.fi-topbar-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+.fi-btn {
+  padding: 9px 18px;
+  border-radius: 9px; border: 1.5px solid var(--mt-gray-200);
+  background: #fff; color: var(--mt-gray-700);
+  font-size: .88em; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+  display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none;
+}
+.fi-btn:hover { border-color: var(--fi-blue); color: var(--fi-blue); background: var(--mt-primary-lighter); }
+.fi-btn.primary {
+  background: linear-gradient(135deg, var(--fi-blue), var(--fi-cyan));
+  color: #fff; border-color: transparent;
+}
+.fi-btn.primary:hover { opacity: .88; color: #fff; }
+
+/* ── Stats row ── */
+.fi-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-bottom: 22px;
+}
+@media (max-width: 900px) { .fi-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .fi-stats { grid-template-columns: 1fr 1fr; } }
+
+.fi-stat {
+  background: #fff; border-radius: var(--fi-radius);
+  padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  display: flex; align-items: center; gap: 14px;
+}
+.fi-stat-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3em; flex-shrink: 0;
+}
+.fi-stat-val { font-size: 1.7em; font-weight: 800; color: var(--mt-gray-800); line-height: 1; }
+.fi-stat-label { font-size: .8em; color: var(--mt-gray-600); margin-top: 2px; }
+
+/* ── Main layout ── */
+.fi-layout {
+  display: grid; grid-template-columns: 1fr 1.6fr;
+  gap: 18px; align-items: start;
+}
+@media (max-width: 860px) { .fi-layout { grid-template-columns: 1fr; } }
+
+/* ── Panel card ── */
+.fi-panel {
+  background: #fff; border-radius: var(--fi-radius);
+  box-shadow: 0 2px 14px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+.fi-panel-header {
+  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--fi-blue), var(--fi-cyan));
+  color: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fi-panel-header h2 { margin: 0; font-size: 1em; font-weight: 700; display:flex; gap:8px; align-items:center; }
+
+/* ── Filters ── */
+.fi-filters {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--mt-gray-100);
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.fi-filter-btn {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid var(--mt-gray-200); background: #fff;
+  font-size: .8em; font-weight: 600; color: var(--mt-gray-600);
+  cursor: pointer; transition: all .18s;
+}
+.fi-filter-btn:hover, .fi-filter-btn.active {
+  border-color: var(--fi-blue); background: var(--mt-primary-lighter); color: var(--fi-blue);
+}
+.fi-filter-btn.severity-critical.active { border-color: var(--mt-danger-dark); background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+.fi-filter-btn.severity-high.active    { border-color: var(--mt-danger-dark); background: var(--mt-danger-light); color: var(--mt-danger-dark); }
+
+/* Search */
+.fi-search {
+  padding: 10px 16px; border-bottom: 1px solid var(--mt-gray-100);
+  display: flex; gap: 8px; align-items: center;
+}
+.fi-search-input {
+  flex: 1; border: 1.5px solid var(--mt-gray-200); border-radius: 8px;
+  padding: 8px 12px; font-size: .88em; font-family: inherit;
+  transition: border-color .2s;
+}
+.fi-search-input:focus { outline: none; border-color: var(--fi-blue); }
+
+/* Ticket rows */
+.fi-ticket-list { overflow-y: auto; max-height: 520px; }
+.fi-ticket-row {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--mt-gray-50);
+  cursor: pointer; transition: background .15s;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.fi-ticket-row:hover   { background: var(--mt-primary-lighter); }
+.fi-ticket-row.active  { background: var(--mt-primary-lighter); border-left: 3px solid var(--fi-blue); }
+.fi-ticket-row.unread  { background: var(--mt-warning-light); }
+.fi-ticket-row.unread.active { background: var(--mt-primary-lighter); }
+.fi-cat-dot {
+  width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1em; flex-shrink: 0; margin-top: 2px;
+}
+.fi-row-body { flex: 1; min-width: 0; }
+.fi-row-title {
+  font-weight: 600; font-size: .9em; color: var(--mt-gray-800);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.fi-row-meta { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; font-size: .76em; color: var(--mt-gray-600); }
+.fi-row-id   { font-weight: 700; color: var(--fi-blue); }
+
+/* Unread dot */
+.fi-unread-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--fi-amber); flex-shrink: 0; margin-top: 6px;
+}
+
+/* Badges */
+.fi-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: .74em; font-weight: 700;
+}
+.fi-badge-open        { background:var(--mt-info-light); color:var(--mt-primary-dark); }
+.fi-badge-in_progress { background:var(--mt-warning-light); color:var(--mt-warning-text); }
+.fi-badge-resolved    { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.fi-badge-closed      { background:var(--mt-gray-100); color:var(--mt-gray-700); }
+.fi-badge-low         { background:var(--mt-success-light); color:var(--mt-success-dark); }
+.fi-badge-medium      { background:var(--mt-warning-light); color:var(--mt-warning-text); }
+.fi-badge-high        { background:var(--mt-danger-light); color:var(--mt-danger-dark); }
+.fi-badge-critical    { background:var(--mt-danger-light); color:var(--mt-danger-dark); }
+
+/* Loading / empty */
+.fi-list-empty { padding:40px 20px; text-align:center; color:var(--mt-gray-400); font-size:.9em; }
+
+/* ── Right panel: ticket detail ── */
+.fi-detail { display:flex; flex-direction:column; height:100%; min-height:480px; }
+.fi-detail-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--mt-gray-100);
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start;
+}
+.fi-detail-title {
+  font-size: 1.05em; font-weight: 700; color: var(--mt-gray-800); flex: 1; min-width: 0;
+}
+.fi-detail-meta {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px;
+}
+.fi-detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* Status dropdown */
+.fi-status-sel {
+  padding: 6px 28px 6px 10px; border-radius: 8px;
+  border: 1.5px solid var(--mt-gray-200); font-size: .83em; font-weight: 600;
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 14px;
+  font-family: inherit;
+}
+
+/* Submitter info strip */
+.fi-submitter {
+  padding: 10px 20px; background: var(--mt-gray-50); border-bottom: 1px solid var(--mt-gray-100);
+  font-size: .82em; color: var(--mt-gray-600);
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+}
+.fi-submitter strong { color: var(--mt-gray-700); }
+.fi-submitter a { color: var(--fi-blue); text-decoration: none; }
+
+/* Description block */
+.fi-desc-block {
+  margin: 14px 20px 0;
+  background: var(--mt-gray-50); border-left: 3px solid var(--fi-blue);
+  border-radius: 0 8px 8px 0; padding: 14px 16px;
+  font-size: .91em; color: var(--mt-gray-700); white-space: pre-wrap; line-height: 1.6;
+}
+
+/* Thread */
+.fi-thread { flex:1; overflow-y:auto; padding: 18px 20px; display:flex; flex-direction:column; gap:14px; }
+.fi-msg { display:flex; gap:12px; align-items:flex-end; }
+.fi-msg.from-user { flex-direction: row-reverse; }
+.fi-msg-av {
+  width:34px; height:34px; border-radius:50%;
+  background: linear-gradient(135deg,var(--mt-purple),var(--mt-purple-border));
+  color:#fff; font-weight:700; font-size:.82em;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.fi-msg.from-user .fi-msg-av { background: linear-gradient(135deg,var(--mt-primary),var(--mt-secondary)); }
+.fi-bubble {
+  max-width:74%; padding:11px 15px; border-radius:14px;
+  font-size:.9em; line-height:1.6; white-space:pre-wrap; word-wrap:break-word;
+}
+.fi-bubble.admin-bubble   { background:var(--mt-purple-light); color:var(--mt-gray-800); border-bottom-left-radius:4px; }
+.fi-bubble.user-bubble    { background:linear-gradient(135deg,var(--mt-primary),var(--mt-secondary)); color:#fff; border-bottom-right-radius:4px; }
+.fi-bubble.internal-note  { background:var(--mt-warning-light); border:1px dashed var(--mt-warning-dark); color:var(--mt-warning-text); border-bottom-left-radius:4px; }
+.fi-bubble-time { font-size:.71em; color:var(--mt-gray-400); margin-top:4px; }
+.fi-msg.from-user .fi-bubble-time { text-align:right; }
+.fi-no-thread { flex:1; display:flex; align-items:center; justify-content:center; padding:40px; text-align:center; color:var(--mt-gray-400); flex-direction:column; }
+.fi-no-thread i { font-size:3em; margin-bottom:14px; opacity:.35; }
+
+/* Screenshot */
+.fi-screenshot { margin: 10px 20px 0; }
+.fi-screenshot img { max-width:100%; border-radius:8px; border:1px solid var(--mt-gray-200); cursor:zoom-in; }
+
+/* Reply area */
+.fi-reply-area {
+  padding: 14px 18px; border-top: 1px solid var(--mt-gray-100);
+  background: var(--mt-gray-50);
+}
+.fi-reply-row { display:flex; gap:10px; align-items:flex-end; margin-bottom:8px; }
+.fi-reply-ta {
+  flex:1; padding:10px 14px; border:1.5px solid var(--mt-gray-200); border-radius:10px;
+  font-size:.9em; resize:none; min-height:44px; max-height:110px;
+  font-family:inherit; line-height:1.5; transition:border-color .2s;
+}
+.fi-reply-ta:focus { outline:none; border-color:var(--fi-purple); }
+.fi-reply-send {
+  padding:10px 18px; border-radius:10px;
+  background:linear-gradient(135deg,var(--fi-purple),var(--mt-purple-border));
+  color:#fff; border:none; font-weight:700; font-size:.9em;
+  cursor:pointer; transition:opacity .2s; white-space:nowrap;
+  display:flex; align-items:center; gap:6px;
+}
+.fi-reply-send:hover { opacity:.88; }
+.fi-reply-send:disabled { opacity:.45; cursor:not-allowed; }
+.fi-internal-row { display:flex; align-items:center; gap:8px; font-size:.82em; color:var(--mt-gray-600); }
+.fi-internal-row input { cursor:pointer; }
+
+/* Lightbox */
+.fi-lightbox {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.8);
+  z-index:9999; align-items:center; justify-content:center; cursor:zoom-out;
+}
+.fi-lightbox.open { display:flex; }
+.fi-lightbox img { max-width:92vw; max-height:90vh; border-radius:8px; }
+
+/* Toast */
+.fi-toast {
+  position:fixed; bottom:28px; right:28px;
+  padding:13px 20px; border-radius:10px; color:#fff;
+  font-weight:600; font-size:.9em; z-index:10000;
+  display:flex; align-items:center; gap:9px;
+  box-shadow:0 6px 20px rgba(0,0,0,.18);
+  transform:translateY(70px); opacity:0;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s;
+}
+.fi-toast.show    { transform:translateY(0); opacity:1; }
+.fi-toast.success { background:var(--fi-green); }
+.fi-toast.error   { background:var(--fi-red); }
+
+@media (max-width: 860px) {
+  .fi-layout { grid-template-columns:1fr; }
+  .fi-ticket-list { max-height:340px; }
+}
+
+@media (max-width: 640px) {
+  .fi-page { padding: 16px 13px 40px; }
+  .fi-topbar { gap: 12px; margin-bottom: 18px; }
+  .fi-topbar h1 { font-size: 1.15em; }
+  .fi-topbar-actions {
+    margin-left: 0; width: 100%;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;
+  }
+  .fi-btn { justify-content: center; min-height: 44px; font-size: .84em; padding: 10px 12px; }
+  .fi-stat { padding: 13px 14px; gap: 11px; }
+  .fi-stat-icon { width: 38px; height: 38px; font-size: 1.05em; border-radius: 10px; }
+  .fi-stat-val { font-size: 1.3em; }
+  .fi-stat-label { font-size: .74em; }
+  .fi-page input, .fi-page select, .fi-page textarea { font-size: 16px; }
+  .fi-page button { min-height: 40px; }
+  .fi-lightbox img { max-width: 96vw; }
+}
+@media (max-width: 380px) {
+  .fi-page { padding: 12px 10px 32px; }
+  .fi-topbar-actions { grid-template-columns: 1fr; }
+  .fi-stats { grid-template-columns: 1fr !important; }
+}
+</style>
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-motion.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/meritrack-responsive.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="fi-page">
+
+  <!-- Top bar -->
+  <div class="fi-topbar">
+    <h1>
+      <span style="background:linear-gradient(135deg,var(--mt-primary),var(--mt-secondary));width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.9em;">📬</span>
+      Feedback Inbox
+    </h1>
+    <div class="fi-topbar-actions">
+      <a href="/dashboard/" class="fi-btn">
+        <i class="fas fa-arrow-left"></i> Back
+      </a>
+      <a href="/feedback/" class="fi-btn">
+        <i class="fas fa-plus"></i> My Feedback
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="fi-stats" id="fiStatsRow">
+    <div class="fi-stat">
+      <div class="fi-stat-icon" style="background:var(--mt-primary-lighter);color:var(--fi-blue);">📥</div>
+      <div>
+        <div class="fi-stat-val" id="fiStatTotal">{{ total }}</div>
+        <div class="fi-stat-label">Total Tickets</div>
+      </div>
+    </div>
+    <div class="fi-stat">
+      <div class="fi-stat-icon" style="background:var(--mt-warning-light);color:var(--fi-amber);">🔓</div>
+      <div>
+        <div class="fi-stat-val" id="fiStatOpen" style="color:var(--fi-amber);">{{ open_count }}</div>
+        <div class="fi-stat-label">Open</div>
+      </div>
+    </div>
+    <div class="fi-stat">
+      <div class="fi-stat-icon" style="background:var(--mt-danger-light);color:var(--mt-danger-dark);">🚨</div>
+      <div>
+        <div class="fi-stat-val" id="fiStatCritical" style="color:var(--mt-danger-dark);">{{ critical_count }}</div>
+        <div class="fi-stat-label">Critical Open</div>
+      </div>
+    </div>
+    <div class="fi-stat">
+      <div class="fi-stat-icon" style="background:var(--mt-warning-light);color:var(--fi-amber);">🔔</div>
+      <div>
+        <div class="fi-stat-val" id="fiStatUnread" style="color:var(--fi-amber);">{{ unread_count }}</div>
+        <div class="fi-stat-label">Unread</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="fi-layout">
+
+    <!-- ══ LEFT: Ticket list ══════════════════════════════════════════ -->
+    <div class="fi-panel">
+      <div class="fi-panel-header">
+        <h2><i class="fas fa-list-ul"></i> Tickets</h2>
+        <span id="fiListCount" style="font-size:.82em;opacity:.85;"></span>
+      </div>
+
+      <!-- Search -->
+      <div class="fi-search">
+        <i class="fas fa-search" style="color:var(--mt-gray-400);font-size:.9em;"></i>
+        <input type="text" id="fiSearchInput" class="fi-search-input" placeholder="Search title, ID, user…">
+      </div>
+
+      <!-- Status filter -->
+      <div class="fi-filters" id="fiStatusFilter">
+        <button class="fi-filter-btn active" data-filter="all">All</button>
+        {% for val, label in status_choices %}
+        <button class="fi-filter-btn" data-filter="{{ val }}">{{ label }}</button>
+        {% endfor %}
+        <button class="fi-filter-btn severity-critical" data-filter="critical" data-type="severity">🚨 Critical</button>
+      </div>
+
+      <!-- Category filter -->
+      <div class="fi-filters" id="fiCatFilter" style="padding-top:4px;">
+        {% for val, label in category_choices %}
+        <button class="fi-filter-btn" data-cat="{{ val }}"
+          style="font-size:.75em;">
+          {% if val == 'bug' %}🐛{% elif val == 'feature' %}💡{% elif val == 'ux' %}🎨
+          {% elif val == 'performance' %}⚡{% elif val == 'data' %}📊{% else %}💬{% endif %}
+          {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- List -->
+      <div class="fi-ticket-list" id="fiTicketList">
+        <div class="fi-list-empty">
+          <div style="font-size:2em;margin-bottom:8px;">⏳</div>Loading tickets…
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RIGHT: Ticket detail ══════════════════════════════════════ -->
+    <div class="fi-panel" id="fiDetailPanel">
+      <div class="fi-detail" id="fiDetailInner">
+        <div class="fi-no-thread">
+          <i class="fas fa-inbox"></i>
+          <p>Select a ticket to view details<br>and reply to the user.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Screenshot lightbox -->
+<div class="fi-lightbox" id="fiLightbox" onclick="closeLightbox()">
+  <img id="fiLightboxImg" src="" alt="Screenshot">
+</div>
+
+<!-- Toast -->
+<div class="fi-toast" id="fiToast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const API_BASE  = "{{ api_base }}";
+const CSRF      = "{{ csrf_token }}";
+const CAT_ICONS = {bug:'🐛',feature:'💡',ux:'🎨',performance:'⚡',data:'📊',other:'💬'};
+const CAT_BG    = {bug:'var(--mt-danger-light)',feature:'var(--mt-primary-lighter)',ux:'var(--mt-purple-light)',performance:'var(--mt-warning-light)',data:'var(--mt-success-light)',other:'var(--mt-gray-100)'};
+const SEV_CLS   = {low:'fi-badge-low',medium:'fi-badge-medium',high:'fi-badge-high',critical:'fi-badge-critical'};
+const ST_CLS    = {open:'fi-badge-open',in_progress:'fi-badge-in_progress',resolved:'fi-badge-resolved',closed:'fi-badge-closed'};
+
+let allTickets    = [];
+let currentFilter = 'all';
+let currentCat    = '';
+let currentSearch = '';
+let currentId     = null;
+
+/* ══ Toast ═════════════════════════════════════════════════════════════ */
+function toast(msg, type='success') {
+  const el = document.getElementById('fiToast');
+  el.className = `fi-toast ${type}`;
+  el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+/* ══ API ════════════════════════════════════════════════════════════════ */
+async function apiFetch(url, opts={}) {
+  const headers = {'X-CSRFToken': CSRF, ...opts.headers};
+  if (!(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    if (opts.body && typeof opts.body === 'object') opts.body = JSON.stringify(opts.body);
+  }
+  const res  = await fetch(url, {...opts, headers});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw data;
+  return data;
+}
+
+/* ══ Load all tickets ═══════════════════════════════════════════════════ */
+async function loadAll() {
+  try {
+    const data = await apiFetch(`${API_BASE}/feedback/`);
+    allTickets = data.results || data;
+    renderList();
+    refreshStats();
+  } catch {
+    document.getElementById('fiTicketList').innerHTML =
+      `<div class="fi-list-empty">Failed to load tickets.</div>`;
+  }
+}
+
+function refreshStats() {
+  apiFetch(`${API_BASE}/feedback/stats/`).then(s => {
+    document.getElementById('fiStatTotal').textContent    = s.total;
+    document.getElementById('fiStatOpen').textContent     = s.by_status.open || 0;
+    document.getElementById('fiStatCritical').textContent = s.critical_open;
+    document.getElementById('fiStatUnread').textContent   = s.unread;
+  }).catch(() => {});
+}
+
+/* ══ Render filtered list ═══════════════════════════════════════════════ */
+function renderList() {
+  const q = currentSearch.toLowerCase();
+  const filtered = allTickets.filter(t => {
+    const matchStatus = currentFilter === 'all' ||
+      (currentFilter === 'critical' ? t.severity === 'critical' : t.status === currentFilter);
+    const matchCat    = !currentCat || t.category === currentCat;
+    const matchSearch = !q ||
+      t.title.toLowerCase().includes(q) ||
+      t.feedback_id.toLowerCase().includes(q) ||
+      (t.submitter_name || '').toLowerCase().includes(q);
+    return matchStatus && matchCat && matchSearch;
+  });
+
+  const list = document.getElementById('fiTicketList');
+  document.getElementById('fiListCount').textContent = `${filtered.length} ticket${filtered.length!==1?'s':''}`;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="fi-list-empty">
+      <div style="font-size:2em;margin-bottom:8px;">🔍</div>No matching tickets.
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => `
+    <div class="fi-ticket-row${t.id===currentId?' active':''}${!t.is_read_by_admin?' unread':''}"
+         data-id="${t.id}" onclick="openTicket(${t.id})">
+      <div class="fi-cat-dot" style="background:${CAT_BG[t.category]||'var(--mt-gray-100)'}">${CAT_ICONS[t.category]||'📌'}</div>
+      <div class="fi-row-body">
+        <div class="fi-row-title">${esc(t.title)}</div>
+        <div class="fi-row-meta">
+          <span class="fi-row-id">${t.feedback_id}</span>
+          <span class="fi-badge ${ST_CLS[t.status]||''}">${t.status_display}</span>
+          <span class="fi-badge ${SEV_CLS[t.severity]||''}">${t.severity_display}</span>
+          ${t.reply_count ? `<i class="fas fa-comment" style="color:var(--mt-purple);font-size:.8em;"></i><span style="font-size:.78em;color:var(--mt-purple);">${t.reply_count}</span>` : ''}
+          <span>${relTime(t.submitted_at)}</span>
+        </div>
+      </div>
+      ${!t.is_read_by_admin ? '<div class="fi-unread-dot"></div>' : ''}
+    </div>`).join('');
+}
+
+/* ══ Filter buttons ════════════════════════════════════════════════════ */
+document.getElementById('fiStatusFilter').addEventListener('click', e => {
+  const btn = e.target.closest('.fi-filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('#fiStatusFilter .fi-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  renderList();
+});
+
+document.getElementById('fiCatFilter').addEventListener('click', e => {
+  const btn = e.target.closest('.fi-filter-btn');
+  if (!btn) return;
+  const cat = btn.dataset.cat;
+  if (currentCat === cat) {
+    currentCat = '';
+    document.querySelectorAll('#fiCatFilter .fi-filter-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    currentCat = cat;
+    document.querySelectorAll('#fiCatFilter .fi-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderList();
+});
+
+document.getElementById('fiSearchInput').addEventListener('input', e => {
+  currentSearch = e.target.value;
+  renderList();
+});
+
+/* ══ Open a ticket ══════════════════════════════════════════════════════ */
+async function openTicket(id) {
+  currentId = id;
+  renderList(); // re-highlight active
+
+  try {
+    const t = await apiFetch(`${API_BASE}/feedback/${id}/`);
+    // Mark read
+    if (!t.is_read_by_admin) {
+      apiFetch(`${API_BASE}/feedback/${id}/mark_read/`, {method:'POST'}).then(() => {
+        const row = allTickets.find(x => x.id === id);
+        if (row) row.is_read_by_admin = true;
+        renderList();
+        refreshStats();
+      }).catch(() => {});
+    }
+    renderDetail(t);
+  } catch {
+    toast('Could not load ticket.', 'error');
+  }
+}
+
+/* ══ Render detail ══════════════════════════════════════════════════════ */
+function renderDetail(t) {
+  const panel = document.getElementById('fiDetailInner');
+  const svCls = SEV_CLS[t.severity] || '';
+  const stCls = ST_CLS[t.status]    || '';
+  const icon  = CAT_ICONS[t.category] || '📌';
+
+  const statusOptions = [
+    {v:'open',label:'Open'},
+    {v:'in_progress',label:'In Progress'},
+    {v:'resolved',label:'Resolved'},
+    {v:'closed',label:'Closed'},
+  ].map(s => `<option value="${s.v}"${t.status===s.v?' selected':''}>${s.label}</option>`).join('');
+
+  // Build reply thread HTML
+  const repliesHtml = (t.replies || []).map(r => {
+    const isAdmin = r.replied_by_is_admin;
+    const cls     = isAdmin ? 'fi-msg' : 'fi-msg from-user';
+    const bubCls  = r.is_internal ? 'fi-bubble internal-note' : (isAdmin ? 'fi-bubble admin-bubble' : 'fi-bubble user-bubble');
+    const label   = r.is_internal ? `🔒 Internal Note · ${esc(r.replied_by_name)}` : `${esc(r.replied_by_name)}${isAdmin?' · Support':' · User'}`;
+    const align   = isAdmin ? 'left' : 'right';
+    return `
+      <div class="${cls}">
+        <div class="fi-msg-av">${initials(r.replied_by_name)}</div>
+        <div>
+          <div style="font-size:.74em;color:var(--mt-gray-600);margin-bottom:3px;text-align:${align};">${label}</div>
+          <div class="${bubCls}">${esc(r.message)}</div>
+          <div class="fi-bubble-time">${fmtDate(r.replied_at)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const screenshotHtml = t.screenshot_url ? `
+    <div class="fi-screenshot">
+      <p style="font-size:.8em;color:var(--mt-gray-600);margin:0 0 6px;"><i class="fas fa-image"></i> Screenshot attached</p>
+      <img src="${t.screenshot_url}" alt="Screenshot" onclick="openLightbox(this.src)" style="max-height:180px;object-fit:contain;">
+    </div>` : '';
+
+  const isClosed = t.status === 'closed';
+
+  panel.innerHTML = `
+    <div class="fi-detail">
+      <!-- Header -->
+      <div class="fi-detail-header">
+        <div style="flex:1;min-width:0;">
+          <div class="fi-detail-title">${icon} ${esc(t.title)}</div>
+          <div class="fi-detail-meta">
+            <span style="font-weight:700;color:var(--fi-blue);font-size:.82em;">${t.feedback_id}</span>
+            <span class="fi-badge ${stCls}">${t.status_display}</span>
+            <span class="fi-badge ${svCls}">${t.severity_display}</span>
+            <span style="font-size:.8em;color:var(--mt-gray-600);">${t.module_display}</span>
+          </div>
+        </div>
+        <div class="fi-detail-actions">
+          <select class="fi-status-sel" id="fiStatusSel" onchange="changeStatus(${t.id}, this.value)">${statusOptions}</select>
+        </div>
+      </div>
+
+      <!-- Submitter strip -->
+      <div class="fi-submitter">
+        <span>👤 <strong>${esc(t.submitter_name)}</strong> · ${t.submitter_role_label}</span>
+        ${t.submitter_email ? `<span><a href="mailto:${t.submitter_email}">${t.submitter_email}</a></span>` : ''}
+        <span>🕐 ${fmtDate(t.submitted_at)}</span>
+      </div>
+
+      <!-- Description -->
+      <div class="fi-desc-block">${esc(t.description)}</div>
+
+      ${screenshotHtml}
+
+      <!-- Thread -->
+      <div class="fi-thread" id="fiThread">
+        ${repliesHtml || `<div class="fi-no-thread"><i class="fas fa-comments"></i><p>No replies yet.<br>Be the first to respond.</p></div>`}
+      </div>
+
+      <!-- Reply area -->
+      ${!isClosed ? `
+      <div class="fi-reply-area">
+        <div class="fi-reply-row">
+          <textarea class="fi-reply-ta" id="fiReplyTa"
+            placeholder="Type your reply to ${esc(t.submitter_name)}…" rows="2"></textarea>
+          <button class="fi-reply-send" id="fiReplySendBtn" onclick="sendAdminReply(${t.id})">
+            <i class="fas fa-paper-plane"></i> Send Reply
+          </button>
+        </div>
+        <div class="fi-internal-row">
+          <input type="checkbox" id="fiInternalCheck">
+          <label for="fiInternalCheck">🔒 Internal note (not sent to user)</label>
+        </div>
+      </div>` : `
+      <div style="padding:14px 20px;text-align:center;background:var(--mt-gray-50);font-size:.85em;color:var(--mt-gray-600);">
+        <i class="fas fa-lock"></i> This ticket is closed. Reopen to reply.
+      </div>`}
+    </div>`;
+
+  // Scroll thread to bottom
+  const thread = document.getElementById('fiThread');
+  if (thread) thread.scrollTop = thread.scrollHeight;
+
+  // Auto-expand reply textarea
+  const ta = document.getElementById('fiReplyTa');
+  if (ta) {
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
+    });
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminReply(t.id); }
+    });
+  }
+}
+
+/* ══ Admin reply ════════════════════════════════════════════════════════ */
+async function sendAdminReply(id) {
+  const ta         = document.getElementById('fiReplyTa');
+  const btn        = document.getElementById('fiReplySendBtn');
+  const isInternal = document.getElementById('fiInternalCheck')?.checked || false;
+  const msg        = ta?.value.trim();
+  if (!msg) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+
+  try {
+    await apiFetch(`${API_BASE}/feedback/${id}/reply/`, {
+      method: 'POST',
+      body: { message: msg, is_internal: isInternal }
+    });
+    toast(isInternal ? '🔒 Internal note saved.' : '✅ Reply sent to user!');
+    loadAll();
+    // Reload detail
+    const t = await apiFetch(`${API_BASE}/feedback/${id}/`);
+    renderDetail(t);
+  } catch (err) {
+    toast(err.detail || 'Could not send reply.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reply';
+  }
+}
+
+/* ══ Change status ══════════════════════════════════════════════════════ */
+async function changeStatus(id, newStatus) {
+  try {
+    const t = await apiFetch(`${API_BASE}/feedback/${id}/status/`, {
+      method: 'PATCH', body: { status: newStatus }
+    });
+    toast(`✅ Status updated to "${t.status_display}"`);
+    // Update in allTickets
+    const idx = allTickets.findIndex(x => x.id === id);
+    if (idx >= 0) { allTickets[idx].status = t.status; allTickets[idx].status_display = t.status_display; }
+    renderList();
+    refreshStats();
+  } catch (err) {
+    toast(err.detail || 'Failed to update status.', 'error');
+    // Reset select
+    const sel = document.getElementById('fiStatusSel');
+    const current = allTickets.find(x => x.id === id);
+    if (sel && current) sel.value = current.status;
+  }
+}
+
+/* ══ Lightbox ═══════════════════════════════════════════════════════════ */
+function openLightbox(src) {
+  document.getElementById('fiLightboxImg').src = src;
+  document.getElementById('fiLightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('fiLightbox').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+/* ══ Utils ══════════════════════════════════════════════════════════════ */
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function initials(name) {
+  return (name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+function relTime(iso) {
+  const diff = (Date.now() - new Date(iso)) / 1000;
+  if (diff < 60)     return 'Just now';
+  if (diff < 3600)   return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400)  return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+  return fmtDate(iso);
+}
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('en-IN', {
+    day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+  });
+}
+
+/* ══ Init ═══════════════════════════════════════════════════════════════ */
+loadAll();
+// Auto-refresh every 60 s
+setInterval(() => { if (!currentId) loadAll(); }, 60000);
+</script>
+<script src="{% static 'meritrack/js/meritrack-ui.js' %}" defer></script>
+{% endblock %}

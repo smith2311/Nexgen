@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static vm_extras %}
+
+{% block title %}{{ vendor.vendor_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendorlink/css/vendorlink-ds.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="vlx">
+<div class="vlx-wrap">
+
+    <div class="vlx-breadcrumb">
+        <a href="{% url 'vendorlink:index' %}">VendorLink</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:vm_home' %}">Vendor Master</a>
+        <span class="sep">/</span>
+        <a href="{% url 'vendorlink:vendor_list' %}">Directory</a>
+        <span class="sep">/</span>
+        <span class="current">{{ vendor.vendor_name }}</span>
+    </div>
+
+    {% if messages %}
+    <div class="vlx-alerts">
+        {% for m in messages %}
+        <div class="vlx-alert vlx-alert--{{ m.tags }}"><i class="fas fa-circle-info"></i><div>{{ m }}</div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="vlx-detailhead">
+        <div class="vlx-detailhead__main">
+            <span class="vlx-avatar vlx-avatar--lg">{{ vendor.vendor_name|first|upper }}</span>
+            <div>
+                <h1 class="vlx-detailhead__title">{{ vendor.vendor_name }}</h1>
+                <div class="vlx-loc" style="margin-top:6px;"><i class="fas fa-location-dot"></i> {{ vendor.country }}{% if vendor.state %}, {{ vendor.state }}{% endif %}{% if vendor.city %}, {{ vendor.city }}{% endif %}</div>
+                <div class="vlx-detailhead__meta">
+                    <span class="vlx-pill vlx-pill--info"><i class="fas fa-shield-halved"></i> {{ vendor.capability_count }}/{{ capability_total }} capable</span>
+                    {% if vendor.is_active %}
+                    <span class="vlx-pill vlx-pill--active"><i class="fas fa-circle"></i> Active</span>
+                    {% else %}
+                    <span class="vlx-pill vlx-pill--draft"><i class="fas fa-circle-pause"></i> Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="vlx-detailhead__actions">
+            <a href="{% url 'vendorlink:vendor_list' %}" class="vlx-btn vlx-btn--outline"><i class="fas fa-arrow-left"></i> Back</a>
+            {% if is_vm_admin %}
+            <a href="{% url 'vendorlink:vendor_edit' vendor.pk %}" class="vlx-btn vlx-btn--primary"><i class="fas fa-pen"></i> Edit</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vlx-detailgrid">
+        <!-- LEFT column -->
+        <div class="vlx-stack">
+            <!-- Info -->
+            <div class="vlx-card">
+                <div class="vlx-card__body">
+                    <h3 class="vlx-section-title" style="margin-bottom:16px;"><i class="fas fa-circle-info"></i> Vendor Information</h3>
+                    <div class="vlx-info">
+                        <div><div class="vlx-info__label">Country</div><div class="vlx-info__value">{{ vendor.country }}</div></div>
+                        <div><div class="vlx-info__label">State / Region</div><div class="vlx-info__value">{{ vendor.state|default:"—" }}</div></div>
+                        <div><div class="vlx-info__label">City</div><div class="vlx-info__value">{{ vendor.city|default:"—" }}</div></div>
+                        <div><div class="vlx-info__label">Warehouse Location</div><div class="vlx-info__value">{{ vendor.warehouse_location|default:"—" }}</div></div>
+                        <div><div class="vlx-info__label">Contact Person</div><div class="vlx-info__value">{{ vendor.contact_person|default:"—" }}</div></div>
+                        <div><div class="vlx-info__label">Email</div><div class="vlx-info__value">{% if vendor.email %}<a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a>{% else %}—{% endif %}</div></div>
+                        <div><div class="vlx-info__label">Mobile</div><div class="vlx-info__value">{{ vendor.mobile|default:"—" }}</div></div>
+                        <div><div class="vlx-info__label">Website</div><div class="vlx-info__value">{% if vendor.website %}<a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a>{% else %}—{% endif %}</div></div>
+                        <div><div class="vlx-info__label">Created</div><div class="vlx-info__value"><time data-utc="{{ vendor.created_at|date:'c' }}" data-fmt="short">{{ vendor.created_at|date:"d M Y" }}</time></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Capabilities -->
+            <div class="vlx-card">
+                <div class="vlx-card__body">
+                    <h3 class="vlx-section-title" style="margin-bottom:16px;"><i class="fas fa-layer-group"></i> Capabilities</h3>
+                    <div class="vlx-caplist">
+                        {% for field, label, icon in capability_fields %}
+                        <div class="vlx-caprow {% if vendor|attr:field %}on{% endif %}">
+                            <span class="vlx-caprow__ic"><i class="fas {{ icon }}"></i></span>
+                            <span class="vlx-caprow__name">{{ label }}</span>
+                            {% if vendor|attr:field %}
+                            <span class="vlx-pill vlx-pill--yes"><i class="fas fa-check"></i> Yes</span>
+                            {% else %}
+                            <span class="vlx-pill vlx-pill--draft">No</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT column -->
+        <div class="vlx-stack">
+            {% if is_vm_admin %}
+            <!-- Portal Access -->
+            <div class="vlx-card" style="border-left:3px solid {% if portal_user %}var(--vlx-success){% else %}var(--vlx-ink-300){% endif %};">
+                <div class="vlx-card__body">
+                    <h3 class="vlx-section-title" style="margin-bottom:16px;"><i class="fas fa-key" style="color:{% if portal_user %}var(--vlx-success){% else %}var(--vlx-ink-300){% endif %};"></i> Vendor Portal Access</h3>
+
+                    {% if portal_user %}
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                        <span class="vlx-pill vlx-pill--yes"><i class="fas fa-circle-check"></i> Account active</span>
+                        <span class="vlx-muted" style="font-size:.82rem;">{{ portal_user.email }}</span>
+                    </div>
+                    <p class="vlx-muted" style="font-size:.82rem;line-height:1.6;margin-bottom:14px;">
+                        This vendor has a portal login. They can view and respond to price bid requests.
+                        Use the button below to <strong>reset their password</strong> and send fresh credentials if they can't log in.
+                    </p>
+                    {% if vendor.email %}
+                    <form method="post" action="{% url 'vendorlink:vendor_grant_access' vendor.pk %}"
+                          data-vl-confirm="Reset portal password for {{ vendor.vendor_name }} and resend credentials to {{ vendor.email }}?"
+                          data-vl-confirm-title="Reset Password">
+                        {% csrf_token %}
+                        <button type="submit" class="vlx-btn vlx-btn--outline vlx-btn--sm">
+                            <i class="fas fa-rotate"></i> Reset Password &amp; Resend Credentials
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% else %}
+                    <p style="font-size:.82rem;line-height:1.6;margin-bottom:14px;" class="{% if not vendor.email %}vlx-error{% else %}vlx-muted{% endif %}">
+                        {% if vendor.email %}
+                        This vendor does not yet have a portal login account.
+                        Click the button below to create one and send credentials to <strong>{{ vendor.email }}</strong>.
+                        They will receive a temporary password and be prompted to set a permanent password on first login.
+                        {% else %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        No email address on file — add an email to this vendor before granting portal access.
+                        {% endif %}
+                    </p>
+                    {% if vendor.email %}
+                    <form method="post" action="{% url 'vendorlink:vendor_grant_access' vendor.pk %}"
+                          data-vl-confirm="Create a portal account for {{ vendor.vendor_name }} and send credentials to {{ vendor.email }}?"
+                          data-vl-confirm-title="Grant Portal Access">
+                        {% csrf_token %}
+                        <button type="submit" class="vlx-btn vlx-btn--primary vlx-btn--sm">
+                            <i class="fas fa-key"></i> Grant Portal Access &amp; Send Credentials
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}

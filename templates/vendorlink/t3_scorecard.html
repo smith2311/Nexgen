@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+TIER 3.4 — Vendor Scorecard.
+
+Wireframe
+    breadcrumb / title / vendor picker
+    ┌ radar (4 attributes) ┐┌ weighted score (big mono) + per-attribute bars ┐
+    ┌ score history (line) ─────────────────────────────────────────────────┐
+    ┌ category cards: score bar + the comment left for that period ─────────┐
+
+The radar is the shape of one scoring event; the line underneath is how the
+weighted score has moved. Both are needed — a single radar cannot show a
+vendor sliding, and a single line cannot show *which* attribute slipped.
+
+Weights come from the model (SCORECARD_ATTRIBUTES) and are printed on each
+bar, because a "weighted score" nobody can decompose is a number people stop
+trusting.
+
+States: no vendors, vendor never scored, scored once (no trend line).
+{% endcomment %}
+
+{% block title %}Vendor Scorecard — VendorLink{% endblock %}
+{% block extra_css %}{% include "vendorlink/_vl_head.html" %}{% endblock %}
+
+{% block content %}
+<div class="vl">
+<div class="vl-wrap">
+
+    <div class="vl-pagehead">
+        <div>
+            <nav class="vl-crumb" aria-label="Breadcrumb">
+                <a href="{% url 'vendorlink:t3_dashboard' %}">VendorLink</a>
+                <span class="sep">/</span><span class="current">Scorecard</span>
+            </nav>
+            <h1 class="vl-title">Vendor Scorecard</h1>
+            <p class="vl-subtitle">Weighted performance across cost, serviceability, systems and turnaround.</p>
+        </div>
+        <div class="vl-pagehead__actions">
+            <form method="get" style="margin:0;display:flex;gap:var(--vl-2);">
+                <select class="vl-select" name="vendor" onchange="this.form.submit()">
+                    {% for v in vendors %}
+                    <option value="{{ v.pk }}" {% if selected and v.pk == selected.pk %}selected{% endif %}>{{ v.vendor_name }}</option>
+                    {% endfor %}
+                </select>
+                <noscript><button class="vl-btn">Show</button></noscript>
+            </form>
+            {% if can_edit %}
+            <a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:scorecard_create' %}">Score a vendor</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not vendors %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">No vendors to score</div>
+        <div class="vl-empty__hint">Add a vendor to the master first.</div>
+        <div class="vl-empty__cta"><a class="vl-btn" href="{% url 'vendorlink:t3_vendor_master' %}">Vendor Master</a></div>
+    </div></div>
+
+    {% elif not latest %}
+    <div class="vl-card"><div class="vl-empty">
+        <div class="vl-empty__title">{{ selected.vendor_name }} has never been scored</div>
+        <div class="vl-empty__hint">Score them once and the radar, weighted total and history appear here.</div>
+        {% if can_edit %}
+        <div class="vl-empty__cta"><a class="vl-btn vl-btn--primary" href="{% url 'vendorlink:scorecard_create' %}">Score this vendor</a></div>
+        {% endif %}
+    </div></div>
+
+    {% else %}
+    <div style="display:grid;gap:var(--vl-3);grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-bottom:var(--vl-4);">
+        <div class="vl-card">
+            <div class="vl-card__head">
+                <h2 class="vl-card__title">{{ selected.vendor_name }}</h2>
+                <span class="vl-meta">{{ latest.scored_at|date:"d M Y" }}</span>
+            </div>
+            <div class="vl-card__body"><canvas id="vlRadar" height="240"></canvas></div>
+        </div>
+
+        <div class="vl-card">
+            <div class="vl-card__head"><h2 class="vl-card__title">Weighted score</h2></div>
+            <div class="vl-card__body">
+                <div class="vl-display" style="font-size:52px;line-height:1;font-family:var(--vl-mono);">{{ latest.final_score }}</div>
+                <div class="vl-meta" style="margin-bottom:var(--vl-4);">out of 5, weighted</div>
+                {% for label, score, comment in latest.attributes_for_display %}
+                <div style="margin-bottom:var(--vl-3);">
+                    <div style="display:flex;justify-content:space-between;font-size:var(--vl-t-sm);">
+                        <span>{{ label }}</span><span class="vl-mono">{{ score }}/5</span>
+                    </div>
+                    <div class="vl-rank__bar" style="width:100%;margin-top:4px;">
+                        <span style="width:{% widthratio score 5 100 %}%"></span>
+                    </div>
+                    {% if comment %}<div class="vl-meta" style="margin-top:2px;">{{ comment }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="vl-card" style="margin-bottom:var(--vl-4);">
+        <div class="vl-card__head">
+            <h2 class="vl-card__title">Score history</h2>
+            <span class="vl-meta">{{ history|length }} scoring event{{ history|length|pluralize }}</span>
+        </div>
+        <div class="vl-card__body">
+            {% if trend_values|length > 1 %}
+            <canvas id="vlTrend" height="150"></canvas>
+            {% else %}
+            {# A one-point line chart is a dot pretending to be a trend. #}
+            <p class="vl-meta" style="margin:0;">Scored once so far — a trend appears from the second scoring event.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="vl-card" style="padding:0;">
+        <div class="vl-card__head"><h2 class="vl-card__title">Past scores</h2></div>
+        <div class="vl-tablewrap" style="border:none;border-radius:0;">
+            <table class="vl-table">
+                <thead><tr><th>Scored</th><th class="num">Cost</th><th class="num">Service</th><th class="num">WMS</th><th class="num">TAT</th><th class="num">Weighted</th><th>By</th></tr></thead>
+                <tbody>
+                    {% for s in history %}
+                    <tr>
+                        <td class="vl-mono" style="font-size:var(--vl-t-meta);">{{ s.scored_at|date:"d M Y" }}</td>
+                        <td class="num">{{ s.cost_score }}</td>
+                        <td class="num">{{ s.serviceability_score }}</td>
+                        <td class="num">{{ s.wms_reports_score }}</td>
+                        <td class="num">{{ s.tat_score }}</td>
+                        <td class="num" style="font-weight:700;">{{ s.final_score }}</td>
+                        <td class="vl-meta">{{ s.scored_by.get_full_name|default:s.scored_by.username|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if latest %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    if (!window.Chart) { return; }
+    var css = getComputedStyle(document.querySelector('.vl'));
+    var accent = css.getPropertyValue('--vl-accent').trim() || '#4338CA';
+    var border = css.getPropertyValue('--vl-border').trim() || '#E5E5E5';
+    Chart.defaults.font.family = css.getPropertyValue('--vl-font').trim() || 'Inter, sans-serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = css.getPropertyValue('--vl-ink-3').trim();
+
+    new Chart(document.getElementById('vlRadar'), {
+        type: 'radar',
+        data: {
+            labels: {{ radar_labels|safe }},
+            datasets: [{
+                data: {{ radar_values|safe }},
+                borderColor: accent, backgroundColor: 'rgba(67,56,202,.12)',
+                pointBackgroundColor: accent, borderWidth: 2
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            // Fixed 0–5 so two vendors' radars are the same shape for the same
+            // scores; an auto scale would make a weak vendor look full.
+            scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, grid: { color: border },
+                           angleLines: { color: border } } }
+        }
+    });
+
+    var trend = document.getElementById('vlTrend');
+    if (trend) {
+        new Chart(trend, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|safe }},
+                datasets: [{ data: {{ trend_values|safe }}, borderColor: accent,
+                             backgroundColor: 'transparent', tension: .3, pointRadius: 3, borderWidth: 2 }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { min: 0, max: 5, grid: { color: border } }, x: { grid: { display: false } } }
+            }
+        });
+    }
+}());
+</script>
+{% endif %}
+{% endblock %}

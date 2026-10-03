@@ -1,0 +1,40 @@
+/* ═══════════════════════════════════════════════════════
+   vat_country_master.css — Country Master grid overrides
+   Page shell  → components/master_page/master_page.css
+   Table/util  → components/data_table/data_table.css
+   Modal       → components/modal/modal.css
+   Only per-module column widths live here.
+═══════════════════════════════════════════════════════ */
+
+/* LIST: ID | Country | Language | Local Ccy | Std Inv Ccy | Tolerance | Status | Actions */
+.lm-page .tbl-head,
+.lm-page .tbl-row {
+  grid-template-columns: 70px 1.4fr 1fr 0.9fr 0.9fr 0.9fr 0.8fr 120px;
+}
+
+/* SCHEMA ROW: Column | Type | Description */
+.lm-page .schema-row {
+  grid-template-columns: 220px 90px 1fr;
+}
+
+/* Two-column edit form */
+.lm-page ~ #editModalOverlay .form-grid,
+#editModalOverlay .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .lm-page .tbl-head,
+  .lm-page .tbl-row {
+    grid-template-columns: 1.4fr 0.9fr 0.9fr 110px;
+  }
+  .lm-page .tbl-head > *:nth-child(1),
+  .lm-page .tbl-row  > *:nth-child(1),
+  .lm-page .tbl-head > *:nth-child(3),
+  .lm-page .tbl-row  > *:nth-child(3),
+  .lm-page .tbl-head > *:nth-child(6),
+  .lm-page .tbl-row  > *:nth-child(6) { display: none; }
+  #editModalOverlay .form-grid { grid-template-columns: 1fr; }
+}

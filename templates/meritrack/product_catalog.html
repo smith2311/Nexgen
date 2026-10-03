@@ -1,0 +1,261 @@
+{% extends "meritrack/meritrack_base.html" %}
+{% load static %}
+
+{% block title %}Product Catalog — MeriTrack{% endblock %}
+
+{% block mt_extra_css %}
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/sa-datatable-custom.css' %}">
+<link rel="stylesheet" href="{% static 'meritrack/css/product_catalog.css' %}">
+{% endblock %}
+
+{% block hero_heading %}
+<h1><i class="fas fa-boxes"></i> Product Catalog</h1>
+<p>Manage your product master data and material codes</p>
+{% endblock %}
+
+{% block hero_actions %}
+<div class="hero-actions">
+    <button class="hero-btn hero-btn-solid" onclick="openProductModal()"><i class="fas fa-plus"></i> Add Product</button>
+    <button class="hero-btn" onclick="openImportModal()"><i class="fas fa-upload"></i> Bulk Import</button>
+    <button class="hero-btn" onclick="exportCSV()"><i class="fas fa-download"></i> Export CSV</button>
+</div>
+{% endblock %}
+
+{% block page_content %}
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card"><div class="num" id="statTotal">—</div><div class="lbl">Total Products</div></div>
+        <div class="stat-card"><div class="num" id="statActive" style="color:var(--mt-success)">—</div><div class="lbl">Active</div></div>
+        <div class="stat-card"><div class="num" id="statCategories">—</div><div class="lbl">Categories</div></div>
+        <div class="stat-card"><div class="num" id="statColdChain" style="color:var(--mt-secondary)">—</div><div class="lbl">Cold Chain</div></div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card">
+        <div class="toolbar">
+            <div class="filter-tabs" id="catFilter">
+                <button class="filter-tab active" onclick="setCatFilter('',this)">All</button>
+                <button class="filter-tab" onclick="setCatFilter('stent',this)">Stent</button>
+                <button class="filter-tab" onclick="setCatFilter('balloon',this)">Balloon</button>
+                <button class="filter-tab" onclick="setCatFilter('guidewire',this)">Guidewire</button>
+                <button class="filter-tab" onclick="setCatFilter('valve',this)">Valve</button>
+                <button class="filter-tab" onclick="setCatFilter('graft',this)">Graft</button>
+                <button class="filter-tab" onclick="setCatFilter('closure',this)">Closure</button>
+                <button class="filter-tab" onclick="setCatFilter('accessory',this)">Accessory</button>
+                <button class="filter-tab" onclick="setCatFilter('other',this)">Other</button>
+            </div>
+        </div>
+        <table id="catalogTable" style="width:100%">
+                <thead><tr>
+                    <th>Material Code</th>
+                    <th>Product Name</th>
+                    <th>Brand</th>
+                    <th>Category</th>
+                    <th>Size</th>
+                    <th>GTIN</th>
+                    <th>Unit Price</th>
+                    <th>Shelf Life</th>
+                    <th>Mat. Group</th>
+                    <th>Cold Chain</th>
+                    <th>Status</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr></thead>
+                <tbody id="catalogBody"></tbody>
+            </table>
+    </div>
+
+<!-- ─── View Detail Modal ──────────────────────────────────────────────── -->
+<div id="detailModal" class="modal-overlay" onclick="if(event.target===this)closeDetailModal()">
+    <div class="modal-box lg">
+        <div class="modal-header">
+            <h2 id="detailTitle"><i class="fas fa-box" style="color:var(--mt-primary)"></i> Product Detail</h2>
+            <button class="modal-close" onclick="closeDetailModal()">&#x2715;</button>
+        </div>
+        <div id="detailBody"></div>
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">
+            <button class="btn-mt btn-warning" id="detailEditBtn" onclick="editFromDetail()"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn-mt btn-gray" onclick="closeDetailModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Add / Edit Modal ──────────────────────────────────────────────── -->
+<div id="productModal" class="modal-overlay" onclick="if(event.target===this)closeProductModal()">
+    <div class="modal-box md">
+        <div class="modal-header">
+            <h2 id="productModalTitle"><i class="fas fa-plus" style="color:var(--mt-primary)"></i> Add Product</h2>
+            <button class="modal-close" onclick="closeProductModal()">&#x2715;</button>
+        </div>
+        <div id="productModalError" style="display:none;padding:9px 12px;background:var(--mt-danger-light);border:1px solid var(--mt-danger-border);border-radius:8px;color:var(--mt-danger-dark);font-size:0.84em;margin-bottom:12px;"></div>
+
+        <div class="form-section">
+            <div class="form-section-title">Core Information</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="fCode">Material Code <span style="color:red">*</span></label>
+                    <input type="text" id="fCode" placeholder="e.g. MAT-001" maxlength="100">
+                    <span class="field-hint">Unique SAP material code</span>
+                </div>
+                <div class="form-group">
+                    <label for="fGtin">GTIN / Barcode</label>
+                    <input type="text" id="fGtin" placeholder="14-digit GTIN" maxlength="50">
+                </div>
+                <div class="form-group full">
+                    <label for="fName">Product Name <span style="color:red">*</span></label>
+                    <input type="text" id="fName" placeholder="e.g. Evermine Stent 3.0x28mm" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label for="fBrand">Brand</label>
+                    <input type="text" id="fBrand" placeholder="e.g. Meril" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label for="fCategory">Category</label>
+                    <select id="fCategory">
+                        <option value="stent">Coronary Stent</option>
+                        <option value="balloon">Balloon Catheter</option>
+                        <option value="guidewire">Guidewire</option>
+                        <option value="valve">Heart Valve</option>
+                        <option value="graft">Vascular Graft</option>
+                        <option value="closure">Closure Device</option>
+                        <option value="accessory">Accessory</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fSize">Size</label>
+                    <input type="text" id="fSize" placeholder="e.g. 3.0 x 28 mm" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="fUom">Base UOM</label>
+                    <input type="text" id="fUom" placeholder="EA" maxlength="10" value="EA">
+                </div>
+                <div class="form-group full">
+                    <label for="fDesc">Description</label>
+                    <textarea id="fDesc" placeholder="Detailed product description…"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Pricing & Shelf Life</div>
+            <div class="form-grid cols3">
+                <div class="form-group">
+                    <label for="fPrice">Unit Price (€)</label>
+                    <input type="number" id="fPrice" placeholder="0.00" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="fShelf">Shelf Life (months)</label>
+                    <input type="number" id="fShelf" placeholder="36" min="1" value="36">
+                </div>
+                <div class="form-group" style="justify-content:flex-end;padding-bottom:2px;">
+                    <label>&nbsp;</label>
+                    <label class="form-check">
+                        <input type="checkbox" id="fColdChain">
+                        <span>Requires Cold Chain</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">SAP Classification</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Material Type</label>
+                    <input type="text" id="fMatType" placeholder="e.g. ZFIN" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="fMatTypeDesc">Material Type Description</label>
+                    <input type="text" id="fMatTypeDesc" placeholder="e.g. Finished/Trading" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label for="fMatGroup">Material Group</label>
+                    <input type="text" id="fMatGroup" placeholder="e.g. MG01" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="fMatGroupDesc">Material Group Description</label>
+                    <input type="text" id="fMatGroupDesc" placeholder="e.g. Myval Accessories" maxlength="255">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" id="fActiveGroup" style="display:none;margin-bottom:16px;">
+            <label class="form-check">
+                <input type="checkbox" id="fActive" checked>
+                <span>Active</span>
+            </label>
+        </div>
+
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn-mt btn-gray" onclick="closeProductModal()">Cancel</button>
+            <button class="btn-mt btn-primary" id="productSaveBtn" onclick="saveProduct()"><i class="fas fa-check"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Confirm Modal ──────────────────────────────────────────────────── -->
+<div id="confirmModal" class="modal-overlay" onclick="if(event.target===this)closeConfirmModal()">
+    <div class="modal-box sm">
+        <div class="modal-header">
+            <h2 id="confirmTitle">Confirm</h2>
+            <button class="modal-close" onclick="closeConfirmModal()">&#x2715;</button>
+        </div>
+        <p id="confirmMsg" style="font-size:0.9em;color:var(--mt-gray-700);margin-bottom:20px;line-height:1.5;"></p>
+        <div class="modal-footer-row" style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-mt btn-gray" onclick="closeConfirmModal()">Cancel</button>
+            <button class="btn-mt" id="confirmBtn" onclick="runConfirmAction()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Bulk Import Modal ──────────────────────────────────────────────── -->
+<div id="importModal" class="modal-overlay" onclick="if(event.target===this)closeImportModal()">
+    <div class="modal-box md">
+        <div class="modal-header">
+            <h2><i class="fas fa-upload" style="color:var(--mt-success)"></i> Bulk Import Products</h2>
+            <button class="modal-close" onclick="closeImportModal()">&#x2715;</button>
+        </div>
+        <div style="margin-bottom:14px;padding:11px 14px;background:var(--mt-primary-lighter);border-radius:8px;font-size:0.83em;color:var(--mt-primary-dark);line-height:1.5;">
+            <strong><i class="fas fa-info-circle"></i> Supported formats: <code>.xlsx</code> / <code>.xls</code> / <code>.csv</code></strong><br>
+            Required column: <code>material_code</code> (or SAP <em>Material</em> column).<br>
+            Optional: <code>gtin_code</code>, <code>name</code> / <code>Material Description</code>, <code>brand</code>, <code>category</code>, <code>size</code>, <code>base_uom</code>, <code>unit_price</code>, <code>shelf_life_months</code>, <code>material_type</code>, <code>material_type_description</code>, <code>material_group</code>, <code>material_group_description</code>, <code>description</code>.<br>
+            Matched by <strong>material_code</strong> — existing records are updated, new codes are created.
+        </div>
+        <div id="importDropZone" class="import-panel"
+             onclick="document.getElementById('importFile').click()"
+             ondrop="handleDrop(event)"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p><strong>Click or drag &amp; drop a file</strong></p>
+            <p style="font-size:0.82em;color:var(--mt-gray-600);">Excel (.xlsx / .xls) or CSV (.csv)</p>
+            <p id="importFileName" style="color:var(--mt-primary);font-weight:600;margin-top:6px;"></p>
+        </div>
+        <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" onchange="onFileSelected(this)">
+        <div id="importResult" style="display:none;margin-top:12px;">
+            <div id="importSummary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+            <div id="importErrors" style="max-height:160px;overflow-y:auto;"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;">
+            <a href="/meritrack/api/catalog/export-catalog-template/" class="btn-mt btn-warning"><i class="fas fa-download"></i> Download Template</a>
+            <div style="display:flex;gap:8px;">
+                <button class="btn-mt btn-gray" onclick="closeImportModal()">Close</button>
+                <button class="btn-mt btn-success" id="importBtn" onclick="runImport()" disabled><i class="fas fa-upload"></i> Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script>
+const CSRF = '{{ csrf_token }}';
+</script>
+
+<script src="{% static 'meritrack/js/product_catalog.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Start Inspection - {{ warehouse.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/warehouse_inspection.css' %}">
+<style>
+    .start-inspection-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+
+    .header-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .header-box h1 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+
+    .warehouse-details {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    .detail-value {
+        color: #1f2937;
+        font-weight: 500;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+    }
+
+    .form-section h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.6rem;
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .form-group select,
+    .form-group input {
+        width: 100%;
+        padding: 0.8rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: border-color 0.3s ease;
+    }
+
+    .form-group select:focus,
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .template-cards {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .template-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .template-card:hover {
+        border-color: #667eea;
+        background: #f9fafb;
+    }
+
+    .template-card input[type="radio"] {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .template-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.3rem;
+        padding-right: 2rem;
+    }
+
+    .template-description {
+        font-size: 0.9rem;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 0.9rem 2.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+
+    .btn-secondary:hover {
+        background: #f0f4ff;
+    }
+
+    @media (max-width: 768px) {
+        .start-inspection-container {
+            padding: 1rem;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="start-inspection-container">
+    <!-- Header -->
+    <div class="header-box">
+        <h1>
+            <i class="fas fa-play-circle"></i> Start Inspection
+        </h1>
+        <p>Begin a new warehouse inspection</p>
+    </div>
+
+    <!-- Warehouse Details -->
+    <div class="warehouse-details">
+        <h3 style="margin-bottom: 1.5rem; color: #1f2937; font-weight: 700;">
+            <i class="fas fa-warehouse"></i> {{ warehouse.name }}
+        </h3>
+        <div class="detail-row">
+            <span class="detail-label">Location:</span>
+            <span class="detail-value">{{ warehouse.location }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Address:</span>
+            <span class="detail-value">{{ warehouse.address }}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Pincode:</span>
+            <span class="detail-value">{{ warehouse.pincode }}</span>
+        </div>
+        {% if warehouse.phone %}
+        <div class="detail-row">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">{{ warehouse.phone }}</span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+            <span class="detail-label">Capacity:</span>
+            <span class="detail-value">{{ warehouse.capacity }} units</span>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" class="form-section">
+        {% csrf_token %}
+        
+        <h3>
+            <i class="fas fa-list-check"></i> Select Inspection Template
+        </h3>
+
+        {% if templates %}
+        <div class="template-cards">
+            {% for template in templates %}
+            <label class="template-card">
+                <input type="radio" name="template_id" value="{{ template.id }}" required>
+                <div class="template-name">{{ template.name }}</div>
+                {% if template.description %}
+                <div class="template-description">{{ template.description }}</div>
+                {% endif %}
+            </label>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; color: #78350f;">
+            <i class="fas fa-exclamation-triangle"></i> No active templates available. Please contact your administrator.
+        </div>
+        {% endif %}
+
+        <!-- Submit Buttons -->
+        <div class="button-group" style="margin-top: 2rem;">
+            <a href="{% url 'warehouse_inspection:checklist' %}" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+            <button type="submit" class="btn-primary" {% if not templates %}disabled{% endif %}>
+                <i class="fas fa-check-circle"></i> Start Inspection
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

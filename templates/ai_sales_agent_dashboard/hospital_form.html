@@ -1,0 +1,425 @@
+{% extends "ai_sales_agent_dashboard/base_dashboard.html" %}
+{% load static %}
+
+{% block title %}{% if hospital %}Edit {{ hospital.name }}{% else %}Add Hospital{% endif %} — AI Sales Dashboard{% endblock %}
+{% block topbar_title %}{% if hospital %}✏️ Edit Hospital{% else %}➕ Add Hospital{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% if hospital %}{% url 'ai_sales_agent_dashboard:hospital_detail' hospital.pk %}{% else %}{% url 'ai_sales_agent_dashboard:hospitals_list' %}{% endif %}"
+   class="btn-topbar btn-topbar-outline">← Cancel</a>
+{% endblock %}
+
+{% block extra_style %}
+.form-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.form-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.form-section-header {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-section-icon { font-size: 16px; }
+.form-section-title { font-size: 13px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: .8px; }
+.form-section-body { padding: 20px 22px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.form-grid-full { grid-column: 1 / -1; }
+
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .9px;
+}
+.form-required { color: #f87171; }
+.form-input, .form-select, .form-textarea {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 9px 13px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .2s, box-shadow .2s;
+  font-family: inherit;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.12);
+}
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.form-select option { background: var(--bg-secondary); color: var(--text-primary); }
+.form-hint { font-size: 11px; color: var(--text-muted); }
+.form-error { font-size: 11px; color: #f87171; margin-top: 2px; }
+
+/* Tier selector */
+.tier-selector { display: flex; gap: 10px; }
+.tier-option {
+  flex: 1; padding: 12px; border-radius: 10px; text-align: center; cursor: pointer;
+  border: 2px solid var(--border); background: var(--bg-secondary);
+  transition: all .2s; font-size: 12px; font-weight: 700;
+}
+.tier-option:hover { border-color: rgba(0,0,0,.25); }
+.tier-option.selected-hot   { border-color: #ef4444; background: rgba(239,68,68,.12); color: #f87171; }
+.tier-option.selected-warm  { border-color: #f59e0b; background: rgba(245,158,11,.12); color: #fbbf24; }
+.tier-option.selected-cold  { border-color: #60a5fa; background: rgba(96,165,250,.12); color: #93c5fd; }
+.tier-option input[type=radio] { display: none; }
+
+/* Score slider */
+.score-slider-wrap { display: flex; align-items: center; gap: 12px; }
+.score-slider { flex: 1; }
+input[type=range] {
+  -webkit-appearance: none; width: 100%; height: 4px;
+  background: linear-gradient(to right, var(--accent-purple) 0%, var(--accent-purple) var(--slider-pct, 50%), var(--border) var(--slider-pct, 50%), var(--border) 100%);
+  border-radius: 4px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--accent-purple);
+  border: 2px solid var(--bg-card); cursor: pointer;
+}
+.score-display {
+  min-width: 42px; text-align: center;
+  font-size: 18px; font-weight: 800; color: var(--text-primary);
+}
+
+/* Action bar */
+.form-actions {
+  position: sticky; bottom: 0; z-index: 10;
+  background: var(--bg-primary); border-top: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+}
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+
+<form method="post" id="hospitalForm" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#fca5a5">
+    {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── Identity ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">🏥</span>
+      <span class="form-section-title">Hospital Identity</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <!-- Name -->
+        <div class="form-group form-grid-full">
+          <label class="form-label" for="id_name">Hospital Name <span class="form-required">*</span></label>
+          <input id="id_name" name="name" type="text" class="form-input"
+                 value="{{ form.name.value|default:'' }}"
+                 placeholder="e.g. Apollo Hospitals Hyderabad" required>
+          {% if form.name.errors %}<div class="form-error">{{ form.name.errors.0 }}</div>{% endif %}
+        </div>
+
+        <!-- Code -->
+        <div class="form-group">
+          <label class="form-label" for="id_hospital_code">Hospital Code</label>
+          <input id="id_hospital_code" name="hospital_code" type="text" class="form-input"
+                 value="{{ form.hospital_code.value|default:'' }}"
+                 placeholder="e.g. HYD-APL-001">
+          <div class="form-hint">Unique identifier for this account</div>
+        </div>
+
+        <!-- Website -->
+        <div class="form-group">
+          <label class="form-label" for="id_website">Website</label>
+          <input id="id_website" name="website" type="url" class="form-input"
+                 value="{{ form.website.value|default:'' }}"
+                 placeholder="https://apollohospitals.com">
+        </div>
+
+        <!-- Hospital Type -->
+        <div class="form-group">
+          <label class="form-label" for="id_hospital_type">Hospital Type</label>
+          <select id="id_hospital_type" name="hospital_type" class="form-select">
+            <option value="">— Select Type —</option>
+            {% for value, label in hospital_type_choices %}
+            <option value="{{ value }}" {% if form.hospital_type.value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Speciality -->
+        <div class="form-group">
+          <label class="form-label" for="id_speciality">Speciality</label>
+          <input id="id_speciality" name="speciality" type="text" class="form-input"
+                 value="{{ form.speciality.value|default:'' }}"
+                 placeholder="e.g. Multi-Specialty, Cardiology">
+        </div>
+
+        <!-- Bed Count -->
+        <div class="form-group">
+          <label class="form-label" for="id_bed_count">Bed Count</label>
+          <input id="id_bed_count" name="bed_count" type="number" class="form-input"
+                 value="{{ form.bed_count.value|default:'' }}"
+                 placeholder="e.g. 350" min="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Location ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">📍</span>
+      <span class="form-section-title">Location</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="id_city">City</label>
+          <input id="id_city" name="city" type="text" class="form-input"
+                 value="{{ form.city.value|default:'' }}" placeholder="e.g. Hyderabad">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_state">State</label>
+          <input id="id_state" name="state" type="text" class="form-input"
+                 value="{{ form.state.value|default:'' }}" placeholder="e.g. Telangana">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_country">Country</label>
+          <input id="id_country" name="country" type="text" class="form-input"
+                 value="{{ form.country.value|default:'India'}}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_postal_code">Postal Code</label>
+          <input id="id_postal_code" name="postal_code" type="text" class="form-input"
+                 value="{{ form.postal_code.value|default:'' }}" placeholder="e.g. 500032">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Contact ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">👤</span>
+      <span class="form-section-title">Primary Contact</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="id_contact_name">Contact Name</label>
+          <input id="id_contact_name" name="contact_name" type="text" class="form-input"
+                 value="{{ form.contact_name.value|default:'' }}" placeholder="Dr. Ramesh Kumar">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_contact_role">Role / Title</label>
+          <input id="id_contact_role" name="contact_role" type="text" class="form-input"
+                 value="{{ form.contact_role.value|default:'' }}" placeholder="e.g. CMO / Director">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_contact_email">Email</label>
+          <input id="id_contact_email" name="contact_email" type="email" class="form-input"
+                 value="{{ form.contact_email.value|default:'' }}" placeholder="cmo@hospital.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_contact_phone">Phone</label>
+          <input id="id_contact_phone" name="contact_phone" type="tel" class="form-input"
+                 value="{{ form.contact_phone.value|default:'' }}" placeholder="+91 98765 43210">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sales Pipeline ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">📊</span>
+      <span class="form-section-title">Sales Pipeline</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <!-- Status -->
+        <div class="form-group">
+          <label class="form-label" for="id_status">Pipeline Stage <span class="form-required">*</span></label>
+          <select id="id_status" name="status" class="form-select">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if form.status.value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- ICP Tier (visual) -->
+        <div class="form-group">
+          <label class="form-label">ICP Tier</label>
+          <div class="tier-selector">
+            {% for value, label in tier_choices %}
+            <label class="tier-option" id="tier-label-{{ value }}">
+              <input type="radio" name="icp_tier" value="{{ value }}"
+                     {% if form.icp_tier.value == value or not form.icp_tier.value and value == 'cold' %}checked{% endif %}
+                     onchange="updateTierSel()">
+              {% if value == 'hot' %}🔥{% elif value == 'warm' %}🌡️{% else %}❄️{% endif %}<br>
+              {{ label }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Lead Score slider -->
+        <div class="form-group form-grid-full">
+          <label class="form-label" for="id_lead_score">Lead Score</label>
+          <div class="score-slider-wrap">
+            <div class="score-slider">
+              <input type="range" id="id_lead_score" name="lead_score" min="0" max="100"
+                     value="{{ form.lead_score.value|default:0 }}"
+                     oninput="updateScore(this)">
+            </div>
+            <div class="score-display" id="scoreDisplay">{{ form.lead_score.value|default:0 }}</div>
+          </div>
+        </div>
+
+        <!-- Deal Value -->
+        <div class="form-group">
+          <label class="form-label" for="id_deal_value">Deal Value (₹)</label>
+          <input id="id_deal_value" name="deal_value" type="number" class="form-input"
+                 value="{{ form.deal_value.value|default:'' }}" placeholder="e.g. 500000" min="0">
+        </div>
+
+        <!-- Assigned Rep -->
+        <div class="form-group">
+          <label class="form-label" for="id_assigned_rep">Assigned Rep</label>
+          <input id="id_assigned_rep" name="assigned_rep" type="text" class="form-input"
+                 value="{{ form.assigned_rep.value|default:'' }}" placeholder="Sales rep name">
+        </div>
+
+        <!-- Assigned Channel -->
+        <div class="form-group">
+          <label class="form-label" for="id_assigned_channel">Channel</label>
+          <input id="id_assigned_channel" name="assigned_channel" type="text" class="form-input"
+                 value="{{ form.assigned_channel.value|default:'' }}" placeholder="e.g. WhatsApp, Email, Phone">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Next Action ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">⏭</span>
+      <span class="form-section-title">Next Action</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <div class="form-group form-grid-full">
+          <label class="form-label" for="id_next_action">Action Description</label>
+          <input id="id_next_action" name="next_action" type="text" class="form-input"
+                 value="{{ form.next_action.value|default:'' }}"
+                 placeholder="e.g. Follow-up call with CMO about Meritrack demo">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_next_action_date">Action Date</label>
+          <input id="id_next_action_date" name="next_action_date" type="date" class="form-input"
+                 value="{{ form.next_action_date.value|default:'' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Integration IDs ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">🔗</span>
+      <span class="form-section-title">Integration IDs</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="id_hubspot_id">HubSpot ID</label>
+          <input id="id_hubspot_id" name="hubspot_id" type="text" class="form-input"
+                 value="{{ form.hubspot_id.value|default:'' }}" placeholder="HubSpot contact/company ID">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Notes ── -->
+  <div class="form-section">
+    <div class="form-section-header">
+      <span class="form-section-icon">📝</span>
+      <span class="form-section-title">Notes</span>
+    </div>
+    <div class="form-section-body">
+      <div class="form-group">
+        <textarea id="id_notes" name="notes" class="form-textarea"
+                  placeholder="Free-form notes about this hospital account, key pain points, decision timeline, stakeholders, etc.">{{ form.notes.value|default:'' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Action Bar ── -->
+  <div class="form-actions">
+    {% if hospital %}
+    <a href="{% url 'ai_sales_agent_dashboard:hospital_detail' hospital.pk %}"
+       class="btn-topbar btn-topbar-outline" style="margin-right:auto">Cancel</a>
+    <button type="submit" class="btn-topbar btn-topbar-primary" style="background:var(--accent-purple);border-color:var(--accent-purple)">
+      ✅ Save Changes
+    </button>
+    {% else %}
+    <a href="{% url 'ai_sales_agent_dashboard:hospitals_list' %}"
+       class="btn-topbar btn-topbar-outline" style="margin-right:auto">Cancel</a>
+    <button type="submit" class="btn-topbar btn-topbar-primary" style="background:var(--accent-purple);border-color:var(--accent-purple)">
+      ➕ Create Hospital
+    </button>
+    {% endif %}
+  </div>
+
+</form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/* Tier visual selector */
+function updateTierSel() {
+  document.querySelectorAll('.tier-option').forEach(label => {
+    label.classList.remove('selected-hot', 'selected-warm', 'selected-cold');
+  });
+  const checked = document.querySelector('input[name=icp_tier]:checked');
+  if (checked) {
+    const label = checked.closest('.tier-option');
+    if (checked.value === 'hot')  label.classList.add('selected-hot');
+    if (checked.value === 'warm') label.classList.add('selected-warm');
+    if (checked.value === 'cold') label.classList.add('selected-cold');
+  }
+}
+
+/* Slider score display */
+function updateScore(el) {
+  const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+  el.style.setProperty('--slider-pct', pct + '%');
+  document.getElementById('scoreDisplay').textContent = el.value;
+  // colour
+  const score = parseInt(el.value);
+  el.style.background = `linear-gradient(to right,
+    ${score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#60a5fa'} 0%,
+    ${score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#60a5fa'} ${pct}%,
+    var(--border) ${pct}%, var(--border) 100%)`;
+}
+
+// Initialise on load
+document.addEventListener('DOMContentLoaded', () => {
+  updateTierSel();
+  const slider = document.getElementById('id_lead_score');
+  if (slider) updateScore(slider);
+});
+</script>
+{% endblock %}

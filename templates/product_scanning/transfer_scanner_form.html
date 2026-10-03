@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}New Transfer | Meril SA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock-audit-tokens.css' %}">
+<link rel="stylesheet" href="{% static 'css/transfer_scanner_form.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="scanner-container">
+    <div class="page-header">
+        <a href="{% url 'product_scanning:transfer_dashboard' %}" class="back-link">← Back</a>
+        <h1>🔄 New Transfer</h1>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <!-- Setup Form -->
+    <div id="setupForm" class="form-card">
+        <div class="form-group">
+            <label class="form-label">🏥 From Hospital (Source)</label>
+            <select id="fromHospital" class="form-select">
+                <option value="">Select source hospital...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">🏥 To Hospital (Destination)</label>
+            <select id="toHospital" class="form-select">
+                <option value="">Select destination hospital...</option>
+            </select>
+        </div>
+        <button id="startTransferBtn" class="btn-primary" disabled onclick="startTransfer()">
+            🚀 Start Transfer
+        </button>
+    </div>
+
+    <!-- Scanner Area -->
+    <div id="scannerWrapper" class="scanner-wrapper">
+        <div class="transfer-info-bar">
+            <div>
+                <div class="transfer-route" id="routeDisplay">Loading...</div>
+                <div class="transfer-id" id="transferIdDisplay"></div>
+            </div>
+            <div class="product-count" id="productCount">0 products</div>
+        </div>
+
+        <div id="reader"></div>
+
+        <div class="manual-entry">
+            <input type="text" id="manualBarcode" placeholder="Enter barcode manually..." onkeypress="if(event.key==='Enter') scanProduct()">
+            <button class="btn-scan" onclick="scanProduct()">📸 Scan Product</button>
+        </div>
+
+        <div class="product-list-section">
+            <div class="product-list-header">
+                <span>📦 Scanned Products</span>
+                <span id="listCount">0</span>
+            </div>
+            <div id="productList"></div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn-complete" onclick="completeTransfer()">✅ Complete Transfer</button>
+            <button class="btn-cancel" onclick="cancelTransfer()">❌ Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/html5-qrcode.min.js' %}"></script>
+<script src="{% static 'js/transfer_scanner_form.js' %}"></script>
+{% endblock %}

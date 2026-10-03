@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Warehouse Pending — Material Rework{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/material-rework/warehouse.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="md-page">
+    <a href="{% url 'material_rework:dashboard' %}" class="md-back"><i class="fas fa-arrow-left"></i> Back</a>
+    <div class="md-header">
+        <h1><i class="fas fa-warehouse"></i> Warehouse
+            {% if not can_edit %}
+            <span style="margin-left:10px;background:#dbeafe;color:#1e40af;font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:10px;vertical-align:middle;letter-spacing:.04em;">
+                <i class="fas fa-eye"></i> VIEW ONLY
+            </span>
+            {% endif %}
+        </h1>
+        <p>{% if can_edit %}Enter the quantity to receive per item. The ticket stays open until all pending quantities reach <strong>0</strong>.{% else %}You have read-only access. Only Warehouse team members can confirm receipts.{% endif %}</p>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;padding:12px 16px;margin-bottom:18px;color:#065f46;font-size:.88rem;">
+        <i class="fas fa-check-circle"></i> {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+{% comment %}
+The rework round trip, warehouse's two legs. Flat per-line tables rather than
+the batch-grouped bulk form below: each line is released and comes back on its
+own schedule, so a batch-level "confirm all" would be claiming something the
+warehouse floor cannot actually do.
+{% endcomment %}
+
+    <!-- ── Leg 2: release to production ── -->
+    {% if release_items %}
+    <p class="section-heading">
+        <i class="fas fa-dolly" style="color:#0076c8;"></i> Release to Production for Rework
+        <span class="count-chip">{{ release_items|length }} line{{ release_items|length|pluralize }}</span>
+    </p>
+    <div class="md-table-wrap" style="margin-bottom:22px;">
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Ref #</th><th>Code</th><th>Batch No</th><th>Serial No</th>
+                    <th class="qty-col">Accepted for Rework</th>
+                    {% if can_edit %}<th>Qty to Release</th><th>Remark <span style="color:#dc2626;">*</span></th><th>Action</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in release_items %}
+            <tr id="rw-release-{{ item.pk }}">
+                <td><span class="ref-num">{{ item.batch.reference_number|default:item.batch_id }}</span></td>
+                <td><strong>{{ item.material }}</strong></td>
+                <td>{{ item.batch_no|default:"—" }}</td>
+                <td>{{ item.serial_number|default:"—" }}</td>
+                <td class="qty-col"><strong>{{ item.accepted_qty }}</strong></td>
+                {% if can_edit %}
+                <td>
+                    <input type="number" class="recv-input" id="rel_qty_{{ item.pk }}"
+                           value="{{ item.accepted_qty }}" min="1" max="{{ item.accepted_qty }}" step="1">
+                </td>
+                <td>
+                    <input type="text" class="recv-input" id="rel_rem_{{ item.pk }}"
+                           placeholder="Required" style="min-width:150px;">
+                </td>
+                <td>
+                    <button type="button" class="btn-primary" style="padding:5px 12px;font-size:.78rem;"
+                            onclick="reworkRelease({{ item.pk }})">
+                        <i class="fas fa-arrow-right"></i> Release
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ── Leg 4: confirm what came back ── -->
+    {% if receipt_items %}
+    <p class="section-heading">
+        <i class="fas fa-arrow-rotate-left" style="color:#059669;"></i> Confirm Return from Production
+        <span class="count-chip">{{ receipt_items|length }} line{{ receipt_items|length|pluralize }}</span>
+    </p>
+    <div class="md-table-wrap" style="margin-bottom:22px;">
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Ref #</th><th>Code</th><th>Batch No</th>
+                    <th class="qty-col">Released</th>
+                    <th class="qty-col">Reworked &amp; Sent</th>
+                    <th class="qty-col">Lost in Rework</th>
+                    <th>Loss Reason</th>
+                    {% if can_edit %}<th>Qty Received</th><th>Remark</th><th>Action</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in receipt_items %}
+            <tr id="rw-receipt-{{ item.pk }}">
+                <td><span class="ref-num">{{ item.batch.reference_number|default:item.batch_id }}</span></td>
+                <td><strong>{{ item.material }}</strong></td>
+                <td>{{ item.batch_no|default:"—" }}</td>
+                <td class="qty-col">{{ item.rework_released_qty }}</td>
+                <td class="qty-col" style="color:#059669;"><strong>{{ item.reworked_qty }}</strong></td>
+                <td class="qty-col">{% if item.rework_loss_qty %}<span style="color:#dc2626;font-weight:700;">{{ item.rework_loss_qty }}</span>{% else %}—{% endif %}</td>
+                <td style="max-width:180px;">{{ item.rework_loss_reason|default:"—"|truncatechars:60 }}</td>
+                {% if can_edit %}
+                <td>
+                    {# Defaults to what production says it sent, so an exact match is one click. #}
+                    <input type="number" class="recv-input" id="rcv_qty_{{ item.pk }}"
+                           value="{{ item.reworked_qty }}" min="0" max="{{ item.reworked_qty }}" step="1"
+                           data-sent="{{ item.reworked_qty }}">
+                </td>
+                <td>
+                    <input type="text" class="recv-input" id="rcv_rem_{{ item.pk }}"
+                           placeholder="Required if the count differs" style="min-width:170px;">
+                </td>
+                <td>
+                    <button type="button" class="btn-primary" style="padding:5px 12px;font-size:.78rem;"
+                            onclick="reworkReceive({{ item.pk }})">
+                        <i class="fas fa-check"></i> Confirm
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ── Leg 3, informational: sitting at production ── -->
+    {% if at_production %}
+    <p class="section-heading">
+        <i class="fas fa-industry" style="color:#d97706;"></i> At Production (awaiting their return)
+        <span class="count-chip">{{ at_production|length }} line{{ at_production|length|pluralize }}</span>
+    </p>
+    <div class="md-table-wrap" style="margin-bottom:22px;">
+        <table class="md-table">
+            <thead>
+                <tr><th>Ref #</th><th>Code</th><th>Batch No</th><th class="qty-col">Released</th><th>Released At</th><th>Handover Remark</th></tr>
+            </thead>
+            <tbody>
+            {% for item in at_production %}
+            <tr>
+                <td><span class="ref-num">{{ item.batch.reference_number|default:item.batch_id }}</span></td>
+                <td><strong>{{ item.material }}</strong></td>
+                <td>{{ item.batch_no|default:"—" }}</td>
+                <td class="qty-col">{{ item.rework_released_qty }}</td>
+                <td>{{ item.rework_released_at|date:"d M Y H:i"|default:"—" }}</td>
+                <td style="max-width:220px;">{{ item.rework_released_remarks|default:"—"|truncatechars:70 }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- ── Pending Items ── -->
+    <p class="section-heading">
+        <i class="fas fa-clock" style="color:#8b5cf6;"></i> Pending Receipt
+        <span class="count-chip">{{ items|length }} item{{ items|length|pluralize }}</span>
+    </p>
+
+    <form method="post" id="whForm">
+        {% csrf_token %}
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+            {% if can_edit %}
+            <button type="submit" class="btn-primary" id="receiveBtn" disabled>
+                <i class="fas fa-check"></i> Confirm Receipt
+            </button>
+            <span class="sel-count" id="selCount"></span>
+            {% else %}
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 16px;color:#1e40af;font-size:.85rem;">
+                <i class="fas fa-lock"></i> View-only — only Warehouse team members can confirm receipts.
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="md-table-wrap">
+            {% if pending_groups %}
+            <table class="md-table">
+                <thead>
+                    <tr>
+                        {% if can_edit %}<th style="width:36px;"><input type="checkbox" id="selectAll" title="Select all"></th>{% endif %}
+                        <th>Serial No</th>
+                        <th>Batch No</th>
+                        <th>Box No</th>
+                        <th class="qty-col" style="color:#0076c8;">WH Qty</th>
+                        <th class="qty-col" style="color:#10b981;">Received So Far</th>
+                        {% if can_edit %}<th>Recv Qty</th>{% endif %}
+                        {% if can_edit %}<th>Remarks</th>{% endif %}
+                        {% if can_edit %}<th>Inward No</th>{% endif %}
+                        {% if can_edit %}<th>Outward No</th>{% endif %}
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for group in pending_groups %}
+                <tr class="pgrp-hdr" data-batch-id="{{ group.batch.id }}" onclick="toggleGroup('pgrp{{ group.batch.id }}')">
+                    <td colspan="{% if can_edit %}11{% else %}6{% endif %}">
+                        <span class="grp-toggle-icon" id="pgrp{{ group.batch.id }}-icon" style="transform:rotate(90deg)"><i class="fas fa-chevron-right"></i></span>
+                        <span class="ref-num" style="color:#5b21b6;background:#ede9fe;">{{ group.batch.reference_number|default:group.batch.id }}</span>
+                        &nbsp;&nbsp;
+                        <span style="font-weight:600;color:#374151;">{{ group.batch.vertical.name }}</span>
+                        <span style="color:#9ca3af;font-weight:400;"> / </span>
+                        <span style="font-weight:600;color:#374151;">{{ group.batch.department.name }}</span>
+                        &nbsp;&nbsp;
+                        <span style="background:#ede9fe;color:#5b21b6;padding:1px 8px;border-radius:8px;font-size:.72rem;font-weight:700;">
+                            {{ group.items|length }} item{{ group.items|length|pluralize }}
+                        </span>
+                        <span style="float:right;display:inline-flex;align-items:center;gap:8px;">
+                            <span style="font-size:.75rem;font-weight:400;color:#94a3b8;">
+                                {% if group.batch.requested_by %}{{ group.batch.requested_by.name }}{% elif group.batch.source %}{{ group.batch.get_source_display }}{% endif %}
+                            </span>
+                            {% if can_edit %}
+                            <button type="button" onclick="event.stopPropagation();openDelModal({{ group.batch.id }},'{{ group.batch.reference_number|default:group.batch.id|escapejs }}')"
+                                style="padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:5px;font-size:.72rem;font-weight:700;cursor:pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% for item in group.items %}
+                <tr class="pgrp-row pgrp{{ group.batch.id }}" data-item-id="{{ item.pk }}">
+                    {% if can_edit %}<td><input type="checkbox" name="item_ids" value="{{ item.pk }}" class="row-cb" onchange="toggleRecv(this)"></td>{% endif %}
+                    <td>{{ item.serial_number|default:"—" }}{% if item.qty_received > 0 %}<span class="badge-partial">Partial</span>{% endif %}</td>
+                    <td style="color:#64748b;font-size:.82rem;">{{ item.batch_no|default:"—" }}</td>
+                    <td style="color:#64748b;font-size:.82rem;">{{ item.box_no|default:"—" }}</td>
+                    <td class="qty-col col-accepted">{{ item.wh_qty }}</td>
+                    <td class="qty-col col-received">
+                        <span data-cell="qty_received">{{ item.qty_received|floatformat:0 }}</span>
+                        {% if can_edit and item.qty_received > 0 %}
+                        <button type="button" class="btn-edit-recv" title="Edit received quantity"
+                            onclick="openEditRecv({{ item.pk }},'{{ item.material|escapejs }}','{{ item.wh_qty }}','{{ item.qty_received|floatformat:0 }}','{{ item.warehouse_remarks|escapejs }}')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                    {% if can_edit %}
+                    <td data-cell="pending_qty">
+                        <input type="number" class="recv-input" name="recv_{{ item.pk }}"
+                               id="recv_{{ item.pk }}"
+                               value="0"
+                               min="0" max="{{ item.pending_qty|floatformat:0 }}" step="1"
+                               data-max="{{ item.pending_qty|floatformat:0 }}"
+                               oninput="validateRecvInput(this)"
+                               disabled>
+                    </td>
+                    <td>
+                        <textarea name="wh_remark_{{ item.pk }}" id="wh_remark_{{ item.pk }}"
+                                  class="recv-remark" placeholder="Remarks (optional)"
+                                  rows="1" disabled></textarea>
+                    </td>
+                    <td>
+                        <input type="text" name="inward_{{ item.pk }}" id="inward_{{ item.pk }}"
+                               class="recv-inout" placeholder="Inward No" disabled>
+                    </td>
+                    <td>
+                        <input type="text" name="outward_{{ item.pk }}" id="outward_{{ item.pk }}"
+                               class="recv-inout" placeholder="Outward No" disabled>
+                    </td>
+                    {% endif %}
+                    <td>
+                        <button type="button" class="btn-detail" onclick="openBatchDetail('{{ item.batch_id }}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="md-empty">
+                <i class="fas fa-check-double" style="font-size:2.5rem;margin-bottom:12px;display:block;color:#10b981;"></i>
+                No pending items. All quantities have been received.
+            </div>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- ── Received History (grouped by batch) ── -->
+    <p class="section-heading" style="margin-top:8px;">
+        <i class="fas fa-check-circle" style="color:#10b981;"></i> Received History
+        <span class="count-chip green">{{ received_items|length }} item{{ received_items|length|pluralize }}</span>
+    </p>
+
+    <div class="md-table-wrap">
+        {% if received_groups %}
+        <table class="md-table">
+            <thead>
+                <tr>
+                    <th>Serial No</th>
+                    <th>Batch No</th>
+                    <th>Box No</th>
+                    <th class="qty-col" style="color:#0076c8;">WH Qty</th>
+                    <th class="qty-col" style="color:#10b981;">Qty Received</th>
+                    <th>Received At</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for group in received_groups %}
+            <tr class="batch-grp-hdr" data-batch-id="{{ group.batch.id }}" onclick="toggleGroup('grp{{ group.batch.id }}')">
+                <td colspan="8">
+                    <span class="grp-toggle-icon" id="grp{{ group.batch.id }}-icon" style="transform:rotate(90deg)"><i class="fas fa-chevron-right"></i></span>
+                    <span class="ref-num">{{ group.batch.reference_number|default:group.batch.id }}</span>
+                    &nbsp;&nbsp;
+                    <span style="font-weight:600;color:#374151;">{{ group.batch.vertical.name }}</span>
+                    <span style="color:#9ca3af;font-weight:400;"> / </span>
+                    <span style="font-weight:600;color:#374151;">{{ group.batch.department.name }}</span>
+                    &nbsp;&nbsp;
+                    <span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:8px;font-size:.72rem;font-weight:700;">
+                        {{ group.items|length }} item{{ group.items|length|pluralize }}
+                    </span>
+                    &nbsp;
+                    {% if group.batch.status == 'completed' %}
+                    <span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:8px;font-size:.72rem;font-weight:700;"><i class="fas fa-check"></i> Completed</span>
+                    {% else %}
+                    <span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-size:.72rem;font-weight:700;"><i class="fas fa-clock"></i> Partial</span>
+                    {% endif %}
+                    <span style="float:right;display:inline-flex;align-items:center;gap:8px;">
+                        <span style="font-size:.75rem;font-weight:400;color:#94a3b8;">
+                            {% if group.batch.requested_by %}{{ group.batch.requested_by.name }}{% elif group.batch.source %}{{ group.batch.get_source_display }}{% endif %}
+                        </span>
+                        {% if can_edit %}
+                        <button type="button" onclick="event.stopPropagation();openDelModal({{ group.batch.id }},'{{ group.batch.reference_number|default:group.batch.id|escapejs }}')"
+                            style="padding:3px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:5px;font-size:.72rem;font-weight:700;cursor:pointer;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </span>
+                </td>
+            </tr>
+            {% for item in group.items %}
+            <tr class="batch-grp-row grp{{ group.batch.id }}" data-batch-id="{{ group.batch.id }}">
+                <td>{{ item.serial_number|default:"—" }}</td>
+                <td style="color:#64748b;font-size:.82rem;">{{ item.batch_no|default:"—" }}</td>
+                <td style="color:#64748b;font-size:.82rem;">{{ item.box_no|default:"—" }}</td>
+                <td class="qty-col col-accepted">{{ item.wh_qty }}</td>
+                <td class="qty-col col-received">
+                    {% if item.status == 'accepted' %}
+                    {{ item.wh_qty }}
+                    {% else %}
+                    {{ item.qty_received|floatformat:0 }}
+                    {% endif %}
+                </td>
+                <td style="font-size:.8rem;color:#64748b;">
+                    {% if item.status == 'accepted' %}
+                    <span style="background:#d1fae5;color:#065f46;padding:1px 8px;border-radius:8px;font-size:.72rem;font-weight:700;"><i class="fas fa-check-double"></i> Prod. Accepted</span>
+                    {% else %}
+                    {{ item.warehouse_received_at|date:"d M Y H:i"|default:"—" }}
+                    {% endif %}
+                </td>
+                <td style="font-size:.8rem;color:#374151;max-width:180px;">{{ item.warehouse_remarks|default:"—" }}</td>
+                <td>
+                    <button type="button" class="btn-detail" onclick="openBatchDetail('{{ item.batch_id }}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="md-empty" style="padding:24px;">
+            <i class="fas fa-inbox" style="font-size:1.5rem;margin-bottom:8px;display:block;"></i>
+            No items received yet.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_modals %}
+{% include "material_rework/_delete_batch_modal.html" %}
+
+<!-- Page Loader -->
+<div id="pageLoader" style="display:none;position:fixed;inset:0;background:rgba(6,21,43,.88);z-index:999999;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,.2);border-top-color:#10b981;border-radius:50%;animation:spin .85s linear infinite;"></div>
+  <div style="text-align:center;">
+    <p style="color:#fff;font-size:1.1rem;font-weight:700;margin:0 0 6px;">Confirming receipt…</p>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0;">Please wait, do not close this page</p>
+  </div>
+</div>
+
+<!-- ── Batch Detail Slide Panel ── -->
+<div class="slide-overlay" id="slideOverlay" onclick="if(event.target===this)closeDetail()">
+    <div class="slide-panel">
+        <div class="panel-head">
+            <span class="panel-title">
+                <i class="fas fa-box-open" style="color:#065f46;"></i>
+                <span id="panelRefTitle">Batch Detail</span>
+            </span>
+            <button class="panel-close" onclick="closeDetail()">&times;</button>
+        </div>
+        <div class="panel-body" id="panelBody"></div>
+        <div class="panel-foot">
+            <button type="button" onclick="closeDetail()" class="btn-primary" style="width:100%;justify-content:center;background:#6b7280;">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Edit Received Qty Modal ── -->
+<div class="er-overlay" id="erOverlay" onclick="if(event.target===this)closeEditRecv()">
+    <div class="er-box">
+        <div class="er-head">
+            <i class="fas fa-pen" style="color:#10b981;font-size:.9rem;"></i>
+            <h3>Edit Received Quantity</h3>
+            <button class="er-close" onclick="closeEditRecv()">&times;</button>
+        </div>
+        <div id="er_form_wrap">
+            <input type="hidden" id="er_item_id">
+            <div class="er-body">
+                <div class="er-info-grid">
+                    <div class="er-info-cell full">
+                        <label>Code</label>
+                        <p id="er_material_name" style="font-size:.88rem;">—</p>
+                    </div>
+                    <div class="er-info-cell">
+                        <label>WH Qty</label>
+                        <p id="er_accepted_display" style="color:#0076c8;">—</p>
+                    </div>
+                    <div class="er-info-cell">
+                        <label>Current Received</label>
+                        <p id="er_current_recv" style="color:#10b981;">—</p>
+                    </div>
+                </div>
+                <div class="er-field">
+                    <label>New Received Qty <span style="color:#ef4444;">*</span></label>
+                    <input type="number" id="er_new_qty" min="0" step="1" placeholder="0"
+                           oninput="updatePendingPreview()">
+                </div>
+                <div class="er-preview" id="er_pending_preview"></div>
+                <div class="er-field" style="margin-top:10px;">
+                    <label>Remarks</label>
+                    <textarea id="er_remarks" rows="2" placeholder="Optional warehouse remarks…"
+                              style="width:100%;border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:.84rem;resize:vertical;font-family:inherit;"></textarea>
+                </div>
+                <div id="er_ajax_err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:5px;padding:7px 10px;margin-top:8px;font-size:.82rem;color:#b91c1c;"></div>
+            </div>
+            <div class="er-foot">
+                <button type="button" class="btn-cancel-sm" onclick="closeEditRecv()">Cancel</button>
+                <button type="button" class="btn-save-sm" id="erSaveBtn" onclick="submitEditRecv()">
+                    <i class="fas fa-check"></i> Update
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BATCH_ITEMS = {{ batch_items_json|safe }};
+const WH_STATUS_URL = "{% url 'material_rework:warehouse_status' %}";
+{% comment %}
+Reversed with a placeholder id of 0 and substituted client-side — the item id
+is only known at click time, and hardcoding a URL shape in JS would break the
+moment the route changes.
+{% endcomment %}
+const REWORK_RELEASE_URL = "{% url 'material_rework:rework_release' 0 %}";
+const REWORK_RECEIVE_URL = "{% url 'material_rework:rework_receive' 0 %}";
+const WH_SIGNATURE  = "{{ wh_signature }}";
+</script>
+<script src="{% static 'js/material-rework/warehouse.js' %}"></script>
+<script>
+document.getElementById('whForm').addEventListener('submit', function() {
+  document.getElementById('pageLoader').style.display = 'flex';
+});
+</script>
+{% endblock %}
